@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
+    "test": "echo 'No tests yet — add your test suite here' && exit 0",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio"
