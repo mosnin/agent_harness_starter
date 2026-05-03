@@ -68,8 +68,5 @@
   },
   "engines": {
     "node": ">=20.0.0"
-  },
-  "overrides": {
-    "composio-core>zod": "^3.24.0"
   }
 }
