@@ -1,0 +1,70 @@
+{
+  "name": "nextjs-agentic-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agentic Next.js starter kit — OpenAI Agents SDK, MCP, Composio, Tavily, sandboxes, and swappable DB/auth adapters",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "next": "15.3.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+
+    "@openai/agents": "^0.8.5",
+    "openai": "^4.100.0",
+    "ai": "^6.0.174",
+
+    "@modelcontextprotocol/sdk": "^1.29.0",
+
+    "@tavily/core": "^0.7.3",
+
+    "composio-core": "^0.5.39",
+
+    "@browserbasehq/sdk": "^2.10.0",
+    "playwright-core": "^1.59.1",
+
+    "zod": "^4.0.0",
+
+    "eventsource-parser": "^3.0.1"
+  },
+  "optionalDependencies": {
+    "@supabase/supabase-js": "^2.105.1",
+
+    "convex": "^1.37.0",
+
+    "@prisma/client": "^7.8.0",
+
+    "@clerk/nextjs": "^7.3.0",
+
+    "@auth0/nextjs-auth0": "^4.19.0",
+
+    "@daytonaio/sdk": "^0.171.0",
+
+    "modal": "^0.7.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.1.3",
+    "@types/react-dom": "^19.1.3",
+    "typescript": "^5.8.3",
+    "eslint": "^9.25.1",
+    "eslint-config-next": "^15.3.1",
+    "prisma": "^7.8.0",
+    "tailwindcss": "^4.1.4",
+    "@tailwindcss/postcss": "^4.1.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "overrides": {
+    "composio-core>zod": "^3.24.0"
+  }
+}

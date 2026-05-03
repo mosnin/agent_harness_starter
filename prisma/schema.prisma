@@ -1,0 +1,56 @@
+// Prisma schema for the agentic starter kit.
+// Run: npm run db:generate && npm run db:push
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AgentThread {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages AgentMessage[]
+  runs     AgentRun[]
+
+  @@index([userId])
+  @@map("agent_threads")
+}
+
+model AgentMessage {
+  id         String   @id @default(cuid())
+  threadId   String
+  role       String   // "user" | "assistant" | "system" | "tool"
+  content    String   @db.Text
+  toolCallId String?
+  toolName   String?
+  createdAt  DateTime @default(now())
+
+  thread AgentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@map("agent_messages")
+}
+
+model AgentRun {
+  id          String    @id @default(cuid())
+  threadId    String
+  agentName   String
+  status      String    // "pending" | "running" | "completed" | "failed" | "cancelled"
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  error       String?
+  metadata    String?   @db.Text // JSON string
+
+  thread AgentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@map("agent_runs")
+}
