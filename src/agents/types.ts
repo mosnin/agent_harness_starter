@@ -28,6 +28,11 @@
  *   maxTurns      — max LLM + tool call iterations (prevents runaway loops)
  *   requireApprovalFor — tool names that must be explicitly approved by the
  *                   user before the harness will execute them
+ *
+ * Plugins
+ *   plugins       — ordered list of HarnessPlugin instances. Use the built-in
+ *                   factories (withMemory, withGuardrails, withApprovals,
+ *                   withObservability) or implement HarnessPlugin directly.
  */
 export interface AgentConfig {
   // ── Identity ─────────────────────────────────────────────────────────────
@@ -90,6 +95,121 @@ export interface AgentConfig {
    * Import built-ins from src/agents/guardrails/index.ts or define your own.
    */
   guardrails?: import("./guardrails/types").GuardrailSet;
+
+  // ── Plugins ───────────────────────────────────────────────────────────────
+  /**
+   * Ordered list of plugins applied to every run of this agent.
+   * Plugins are called in array order for before-hooks and reverse order
+   * for after-hooks (onAfterRun, onComplete).
+   *
+   * Use the built-in factories:
+   *   withMemory()       — semantic memory retrieval + storage
+   *   withGuardrails()   — input/output content filtering
+   *   withApprovals()    — human-in-the-loop tool approval
+   *   withObservability() — tracing, logging, metrics
+   *
+   * Or implement HarnessPlugin directly for custom integrations.
+   */
+  plugins?: HarnessPlugin[];
+}
+
+// ── Plugin system ─────────────────────────────────────────────────────────────
+
+/**
+ * Per-run context available to every plugin hook.
+ * Populated by the harness at run start; read-only inside hooks.
+ */
+export interface PluginRunContext {
+  /** Unique ID for this run (UUID). */
+  runId: string;
+  /** Name of the agent from AgentConfig.name. */
+  agentName: string;
+  /** Resolved model ID (e.g. "gpt-4o"). */
+  model: string;
+  /** Authenticated user ID (from input.context.userId). */
+  userId?: string;
+  /** Date.now() at the start of the run. */
+  startedAt: number;
+}
+
+/**
+ * A HarnessPlugin hooks into specific lifecycle points of an agent run.
+ *
+ * All hooks are optional — implement only what your plugin needs.
+ * Plugins are called in array order for forward hooks (onBeforeRun,
+ * onResolveInstructions, wrapTools, onEvent, onAfterRun) and forward
+ * order for terminal hooks (onError, onComplete).
+ */
+export interface HarnessPlugin {
+  readonly name: string;
+
+  /**
+   * Transform or validate the user message before the agent runs.
+   * Called in plugin array order. Each plugin receives the output of the previous.
+   * Throw to abort the run — core emits an error event then done.
+   */
+  onBeforeRun?(
+    userMessage: string,
+    ctx: PluginRunContext,
+    input: RunInput
+  ): Promise<string> | string;
+
+  /**
+   * Enrich the resolved instructions string before the OpenAI Agent is built.
+   * Called after dynamic instructions are resolved and after onBeforeRun
+   * (so userMessage is already normalized). Ideal for memory injection.
+   */
+  onResolveInstructions?(
+    instructions: string,
+    userMessage: string,
+    ctx: PluginRunContext
+  ): Promise<string> | string;
+
+  /**
+   * Wrap tool definitions before they are converted to OpenAI tools.
+   * The pendingEvents Map is a side-channel: tools can push events into it
+   * from within closures, and the streaming loop drains it each iteration.
+   * Used by the approvals plugin to emit approval_required events.
+   */
+  wrapTools?(
+    tools: import("./tools/types").ToolDefinition[],
+    ctx: PluginRunContext,
+    pendingEvents: Map<string, AgentEvent>
+  ): Promise<import("./tools/types").ToolDefinition[]> | import("./tools/types").ToolDefinition[];
+
+  /**
+   * Intercept each stream event before it is yielded to the caller.
+   * Return null to suppress the event. Return the event (possibly mutated).
+   * Called in plugin array order.
+   */
+  onEvent?(
+    event: AgentEvent,
+    ctx: PluginRunContext
+  ): Promise<AgentEvent | null> | AgentEvent | null;
+
+  /**
+   * Transform or validate the final output after the run completes.
+   * Called in plugin array order. Throw to block — core emits error + done.
+   */
+  onAfterRun?(
+    finalOutput: string,
+    ctx: PluginRunContext
+  ): Promise<string> | string;
+
+  /**
+   * Called when an unhandled error escapes the SDK run.
+   * Use for cleanup (e.g. cancel pending approvals).
+   */
+  onError?(error: Error, ctx: PluginRunContext): Promise<void> | void;
+
+  /**
+   * Always called after the run ends, whether it succeeded or failed.
+   * Use for storage writes (memory), metric flushes, span finalization, etc.
+   */
+  onComplete?(
+    ctx: PluginRunContext,
+    result: { finalOutput: string; durationMs: number; error?: Error }
+  ): Promise<void> | void;
 }
 
 /** Fine-grained model/generation settings. */

@@ -1,0 +1,292 @@
+/**
+ * Core harness — the minimal, plugin-driven engine.
+ *
+ * This file has NO imports of optional features (memory, guardrails, approvals,
+ * observability). All behaviour is injected through the plugins array on AgentConfig.
+ *
+ * For the batteries-included experience use a preset instead:
+ *   import { createHarness } from "@/agents/presets/full";     // everything
+ *   import { createHarness } from "@/agents/presets/standard"; // memory + guardrails + observability
+ *   import { createHarness } from "@/agents/presets/minimal";  // this file directly
+ *
+ * Or compose your own:
+ *   import { createCoreHarness } from "@/agents/core";
+ *   import { withMemory } from "@/agents/plugins/memory";
+ *   import { withGuardrails } from "@/agents/plugins/guardrails";
+ *
+ *   const harness = createCoreHarness({
+ *     name: "MyAgent",
+ *     instructions: "...",
+ *     plugins: [withMemory({ key: "userId" }), withGuardrails({ input: [...] })],
+ *   });
+ */
+
+import { Agent, run } from "@openai/agents";
+import type { AgentConfig, AgentEvent, AgentContext, RunInput, RunResult, PluginRunContext } from "./types";
+import { resolveAgentTools } from "./skills/index";
+import { toOpenAITool } from "./utils";
+import { config } from "./lib/config";
+
+export interface AgentHarness {
+  stream(input: RunInput): AsyncGenerator<AgentEvent>;
+  run(input: RunInput): Promise<RunResult>;
+}
+
+export type CoreConfig = AgentConfig;
+
+// Map a raw SDK event to our AgentEvent union. Returns null for events we ignore.
+function mapSdkEvent(
+  event: { type: string; data?: unknown; item?: unknown; agent?: unknown },
+  agentName: string
+): AgentEvent | null {
+  if (event.type === "raw_model_stream_event") {
+    const delta = (event.data as { delta?: { content?: string } })?.delta?.content;
+    return delta ? { type: "message_delta", delta } : null;
+  }
+
+  if (event.type === "run_item_stream_event") {
+    const item = event.item as {
+      type?: string;
+      name?: string;
+      callId?: string;
+      input?: unknown;
+      output?: unknown;
+      content?: Array<{ type: string; text?: string }>;
+    };
+
+    if (item?.type === "tool_call_item") {
+      return {
+        type: "tool_call",
+        name: item.name ?? "",
+        input: item.input,
+        callId: item.callId ?? globalThis.crypto.randomUUID(),
+      };
+    }
+    if (item?.type === "tool_call_output_item") {
+      return {
+        type: "tool_result",
+        name: "",
+        output: item.output,
+        callId: (item as { callId?: string }).callId ?? "",
+      };
+    }
+    if (item?.type === "message_output_item") {
+      const text =
+        item.content
+          ?.filter((c) => c.type === "output_text")
+          .map((c) => c.text ?? "")
+          .join("") ?? "";
+      return text ? { type: "message_done", content: text } : null;
+    }
+    return null;
+  }
+
+  if (event.type === "agent_updated_stream_event") {
+    const newAgent = event.agent as { name?: string };
+    return { type: "handoff", from: agentName, to: newAgent.name ?? "" };
+  }
+
+  return null;
+}
+
+export function createCoreHarness(agentConfig: CoreConfig): AgentHarness {
+  const plugins = agentConfig.plugins ?? [];
+
+  async function resolveInstructions(ctx: AgentContext): Promise<string> {
+    const { instructions } = agentConfig;
+    return typeof instructions === "function" ? instructions(ctx) : instructions;
+  }
+
+  async function buildAgent(
+    ctx: AgentContext,
+    pluginCtx: PluginRunContext,
+    userMessage: string
+  ) {
+    // Resolve base instructions then let plugins enrich them (memory injection etc.)
+    let instructions = await resolveInstructions(ctx);
+    for (const plugin of plugins) {
+      if (plugin.onResolveInstructions) {
+        instructions = await plugin.onResolveInstructions(instructions, userMessage, pluginCtx);
+      }
+    }
+
+    // Per-run side-channel for events emitted from within tool closures
+    const pendingEvents = new Map<string, AgentEvent>();
+
+    // Let plugins wrap tool definitions (approval gates etc.)
+    const toolDefs = resolveAgentTools(agentConfig.tools ?? [], agentConfig.skills ?? []);
+    let wrappedDefs = toolDefs;
+    for (const plugin of plugins) {
+      if (plugin.wrapTools) {
+        wrappedDefs = await plugin.wrapTools(wrappedDefs, pluginCtx, pendingEvents);
+      }
+    }
+
+    const openAITools = wrappedDefs.map((def) => toOpenAITool(def, ctx));
+
+    const { modelSettings } = agentConfig;
+    const agent = new Agent({
+      name: agentConfig.name,
+      instructions,
+      model: agentConfig.model ?? config.openai.model,
+      tools: openAITools,
+      ...(modelSettings?.temperature !== undefined && {
+        temperature: modelSettings.temperature,
+      }),
+    });
+
+    return { agent, pendingEvents };
+  }
+
+  async function* stream(input: RunInput): AsyncGenerator<AgentEvent> {
+    const runId = globalThis.crypto.randomUUID();
+    const startedAt = Date.now();
+    const ctx: AgentContext = input.context ?? {};
+    const pluginCtx: PluginRunContext = {
+      runId,
+      agentName: agentConfig.name,
+      model: agentConfig.model ?? config.openai.model,
+      userId: ctx.userId as string | undefined,
+      startedAt,
+    };
+
+    // ── onBeforeRun: transform / validate user message ────────────────────────
+    let userMessage = input.messages.at(-1)?.content ?? "";
+    for (const plugin of plugins) {
+      if (plugin.onBeforeRun) {
+        try {
+          userMessage = await plugin.onBeforeRun(userMessage, pluginCtx, input);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          yield { type: "error", error: msg };
+          yield { type: "done", finalOutput: "" };
+          // Still run onComplete for cleanup
+          const durationMs = Date.now() - startedAt;
+          const error = err instanceof Error ? err : new Error(msg);
+          for (const p of plugins) {
+            await Promise.resolve(p.onComplete?.(pluginCtx, { finalOutput: "", durationMs, error })).catch(() => {});
+          }
+          return;
+        }
+      }
+    }
+
+    const { agent, pendingEvents } = await buildAgent(ctx, pluginCtx, userMessage);
+
+    let finalOutput = "";
+    let runError: Error | undefined;
+
+    try {
+      const result = run(agent, userMessage, {
+        stream: true,
+        maxTurns: agentConfig.maxTurns ?? 20,
+        signal: input.signal,
+        context: ctx,
+      });
+
+      for await (const event of await result) {
+        // Drain approval-style events queued by tool closures
+        for (const [id, pendingEvent] of pendingEvents) {
+          yield pendingEvent;
+          pendingEvents.delete(id);
+        }
+
+        const agentEvent = mapSdkEvent(event, agentConfig.name);
+        if (!agentEvent) continue;
+
+        // Track final output before plugin filtering
+        if (agentEvent.type === "message_done") {
+          finalOutput = agentEvent.content;
+        }
+
+        // Run onEvent plugin chain
+        let current: AgentEvent | null = agentEvent;
+        for (const plugin of plugins) {
+          if (!current) break;
+          if (plugin.onEvent) {
+            current = await plugin.onEvent(current, pluginCtx);
+          }
+        }
+        if (current) yield current;
+      }
+
+      // Resolve the streaming result for authoritative final output + usage
+      const resolved = await (result as unknown as Promise<{
+        finalOutput: string;
+        usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
+      }>);
+      finalOutput = resolved.finalOutput ?? finalOutput;
+
+      // ── onAfterRun: transform / validate final output ─────────────────────
+      for (const plugin of plugins) {
+        if (plugin.onAfterRun) {
+          try {
+            finalOutput = await plugin.onAfterRun(finalOutput, pluginCtx);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            yield { type: "error", error: msg };
+            yield { type: "done", finalOutput: "" };
+            return;
+          }
+        }
+      }
+
+      // Emit usage event through the onEvent plugin chain
+      const usage = resolved.usage;
+      if (usage) {
+        let usageEvent: AgentEvent | null = {
+          type: "usage",
+          inputTokens: usage.input_tokens ?? 0,
+          outputTokens: usage.output_tokens ?? 0,
+          totalTokens: usage.total_tokens ?? 0,
+        };
+        for (const plugin of plugins) {
+          if (!usageEvent) break;
+          if (plugin.onEvent) usageEvent = await plugin.onEvent(usageEvent, pluginCtx);
+        }
+        if (usageEvent) yield usageEvent;
+      }
+
+      yield { type: "done", finalOutput };
+    } catch (err) {
+      runError = err instanceof Error ? err : new Error(String(err));
+      for (const plugin of plugins) {
+        await Promise.resolve(plugin.onError?.(runError, pluginCtx)).catch(() => {});
+      }
+      yield { type: "error", error: runError.message };
+    } finally {
+      const durationMs = Date.now() - startedAt;
+      for (const plugin of plugins) {
+        await Promise.resolve(plugin.onComplete?.(pluginCtx, { finalOutput, durationMs, error: runError })).catch(() => {});
+      }
+    }
+  }
+
+  async function runToCompletion(input: RunInput): Promise<RunResult> {
+    const events: AgentEvent[] = [];
+    for await (const event of stream(input)) {
+      events.push(event);
+    }
+    const done = events.find((e): e is Extract<AgentEvent, { type: "done" }> => e.type === "done");
+    const usage = events.find((e): e is Extract<AgentEvent, { type: "usage" }> => e.type === "usage");
+    const toolCalls = events
+      .filter((e): e is Extract<AgentEvent, { type: "tool_call" }> => e.type === "tool_call")
+      .map((e) => {
+        const result = events.find(
+          (r): r is Extract<AgentEvent, { type: "tool_result" }> =>
+            r.type === "tool_result" && (r as { callId?: string }).callId === e.callId
+        );
+        return { name: e.name, input: e.input, output: result?.output };
+      });
+    return {
+      finalOutput: done?.finalOutput ?? "",
+      messages: input.messages,
+      toolCalls,
+      usage: usage
+        ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, totalTokens: usage.totalTokens }
+        : undefined,
+    };
+  }
+
+  return { stream, run: runToCompletion };
+}
