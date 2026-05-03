@@ -5,7 +5,7 @@
 
 import { tool } from "@openai/agents";
 import { z } from "zod";
-import type { ToolDefinition, ToolContext } from "@/tools/types";
+import type { ToolDefinition, ToolContext } from "./tools/types";
 
 export function toOpenAITool(def: ToolDefinition, ctx?: ToolContext) {
   return tool({
