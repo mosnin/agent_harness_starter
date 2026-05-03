@@ -22,7 +22,7 @@
  * Docs: https://platform.claude.com/docs/en/managed-agents/overview
  */
 
-import type { AgentEvent, RunInput, RunResult } from "../../types";
+import type { AgentEvent, RunInput, RunResult, PluginRunContext } from "../../types";
 import type { AnthropicAgentConfig } from "./types";
 
 export interface AnthropicAgentHarness {
@@ -38,6 +38,7 @@ export function createAnthropicHarness(agentConfig: AnthropicAgentConfig = {}): 
   const agentId = agentConfig.agentId ?? process.env.ANTHROPIC_AGENT_ID;
   const environmentId = agentConfig.environmentId ?? process.env.ANTHROPIC_ENVIRONMENT_ID;
   const apiKey = process.env.ANTHROPIC_API_KEY;
+  const plugins = agentConfig.plugins ?? [];
 
   let currentSessionId: string | undefined = agentConfig.sessionId ?? process.env.ANTHROPIC_SESSION_ID;
 
@@ -86,9 +87,41 @@ export function createAnthropicHarness(agentConfig: AnthropicAgentConfig = {}): 
   }
 
   async function* stream(input: RunInput): AsyncGenerator<AgentEvent> {
+    const runId = globalThis.crypto.randomUUID();
+    const startedAt = Date.now();
+    const ctx = input.context ?? {};
+    const pluginCtx: PluginRunContext = {
+      runId,
+      agentName: agentConfig.name ?? agentId ?? "anthropic-agent",
+      model: "anthropic-managed",
+      userId: ctx.userId as string | undefined,
+      startedAt,
+      signal: input.signal ?? agentConfig.signal,
+      context: ctx,
+    };
+
+    // ── onBeforeRun ───────────────────────────────────────────────────────────
+    let userMessage = input.messages.at(-1)?.content ?? "";
+    for (const plugin of plugins) {
+      if (plugin.onBeforeRun) {
+        try {
+          userMessage = await plugin.onBeforeRun(userMessage, pluginCtx, input);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          yield { type: "error", error: msg };
+          yield { type: "done", finalOutput: "" };
+          const durationMs = Date.now() - startedAt;
+          const error = err instanceof Error ? err : new Error(msg);
+          for (const p of plugins) {
+            await Promise.resolve(p.onComplete?.(pluginCtx, { finalOutput: "", durationMs, error })).catch(() => {});
+          }
+          return;
+        }
+      }
+    }
+
     const client = await getClient();
     const sessionId = await getOrCreateSession(client);
-    const userMessage = input.messages.at(-1)?.content ?? "";
 
     // Send user.message event
     await (client.beta as unknown as {
@@ -131,9 +164,19 @@ export function createAnthropicHarness(agentConfig: AnthropicAgentConfig = {}): 
     }
 
     let finalOutput = "";
+    let runError: Error | undefined;
     const reader = streamResponse.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+
+    async function yieldEvent(event: AgentEvent): Promise<AgentEvent | null> {
+      let current: AgentEvent | null = event;
+      for (const plugin of plugins) {
+        if (!current) break;
+        if (plugin.onEvent) current = await plugin.onEvent(current, pluginCtx);
+      }
+      return current;
+    }
 
     try {
       while (true) {
@@ -157,50 +200,78 @@ export function createAnthropicHarness(agentConfig: AnthropicAgentConfig = {}): 
           }
 
           const eventType = event.type as string;
+          let agentEvent: AgentEvent | null = null;
 
           if (eventType === "content_block_delta") {
             const delta = event.delta as { type?: string; text?: string };
             if (delta?.type === "text_delta" && delta.text) {
               finalOutput += delta.text;
-              yield { type: "message_delta", delta: delta.text };
+              agentEvent = { type: "message_delta", delta: delta.text };
             }
           } else if (eventType === "message_stop" || eventType === "assistant.message.stop") {
             if (finalOutput) {
-              yield { type: "message_done", content: finalOutput };
+              agentEvent = { type: "message_done", content: finalOutput };
             }
           } else if (eventType === "tool_use" || eventType === "tool_call") {
             const toolName = (event.name ?? event.tool_name) as string;
             const toolInput = event.input ?? event.parameters;
             const callId = (event.id ?? event.call_id) as string;
-            yield { type: "tool_call", name: toolName, input: toolInput, callId };
+            agentEvent = { type: "tool_call", name: toolName, input: toolInput, callId };
           } else if (eventType === "tool_result") {
             const output = event.output ?? event.result;
             const callId = (event.tool_use_id ?? event.call_id) as string;
-            yield { type: "tool_result", name: "", output, callId };
+            agentEvent = { type: "tool_result", name: "", output, callId };
           } else if (eventType === "agent.status" || eventType === "session.status") {
             const status = event.status as string;
-            if (status === "terminated" || status === "idle") {
-              // Session finished
-              break;
-            }
+            if (status === "terminated" || status === "idle") break;
           } else if (eventType === "error") {
             throw new Error((event.message as string) ?? "Anthropic session error");
           } else if (eventType === "usage") {
             const usage = event as { input_tokens?: number; output_tokens?: number };
-            yield {
+            agentEvent = {
               type: "usage",
               inputTokens: usage.input_tokens ?? 0,
               outputTokens: usage.output_tokens ?? 0,
               totalTokens: (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0),
             };
           }
+
+          if (agentEvent) {
+            const filtered = await yieldEvent(agentEvent);
+            if (filtered) yield filtered;
+          }
         }
       }
+    } catch (err) {
+      runError = err instanceof Error ? err : new Error(String(err));
+      for (const plugin of plugins) {
+        await Promise.resolve(plugin.onError?.(runError, pluginCtx)).catch(() => {});
+      }
+      yield { type: "error", error: runError.message };
     } finally {
       reader.releaseLock();
+      const durationMs = Date.now() - startedAt;
+      for (const plugin of plugins) {
+        await Promise.resolve(plugin.onComplete?.(pluginCtx, { finalOutput, durationMs, error: runError })).catch(() => {});
+      }
     }
 
-    yield { type: "done", finalOutput };
+    if (!runError) {
+      // ── onAfterRun ─────────────────────────────────────────────────────────
+      for (const plugin of plugins) {
+        if (plugin.onAfterRun) {
+          try {
+            finalOutput = await plugin.onAfterRun(finalOutput, pluginCtx);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            yield { type: "error", error: msg };
+            yield { type: "done", finalOutput: "" };
+            return;
+          }
+        }
+      }
+      yield { type: "done", finalOutput };
+    }
   }
 
   async function run(input: RunInput): Promise<RunResult> {

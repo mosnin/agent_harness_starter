@@ -12,6 +12,12 @@
 /** Configuration for an Anthropic Managed Agent session. */
 export interface AnthropicAgentConfig {
   /**
+   * Human-readable label used in plugin PluginRunContext.agentName and logs.
+   * Defaults to the agentId if not provided.
+   */
+  name?: string;
+
+  /**
    * The Anthropic Managed Agent ID.
    * Create one at: https://platform.claude.com/agents
    * Or via the API: POST /v1/agents
@@ -48,6 +54,14 @@ export interface AnthropicAgentConfig {
 
   /** Abort signal forwarded to the streaming request. */
   signal?: AbortSignal;
+
+  /**
+   * Plugins applied to every run of this agent.
+   * onResolveInstructions and wrapTools are skipped (instructions and tools
+   * are managed by Anthropic). All other hooks work identically to the
+   * OpenAI harness: onBeforeRun, onEvent, onAfterRun, onError, onComplete.
+   */
+  plugins?: import("../../types").HarnessPlugin[];
 }
 
 /** A single event in the Anthropic Managed Agents SSE stream. */

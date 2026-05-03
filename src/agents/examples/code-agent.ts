@@ -5,16 +5,21 @@
  * Wire up: set SANDBOX_PROVIDER=daytona and DAYTONA_API_KEY (or modal).
  *
  * Demonstrates:
+ *   - Explicit plugin composition with createCoreHarness
+ *   - withGuardrails for input length limiting
+ *   - withApprovals for shell execution sign-off
+ *   - withObservability for tracing
  *   - Skills-based tool disclosure ("code" skill bundle)
- *   - Tool approval for shell execution (requires human sign-off)
- *   - Guardrails to cap input length
  *
  * Usage:
  *   const harness = createCodeAgent();
  *   const result = await harness.run({ messages: [{ role: "user", content: "Write a Python script that..." }] });
  */
 
-import { createHarness } from "../harness";
+import { createCoreHarness } from "../core";
+import { withGuardrails } from "../plugins/guardrails";
+import { withApprovals } from "../plugins/approvals";
+import { withObservability } from "../plugins/observability";
 import { maxLengthGuardrail } from "../guardrails/index";
 import type { AgentConfig } from "../types";
 
@@ -32,27 +37,32 @@ When given a coding task:
 Prefer Python for data tasks, Node.js for web tasks, bash for system tasks.
 Always explain what the code does before running it.`,
 
-  // Use "code" skill — exposes shell_exec, file_read, file_write, file_list
   skills: ["code"],
-
-  // Additional explicit tool (Daytona/Modal remote sandbox)
   tools: ["sandbox_run_code"],
 
   modelSettings: {
-    temperature: 0.1,  // deterministic code generation
+    temperature: 0.1,
     maxTokens: 8192,
-  },
-
-  // Shell execution requires human approval before the harness runs it
-  requireApprovalFor: ["shell_exec"],
-
-  guardrails: {
-    input: [maxLengthGuardrail(16_000)],
   },
 
   maxTurns: 15,
 };
 
 export function createCodeAgent() {
-  return createHarness(codeAgentConfig);
+  return createCoreHarness({
+    ...codeAgentConfig,
+    plugins: [
+      // Block requests over 16k chars — prevents prompt injection via massive inputs.
+      withGuardrails({
+        input: [maxLengthGuardrail(16_000)],
+      }),
+      // Pause before running shell_exec and wait for human approval.
+      // The route handler emits an approval_required SSE event; the frontend
+      // displays a confirmation dialog before resuming.
+      withApprovals({
+        requireApprovalFor: ["shell_exec"],
+      }),
+      withObservability(),
+    ],
+  });
 }

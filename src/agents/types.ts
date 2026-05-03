@@ -130,6 +130,16 @@ export interface PluginRunContext {
   userId?: string;
   /** Date.now() at the start of the run. */
   startedAt: number;
+  /**
+   * AbortSignal from RunInput.signal — forward to long-running async operations
+   * inside plugin hooks so they respect cancellation.
+   */
+  signal?: AbortSignal;
+  /**
+   * Full per-run context (same object as RunInput.context).
+   * Access custom fields (orgId, featureFlags, etc.) via this.
+   */
+  context: AgentContext;
 }
 
 /**

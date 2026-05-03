@@ -148,6 +148,8 @@ export function createCoreHarness(agentConfig: CoreConfig): AgentHarness {
       model: agentConfig.model ?? config.openai.model,
       userId: ctx.userId as string | undefined,
       startedAt,
+      signal: input.signal,
+      context: ctx,
     };
 
     // ── onBeforeRun: transform / validate user message ────────────────────────

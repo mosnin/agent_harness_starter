@@ -5,24 +5,26 @@
  * Wire up: set TAVILY_API_KEY (+ BROWSERBASE_API_KEY for JS-heavy sites).
  *
  * Demonstrates:
- *   - Skills-based tool disclosure (only "research" skill tools are visible)
+ *   - Explicit plugin composition with createCoreHarness
+ *   - withMemory for per-user semantic recall
+ *   - Skills-based tool disclosure ("research" skill bundle)
  *   - Dynamic instructions receiving user context
- *   - Memory persistence (stores Q&A pairs keyed by userId)
  *   - ModelSettings tuning
  *
  * Usage:
- *   import { researchAgentConfig, createResearchAgent } from "@/agents/examples/research-agent";
+ *   import { createResearchAgent } from "@/agents/examples/research-agent";
  *   const harness = createResearchAgent();
  *   const result = await harness.run({ messages: [{ role: "user", content: "What is X?" }] });
  */
 
-import { createHarness } from "../harness";
+import { createCoreHarness } from "../core";
+import { withMemory } from "../plugins/memory";
+import { withObservability } from "../plugins/observability";
 import type { AgentConfig } from "../types";
 
 export const researchAgentConfig: AgentConfig = {
   name: "ResearchAgent",
 
-  // Dynamic instructions — personalized per user context
   instructions: (ctx) => {
     const userLabel = ctx.userId ? `User: ${ctx.userId}` : "a user";
     return `You are a thorough research assistant helping ${userLabel}.
@@ -36,20 +38,25 @@ When given a question or topic:
 Be concise but complete. If information is conflicting, note the discrepancy.`;
   },
 
-  // Use the "research" skill bundle — only exposes web_search + browser_scrape
   skills: ["research"],
 
   modelSettings: {
-    temperature: 0.3,  // lower = more factual
+    temperature: 0.3,
     maxTokens: 4096,
   },
-
-  // Automatically retrieve and inject relevant past memories
-  memoryKey: "userId",
 
   maxTurns: 10,
 };
 
 export function createResearchAgent() {
-  return createHarness(researchAgentConfig);
+  return createCoreHarness({
+    ...researchAgentConfig,
+    plugins: [
+      // Retrieve relevant past Q&A pairs and inject them into the system prompt.
+      // After each run, store the exchange keyed by userId for future retrieval.
+      withMemory({ key: "userId", topK: 5 }),
+      // Fire-and-forget tracing to whatever adapter is registered at startup.
+      withObservability(),
+    ],
+  });
 }
