@@ -1,15 +1,14 @@
 /**
- * MCP Server endpoint.
+ * DROP THIS FILE INTO: your-app/src/app/api/mcp/route.ts
  *
- * Supports the MCP Streamable HTTP transport (2025-03-26 spec).
- * POST to this endpoint to send JSON-RPC messages.
- * GET with Accept: text/event-stream to open an SSE session.
+ * MCP server endpoint (Streamable HTTP transport, 2025-03-26 spec).
+ * All tools in src/agents/tools/ are automatically exposed here.
  *
- * Connect with:
+ * Connect from Claude Desktop / Cursor:
+ *   { "mcpServers": { "my-app": { "url": "https://your-app.com/api/mcp" } } }
+ *
+ * Inspect locally:
  *   npx @modelcontextprotocol/inspector http://localhost:3000/api/mcp
- *
- * Or add to Claude Desktop's config:
- *   { "mcpServers": { "my-app": { "url": "http://localhost:3000/api/mcp" } } }
  */
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";

@@ -1,29 +1,46 @@
 /**
- * POST /api/agent
+ * DROP THIS FILE INTO: your-app/src/app/api/agent/route.ts
  *
  * Main agent invocation endpoint. Streams events back as SSE.
  *
  * Request body:
  *   {
- *     message: string          // The user's message
- *     threadId?: string        // Existing thread ID (creates new one if omitted)
- *     agentName?: string       // Which agent to use (default: "research")
- *     tools?: string[]         // Tool names to enable (default: all registered)
+ *     message:    string            // the user's message
+ *     threadId?:  string            // existing thread (creates new one if omitted)
+ *     agentName?: string            // which agent config to use (default: "research")
+ *     tools?:     string[]          // override which tool names are enabled
  *   }
  *
  * Response: text/event-stream
- *   Each event: data: <json>\n\n
- *   Event types: message_delta, message_done, tool_call, tool_result, handoff, error, done
+ *   data: {"type":"message_delta","delta":"..."}
+ *   data: {"type":"tool_call","name":"web_search","input":{...}}
+ *   data: {"type":"tool_result","name":"web_search","output":{...}}
+ *   data: {"type":"done","finalOutput":"..."}
+ *
+ * See docs/02-connecting-your-app.md for wiring to your existing auth and DB.
+ * See docs/06-harness-orchestration.md for adding more agents.
  */
 
 import { z } from "zod";
-import { auth } from "@/auth";
-import { db } from "@/db";
-import { sseStream } from "@/lib/utils";
+import { auth } from "@/agents/auth";           // adjust path to match your project
+import { db } from "@/agents/db";              // adjust path to match your project
+import { sseStream } from "@/agents/lib/utils";
 import { createHarness } from "@/agents/harness";
+import type { AgentConfig } from "@/agents/types";
+
+// ─── Register your agents here ────────────────────────────────────────────────
+// Import your agent configs. Each entry in agentMap is selectable via
+// the `agentName` field in the request body.
 import { researchAgentConfig } from "@/agents/examples/research-agent";
 import { codeAgentConfig } from "@/agents/examples/code-agent";
-import type { AgentConfig } from "@/agents/types";
+// import { supportAgentConfig } from "@/agents/support-agent";   // ← your agents
+
+const agentMap: Record<string, AgentConfig> = {
+  research: researchAgentConfig,
+  code: codeAgentConfig,
+  // support: supportAgentConfig,
+};
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,14 +48,9 @@ export const dynamic = "force-dynamic";
 const bodySchema = z.object({
   message: z.string().min(1).max(32_000),
   threadId: z.string().optional(),
-  agentName: z.enum(["research", "code", "orchestrated"]).default("research"),
+  agentName: z.string().default("research"),
   tools: z.array(z.string()).optional(),
 });
-
-const agentMap: Record<string, AgentConfig> = {
-  research: researchAgentConfig,
-  code: codeAgentConfig,
-};
 
 export async function POST(req: Request) {
   try {
@@ -55,7 +67,6 @@ export async function POST(req: Request) {
 
     const { message, threadId, agentName, tools } = parsed.data;
 
-    // Ensure a thread exists
     const thread = threadId
       ? await db.getThread(threadId)
       : await db.createThread(user.id);
@@ -64,15 +75,9 @@ export async function POST(req: Request) {
       return Response.json({ error: "Thread not found" }, { status: 404 });
     }
 
-    // Persist the user message
     await db.saveMessage({ threadId: thread.id, role: "user", content: message });
 
-    // Create the agent run record
-    const run = await db.createRun({
-      threadId: thread.id,
-      status: "running",
-      agentName,
-    });
+    const run = await db.createRun({ threadId: thread.id, status: "running", agentName });
 
     const agentConfig = agentMap[agentName] ?? researchAgentConfig;
     const effectiveConfig = tools ? { ...agentConfig, tools } : agentConfig;
@@ -89,13 +94,8 @@ export async function POST(req: Request) {
 
         for await (const event of stream) {
           yield JSON.stringify({ threadId: thread.id, runId: run.id, ...event });
-
-          if (event.type === "message_done") {
-            finalOutput = event.content;
-          }
-          if (event.type === "done") {
-            finalOutput = event.finalOutput;
-          }
+          if (event.type === "message_done") finalOutput = event.content;
+          if (event.type === "done") finalOutput = event.finalOutput;
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -104,11 +104,9 @@ export async function POST(req: Request) {
         return;
       }
 
-      // Persist the assistant response
       if (finalOutput) {
         await db.saveMessage({ threadId: thread.id, role: "assistant", content: finalOutput });
       }
-
       await db.updateRun(run.id, { status: "completed", completedAt: new Date() });
     }
 
@@ -122,14 +120,13 @@ export async function POST(req: Request) {
       },
     });
   } catch (err) {
-    // If auth threw a Response, re-throw it
     if (err instanceof Response) throw err;
     console.error("[/api/agent]", err);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-/** GET /api/agent?threadId=xxx — list messages for a thread */
+/** GET /api/agent?threadId=xxx — fetch messages for a thread */
 export async function GET(req: Request) {
   const user = await auth.requireAuth(req);
   const { searchParams } = new URL(req.url);
