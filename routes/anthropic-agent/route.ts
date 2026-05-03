@@ -61,10 +61,12 @@ export async function POST(req: Request) {
       return Response.json({ error: "Thread not found" }, { status: 404 });
     }
 
-    await db.saveMessage({ threadId: thread.id, role: "user", content: message });
+    const resolvedThreadId = thread.id;
+
+    await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: message });
 
     const run = await db.createRun({
-      threadId: thread.id,
+      threadId: resolvedThreadId,
       status: "running",
       agentName: "AnthropicManagedAgent",
     });
@@ -86,7 +88,7 @@ export async function POST(req: Request) {
 
         for await (const event of stream) {
           yield JSON.stringify({
-            threadId: thread.id,
+            threadId: resolvedThreadId,
             runId: run.id,
             sessionId: harness.getSessionId(),
             ...event,
@@ -102,7 +104,7 @@ export async function POST(req: Request) {
       }
 
       if (finalOutput) {
-        await db.saveMessage({ threadId: thread.id, role: "assistant", content: finalOutput });
+        await db.saveMessage({ threadId: resolvedThreadId, role: "assistant", content: finalOutput });
       }
       await db.updateRun(run.id, { status: "completed", completedAt: new Date() });
     }
@@ -114,7 +116,7 @@ export async function POST(req: Request) {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
-        "X-Thread-Id": thread.id,
+        "X-Thread-Id": resolvedThreadId,
         "X-Run-Id": run.id,
         ...(currentSessionId ? { "X-Session-Id": currentSessionId } : {}),
       },

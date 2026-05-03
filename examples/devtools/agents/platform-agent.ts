@@ -53,7 +53,7 @@ You help engineers understand their repositories, manage issues, monitor CI/CD, 
     "composio_list_connections",
   ],
   maxTurns: 20,
-  temperature: 0.2,
+  modelSettings: { temperature: 0.2 },
 };
 
 /** Orchestrated system: routes between code help and deployment operations */

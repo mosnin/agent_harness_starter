@@ -48,5 +48,5 @@ You help customers with order questions, refunds, tracking, and account issues.
     "web_search",
   ],
   maxTurns: 12,
-  temperature: 0.4,
+  modelSettings: { temperature: 0.4 },
 };

@@ -5,8 +5,8 @@
  */
 
 import { z } from "zod";
-import { auth } from "@/auth";
-import { db } from "@/db";
+import { auth } from "@/agents/auth";
+import { db } from "@/agents/db";
 
 export async function GET(req: Request) {
   const user = await auth.requireAuth(req);

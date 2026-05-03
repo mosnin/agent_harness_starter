@@ -11,7 +11,8 @@ export function toOpenAITool(def: ToolDefinition, ctx?: ToolContext) {
   return tool({
     name: def.name,
     description: def.description,
-    parameters: def.parameters,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    parameters: def.parameters as any,
     execute: async (input: unknown) => {
       const result = await def.execute(input, ctx ?? {});
       return typeof result === "string" ? result : JSON.stringify(result);

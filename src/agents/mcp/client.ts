@@ -48,17 +48,17 @@ export async function getExternalMcpTools() {
         const openAITool = tool({
           name: `${serverConfig.name}__${mcpTool.name}`,
           description: mcpTool.description ?? `Tool from MCP server: ${serverConfig.name}`,
-          parameters: z.record(z.unknown()),
+          parameters: z.object({}).catchall(z.unknown()),
           execute: async (input) => {
             const result = await client.callTool({
               name: mcpTool.name,
               arguments: input as Record<string, unknown>,
             });
-            const text = result.content
+            const content = result.content as Array<{ type: string; text?: string }>;
+            return content
               .filter((c) => c.type === "text")
-              .map((c) => (c as { text: string }).text)
+              .map((c) => c.text ?? "")
               .join("\n");
-            return text;
           },
         });
         tools.push(openAITool);

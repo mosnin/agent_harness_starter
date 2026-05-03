@@ -25,10 +25,11 @@ export async function register() {
     console.info("[startup] COMPOSIO_API_KEY not set — Composio tools will not work.");
   }
 
-  // Register all built-in tools so the MCP server has them on first request
-  await import("@/agents/tools/index");
-
   // Initialize DB adapter (catches misconfiguration early)
   const { db } = await import("@/agents/db");
   void db;
+
+  // Tools self-register when their modules are first imported by routes/harness.
+  // No eager registration here to avoid bundling heavy optional dependencies
+  // (Daytona, Modal, Browserbase) at startup.
 }

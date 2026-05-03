@@ -53,7 +53,7 @@ You help the support team quickly understand customer context and take action.
     "composio_list_connections",
   ],
   maxTurns: 15,
-  temperature: 0.3,
+  modelSettings: { temperature: 0.3 },
 };
 
 /** Orchestrated system: triage → CRM specialist or research specialist */

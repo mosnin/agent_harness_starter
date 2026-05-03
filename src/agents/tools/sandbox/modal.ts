@@ -53,7 +53,7 @@ export const modalRunFunctionTool = registerTool({
     appName: z.string().describe("The Modal app name (as deployed)"),
     functionName: z.string().describe("The function name within the app"),
     payload: z
-      .record(z.unknown())
+      .record(z.string(), z.unknown())
       .optional()
       .describe("JSON payload passed as the first argument to the function"),
   }),

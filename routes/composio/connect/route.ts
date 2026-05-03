@@ -5,8 +5,8 @@
  * Redirects to the provider's OAuth page.
  */
 
-import { auth } from "@/auth";
-import { config } from "@/lib/config";
+import { auth } from "@/agents/auth";
+import { config } from "@/agents/lib/config";
 
 export async function GET(req: Request) {
   const user = await auth.requireAuth(req);

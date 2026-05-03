@@ -1,4 +1,3 @@
-import type { ToolContext } from "./tools/types";
 
 /**
  * Full agent configuration — mirrors every knob exposed by the OpenAI Agents SDK.
@@ -147,7 +146,7 @@ export type AgentEvent =
 export interface RunInput {
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   /** Merged into AgentConfig.context — use for per-request overrides. */
-  context?: ToolContext;
+  context?: AgentContext;
   signal?: AbortSignal;
 }
 

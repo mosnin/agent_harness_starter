@@ -6,10 +6,11 @@
 
 import type { AuthAdapter, AuthUser } from "./types";
 
-async function extractAuth0User(req: Request): Promise<AuthUser | null> {
+async function extractAuth0User(_req: Request): Promise<AuthUser | null> {
   try {
-    const { getSession } = await import("@auth0/nextjs-auth0");
-    const session = await getSession();
+    const { Auth0Client } = await import("@auth0/nextjs-auth0/server");
+    const client = new Auth0Client();
+    const session = await client.getSession();
     if (!session?.user) return null;
 
     const u = session.user;

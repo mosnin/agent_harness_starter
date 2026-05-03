@@ -37,7 +37,7 @@ function buildShellTool(sandboxConfig: SandboxToolConfig = {}) {
       args: z.array(z.string()).default([]).describe("Command-line arguments"),
       cwd: z.string().optional().describe("Working directory (must be within allowedDirectories)"),
       env: z
-        .record(z.string())
+        .record(z.string(), z.string())
         .default({})
         .describe("Additional environment variables (merged with process.env)"),
     }),

@@ -3,7 +3,8 @@
  * Data is lost on server restart. Perfect for local dev and prototyping.
  */
 
-import { randomUUID } from "crypto";
+// Use Web Crypto API (available in Node.js 18+, edge runtime, and browsers)
+const randomUUID = () => globalThis.crypto.randomUUID();
 import type { DbAdapter, AgentThread, AgentMessage, AgentRun } from "./types";
 
 const threads = new Map<string, AgentThread>();

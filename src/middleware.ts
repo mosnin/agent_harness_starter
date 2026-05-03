@@ -24,7 +24,7 @@ async function clerkMiddleware(req: NextRequest): Promise<NextResponse> {
     );
     const isProtectedRoute = createRouteMatcher(["/chat(.*)", "/api/agent(.*)"]);
     return (await clerk((auth, req) => {
-      if (isProtectedRoute(req)) auth().protect();
+      if (isProtectedRoute(req)) auth.protect();
     })(req, {} as never)) as NextResponse;
   } catch {
     return NextResponse.next();

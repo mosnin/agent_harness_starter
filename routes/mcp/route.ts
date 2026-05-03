@@ -11,26 +11,21 @@
  *   npx @modelcontextprotocol/inspector http://localhost:3000/api/mcp
  */
 
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { getMcpServer } from "@/mcp/server";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { getMcpServer } from "@/agents/mcp/server";
 // Import all tools to ensure they're registered before the MCP server is initialized
-import "@/tools/index";
+import "@/agents/tools/index";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   const server = getMcpServer();
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-  await server.connect(transport);
-
-  const body = await req.text();
-  const res = await transport.handlePostMessage(body, Object.fromEntries(req.headers));
-
-  return new Response(res.body, {
-    status: res.status,
-    headers: res.headers,
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
   });
+  await server.connect(transport);
+  return transport.handleRequest(req);
 }
 
 export async function GET(req: Request) {
@@ -49,14 +44,9 @@ export async function GET(req: Request) {
   }
 
   const server = getMcpServer();
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-  await server.connect(transport);
-
-  return new Response(transport.sseStream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
   });
+  await server.connect(transport);
+  return transport.handleRequest(req);
 }

@@ -75,9 +75,11 @@ export async function POST(req: Request) {
       return Response.json({ error: "Thread not found" }, { status: 404 });
     }
 
-    await db.saveMessage({ threadId: thread.id, role: "user", content: message });
+    const resolvedThreadId = thread.id;
 
-    const run = await db.createRun({ threadId: thread.id, status: "running", agentName });
+    await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: message });
+
+    const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName });
 
     const agentConfig = agentMap[agentName] ?? researchAgentConfig;
     const effectiveConfig = tools ? { ...agentConfig, tools } : agentConfig;
@@ -93,7 +95,7 @@ export async function POST(req: Request) {
         });
 
         for await (const event of stream) {
-          yield JSON.stringify({ threadId: thread.id, runId: run.id, ...event });
+          yield JSON.stringify({ threadId: resolvedThreadId, runId: run.id, ...event });
           if (event.type === "message_done") finalOutput = event.content;
           if (event.type === "done") finalOutput = event.finalOutput;
         }
@@ -105,7 +107,7 @@ export async function POST(req: Request) {
       }
 
       if (finalOutput) {
-        await db.saveMessage({ threadId: thread.id, role: "assistant", content: finalOutput });
+        await db.saveMessage({ threadId: resolvedThreadId, role: "assistant", content: finalOutput });
       }
       await db.updateRun(run.id, { status: "completed", completedAt: new Date() });
     }
@@ -115,7 +117,7 @@ export async function POST(req: Request) {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
-        "X-Thread-Id": thread.id,
+        "X-Thread-Id": resolvedThreadId,
         "X-Run-Id": run.id,
       },
     });

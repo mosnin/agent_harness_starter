@@ -1,3 +1,4 @@
+import type { z } from "zod";
 import type { ToolDefinition, ToolRegistry } from "./types";
 
 /**
@@ -7,11 +8,13 @@ import type { ToolDefinition, ToolRegistry } from "./types";
  */
 const registry: ToolRegistry = new Map();
 
-export function registerTool<T extends ToolDefinition>(tool: T): T {
+export function registerTool<TInput extends z.ZodTypeAny, TOutput = unknown>(
+  tool: ToolDefinition<TInput, TOutput>
+): ToolDefinition<TInput, TOutput> {
   if (registry.has(tool.name)) {
     console.warn(`[tools] Overwriting existing tool: ${tool.name}`);
   }
-  registry.set(tool.name, tool as ToolDefinition);
+  registry.set(tool.name, tool as unknown as ToolDefinition);
   return tool;
 }
 

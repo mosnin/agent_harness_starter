@@ -24,16 +24,18 @@ import { randomUUID } from "crypto";
 import type { MemoryAdapter, MemoryEntry } from "./types";
 
 export class PgVectorAdapter implements MemoryAdapter {
-  private db: unknown = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private db: any = null;
 
-  private async getDb() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async getDb(): Promise<any> {
     if (!this.db) {
       const { createClient } = await import("@supabase/supabase-js");
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
       this.db = createClient(url, key);
     }
-    return this.db as ReturnType<typeof import("@supabase/supabase-js").createClient>;
+    return this.db;
   }
 
   private async embed(text: string): Promise<number[]> {

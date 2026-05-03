@@ -13,15 +13,17 @@ import { randomUUID } from "crypto";
 import type { MemoryAdapter, MemoryEntry } from "./types";
 
 export class PineconeAdapter implements MemoryAdapter {
-  private index: unknown = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private index: any = null;
 
-  private async getIndex() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async getIndex(): Promise<any> {
     if (!this.index) {
       const { Pinecone } = await import("@pinecone-database/pinecone");
       const client = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
       this.index = client.Index(process.env.PINECONE_INDEX ?? "agent-memory");
     }
-    return this.index as ReturnType<ReturnType<typeof import("@pinecone-database/pinecone").Pinecone>["Index"]>;
+    return this.index;
   }
 
   private async embed(text: string): Promise<number[]> {
@@ -71,7 +73,8 @@ export class PineconeAdapter implements MemoryAdapter {
       includeMetadata: true,
     });
 
-    return (result.matches ?? []).map((m) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (result.matches ?? []).map((m: any) => ({
       id: m.id,
       key: (m.metadata?.key as string) ?? key,
       content: (m.metadata?.content as string) ?? "",
@@ -89,7 +92,8 @@ export class PineconeAdapter implements MemoryAdapter {
       topK: 1000,
       filter: { key: { $eq: key } },
     });
-    const ids = result.matches?.map((m) => m.id) ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ids = result.matches?.map((m: any) => m.id) ?? [];
     if (ids.length > 0) await index.deleteMany(ids);
   }
 

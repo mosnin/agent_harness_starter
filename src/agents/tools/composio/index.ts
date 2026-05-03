@@ -49,7 +49,7 @@ export const composioExecuteTool = registerTool({
       .string()
       .describe("Composio action name, e.g. GITHUB_CREATE_ISSUE or SLACK_SEND_MESSAGE"),
     params: z
-      .record(z.unknown())
+      .record(z.string(), z.unknown())
       .default({})
       .describe("Action parameters as defined by the Composio action schema"),
   }),
