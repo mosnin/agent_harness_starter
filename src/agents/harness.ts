@@ -51,7 +51,8 @@ export function createHarness(agentConfig: HarnessConfig): AgentHarness {
   async function resolveInstructions(ctx: RunInput["context"]): Promise<string> {
     const { instructions } = agentConfig;
     if (typeof instructions === "function") {
-      return instructions(ctx ?? {});
+      // ToolContext is a subset of AgentContext — safe to cast
+      return instructions((ctx ?? {}) as import("./types").AgentContext);
     }
     return instructions;
   }

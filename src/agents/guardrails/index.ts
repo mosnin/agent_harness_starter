@@ -9,7 +9,9 @@
  */
 
 import type { GuardrailContext, GuardrailSet, InputGuardrail, OutputGuardrail } from "./types";
-export { GuardrailBlockError, GuardrailHumanReviewError } from "./types";
+import { GuardrailBlockError, GuardrailHumanReviewError } from "./types";
+
+export { GuardrailBlockError, GuardrailHumanReviewError };
 export type { GuardrailContext, GuardrailSet, InputGuardrail, OutputGuardrail } from "./types";
 
 /** Run all input guardrails in order. Returns the (possibly modified) input. */
@@ -46,7 +48,6 @@ export function maxLengthGuardrail(maxChars: number): InputGuardrail {
     name: "max_length",
     check(input) {
       if (input.length > maxChars) {
-        const { GuardrailBlockError } = require("./types") as typeof import("./types");
         throw new GuardrailBlockError(
           `Input exceeds maximum length of ${maxChars} characters.`,
           "input_too_long"
@@ -61,7 +62,6 @@ export function maxLengthGuardrail(maxChars: number): InputGuardrail {
 export const piiSanitizerGuardrail: InputGuardrail = {
   name: "pii_sanitizer",
   check(input) {
-    // Redact common PII patterns — extend as needed for your domain
     return input
       .replace(/\b\d{3}-\d{2}-\d{4}\b/g, "[SSN]")
       .replace(/\b\d{16}\b/g, "[CARD]")
@@ -82,7 +82,6 @@ export const requireJsonOutputGuardrail: OutputGuardrail = {
       JSON.parse(output);
       return output;
     } catch {
-      const { GuardrailBlockError } = require("./types") as typeof import("./types");
       throw new GuardrailBlockError(
         "Agent output is not valid JSON.",
         "invalid_json_output"
@@ -103,7 +102,6 @@ export function blockedKeywordsGuardrail(keywords: string[]): OutputGuardrail {
       const lowerOutput = output.toLowerCase();
       const found = lower.find((k) => lowerOutput.includes(k));
       if (found) {
-        const { GuardrailBlockError } = require("./types") as typeof import("./types");
         throw new GuardrailBlockError(
           `Output contains blocked content: "${found}"`,
           "blocked_keyword"

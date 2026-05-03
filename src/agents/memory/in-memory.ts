@@ -8,7 +8,7 @@ import { randomUUID } from "crypto";
 import type { MemoryAdapter, MemoryEntry } from "./types";
 
 export class InMemoryAdapter implements MemoryAdapter {
-  private store = new Map<string, MemoryEntry[]>();
+  private _entries = new Map<string, MemoryEntry[]>();
 
   async store(
     key: string,
@@ -22,32 +22,33 @@ export class InMemoryAdapter implements MemoryAdapter {
       metadata,
       createdAt: new Date(),
     };
-    const existing = this.store.get(key) ?? [];
+    const existing = this._entries.get(key) ?? [];
     existing.push(entry);
-    this.store.set(key, existing);
+    this._entries.set(key, existing);
     return entry;
   }
 
   async retrieve(key: string, query: string, topK = 5): Promise<MemoryEntry[]> {
-    const entries = this.store.get(key) ?? [];
-    const queryWords = query.toLowerCase().split(/\s+/);
+    const entries = this._entries.get(key) ?? [];
+    if (!query) return entries.slice(-topK).reverse();
+    const queryWords = query.toLowerCase().split(/\s+/).filter(Boolean);
 
     return entries
       .map((e) => {
         const text = e.content.toLowerCase();
         const matches = queryWords.filter((w) => text.includes(w)).length;
-        return { ...e, score: matches / queryWords.length };
+        return { ...e, score: queryWords.length > 0 ? matches / queryWords.length : 0 };
       })
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       .slice(0, topK);
   }
 
   async deleteAll(key: string): Promise<void> {
-    this.store.delete(key);
+    this._entries.delete(key);
   }
 
   async list(key: string, limit = 50): Promise<MemoryEntry[]> {
-    const entries = this.store.get(key) ?? [];
+    const entries = this._entries.get(key) ?? [];
     return entries.slice(-limit).reverse();
   }
 }
