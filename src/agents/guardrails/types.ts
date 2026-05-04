@@ -26,12 +26,16 @@ export interface GuardrailContext {
 
 /** Throw this from an input/output guardrail to stop the run immediately. */
 export class GuardrailBlockError extends GuardrailError {
+  /** The name of the guardrail that triggered the block (from InputGuardrail.name / OutputGuardrail.name). */
+  readonly guardName?: string;
   constructor(
     message: string,
-    public readonly reason: string
+    public readonly reason: string,
+    guardName?: string
   ) {
     super(message, "GUARDRAIL_BLOCK", "Input was blocked by a guardrail rule. Review input or adjust the guardrail configuration.");
     this.name = "GuardrailBlockError";
+    this.guardName = guardName;
   }
 }
 

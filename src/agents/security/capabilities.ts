@@ -75,8 +75,8 @@ export interface IssueTokenOptions {
 }
 
 export class CapabilityError extends SecurityError {
-  constructor(message: string) {
-    super(message, "SECURITY_CAPABILITY_ERROR", "Verify the capability token is valid, not expired, and issued for this agent.");
+  constructor(message: string, code = "SECURITY_CAPABILITY_ERROR") {
+    super(message, code, "Verify the capability token is valid, not expired, and issued for this agent.");
     this.name = "CapabilityError";
   }
 }
@@ -97,7 +97,8 @@ function getSecret(): string {
   if (!secret || secret.length < 32) {
     throw new CapabilityError(
       "AGENT_CAPABILITY_SECRET must be set and at least 32 characters long. " +
-      "Alternatively, set AGENT_CAPABILITY_PRIVATE_KEY + AGENT_CAPABILITY_PUBLIC_KEY for RS256 (recommended for production)."
+      "Alternatively, set AGENT_CAPABILITY_PRIVATE_KEY + AGENT_CAPABILITY_PUBLIC_KEY for RS256 (recommended for production).",
+      "CAPABILITY_CONFIG_ERROR"
     );
   }
   return secret;
@@ -200,7 +201,7 @@ export async function verifyCapabilityToken(
   options?: { expectedAud?: string; expectedIss?: string; expectedOrgId?: string }
 ): Promise<CapabilityTokenPayload> {
   const parts = token.split(".");
-  if (parts.length !== 3) throw new CapabilityError("Malformed capability token.");
+  if (parts.length !== 3) throw new CapabilityError("Malformed capability token.", "CAPABILITY_MALFORMED_TOKEN");
 
   const [header, body, sig] = parts;
 
@@ -208,29 +209,29 @@ export async function verifyCapabilityToken(
   try {
     parsedHeader = JSON.parse(fromB64url(header));
   } catch {
-    throw new CapabilityError("Capability token header is not valid JSON.");
+    throw new CapabilityError("Capability token header is not valid JSON.", "CAPABILITY_MALFORMED_TOKEN");
   }
 
   const expectedAlg = detectAlgorithm();
   if (parsedHeader.alg !== expectedAlg) {
-    throw new CapabilityError("Token algorithm mismatch");
+    throw new CapabilityError("Token algorithm mismatch", "CAPABILITY_ALGORITHM_MISMATCH");
   }
 
   const alg = expectedAlg;
 
   if (alg === "RS256") {
     const valid = await verifyRS256(`${header}.${body}`, sig);
-    if (!valid) throw new CapabilityError("Capability token signature invalid.");
+    if (!valid) throw new CapabilityError("Capability token signature invalid.", "CAPABILITY_INVALID_SIGNATURE");
   } else {
     const expectedSig = await sign(`${header}.${body}`, getSecret());
-    if (!await timingSafeEqual(sig, expectedSig)) throw new CapabilityError("Capability token signature invalid.");
+    if (!await timingSafeEqual(sig, expectedSig)) throw new CapabilityError("Capability token signature invalid.", "CAPABILITY_INVALID_SIGNATURE");
   }
 
   let payload: CapabilityTokenPayload;
   try {
     payload = JSON.parse(fromB64url(body));
   } catch {
-    throw new CapabilityError("Capability token payload is not valid JSON.");
+    throw new CapabilityError("Capability token payload is not valid JSON.", "CAPABILITY_MALFORMED_TOKEN");
   }
 
   // Explicit-revocation model: tokens are valid until expiry unless explicitly revoked
@@ -238,34 +239,43 @@ export async function verifyCapabilityToken(
   // tokens that were deliberately invalidated (e.g. on logout or key rotation).
   // For single-use token semantics, mark jti as used here and check before this block.
   if (payload.jti && isTokenRevoked(payload.jti)) {
-    throw new CapabilityError(`Token has been revoked (jti: ${payload.jti})`);
+    throw new CapabilityError(`Token has been revoked (jti: ${payload.jti})`, "CAPABILITY_TOKEN_REVOKED");
   }
 
   const nowSec = Math.floor(Date.now() / 1000);
   if (payload.exp < nowSec) {
     throw new CapabilityError(
-      `Capability token expired at ${new Date(payload.exp * 1000).toISOString()}.`
+      `Capability token expired at ${new Date(payload.exp * 1000).toISOString()}.`,
+      "CAPABILITY_TOKEN_EXPIRED"
     );
   }
 
   if (payload.nbf !== undefined && payload.nbf > nowSec) {
-    throw new CapabilityError(`Token not yet valid: valid from ${new Date((payload.nbf ?? 0) * 1000).toISOString()}`);
+    throw new CapabilityError(
+      `Token not yet valid: valid from ${new Date((payload.nbf ?? 0) * 1000).toISOString()}`,
+      "CAPABILITY_TOKEN_NOT_YET_VALID"
+    );
   }
 
   if (options?.expectedAud !== undefined && payload.aud !== options.expectedAud) {
     throw new CapabilityError(
-      `Token audience mismatch: expected "${options.expectedAud}", got "${payload.aud ?? "none"}"`
+      `Token audience mismatch: expected "${options.expectedAud}", got "${payload.aud ?? "none"}"`,
+      "CAPABILITY_AUDIENCE_MISMATCH"
     );
   }
 
   if (options?.expectedIss !== undefined && payload.iss !== options.expectedIss) {
     throw new CapabilityError(
-      `Capability token issuer "${payload.iss}" does not match expected "${options.expectedIss}".`
+      `Capability token issuer "${payload.iss}" does not match expected "${options.expectedIss}".`,
+      "CAPABILITY_ISSUER_MISMATCH"
     );
   }
 
   if (options?.expectedOrgId !== undefined && payload.orgId !== options.expectedOrgId) {
-    throw new CapabilityError(`Token org mismatch: expected "${options.expectedOrgId}", got "${payload.orgId ?? "none"}"`);
+    throw new CapabilityError(
+      `Token org mismatch: expected "${options.expectedOrgId}", got "${payload.orgId ?? "none"}"`,
+      "CAPABILITY_ORG_MISMATCH"
+    );
   }
 
   return payload;
@@ -286,9 +296,27 @@ export async function resolveToolsFromToken(
 
   if (runId && payload.runId && payload.runId !== runId) {
     throw new CapabilityError(
-      `Capability token is scoped to run "${payload.runId}", not "${runId}".`
+      `Capability token is scoped to run "${payload.runId}", not "${runId}".`,
+      "CAPABILITY_RUN_MISMATCH"
     );
   }
 
+  if (payload.tools.length === 0) {
+    throw new CapabilityError("Capability token grants no tools.", "CAPABILITY_NO_TOOLS");
+  }
+
   return { sub: payload.sub, tools: payload.tools };
+}
+
+/**
+ * Assert that a resolved tools list contains the requested tool.
+ * Throws CapabilityError with CAPABILITY_TOOL_NOT_ALLOWED if not found.
+ */
+export function assertToolAllowed(tools: string[], toolName: string): void {
+  if (tools[0] !== "*" && !tools.includes(toolName)) {
+    throw new CapabilityError(
+      `Tool "${toolName}" is not in the capability token scope.`,
+      "CAPABILITY_TOOL_NOT_ALLOWED"
+    );
+  }
 }

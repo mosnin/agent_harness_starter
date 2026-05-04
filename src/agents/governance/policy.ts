@@ -54,10 +54,13 @@ export interface GovernancePolicy {
 
 export class GovernancePolicyViolationError extends GovernanceError {
   readonly decision: GovernanceDecision;
-  constructor(decision: GovernanceDecision) {
+  /** The tool name that was blocked, when the violating action was a tool call (action prefixed with "tool:"). */
+  readonly toolName?: string;
+  constructor(decision: GovernanceDecision, toolName?: string) {
     super(`Governance policy violation [${decision.ruleId ?? "unknown"}]: ${decision.reason}`, "GOVERNANCE_POLICY_VIOLATION", "The requested action violates the active governance policy. Check DEFAULT_GOVERNANCE_POLICY or your custom policy.");
     this.name = "GovernancePolicyViolationError";
     this.decision = decision;
+    this.toolName = toolName;
   }
 }
 

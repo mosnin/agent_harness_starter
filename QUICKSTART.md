@@ -60,7 +60,7 @@ cp ../agent_harness_starter/routes/agent/route.ts src/app/api/agent/route.ts
 # Or copy the template directly — create src/app/api/agent/route.ts with this content:
 ```
 
-> **Note:** The route template imports `@/agents/auth` and `@/agents/db` — these are stub adapters. Replace `auth.requireAuth(req)` with your auth library (NextAuth, Clerk, etc.) and `db.getThread` / `db.saveMessage` with your database calls. The route will not compile until both are wired. See [docs/02-connecting-your-app.md](docs/02-connecting-your-app.md) for drop-in examples.
+> **Zero-config start:** Copy `routes/agent/dev-route.ts` — it works immediately with the built-in dev auth and DB adapters. When ready to wire your real auth/DB, swap to `routes/agent/route.ts` and follow [docs/02-connecting-your-app.md](docs/02-connecting-your-app.md).
 
 ```typescript
 // Accepts: POST { message, threadId?, agentName?, tools? }
