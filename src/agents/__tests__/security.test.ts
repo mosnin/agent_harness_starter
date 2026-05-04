@@ -423,6 +423,29 @@ describe("JWT security", () => {
     await expect(verifyCapabilityToken(token)).rejects.toThrow(/revoked/i);
   });
 
+  it("rejects token with future nbf", async () => {
+    // Issue a valid token, then tamper with nbf to be 1 hour in the future
+    const token = await issueCapabilityToken({ sub: "user-1", tools: ["web_search"] });
+    const parts = token.split(".");
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+
+    // Replace nbf with a timestamp 1 hour in the future
+    const tamperedPayload = { ...payload, nbf: Math.floor(Date.now() / 1000) + 3600 };
+    const tamperedBody = Buffer.from(JSON.stringify(tamperedPayload)).toString("base64url");
+
+    // Re-sign with the test secret
+    const { createHmac } = await import("crypto");
+    const signingInput = `${parts[0]}.${tamperedBody}`;
+    const newSig = Buffer.from(
+      createHmac("sha256", TEST_SECRET).update(signingInput).digest().toString("binary")
+    ).toString("base64url");
+
+    const tamperedToken = `${parts[0]}.${tamperedBody}.${newSig}`;
+
+    await expect(verifyCapabilityToken(tamperedToken)).rejects.toThrow(CapabilityError);
+    await expect(verifyCapabilityToken(tamperedToken)).rejects.toThrow(/not yet valid/i);
+  });
+
   it("issued tokens have unique jti values", async () => {
     const tokens = await Promise.all([
       issueCapabilityToken({ sub: "user-1", tools: ["web_search"] }),

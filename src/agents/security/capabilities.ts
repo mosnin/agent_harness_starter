@@ -173,14 +173,21 @@ export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<str
 // ── JTI revocation store ──────────────────────────────────────────────────────
 
 // Simple in-process jti store. Replace with Redis in production.
-const usedJtis = new Set<string>();
+const usedJtis = new Map<string, number>(); // jti → expiry epoch ms
 
-export function revokeToken(jti: string): void {
-  usedJtis.add(jti);
+export function revokeToken(jti: string, expiresAt?: number): void {
+  // Default TTL: 1 hour from now if no expiry given
+  usedJtis.set(jti, expiresAt ?? Date.now() + 3600_000);
 }
 
 export function isTokenRevoked(jti: string): boolean {
-  return usedJtis.has(jti);
+  const exp = usedJtis.get(jti);
+  if (exp === undefined) return false;
+  if (Date.now() > exp) {
+    usedJtis.delete(jti); // evict expired entry
+    return false;
+  }
+  return true;
 }
 
 // ── Verify ────────────────────────────────────────────────────────────────────
@@ -224,7 +231,7 @@ export async function verifyCapabilityToken(
   }
 
   if (payload.jti && isTokenRevoked(payload.jti)) {
-    throw new CapabilityError("Token has been revoked");
+    throw new CapabilityError(`Token has been revoked (jti: ${payload.jti})`);
   }
 
   const nowSec = Math.floor(Date.now() / 1000);
@@ -235,12 +242,12 @@ export async function verifyCapabilityToken(
   }
 
   if (payload.nbf !== undefined && payload.nbf > nowSec) {
-    throw new CapabilityError("Token not yet valid");
+    throw new CapabilityError(`Token not yet valid: valid from ${new Date((payload.nbf ?? 0) * 1000).toISOString()}`);
   }
 
   if (options?.expectedAud !== undefined && payload.aud !== options.expectedAud) {
     throw new CapabilityError(
-      `Capability token audience "${payload.aud}" does not match expected "${options.expectedAud}".`
+      `Token audience mismatch: expected "${options.expectedAud}", got "${payload.aud ?? "none"}"`
     );
   }
 
@@ -251,7 +258,7 @@ export async function verifyCapabilityToken(
   }
 
   if (options?.expectedOrgId !== undefined && payload.orgId !== options.expectedOrgId) {
-    throw new CapabilityError("Token org mismatch");
+    throw new CapabilityError(`Token org mismatch: expected "${options.expectedOrgId}", got "${payload.orgId ?? "none"}"`);
   }
 
   return payload;
@@ -266,7 +273,7 @@ export async function verifyCapabilityToken(
 export async function resolveToolsFromToken(
   token: string,
   runId?: string,
-  options?: { expectedAud?: string; expectedIss?: string }
+  options?: { expectedAud?: string; expectedIss?: string; expectedOrgId?: string }
 ): Promise<{ sub: string; tools: string[] }> {
   const payload = await verifyCapabilityToken(token, options);
 
