@@ -4,6 +4,18 @@ You have an existing Next.js app. You want to add AI agents. This is the fastest
 
 ---
 
+## Try it in 30 seconds (no Next.js needed)
+
+```bash
+git clone https://github.com/mosnin/agent_harness_starter
+cd agent_harness_starter
+OPENAI_API_KEY=sk-... npx tsx scripts/demo.ts "What can you do?"
+```
+
+You'll see a streaming response in your terminal. No database, no auth, no framework.
+
+---
+
 ## Step 1 — Copy the agent infrastructure
 
 ```bash
@@ -21,7 +33,12 @@ That single directory is all the infrastructure. Everything else in this repo (r
 ## Step 2 — Install dependencies
 
 ```bash
-npm install @openai/agents openai zod
+# Option A — npm package (recommended; get security patches via npm update)
+npm install @agent-harness/core @openai/agents openai zod
+
+# Option B — copy the source directly (full customisation)
+# cp -r ../agent_harness_starter/src/agents src/agents
+# npm install @openai/agents openai zod
 ```
 
 Optional — add only what you use:

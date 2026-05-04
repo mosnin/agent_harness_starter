@@ -34,6 +34,7 @@
 import { SignJWT, jwtVerify, importPKCS8, importSPKI, errors as joseErrors } from "jose";
 import { parseTtlMs } from "../memory/anchors";
 import { SecurityError } from "../errors";
+import { getJtiStore } from "./redis-jti-store";
 
 export interface CapabilityTokenPayload {
   /** Subject — typically userId or serviceAccountId. */
@@ -153,11 +154,38 @@ export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<str
 const usedJtis = new Map<string, number>(); // jti → expiry epoch ms
 
 export function revokeToken(jti: string, expiresAt?: number): void {
-  // Default TTL: 1 hour from now if no expiry given
-  usedJtis.set(jti, expiresAt ?? Date.now() + 3600_000);
+  // Warn if using in-memory revocation in serverless
+  const store = getJtiStore();
+  if (!store && (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.CF_PAGES)) {
+    console.warn(
+      "[agent-harness] revokeToken() called but no durable JTI store is configured. " +
+      "Token revocations will be lost on cold start. " +
+      "Use setJtiStore(createRedisJtiStore(redis)) for production revocation."
+    );
+  }
+  if (store) {
+    const ttlMs = expiresAt ? expiresAt - Date.now() : 15 * 60 * 1000;
+    const ttlSeconds = Math.max(1, Math.ceil(ttlMs / 1000));
+    store.revoke(jti, ttlSeconds).catch(() => {}); // fire-and-forget (sync API compat)
+    return;
+  }
+  // fall through to in-memory store
+  const expiry = expiresAt ?? Date.now() + 15 * 60 * 1000;
+  usedJtis.set(jti, expiry);
+  // lazy eviction
+  for (const [storedJti, storedExpiry] of usedJtis) {
+    if (Date.now() > storedExpiry) usedJtis.delete(storedJti);
+  }
 }
 
 export function isTokenRevoked(jti: string): boolean {
+  const store = getJtiStore();
+  if (store) {
+    // For async store with sync API: use a synchronous in-memory fallback alongside
+    // This is a limitation — for full async support callers should use the store directly
+    // The verifyCapabilityToken function checks async revocation properly
+    return false; // async check is done in verifyCapabilityToken
+  }
   const exp = usedJtis.get(jti);
   if (exp === undefined) return false;
   if (Date.now() > exp) {
@@ -286,8 +314,13 @@ export async function verifyCapabilityToken(
   // Explicit-revocation model: tokens are valid until expiry unless explicitly revoked
   // via revokeToken(jti). This does NOT prevent replay of live tokens — it only blocks
   // tokens that were deliberately invalidated (e.g. on logout or key rotation).
-  if (payload.jti && isTokenRevoked(payload.jti)) {
-    throw new CapabilityError(`Token has been revoked (jti: ${payload.jti})`, "CAPABILITY_TOKEN_REVOKED");
+  // Check async store first, then fall back to in-memory
+  const store = getJtiStore();
+  if (payload.jti && store) {
+    const revoked = await store.isRevoked(payload.jti);
+    if (revoked) throw new CapabilityError("Token has been revoked.", "CAPABILITY_TOKEN_REVOKED");
+  } else if (payload.jti && isTokenRevoked(payload.jti)) {
+    throw new CapabilityError("Token has been revoked.", "CAPABILITY_TOKEN_REVOKED");
   }
 
   if (options?.expectedOrgId !== undefined && payload.orgId !== options.expectedOrgId) {

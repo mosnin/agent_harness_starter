@@ -10,3 +10,12 @@ export type { CapabilityTokenPayload, IssueTokenOptions } from "./capabilities";
 // ── withSecurity plugin ───────────────────────────────────────────────────────
 export { withSecurity } from "./plugin";
 export type { SecurityPluginOptions } from "./plugin";
+
+export { createRedisJtiStore, setJtiStore, getJtiStore } from "./redis-jti-store";
+export type { JtiStore, RedisClient } from "./redis-jti-store";
+
+export { createRbacPolicy } from "./rbac";
+export type { RbacConfig, RbacRoleConfig } from "./rbac";
+
+export { createWebhookAuditSink } from "./sinks/webhook";
+export type { WebhookAuditSinkOptions } from "./sinks/webhook";

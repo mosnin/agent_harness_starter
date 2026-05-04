@@ -29,6 +29,23 @@ import { toOpenAITool } from "./utils";
 import { config } from "./lib/config";
 import { AgentError } from "./errors/index";
 
+// Auto-detect serverless environments and warn about in-memory state.
+// Fires once per process startup; developers don't need to call validateRuntime().
+(function detectServerlessFootguns() {
+  const isServerless =
+    process.env.VERCEL ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.CF_PAGES ||
+    process.env.NETLIFY;
+  if (isServerless) {
+    console.warn(
+      "[agent-harness] Serverless environment detected. " +
+      "In-memory adapters (memory, cache) reset between invocations. " +
+      "Set MEMORY_PROVIDER=pgvector or use setMemoryAdapter(new PgVectorAdapter()) to persist state."
+    );
+  }
+})();
+
 export interface AgentHarness {
   stream(input: RunInput): AsyncGenerator<AgentEvent>;
   run(input: RunInput): Promise<RunResult>;
