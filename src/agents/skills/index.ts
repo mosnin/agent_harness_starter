@@ -124,3 +124,8 @@ defineSkill({
   description: "Deep research — combines web search with page scraping",
   tools: ["web_search", "browser_scrape"],
 });
+
+// ── Extended skill system ─────────────────────────────────────────────────────
+export { defineSkillExtended, SkillBuilder, buildSkillPromptAddendum } from "./builder";
+export type { ExtendedSkillDefinition, SkillInput, SkillOutput, SkillBoundaries, SkillPrerequisite, SkillCombination, SkillAdaptability, SkillEvaluationConfig, SkillMetric, SkillRunRecord } from "./types";
+export { registerExtendedSkill, getExtendedSkill, getAllExtendedSkills, checkPrerequisites, resolveSkillCombination, buildActiveSkillsPrompt, recordSkillRun, getSkillRunRecords, getSkillAverageScore } from "./extended-registry";
