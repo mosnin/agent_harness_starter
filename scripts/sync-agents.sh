@@ -13,6 +13,10 @@
 #   2. Prints a summary of what changed so you can review before committing
 #
 # Requirements: git, bash. Run from your project root.
+#
+# To check if you're behind upstream:
+#   diff <(cat src/agents/.agents-version 2>/dev/null || echo "unknown") \
+#        <(git -C ../agent_harness_starter rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 set -euo pipefail
 
@@ -42,6 +46,9 @@ read -p "Apply these changes? [y/N] " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   cp -r "$HARNESS_DIR/src/agents/." "$TARGET_DIR/"
+  # Write the upstream commit SHA so you can check when you're behind
+  git -C "$HARNESS_DIR" rev-parse --short HEAD 2>/dev/null > "$TARGET_DIR/.agents-version" && \
+    echo "==> Version stamped: $(cat "$TARGET_DIR/.agents-version")" || true
   echo "==> Synced. Review changes with: git diff $TARGET_DIR"
   echo "    Then: git add $TARGET_DIR && git commit -m 'chore: sync agent infrastructure'"
 else

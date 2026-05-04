@@ -29,7 +29,14 @@ export class AgentError extends Error {
   }
 }
 
-/** Base for governance policy violations and escalation events. */
+/**
+ * Base for governance policy violations and escalation events.
+ * Subclasses set more specific codes:
+ *   GovernancePolicyViolationError → "GOVERNANCE_POLICY_VIOLATION"
+ *   EscalationError                → "GOVERNANCE_ERROR" (inherits default)
+ * Catch this class when you want to handle any governance failure;
+ * switch on .code for specific handling.
+ */
 export class GovernanceError extends AgentError {
   constructor(message: string, code = "GOVERNANCE_ERROR", remediation = "Review the agent's governance policy configuration.") {
     super(message, code, remediation);
@@ -38,7 +45,20 @@ export class GovernanceError extends AgentError {
   }
 }
 
-/** Base for capability token failures and tool-level policy denials. */
+/**
+ * Base for capability token failures and tool-level policy denials.
+ * Subclasses set more specific codes:
+ *   CapabilityError      → "SECURITY_CAPABILITY_ERROR" (default), plus specific variants:
+ *                           "CAPABILITY_TOKEN_EXPIRED", "CAPABILITY_TOKEN_REVOKED",
+ *                           "CAPABILITY_TOOL_NOT_ALLOWED", "CAPABILITY_MALFORMED_TOKEN",
+ *                           "CAPABILITY_INVALID_SIGNATURE", "CAPABILITY_ALGORITHM_MISMATCH",
+ *                           "CAPABILITY_AUDIENCE_MISMATCH", "CAPABILITY_ISSUER_MISMATCH",
+ *                           "CAPABILITY_ORG_MISMATCH", "CAPABILITY_NO_TOOLS",
+ *                           "CAPABILITY_TOKEN_NOT_YET_VALID", "CAPABILITY_CLAIM_VALIDATION_FAILED"
+ *   PolicyViolationError → "SECURITY_ERROR" (inherits default)
+ * Catch this class when you want to handle any security failure;
+ * switch on .code for specific handling.
+ */
 export class SecurityError extends AgentError {
   constructor(message: string, code = "SECURITY_ERROR", remediation = "Check capability token configuration and permissions.") {
     super(message, code, remediation);
@@ -47,7 +67,14 @@ export class SecurityError extends AgentError {
   }
 }
 
-/** Base for guardrail blocks and human-review gates. */
+/**
+ * Base for guardrail blocks and human-review gates.
+ * Subclasses set more specific codes:
+ *   GuardrailBlockError       → "GUARDRAIL_BLOCK"
+ *   GuardrailHumanReviewError → "GUARDRAIL_HUMAN_REVIEW"
+ * Catch this class when you want to handle any guardrail failure;
+ * switch on .code for specific handling.
+ */
 export class GuardrailError extends AgentError {
   constructor(message: string, code = "GUARDRAIL_ERROR", remediation = "Review guardrail rules or adjust the input/output.") {
     super(message, code, remediation);
@@ -56,7 +83,14 @@ export class GuardrailError extends AgentError {
   }
 }
 
-/** Base for workflow timeouts and circuit-breaker open states. */
+/**
+ * Base for workflow timeouts and circuit-breaker open states.
+ * Subclasses set more specific codes:
+ *   TimeoutError            → "WORKFLOW_TIMEOUT"
+ *   CircuitBreakerOpenError → "WORKFLOW_CIRCUIT_OPEN"
+ * Catch this class when you want to handle any workflow failure;
+ * switch on .code for specific handling.
+ */
 export class WorkflowError extends AgentError {
   constructor(message: string, code = "WORKFLOW_ERROR", remediation = "Check workflow step configuration and retry settings.") {
     super(message, code, remediation);

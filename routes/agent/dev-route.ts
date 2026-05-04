@@ -3,8 +3,13 @@
  *
  * Copy to: your-app/src/app/api/agent/route.ts
  *
- * Replace auth.requireAuth and db.* calls with your real adapters
- * when ready. See docs/02-connecting-your-app.md for drop-in adapters.
+ * Zero-config development route. Uses built-in dev adapters:
+ *   - auth: accepts any request, returns { id: "dev-user" } — no real auth
+ *   - db:   in-memory thread store, reset on server restart
+ *
+ * To switch to real auth/DB: copy routes/agent/route.ts instead and
+ * wire @/agents/auth and @/agents/db to your actual adapters.
+ * See docs/02-connecting-your-app.md.
  */
 import { z } from "zod";
 import { auth } from "@/agents/auth";
