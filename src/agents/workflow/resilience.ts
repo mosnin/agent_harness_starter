@@ -96,7 +96,7 @@ export function retry(step: WorkflowStep, config: RetryConfig = {}): WorkflowSte
 
 export class TimeoutError extends WorkflowError {
   constructor(stepName: string, ms: number) {
-    super(`Step "${stepName}" timed out after ${ms}ms`, "WORKFLOW_TIMEOUT");
+    super(`Step "${stepName}" timed out after ${ms}ms`, "WORKFLOW_TIMEOUT", "Increase the timeout limit or optimize the step to complete faster.");
     this.name = "TimeoutError";
   }
 }
@@ -168,7 +168,7 @@ export interface CircuitBreaker {
 
 export class CircuitBreakerOpenError extends WorkflowError {
   constructor(stepName: string) {
-    super(`Circuit breaker open for step "${stepName}". Too many recent failures.`, "WORKFLOW_CIRCUIT_OPEN");
+    super(`Circuit breaker open for step "${stepName}". Too many recent failures.`, "WORKFLOW_CIRCUIT_OPEN", "Wait for the circuit breaker cooldown period before retrying.");
     this.name = "CircuitBreakerOpenError";
   }
 }

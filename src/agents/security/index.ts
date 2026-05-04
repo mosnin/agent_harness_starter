@@ -4,7 +4,7 @@ export type { PolicyConfig, PolicyContext, PolicyCheckResult, AgentPolicy } from
 export { audit, AuditLogger, ConsoleAuditAdapter, InMemoryAuditAdapter, NoopAuditAdapter, hashInput } from "./audit";
 export type { AuditRecord, AuditOutcome, AuditAdapter } from "./audit";
 
-export { issueCapabilityToken, verifyCapabilityToken, resolveToolsFromToken, CapabilityError } from "./capabilities";
+export { issueCapabilityToken, verifyCapabilityToken, resolveToolsFromToken, CapabilityError, revokeToken, isTokenRevoked } from "./capabilities";
 export type { CapabilityTokenPayload, IssueTokenOptions } from "./capabilities";
 
 // ── withSecurity plugin ───────────────────────────────────────────────────────

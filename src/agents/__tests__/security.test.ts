@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { createPolicy, createAuditedPolicy, PolicyViolationError, applyPolicyToTools, DEFAULT_DENY_POLICY } from "../security/policy";
 import { AuditLogger, InMemoryAuditAdapter, hashInput } from "../security/audit";
 import { withSecurity } from "../security/plugin";
-import { issueCapabilityToken, verifyCapabilityToken, CapabilityError } from "../security/capabilities";
+import { issueCapabilityToken, verifyCapabilityToken, CapabilityError, revokeToken } from "../security/capabilities";
 import type { PluginRunContext } from "../types";
 import type { ToolDefinition } from "../tools/types";
 
@@ -400,6 +400,41 @@ describe("JWT security", () => {
     expect(payload.jti).toBeDefined();
     expect(typeof payload.jti).toBe("string");
     expect(payload.jti.length).toBeGreaterThan(0);
+  });
+
+  it("rejects token with wrong orgId", async () => {
+    const token = await issueCapabilityToken({ sub: "user-1", tools: ["web_search"], orgId: "org-a" });
+    await expect(
+      verifyCapabilityToken(token, { expectedOrgId: "org-b" })
+    ).rejects.toThrow(CapabilityError);
+  });
+
+  it("accepts token with correct orgId", async () => {
+    const token = await issueCapabilityToken({ sub: "user-1", tools: ["web_search"], orgId: "org-a" });
+    const payload = await verifyCapabilityToken(token, { expectedOrgId: "org-a" });
+    expect(payload.orgId).toBe("org-a");
+  });
+
+  it("rejects revoked token", async () => {
+    const token = await issueCapabilityToken({ sub: "user-1", tools: ["web_search"] });
+    const parts = token.split(".");
+    const { jti } = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    revokeToken(jti);
+    await expect(verifyCapabilityToken(token)).rejects.toThrow(/revoked/i);
+  });
+
+  it("issued tokens have unique jti values", async () => {
+    const tokens = await Promise.all([
+      issueCapabilityToken({ sub: "user-1", tools: ["web_search"] }),
+      issueCapabilityToken({ sub: "user-1", tools: ["web_search"] }),
+      issueCapabilityToken({ sub: "user-1", tools: ["web_search"] }),
+    ]);
+    const jtis = tokens.map(t => {
+      const parts = t.split(".");
+      return JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")).jti as string;
+    });
+    expect(new Set(jtis).size).toBe(3);
+    jtis.forEach(jti => expect(typeof jti).toBe("string"));
   });
 });
 

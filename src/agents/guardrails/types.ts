@@ -30,7 +30,7 @@ export class GuardrailBlockError extends GuardrailError {
     message: string,
     public readonly reason: string
   ) {
-    super(message, "GUARDRAIL_BLOCK");
+    super(message, "GUARDRAIL_BLOCK", "Input was blocked by a guardrail rule. Review input or adjust the guardrail configuration.");
     this.name = "GuardrailBlockError";
   }
 }
@@ -42,7 +42,7 @@ export class GuardrailHumanReviewError extends GuardrailError {
     public readonly reviewReason: string,
     public readonly payload?: unknown
   ) {
-    super(message, "GUARDRAIL_HUMAN_REVIEW");
+    super(message, "GUARDRAIL_HUMAN_REVIEW", "Output requires human review before delivery. Implement an approval handler.");
     this.name = "GuardrailHumanReviewError";
   }
 }

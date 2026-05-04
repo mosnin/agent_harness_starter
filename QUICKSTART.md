@@ -7,8 +7,11 @@ You have an existing Next.js app. You want to add AI agents. This is the fastest
 ## Step 1 — Copy the agent infrastructure
 
 ```bash
-# From the root of your existing project:
-cp -r path/to/agent_harness_starter/src/agents  src/agents
+# If you cloned this repo alongside your project:
+cp -r ../agent_harness_starter/src/agents src/agents
+
+# Or download just the agents directory:
+# npx degit mosnin/agent_harness_starter/src/agents src/agents
 ```
 
 That single directory is all the infrastructure. Everything else in this repo (routes, components, examples) is optional.

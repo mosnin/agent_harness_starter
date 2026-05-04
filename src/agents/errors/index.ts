@@ -19,18 +19,20 @@
 
 export class AgentError extends Error {
   readonly code: string;
-  constructor(message: string, code = "AGENT_ERROR") {
+  readonly remediation?: string;
+  constructor(message: string, code = "AGENT_ERROR", remediation?: string) {
     super(message);
     this.name = "AgentError";
     this.code = code;
+    this.remediation = remediation;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
 /** Base for governance policy violations and escalation events. */
 export class GovernanceError extends AgentError {
-  constructor(message: string, code = "GOVERNANCE_ERROR") {
-    super(message, code);
+  constructor(message: string, code = "GOVERNANCE_ERROR", remediation = "Review the agent's governance policy configuration.") {
+    super(message, code, remediation);
     this.name = "GovernanceError";
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -38,8 +40,8 @@ export class GovernanceError extends AgentError {
 
 /** Base for capability token failures and tool-level policy denials. */
 export class SecurityError extends AgentError {
-  constructor(message: string, code = "SECURITY_ERROR") {
-    super(message, code);
+  constructor(message: string, code = "SECURITY_ERROR", remediation = "Check capability token configuration and permissions.") {
+    super(message, code, remediation);
     this.name = "SecurityError";
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -47,8 +49,8 @@ export class SecurityError extends AgentError {
 
 /** Base for guardrail blocks and human-review gates. */
 export class GuardrailError extends AgentError {
-  constructor(message: string, code = "GUARDRAIL_ERROR") {
-    super(message, code);
+  constructor(message: string, code = "GUARDRAIL_ERROR", remediation = "Review guardrail rules or adjust the input/output.") {
+    super(message, code, remediation);
     this.name = "GuardrailError";
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -56,8 +58,8 @@ export class GuardrailError extends AgentError {
 
 /** Base for workflow timeouts and circuit-breaker open states. */
 export class WorkflowError extends AgentError {
-  constructor(message: string, code = "WORKFLOW_ERROR") {
-    super(message, code);
+  constructor(message: string, code = "WORKFLOW_ERROR", remediation = "Check workflow step configuration and retry settings.") {
+    super(message, code, remediation);
     this.name = "WorkflowError";
     Object.setPrototypeOf(this, new.target.prototype);
   }

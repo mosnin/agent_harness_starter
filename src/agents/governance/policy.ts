@@ -55,7 +55,7 @@ export interface GovernancePolicy {
 export class GovernancePolicyViolationError extends GovernanceError {
   readonly decision: GovernanceDecision;
   constructor(decision: GovernanceDecision) {
-    super(`Governance policy violation [${decision.ruleId ?? "unknown"}]: ${decision.reason}`, "GOVERNANCE_POLICY_VIOLATION");
+    super(`Governance policy violation [${decision.ruleId ?? "unknown"}]: ${decision.reason}`, "GOVERNANCE_POLICY_VIOLATION", "The requested action violates the active governance policy. Check DEFAULT_GOVERNANCE_POLICY or your custom policy.");
     this.name = "GovernancePolicyViolationError";
     this.decision = decision;
   }

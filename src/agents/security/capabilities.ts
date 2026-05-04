@@ -47,6 +47,8 @@ export interface CapabilityTokenPayload {
   tools: string[];
   /** Issued-at (seconds since epoch). */
   iat: number;
+  /** Not-before (seconds since epoch) — token is invalid before this time. */
+  nbf?: number;
   /** Expiry (seconds since epoch). */
   exp: number;
   /** Audience — typically the agentName or service name. */
@@ -74,7 +76,7 @@ export interface IssueTokenOptions {
 
 export class CapabilityError extends SecurityError {
   constructor(message: string) {
-    super(message, "SECURITY_CAPABILITY_ERROR");
+    super(message, "SECURITY_CAPABILITY_ERROR", "Verify the capability token is valid, not expired, and issued for this agent.");
     this.name = "CapabilityError";
   }
 }
@@ -153,6 +155,7 @@ export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<str
     ...(opts.orgId ? { orgId: opts.orgId } : {}),
     tools: opts.tools,
     iat: nowSec,
+    nbf: nowSec,
     exp: ttlMs === Infinity ? nowSec + 86400 * 365 * 10 : nowSec + Math.floor(ttlMs / 1000),
     aud: opts.aud ?? opts.agentName ?? "agent-harness",
     iss: opts.iss ?? "agent-harness",
@@ -167,11 +170,24 @@ export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<str
   return `${header}.${body}.${sig}`;
 }
 
+// ── JTI revocation store ──────────────────────────────────────────────────────
+
+// Simple in-process jti store. Replace with Redis in production.
+const usedJtis = new Set<string>();
+
+export function revokeToken(jti: string): void {
+  usedJtis.add(jti);
+}
+
+export function isTokenRevoked(jti: string): boolean {
+  return usedJtis.has(jti);
+}
+
 // ── Verify ────────────────────────────────────────────────────────────────────
 
 export async function verifyCapabilityToken(
   token: string,
-  options?: { expectedAud?: string; expectedIss?: string }
+  options?: { expectedAud?: string; expectedIss?: string; expectedOrgId?: string }
 ): Promise<CapabilityTokenPayload> {
   const parts = token.split(".");
   if (parts.length !== 3) throw new CapabilityError("Malformed capability token.");
@@ -207,11 +223,19 @@ export async function verifyCapabilityToken(
     throw new CapabilityError("Capability token payload is not valid JSON.");
   }
 
+  if (payload.jti && isTokenRevoked(payload.jti)) {
+    throw new CapabilityError("Token has been revoked");
+  }
+
   const nowSec = Math.floor(Date.now() / 1000);
   if (payload.exp < nowSec) {
     throw new CapabilityError(
       `Capability token expired at ${new Date(payload.exp * 1000).toISOString()}.`
     );
+  }
+
+  if (payload.nbf !== undefined && payload.nbf > nowSec) {
+    throw new CapabilityError("Token not yet valid");
   }
 
   if (options?.expectedAud !== undefined && payload.aud !== options.expectedAud) {
@@ -224,6 +248,10 @@ export async function verifyCapabilityToken(
     throw new CapabilityError(
       `Capability token issuer "${payload.iss}" does not match expected "${options.expectedIss}".`
     );
+  }
+
+  if (options?.expectedOrgId !== undefined && payload.orgId !== options.expectedOrgId) {
+    throw new CapabilityError("Token org mismatch");
   }
 
   return payload;
