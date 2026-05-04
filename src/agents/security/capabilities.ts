@@ -172,7 +172,10 @@ export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<str
 
 // ── JTI revocation store ──────────────────────────────────────────────────────
 
-// Simple in-process jti store. Replace with Redis in production.
+// In-process JTI revocation store. Works for single-instance deployments.
+// For multi-instance or serverless deployments, replace with a shared store:
+//   Redis: await redis.setex(`jti:${jti}`, ttlSeconds, "1")
+//   or use short-lived tokens (ttl ≤ 5 min) and skip revocation entirely.
 const usedJtis = new Map<string, number>(); // jti → expiry epoch ms
 
 export function revokeToken(jti: string, expiresAt?: number): void {

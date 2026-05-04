@@ -60,6 +60,8 @@ cp ../agent_harness_starter/routes/agent/route.ts src/app/api/agent/route.ts
 # Or copy the template directly — create src/app/api/agent/route.ts with this content:
 ```
 
+> **Note:** The route template imports `@/agents/auth` and `@/agents/db` — these are stub adapters that need wiring to your actual auth and database before the route will run. See [docs/02-connecting-your-app.md](docs/02-connecting-your-app.md) for the wiring guide.
+
 ```typescript
 /**
  * DROP THIS FILE INTO: your-app/src/app/api/agent/route.ts

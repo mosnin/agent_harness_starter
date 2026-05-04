@@ -78,6 +78,12 @@ export function validateRuntime(options: {
     );
   }
 
+  if (process.env.NODE_ENV === "production" && !process.env.AGENT_JTI_STORE) {
+    warnings.push(
+      "JTI revocation store is in-process — not shared across instances. Set AGENT_JTI_STORE=redis or use short token TTLs."
+    );
+  }
+
   return { valid: errors.length === 0, warnings, errors };
 }
 

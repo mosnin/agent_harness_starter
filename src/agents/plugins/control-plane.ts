@@ -22,11 +22,11 @@
  *   });
  */
 
-import type { HarnessPlugin, PluginRunContext, AgentEvent, RunInput } from "../types";
-import type { ToolDefinition } from "../tools/types";
+import type { HarnessPlugin } from "../types";
 import { withSecurity } from "../security/plugin";
 import { withGovernance } from "../governance/plugin";
 import { withObservability } from "./observability";
+import { composePlugins } from "./compose";
 
 export interface ControlPlaneOptions {
   /** Governance policy (tool blocking, rate limiting, etc.). */
@@ -73,88 +73,5 @@ export function withControlPlane(opts: ControlPlaneOptions = {}): HarnessPlugin 
   // All constituent plugins, in execution order
   const constituents: HarnessPlugin[] = [securityPlugin, governancePlugin, observabilityPlugin].filter(Boolean);
 
-  return {
-    name: "control-plane",
-
-    async onBeforeRun(
-      userMessage: string,
-      ctx: PluginRunContext,
-      input: RunInput
-    ): Promise<string> {
-      let result = userMessage;
-      for (const p of constituents) {
-        if (p.onBeforeRun) result = await p.onBeforeRun(result, ctx, input);
-      }
-      return result;
-    },
-
-    async onResolveInstructions(
-      instructions: string,
-      userMessage: string,
-      ctx: PluginRunContext
-    ): Promise<string> {
-      let result = instructions;
-      for (const p of constituents) {
-        if (p.onResolveInstructions) result = await p.onResolveInstructions(result, userMessage, ctx);
-      }
-      return result;
-    },
-
-    async wrapTools(
-      tools: ToolDefinition[],
-      ctx: PluginRunContext,
-      pendingEvents: Map<string, AgentEvent>
-    ): Promise<ToolDefinition[]> {
-      let wrapped = tools;
-      for (const p of constituents) {
-        if (p.wrapTools) {
-          wrapped = await p.wrapTools(wrapped, ctx, pendingEvents);
-        }
-      }
-      return wrapped;
-    },
-
-    async onEvent(
-      event: AgentEvent,
-      ctx: PluginRunContext
-    ): Promise<AgentEvent | null> {
-      let current: AgentEvent | null = event;
-      for (const p of constituents) {
-        if (current === null) break;
-        if (p.onEvent) {
-          current = await p.onEvent(current, ctx);
-        }
-      }
-      return current;
-    },
-
-    async onAfterRun(finalOutput: string, ctx: PluginRunContext): Promise<string> {
-      let output = finalOutput;
-      for (const p of constituents) {
-        if (p.onAfterRun) {
-          output = await p.onAfterRun(output, ctx);
-        }
-      }
-      return output;
-    },
-
-    async onError(error: Error, ctx: PluginRunContext): Promise<void> {
-      for (const p of constituents) {
-        if (p.onError) {
-          await p.onError(error, ctx);
-        }
-      }
-    },
-
-    async onComplete(
-      ctx: PluginRunContext,
-      result: { finalOutput: string; durationMs: number; error?: Error }
-    ): Promise<void> {
-      for (const p of constituents) {
-        if (p.onComplete) {
-          await p.onComplete(ctx, result);
-        }
-      }
-    },
-  };
+  return composePlugins("control-plane", constituents);
 }

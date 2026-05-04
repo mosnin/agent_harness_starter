@@ -37,6 +37,7 @@ export { withApprovals } from "./plugins/approvals";
 export { withObservability } from "./plugins/observability";
 export { withControlPlane } from "./plugins/control-plane";
 export type { ControlPlaneOptions } from "./plugins/control-plane";
+export { composePlugins } from "./plugins/compose";
 
 // ── Agent definition ─────────────────────────────────────────────────────────
 export { defineAgent } from "./definitions/index";
