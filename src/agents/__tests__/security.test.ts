@@ -424,7 +424,9 @@ describe("JWT security", () => {
   });
 
   it("rejects token with future nbf", async () => {
-    // Issue a valid token, then tamper with nbf to be 1 hour in the future
+    // Issue a valid token, then tamper with nbf to be 1 hour in the future.
+    // Re-sign with jose-compatible HMAC-SHA256 (raw bytes, base64url) so the
+    // signature is valid and jose can reach the nbf claim check.
     const token = await issueCapabilityToken({ sub: "user-1", tools: ["web_search"] });
     const parts = token.split(".");
     const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
@@ -433,12 +435,10 @@ describe("JWT security", () => {
     const tamperedPayload = { ...payload, nbf: Math.floor(Date.now() / 1000) + 3600 };
     const tamperedBody = Buffer.from(JSON.stringify(tamperedPayload)).toString("base64url");
 
-    // Re-sign with the test secret
+    // Re-sign with a proper HMAC-SHA256 (raw digest bytes → base64url, matching jose)
     const { createHmac } = await import("crypto");
     const signingInput = `${parts[0]}.${tamperedBody}`;
-    const newSig = Buffer.from(
-      createHmac("sha256", TEST_SECRET).update(signingInput).digest().toString("binary")
-    ).toString("base64url");
+    const newSig = createHmac("sha256", TEST_SECRET).update(signingInput).digest("base64url");
 
     const tamperedToken = `${parts[0]}.${tamperedBody}.${newSig}`;
 

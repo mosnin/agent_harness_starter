@@ -31,6 +31,7 @@
  *   if (!caps.tools.includes("shell_exec")) throw new Error("not authorized");
  */
 
+import { SignJWT, jwtVerify, importPKCS8, importSPKI, errors as joseErrors } from "jose";
 import { parseTtlMs } from "../memory/anchors";
 import { SecurityError } from "../errors";
 
@@ -97,48 +98,10 @@ function getSecret(): string {
   if (!secret || secret.length < 32) {
     throw new CapabilityError(
       "AGENT_CAPABILITY_SECRET must be set and at least 32 characters long. " +
-      "Alternatively, set AGENT_CAPABILITY_PRIVATE_KEY + AGENT_CAPABILITY_PUBLIC_KEY for RS256 (recommended for production).",
-      "CAPABILITY_CONFIG_ERROR"
+      "Alternatively, set AGENT_CAPABILITY_PRIVATE_KEY + AGENT_CAPABILITY_PUBLIC_KEY for RS256 (recommended for production)."
     );
   }
   return secret;
-}
-
-// ── Minimal JWT crypto without a heavy dependency ────────────────────────────
-
-function b64url(data: string): string {
-  return Buffer.from(data).toString("base64url");
-}
-
-function fromB64url(data: string): string {
-  return Buffer.from(data, "base64url").toString("utf8");
-}
-
-async function sign(payload: string, secret: string): Promise<string> {
-  const { createHmac } = await import("crypto");
-  return b64url(createHmac("sha256", secret).update(payload).digest().toString("binary"));
-}
-
-async function timingSafeEqual(a: string, b: string): Promise<boolean> {
-  const { timingSafeEqual: tse } = await import("crypto");
-  const aBytes = Buffer.from(a);
-  const bBytes = Buffer.from(b);
-  if (aBytes.length !== bBytes.length) return false;
-  return tse(aBytes, bBytes);
-}
-
-async function signRS256(payload: string): Promise<string> {
-  const privateKeyPem = process.env.AGENT_CAPABILITY_PRIVATE_KEY!;
-  const { createSign } = await import("crypto");
-  const sig = createSign("RSA-SHA256").update(payload).sign(privateKeyPem);
-  return sig.toString("base64url");
-}
-
-async function verifyRS256(payload: string, sig: string): Promise<boolean> {
-  const publicKeyPem = process.env.AGENT_CAPABILITY_PUBLIC_KEY!;
-  const { createVerify } = await import("crypto");
-  const sigBuf = Buffer.from(sig, "base64url");
-  return createVerify("RSA-SHA256").update(payload).verify(publicKeyPem, sigBuf);
 }
 
 // ── Issue ─────────────────────────────────────────────────────────────────────
@@ -149,26 +112,36 @@ export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<str
   const ttlMs = parseTtlMs(ttl);
 
   const nowSec = Math.floor(Date.now() / 1000);
-  const payload: CapabilityTokenPayload = {
-    sub: opts.sub,
+  const expSec = ttlMs === Infinity ? nowSec + 86400 * 365 * 10 : nowSec + Math.floor(ttlMs / 1000);
+
+  // Custom claims to embed in the payload
+  const customClaims: Record<string, unknown> = {
+    tools: opts.tools,
     ...(opts.runId ? { runId: opts.runId } : {}),
     ...(opts.agentName ? { agentName: opts.agentName } : {}),
     ...(opts.orgId ? { orgId: opts.orgId } : {}),
-    tools: opts.tools,
-    iat: nowSec,
-    nbf: nowSec,
-    exp: ttlMs === Infinity ? nowSec + 86400 * 365 * 10 : nowSec + Math.floor(ttlMs / 1000),
-    aud: opts.aud ?? opts.agentName ?? "agent-harness",
-    iss: opts.iss ?? "agent-harness",
-    jti: crypto.randomUUID(),
   };
 
-  const header = b64url(JSON.stringify({ alg, typ: "JWT" }));
-  const body = b64url(JSON.stringify(payload));
-  const sig = alg === "RS256"
-    ? await signRS256(`${header}.${body}`)
-    : await sign(`${header}.${body}`, getSecret());
-  return `${header}.${body}.${sig}`;
+  const aud = opts.aud ?? opts.agentName ?? "agent-harness";
+  const iss = opts.iss ?? "agent-harness";
+
+  const builder = new SignJWT(customClaims)
+    .setProtectedHeader({ alg, typ: "JWT" })
+    .setSubject(opts.sub)
+    .setIssuedAt(nowSec)
+    .setNotBefore(nowSec)
+    .setExpirationTime(expSec)
+    .setAudience(aud)
+    .setIssuer(iss)
+    .setJti(crypto.randomUUID());
+
+  if (alg === "RS256") {
+    const privateKey = await importPKCS8(process.env.AGENT_CAPABILITY_PRIVATE_KEY!, "RS256");
+    return builder.sign(privateKey);
+  } else {
+    const secret = new TextEncoder().encode(getSecret());
+    return builder.sign(secret);
+  }
 }
 
 // ── JTI revocation store ──────────────────────────────────────────────────────
@@ -200,14 +173,13 @@ export async function verifyCapabilityToken(
   token: string,
   options?: { expectedAud?: string; expectedIss?: string; expectedOrgId?: string }
 ): Promise<CapabilityTokenPayload> {
+  // Peek at the header to enforce algorithm expectations before jose verifies.
   const parts = token.split(".");
   if (parts.length !== 3) throw new CapabilityError("Malformed capability token.", "CAPABILITY_MALFORMED_TOKEN");
 
-  const [header, body, sig] = parts;
-
   let parsedHeader: { alg?: string; typ?: string };
   try {
-    parsedHeader = JSON.parse(fromB64url(header));
+    parsedHeader = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8"));
   } catch {
     throw new CapabilityError("Capability token header is not valid JSON.", "CAPABILITY_MALFORMED_TOKEN");
   }
@@ -217,58 +189,105 @@ export async function verifyCapabilityToken(
     throw new CapabilityError("Token algorithm mismatch", "CAPABILITY_ALGORITHM_MISMATCH");
   }
 
-  const alg = expectedAlg;
+  // Build jose verify options — jose natively validates exp, nbf, aud, iss.
+  // Passing audience/issuer here causes jose to enforce them (algorithm confusion impossible).
+  const verifyOpts: Parameters<typeof jwtVerify>[2] = {
+    algorithms: [expectedAlg],
+    ...(options?.expectedAud !== undefined ? { audience: options.expectedAud } : {}),
+    ...(options?.expectedIss !== undefined ? { issuer: options.expectedIss } : {}),
+  };
 
-  if (alg === "RS256") {
-    const valid = await verifyRS256(`${header}.${body}`, sig);
-    if (!valid) throw new CapabilityError("Capability token signature invalid.", "CAPABILITY_INVALID_SIGNATURE");
-  } else {
-    const expectedSig = await sign(`${header}.${body}`, getSecret());
-    if (!await timingSafeEqual(sig, expectedSig)) throw new CapabilityError("Capability token signature invalid.", "CAPABILITY_INVALID_SIGNATURE");
-  }
-
-  let payload: CapabilityTokenPayload;
+  let rawPayload: Record<string, unknown>;
   try {
-    payload = JSON.parse(fromB64url(body));
-  } catch {
-    throw new CapabilityError("Capability token payload is not valid JSON.", "CAPABILITY_MALFORMED_TOKEN");
+    if (expectedAlg === "RS256") {
+      const publicKey = await importSPKI(process.env.AGENT_CAPABILITY_PUBLIC_KEY!, "RS256");
+      const { payload } = await jwtVerify(token, publicKey, verifyOpts);
+      rawPayload = payload as Record<string, unknown>;
+    } else {
+      const secret = new TextEncoder().encode(getSecret());
+      const { payload } = await jwtVerify(token, secret, verifyOpts);
+      rawPayload = payload as Record<string, unknown>;
+    }
+  } catch (err) {
+    if (err instanceof CapabilityError) throw err;
+
+    if (err instanceof joseErrors.JWTExpired) {
+      const expSec = (err as unknown as { payload?: { exp?: number } }).payload?.exp;
+      const expDate = expSec ? new Date(expSec * 1000).toISOString() : "unknown";
+      throw new CapabilityError(
+        `Capability token expired at ${expDate}.`,
+        "CAPABILITY_TOKEN_EXPIRED"
+      );
+    }
+    if (err instanceof joseErrors.JWTClaimValidationFailed) {
+      const msg = (err as Error).message ?? "";
+      if (msg.includes("nbf")) {
+        throw new CapabilityError(
+          `Token not yet valid: "nbf" claim timestamp check failed`,
+          "CAPABILITY_TOKEN_NOT_YET_VALID"
+        );
+      }
+      if (msg.includes("aud") || msg.includes("audience")) {
+        let actualAud: string | undefined;
+        try {
+          const p = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+          actualAud = Array.isArray(p.aud) ? p.aud[0] : p.aud;
+        } catch { /* ignore */ }
+        throw new CapabilityError(
+          `Token audience mismatch: expected "${options?.expectedAud}", got "${actualAud ?? "none"}"`,
+          "CAPABILITY_AUDIENCE_MISMATCH"
+        );
+      }
+      if (msg.includes("iss") || msg.includes("issuer")) {
+        let actualIss: string | undefined;
+        try {
+          const p = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+          actualIss = p.iss;
+        } catch { /* ignore */ }
+        throw new CapabilityError(
+          `Capability token issuer "${actualIss}" does not match expected "${options?.expectedIss}".`,
+          "CAPABILITY_ISSUER_MISMATCH"
+        );
+      }
+      throw new CapabilityError(
+        `Capability token claim validation failed: ${msg}`,
+        "CAPABILITY_CLAIM_VALIDATION_FAILED"
+      );
+    }
+    if (err instanceof joseErrors.JWSSignatureVerificationFailed || err instanceof joseErrors.JWSInvalid) {
+      throw new CapabilityError("Capability token signature invalid.", "CAPABILITY_INVALID_SIGNATURE");
+    }
+    if (err instanceof joseErrors.JWTInvalid || err instanceof joseErrors.JOSEError) {
+      throw new CapabilityError(`Capability token invalid: ${(err as Error).message}`, "CAPABILITY_MALFORMED_TOKEN");
+    }
+    throw new CapabilityError(`Capability token verification failed: ${(err as Error).message}`, "CAPABILITY_MALFORMED_TOKEN");
   }
+
+  // Reconstruct the typed payload from the verified jose payload.
+  // jose normalises aud to string[] — unwrap single-element arrays.
+  const audValue = rawPayload.aud !== undefined
+    ? (Array.isArray(rawPayload.aud) ? (rawPayload.aud as string[])[0] : rawPayload.aud as string)
+    : undefined;
+
+  const payload: CapabilityTokenPayload = {
+    sub: rawPayload.sub as string,
+    tools: rawPayload.tools as string[],
+    iat: rawPayload.iat as number,
+    exp: rawPayload.exp as number,
+    ...(rawPayload.nbf !== undefined ? { nbf: rawPayload.nbf as number } : {}),
+    ...(rawPayload.runId !== undefined ? { runId: rawPayload.runId as string } : {}),
+    ...(rawPayload.agentName !== undefined ? { agentName: rawPayload.agentName as string } : {}),
+    ...(rawPayload.orgId !== undefined ? { orgId: rawPayload.orgId as string } : {}),
+    ...(audValue !== undefined ? { aud: audValue } : {}),
+    ...(rawPayload.iss !== undefined ? { iss: rawPayload.iss as string } : {}),
+    ...(rawPayload.jti !== undefined ? { jti: rawPayload.jti as string } : {}),
+  };
 
   // Explicit-revocation model: tokens are valid until expiry unless explicitly revoked
   // via revokeToken(jti). This does NOT prevent replay of live tokens — it only blocks
   // tokens that were deliberately invalidated (e.g. on logout or key rotation).
-  // For single-use token semantics, mark jti as used here and check before this block.
   if (payload.jti && isTokenRevoked(payload.jti)) {
     throw new CapabilityError(`Token has been revoked (jti: ${payload.jti})`, "CAPABILITY_TOKEN_REVOKED");
-  }
-
-  const nowSec = Math.floor(Date.now() / 1000);
-  if (payload.exp < nowSec) {
-    throw new CapabilityError(
-      `Capability token expired at ${new Date(payload.exp * 1000).toISOString()}.`,
-      "CAPABILITY_TOKEN_EXPIRED"
-    );
-  }
-
-  if (payload.nbf !== undefined && payload.nbf > nowSec) {
-    throw new CapabilityError(
-      `Token not yet valid: valid from ${new Date((payload.nbf ?? 0) * 1000).toISOString()}`,
-      "CAPABILITY_TOKEN_NOT_YET_VALID"
-    );
-  }
-
-  if (options?.expectedAud !== undefined && payload.aud !== options.expectedAud) {
-    throw new CapabilityError(
-      `Token audience mismatch: expected "${options.expectedAud}", got "${payload.aud ?? "none"}"`,
-      "CAPABILITY_AUDIENCE_MISMATCH"
-    );
-  }
-
-  if (options?.expectedIss !== undefined && payload.iss !== options.expectedIss) {
-    throw new CapabilityError(
-      `Capability token issuer "${payload.iss}" does not match expected "${options.expectedIss}".`,
-      "CAPABILITY_ISSUER_MISMATCH"
-    );
   }
 
   if (options?.expectedOrgId !== undefined && payload.orgId !== options.expectedOrgId) {
@@ -296,8 +315,7 @@ export async function resolveToolsFromToken(
 
   if (runId && payload.runId && payload.runId !== runId) {
     throw new CapabilityError(
-      `Capability token is scoped to run "${payload.runId}", not "${runId}".`,
-      "CAPABILITY_RUN_MISMATCH"
+      `Capability token is scoped to run "${payload.runId}", not "${runId}".`
     );
   }
 
