@@ -66,9 +66,13 @@ export interface PolicyConfig {
 
   /** Optional label for logging/audit. */
   name?: string;
+
+  /** Optional: called on every check with the result. Use for audit logging. */
+  auditSink?: (toolName: string, result: PolicyCheckResult, ctx: PolicyContext) => void;
 }
 
 import { SecurityError } from "../errors";
+import { AuditLogger, type AuditAdapter } from "./audit";
 
 export class PolicyViolationError extends SecurityError {
   constructor(
@@ -106,31 +110,41 @@ export function createPolicy(config: PolicyConfig): AgentPolicy {
     name,
 
     async check(toolName: string, ctx: PolicyContext = {}): Promise<PolicyCheckResult> {
+      let result: PolicyCheckResult;
+
       // Deny list is absolute
       if (denySet.has(toolName)) {
-        return { allowed: false, reason: `Tool "${toolName}" is on the deny list.` };
+        result = { allowed: false, reason: `Tool "${toolName}" is on the deny list.` };
       }
 
       // Explicit allow list
-      if (allowSet.has(toolName)) {
-        return { allowed: true, reason: "Tool is on the allow list." };
+      else if (allowSet.has(toolName)) {
+        result = { allowed: true, reason: "Tool is on the allow list." };
       }
 
-      // Dynamic rules (first match wins)
-      for (const rule of rules) {
-        const result = await Promise.resolve(rule(toolName, ctx));
-        if (result === true) return { allowed: true, reason: "Matched a dynamic allow rule." };
-        if (result === false) return { allowed: false, reason: "Matched a dynamic deny rule." };
+      else {
+        // Dynamic rules (first match wins)
+        let matched: PolicyCheckResult | undefined;
+        for (const rule of rules) {
+          const ruleResult = await Promise.resolve(rule(toolName, ctx));
+          if (ruleResult === true) { matched = { allowed: true, reason: "Matched a dynamic allow rule." }; break; }
+          if (ruleResult === false) { matched = { allowed: false, reason: "Matched a dynamic deny rule." }; break; }
+        }
+
+        if (matched !== undefined) {
+          result = matched;
+        } else if (defaultAction === "allow") {
+          result = { allowed: true, reason: "Default action is allow." };
+        } else {
+          result = {
+            allowed: false,
+            reason: `Tool "${toolName}" is not on the allow list (default-deny).`,
+          };
+        }
       }
 
-      // Default
-      if (defaultAction === "allow") {
-        return { allowed: true, reason: "Default action is allow." };
-      }
-      return {
-        allowed: false,
-        reason: `Tool "${toolName}" is not on the allow list (default-deny).`,
-      };
+      config.auditSink?.(toolName, result, ctx);
+      return result;
     },
 
     async enforce(toolName: string, ctx: PolicyContext = {}): Promise<void> {
@@ -161,3 +175,40 @@ export function applyPolicyToTools(
 
 /** Minimal default-deny policy — blocks everything. Useful as a safe base. */
 export const DEFAULT_DENY_POLICY = createPolicy({ defaultAction: "deny", name: "default-deny" });
+
+/**
+ * Create a policy pre-wired to the AuditLogger.
+ * Every allow/deny decision is logged to the provided adapter.
+ */
+export function createAuditedPolicy(
+  config: PolicyConfig,
+  auditAdapter: AuditAdapter
+): AgentPolicy {
+  const logger = new AuditLogger(auditAdapter);
+  return createPolicy({
+    ...config,
+    auditSink: (toolName, result, ctx) => {
+      if (result.allowed) {
+        logger.logAllowed({
+          runId: ctx.runId ?? "",
+          agentName: config.name ?? "policy",
+          toolName,
+          userId: ctx.userId,
+          policyName: config.name,
+          reason: result.reason,
+        });
+      } else {
+        logger.logBlocked(
+          {
+            runId: ctx.runId ?? "",
+            agentName: config.name ?? "policy",
+            toolName,
+            userId: ctx.userId,
+          },
+          config.name ?? "policy",
+          result.reason
+        );
+      }
+    },
+  });
+}

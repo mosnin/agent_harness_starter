@@ -26,6 +26,20 @@ export interface MemoryPluginOptions {
 }
 
 export function withMemory(opts: MemoryPluginOptions): HarnessPlugin {
+  // Warn in production when the memory adapter is the default in-memory one,
+  // since state will be silently lost between serverless invocations.
+  if (process.env.NODE_ENV === "production") {
+    const provider = process.env.MEMORY_PROVIDER ?? "memory";
+    if (provider === "memory") {
+      console.warn(
+        "[agent/memory] WARNING: Using in-memory MemoryAdapter in production. " +
+        "State will be lost between serverless invocations. " +
+        "Set MEMORY_PROVIDER=pgvector or MEMORY_PROVIDER=pinecone, " +
+        "or call setMemoryAdapter() with a persistent adapter before handling requests."
+      );
+    }
+  }
+
   return {
     name: "memory",
 

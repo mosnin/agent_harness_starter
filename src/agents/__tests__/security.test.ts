@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createPolicy, PolicyViolationError, applyPolicyToTools, DEFAULT_DENY_POLICY } from "../security/policy";
+import { createPolicy, createAuditedPolicy, PolicyViolationError, applyPolicyToTools, DEFAULT_DENY_POLICY } from "../security/policy";
 import { AuditLogger, InMemoryAuditAdapter, hashInput } from "../security/audit";
 import { withSecurity } from "../security/plugin";
+import { issueCapabilityToken, verifyCapabilityToken, CapabilityError } from "../security/capabilities";
 import type { PluginRunContext } from "../types";
 import type { ToolDefinition } from "../tools/types";
 
@@ -219,5 +220,190 @@ describe("withSecurity plugin", () => {
     const result = await wrapped.execute({}, {} as never);
     expect(result).toBe("result:shell_exec");
     expect(adapter.records[0].outcome).toBe("blocked");
+  });
+});
+
+// ── Capability tokens ─────────────────────────────────────────────────────────
+
+const TEST_SECRET = "test-secret-that-is-at-least-32-characters-long";
+
+describe("issueCapabilityToken — aud/iss claims", () => {
+  beforeEach(() => {
+    process.env.AGENT_CAPABILITY_SECRET = TEST_SECRET;
+  });
+
+  it("includes aud and iss in issued token payload", async () => {
+    const token = await issueCapabilityToken({
+      sub: "user-1",
+      tools: ["web_search"],
+      aud: "support-agent",
+      iss: "acme-platform",
+    });
+
+    const parts = token.split(".");
+    expect(parts).toHaveLength(3);
+
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    expect(payload.aud).toBe("support-agent");
+    expect(payload.iss).toBe("acme-platform");
+  });
+
+  it("defaults aud to 'agent-harness' when omitted", async () => {
+    const token = await issueCapabilityToken({
+      sub: "user-1",
+      tools: ["web_search"],
+    });
+
+    const parts = token.split(".");
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    expect(payload.aud).toBe("agent-harness");
+  });
+
+  it("defaults aud to agentName when agentName is set and aud omitted", async () => {
+    const token = await issueCapabilityToken({
+      sub: "user-1",
+      tools: ["web_search"],
+      agentName: "my-agent",
+    });
+
+    const parts = token.split(".");
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    expect(payload.aud).toBe("my-agent");
+  });
+
+  it("defaults iss to 'agent-harness' when omitted", async () => {
+    const token = await issueCapabilityToken({
+      sub: "user-1",
+      tools: ["web_search"],
+    });
+
+    const parts = token.split(".");
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    expect(payload.iss).toBe("agent-harness");
+  });
+
+  it("aud and iss appear in verified payload", async () => {
+    const token = await issueCapabilityToken({
+      sub: "user-2",
+      tools: ["lookup_order"],
+      aud: "order-agent",
+      iss: "shop-platform",
+    });
+
+    const payload = await verifyCapabilityToken(token);
+    expect(payload.aud).toBe("order-agent");
+    expect(payload.iss).toBe("shop-platform");
+  });
+});
+
+describe("verifyCapabilityToken — expectedAud option", () => {
+  beforeEach(() => {
+    process.env.AGENT_CAPABILITY_SECRET = TEST_SECRET;
+  });
+
+  it("accepts token when aud matches expectedAud", async () => {
+    const token = await issueCapabilityToken({
+      sub: "user-1",
+      tools: ["web_search"],
+      aud: "support-agent",
+    });
+
+    const payload = await verifyCapabilityToken(token, { expectedAud: "support-agent" });
+    expect(payload.aud).toBe("support-agent");
+    expect(payload.sub).toBe("user-1");
+  });
+
+  it("rejects token when aud does not match expectedAud", async () => {
+    const token = await issueCapabilityToken({
+      sub: "user-1",
+      tools: ["web_search"],
+      aud: "support-agent",
+    });
+
+    await expect(
+      verifyCapabilityToken(token, { expectedAud: "billing-agent" })
+    ).rejects.toThrow(CapabilityError);
+  });
+
+  it("rejection error message contains both actual and expected aud", async () => {
+    const token = await issueCapabilityToken({
+      sub: "user-1",
+      tools: ["web_search"],
+      aud: "support-agent",
+    });
+
+    await expect(
+      verifyCapabilityToken(token, { expectedAud: "billing-agent" })
+    ).rejects.toThrow(/support-agent.*billing-agent|billing-agent.*support-agent/);
+  });
+
+  it("skips aud check when expectedAud is not provided", async () => {
+    const token = await issueCapabilityToken({
+      sub: "user-1",
+      tools: ["web_search"],
+      aud: "any-agent",
+    });
+
+    await expect(verifyCapabilityToken(token)).resolves.toBeDefined();
+  });
+});
+
+// ── createAuditedPolicy ───────────────────────────────────────────────────────
+
+describe("createAuditedPolicy", () => {
+  it("calls audit sink with 'allowed' outcome when tool is permitted", async () => {
+    const adapter = new InMemoryAuditAdapter();
+    const policy = createAuditedPolicy(
+      { allow: ["web_search"], name: "test-policy" },
+      adapter
+    );
+
+    const result = await policy.check("web_search", { runId: "r1", userId: "u1" });
+    expect(result.allowed).toBe(true);
+    expect(adapter.records).toHaveLength(1);
+    expect(adapter.records[0].outcome).toBe("allowed");
+    expect(adapter.records[0].toolName).toBe("web_search");
+  });
+
+  it("calls audit sink with 'blocked' outcome when tool is denied", async () => {
+    const adapter = new InMemoryAuditAdapter();
+    const policy = createAuditedPolicy(
+      { allow: ["web_search"], name: "test-policy" },
+      adapter
+    );
+
+    const result = await policy.check("shell_exec", { runId: "r1", userId: "u1" });
+    expect(result.allowed).toBe(false);
+    expect(adapter.records).toHaveLength(1);
+    expect(adapter.records[0].outcome).toBe("blocked");
+    expect(adapter.records[0].toolName).toBe("shell_exec");
+  });
+
+  it("audit record contains policyName on blocked outcome", async () => {
+    const adapter = new InMemoryAuditAdapter();
+    const policy = createAuditedPolicy(
+      { allow: [], name: "strict-policy" },
+      adapter
+    );
+
+    await policy.check("any_tool", { runId: "r1" });
+    expect(adapter.records[0].policyName).toBe("strict-policy");
+  });
+
+  it("audit records correct toolName and userId for each check", async () => {
+    const adapter = new InMemoryAuditAdapter();
+    const policy = createAuditedPolicy(
+      { allow: ["tool_a", "tool_b"], name: "multi-policy" },
+      adapter
+    );
+
+    await policy.check("tool_a", { runId: "r1", userId: "alice" });
+    await policy.check("tool_b", { runId: "r1", userId: "bob" });
+
+    expect(adapter.records).toHaveLength(2);
+    expect(adapter.records[0].toolName).toBe("tool_a");
+    expect(adapter.records[0].userId).toBe("alice");
+    expect(adapter.records[1].toolName).toBe("tool_b");
+    expect(adapter.records[1].userId).toBe("bob");
   });
 });

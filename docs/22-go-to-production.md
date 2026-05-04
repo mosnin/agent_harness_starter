@@ -142,10 +142,19 @@ const token = await issueCapabilityToken({
   runId: crypto.randomUUID(),
   tools: ["web_search", "lookup_order"],   // only these tools for this run
   ttl: "15m",
+  aud: "support-agent",   // NEW: scope to this specific agent
+  iss: "acme-platform",   // NEW: identify your platform
 });
 
 // Pass the token to the agent context
 const result = await agent.run(message, { userId, capabilityToken: token });
+```
+
+When verifying, you can assert the expected audience to prevent tokens issued for one agent from being used with another:
+
+```typescript
+// Reject tokens not scoped to this agent
+const caps = await verifyCapabilityToken(token, { expectedAud: "support-agent" });
 ```
 
 Requires `AGENT_CAPABILITY_SECRET` (min 32 chars) in your environment.
@@ -191,6 +200,31 @@ setObservabilityAdapter({
   onToolCall: (span) => datadogMetrics.increment("agent.tool.call", { tool: span.toolName }),
 });
 ```
+
+---
+
+## 9 — Runtime validation
+
+Validate your agent runtime configuration at startup to catch missing secrets or misconfigured adapters before they cause runtime failures in production:
+
+```typescript
+// src/instrumentation.ts (Next.js) or server startup
+import { validateRuntime } from "@/agents";
+
+const { valid, warnings, errors } = validateRuntime({
+  warnOnInMemory: true,
+  requireOpenAIKey: true,
+  requireCapabilitySecret: true,
+});
+
+if (!valid) {
+  throw new Error("Agent runtime misconfigured:\n" + errors.join("\n"));
+}
+warnings.forEach(w => console.warn("[agents]", w));
+```
+
+- `errors` — fatal misconfigurations (missing required env vars, invalid secrets). Throws to prevent startup.
+- `warnings` — non-fatal issues (e.g., using in-memory adapters in a serverless environment) that won't block startup but should be reviewed before production.
 
 ---
 

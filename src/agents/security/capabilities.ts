@@ -40,6 +40,10 @@ export interface CapabilityTokenPayload {
   iat: number;
   /** Expiry (seconds since epoch). */
   exp: number;
+  /** Audience — typically the agentName or service name. */
+  aud?: string;
+  /** Issuer — typically "agent-harness" or custom. */
+  iss?: string;
 }
 
 export interface IssueTokenOptions {
@@ -49,6 +53,10 @@ export interface IssueTokenOptions {
   tools: string[];
   /** Duration: "5m", "1h", etc. Default: AGENT_CAPABILITY_DEFAULT_TTL or "15m". */
   ttl?: string;
+  /** Audience — if omitted, defaults to agentName if set, else "agent-harness". */
+  aud?: string;
+  /** Issuer — if omitted, defaults to "agent-harness". */
+  iss?: string;
 }
 
 export class CapabilityError extends SecurityError {
@@ -83,6 +91,14 @@ async function sign(payload: string, secret: string): Promise<string> {
   return b64url(createHmac("sha256", secret).update(payload).digest().toString("binary"));
 }
 
+async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+  const { timingSafeEqual: tse } = await import("crypto");
+  const aBytes = Buffer.from(a);
+  const bBytes = Buffer.from(b);
+  if (aBytes.length !== bBytes.length) return false;
+  return tse(aBytes, bBytes);
+}
+
 // ── Issue ─────────────────────────────────────────────────────────────────────
 
 export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<string> {
@@ -98,6 +114,8 @@ export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<str
     tools: opts.tools,
     iat: nowSec,
     exp: ttlMs === Infinity ? nowSec + 86400 * 365 * 10 : nowSec + Math.floor(ttlMs / 1000),
+    aud: opts.aud ?? opts.agentName ?? "agent-harness",
+    iss: opts.iss ?? "agent-harness",
   };
 
   const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
@@ -108,14 +126,17 @@ export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<str
 
 // ── Verify ────────────────────────────────────────────────────────────────────
 
-export async function verifyCapabilityToken(token: string): Promise<CapabilityTokenPayload> {
+export async function verifyCapabilityToken(
+  token: string,
+  options?: { expectedAud?: string; expectedIss?: string }
+): Promise<CapabilityTokenPayload> {
   const secret = getSecret();
   const parts = token.split(".");
   if (parts.length !== 3) throw new CapabilityError("Malformed capability token.");
 
   const [header, body, sig] = parts;
   const expectedSig = await sign(`${header}.${body}`, secret);
-  if (sig !== expectedSig) throw new CapabilityError("Capability token signature invalid.");
+  if (!await timingSafeEqual(sig, expectedSig)) throw new CapabilityError("Capability token signature invalid.");
 
   let payload: CapabilityTokenPayload;
   try {
@@ -131,6 +152,18 @@ export async function verifyCapabilityToken(token: string): Promise<CapabilityTo
     );
   }
 
+  if (options?.expectedAud !== undefined && payload.aud !== options.expectedAud) {
+    throw new CapabilityError(
+      `Capability token audience "${payload.aud}" does not match expected "${options.expectedAud}".`
+    );
+  }
+
+  if (options?.expectedIss !== undefined && payload.iss !== options.expectedIss) {
+    throw new CapabilityError(
+      `Capability token issuer "${payload.iss}" does not match expected "${options.expectedIss}".`
+    );
+  }
+
   return payload;
 }
 
@@ -142,9 +175,10 @@ export async function verifyCapabilityToken(token: string): Promise<CapabilityTo
  */
 export async function resolveToolsFromToken(
   token: string,
-  runId?: string
+  runId?: string,
+  options?: { expectedAud?: string; expectedIss?: string }
 ): Promise<{ sub: string; tools: string[] }> {
-  const payload = await verifyCapabilityToken(token);
+  const payload = await verifyCapabilityToken(token, options);
 
   if (runId && payload.runId && payload.runId !== runId) {
     throw new CapabilityError(

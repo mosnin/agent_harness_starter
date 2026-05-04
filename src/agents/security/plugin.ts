@@ -1,10 +1,18 @@
 /**
  * withSecurity plugin — wires policy enforcement and audit logging into any agent.
  *
- * Usage:
+ * Usage (pre-built policy):
  *   plugins: [
  *     withSecurity({
  *       policy: createPolicy({ allow: ["web_search"], deny: ["shell_exec"] }),
+ *     }),
+ *   ]
+ *
+ * Usage (policy config + audit adapter, fully wired):
+ *   plugins: [
+ *     withSecurity({
+ *       policyConfig: { allow: ["web_search"], deny: ["shell_exec"], name: "my-policy" },
+ *       auditAdapter: new InMemoryAuditAdapter(),
  *     }),
  *   ]
  *
@@ -15,21 +23,42 @@
 
 import type { HarnessPlugin, PluginRunContext } from "../types";
 import type { ToolDefinition } from "../tools/types";
-import { applyPolicyToTools, type AgentPolicy, PolicyViolationError } from "./policy";
-import { audit as globalAudit, type AuditLogger } from "./audit";
+import {
+  createPolicy,
+  createAuditedPolicy,
+  type AgentPolicy,
+  type PolicyConfig,
+  PolicyViolationError,
+} from "./policy";
+import { audit as globalAudit, type AuditAdapter, type AuditLogger } from "./audit";
 
 export interface SecurityPluginOptions {
   /**
-   * Policy to enforce on every tool call.
-   * If omitted, audit logging still runs but all tools are allowed.
+   * Pre-built policy to enforce on every tool call.
+   * If omitted (and no policyConfig is given), audit logging still runs but all tools are allowed.
    */
   policy?: AgentPolicy;
+
+  /**
+   * Policy config to build the policy from. When provided together with
+   * `auditAdapter`, the policy is automatically wired to the audit adapter via
+   * `createAuditedPolicy` so every policy decision is logged in addition to the
+   * plugin-level execution log. Takes precedence over `policy` if both are set.
+   */
+  policyConfig?: PolicyConfig;
 
   /**
    * AuditLogger to write records to. Defaults to the global singleton.
    * Override for per-tenant loggers or in tests.
    */
   auditLogger?: AuditLogger;
+
+  /**
+   * AuditAdapter to wire directly into the policy via createAuditedPolicy.
+   * Used only when `policyConfig` is also provided — connects governance
+   * decisions to the same audit trail as execution events.
+   */
+  auditAdapter?: AuditAdapter;
 
   /**
    * If true, policy violations are logged but not thrown — the tool runs anyway.
@@ -39,7 +68,22 @@ export interface SecurityPluginOptions {
 }
 
 export function withSecurity(opts: SecurityPluginOptions = {}): HarnessPlugin {
-  const { policy, auditLogger = globalAudit, auditOnly = false } = opts;
+  const { auditLogger = globalAudit, auditOnly = false } = opts;
+
+  // Resolve the effective policy:
+  // 1. policyConfig + auditAdapter → createAuditedPolicy (fully wired)
+  // 2. policyConfig alone → createPolicy (no per-decision audit sink)
+  // 3. policy (pre-built AgentPolicy) → used as-is
+  // 4. neither → undefined (no policy enforcement, only execution logging)
+  let policy: AgentPolicy | undefined;
+  if (opts.policyConfig) {
+    policy =
+      opts.auditAdapter
+        ? createAuditedPolicy(opts.policyConfig, opts.auditAdapter)
+        : createPolicy(opts.policyConfig);
+  } else {
+    policy = opts.policy;
+  }
 
   return {
     name: "security",

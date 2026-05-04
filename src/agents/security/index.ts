@@ -1,4 +1,4 @@
-export { createPolicy, applyPolicyToTools, PolicyViolationError, DEFAULT_DENY_POLICY } from "./policy";
+export { createPolicy, createAuditedPolicy, applyPolicyToTools, PolicyViolationError, DEFAULT_DENY_POLICY } from "./policy";
 export type { PolicyConfig, PolicyContext, PolicyCheckResult, AgentPolicy } from "./policy";
 
 export { audit, AuditLogger, ConsoleAuditAdapter, InMemoryAuditAdapter, NoopAuditAdapter, hashInput } from "./audit";
