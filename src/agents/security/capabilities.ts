@@ -41,6 +41,8 @@ export interface CapabilityTokenPayload {
   runId?: string;
   /** Agent name this token is scoped to (optional). */
   agentName?: string;
+  /** Organisation/tenant ID — scopes the token to a specific org. */
+  orgId?: string;
   /** Exact tool names allowed. Wildcard "*" means all tools (use with care). */
   tools: string[];
   /** Issued-at (seconds since epoch). */
@@ -51,12 +53,16 @@ export interface CapabilityTokenPayload {
   aud?: string;
   /** Issuer — typically "agent-harness" or custom. */
   iss?: string;
+  /** JWT ID — unique token identifier for replay prevention. */
+  jti?: string;
 }
 
 export interface IssueTokenOptions {
   sub: string;
   runId?: string;
   agentName?: string;
+  /** Organisation/tenant ID — included in the token payload when provided. */
+  orgId?: string;
   tools: string[];
   /** Duration: "5m", "1h", etc. Default: AGENT_CAPABILITY_DEFAULT_TTL or "15m". */
   ttl?: string;
@@ -68,7 +74,7 @@ export interface IssueTokenOptions {
 
 export class CapabilityError extends SecurityError {
   constructor(message: string) {
-    super(message);
+    super(message, "SECURITY_CAPABILITY_ERROR");
     this.name = "CapabilityError";
   }
 }
@@ -144,11 +150,13 @@ export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<str
     sub: opts.sub,
     ...(opts.runId ? { runId: opts.runId } : {}),
     ...(opts.agentName ? { agentName: opts.agentName } : {}),
+    ...(opts.orgId ? { orgId: opts.orgId } : {}),
     tools: opts.tools,
     iat: nowSec,
     exp: ttlMs === Infinity ? nowSec + 86400 * 365 * 10 : nowSec + Math.floor(ttlMs / 1000),
     aud: opts.aud ?? opts.agentName ?? "agent-harness",
     iss: opts.iss ?? "agent-harness",
+    jti: crypto.randomUUID(),
   };
 
   const header = b64url(JSON.stringify({ alg, typ: "JWT" }));
@@ -170,14 +178,19 @@ export async function verifyCapabilityToken(
 
   const [header, body, sig] = parts;
 
-  let headerObj: { alg?: string; typ?: string };
+  let parsedHeader: { alg?: string; typ?: string };
   try {
-    headerObj = JSON.parse(fromB64url(header));
+    parsedHeader = JSON.parse(fromB64url(header));
   } catch {
     throw new CapabilityError("Capability token header is not valid JSON.");
   }
 
-  const alg = headerObj.alg ?? "HS256";
+  const expectedAlg = detectAlgorithm();
+  if (parsedHeader.alg !== expectedAlg) {
+    throw new CapabilityError("Token algorithm mismatch");
+  }
+
+  const alg = expectedAlg;
 
   if (alg === "RS256") {
     const valid = await verifyRS256(`${header}.${body}`, sig);

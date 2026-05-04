@@ -30,7 +30,7 @@ export function validateRuntime(options: {
   warnOnInMemory?: boolean;
   /** Require OPENAI_API_KEY to be set. Default: true. */
   requireOpenAIKey?: boolean;
-  /** Require AGENT_CAPABILITY_SECRET to be set and ≥32 chars. Default: false. */
+  /** Require AGENT_CAPABILITY_SECRET to be set and ≥32 chars. Default: true. */
   requireCapabilitySecret?: boolean;
 } = {}): RuntimeValidationResult {
   const warnings: string[] = [];
@@ -39,7 +39,7 @@ export function validateRuntime(options: {
   const {
     warnOnInMemory = process.env.NODE_ENV === "production",
     requireOpenAIKey = true,
-    requireCapabilitySecret = false,
+    requireCapabilitySecret = true,
   } = options;
 
   if (requireOpenAIKey && !process.env.OPENAI_API_KEY) {
@@ -56,6 +56,19 @@ export function validateRuntime(options: {
         "For production: prefer RS256 by setting AGENT_CAPABILITY_PRIVATE_KEY + AGENT_CAPABILITY_PUBLIC_KEY."
       );
     }
+  }
+
+  const privateKeyEnv = process.env.AGENT_CAPABILITY_PRIVATE_KEY;
+  const publicKeyEnv = process.env.AGENT_CAPABILITY_PUBLIC_KEY;
+  if (privateKeyEnv !== undefined && !privateKeyEnv.startsWith("-----BEGIN")) {
+    errors.push(
+      "AGENT_CAPABILITY_PRIVATE_KEY must be a PEM-encoded private key (-----BEGIN ...)"
+    );
+  }
+  if (publicKeyEnv !== undefined && !publicKeyEnv.startsWith("-----BEGIN")) {
+    errors.push(
+      "AGENT_CAPABILITY_PUBLIC_KEY must be a PEM-encoded public key (-----BEGIN ...)"
+    );
   }
 
   if (warnOnInMemory) {

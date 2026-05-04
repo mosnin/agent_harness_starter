@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { run as mockRun } from "@openai/agents";
 import type { HarnessPlugin, AgentEvent, PluginRunContext } from "../types";
 import { createCustomHarness } from "../core";
+import { withControlPlane } from "../plugins/control-plane";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -333,6 +334,16 @@ describe("plugin ordering guard", () => {
     createCustomHarness({ name: "T", instructions: "x", plugins: [memPlugin, guardrailsPlugin] });
     expect(warnSpy).not.toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+});
+
+describe("withControlPlane plugin", () => {
+  it("is named control-plane and exposes harness hooks", () => {
+    const plugin = withControlPlane({ governance: undefined });
+    expect(plugin.name).toBe("control-plane");
+    expect(typeof plugin.onBeforeRun).toBe("function");
+    expect(typeof plugin.onEvent).toBe("function");
+    expect(typeof plugin.onComplete).toBe("function");
   });
 });
 

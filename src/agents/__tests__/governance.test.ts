@@ -5,6 +5,7 @@ import {
   blockTools,
   blockContentPatterns,
   DEFAULT_GOVERNANCE_POLICY,
+  GovernancePolicyViolationError,
 } from "../governance/policy";
 import {
   createEthicsPolicy,
@@ -14,6 +15,9 @@ import {
 import { createComplianceTracker } from "../governance/compliance";
 import { withGovernance } from "../governance/plugin";
 import type { GovernanceContext } from "../governance/types";
+import { CapabilityError } from "../security/capabilities";
+import { GuardrailBlockError } from "../guardrails/types";
+import { WorkflowError } from "../errors/index";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -221,5 +225,30 @@ describe("withGovernance", () => {
     const wrapped = Array.isArray(result) ? result : await result;
     expect(wrapped).toHaveLength(1);
     expect(wrapped[0].name).toBe("safe_tool");
+  });
+});
+
+// ── Structured error codes ────────────────────────────────────────────────────
+
+describe("structured error codes", () => {
+  it("GovernancePolicyViolationError has code GOVERNANCE_POLICY_VIOLATION", () => {
+    const decision = { outcome: "blocked" as const, risk: "high" as const, reason: "test", timestamp: Date.now() };
+    const err = new GovernancePolicyViolationError(decision);
+    expect(err.code).toBe("GOVERNANCE_POLICY_VIOLATION");
+  });
+
+  it("CapabilityError has code SECURITY_CAPABILITY_ERROR", () => {
+    const err = new CapabilityError("token invalid");
+    expect(err.code).toBe("SECURITY_CAPABILITY_ERROR");
+  });
+
+  it("GuardrailBlockError has code GUARDRAIL_BLOCK", () => {
+    const err = new GuardrailBlockError("blocked", "profanity detected");
+    expect(err.code).toBe("GUARDRAIL_BLOCK");
+  });
+
+  it("WorkflowError base class has code WORKFLOW_ERROR", () => {
+    const err = new WorkflowError("something failed");
+    expect(err.code).toBe("WORKFLOW_ERROR");
   });
 });

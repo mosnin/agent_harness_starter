@@ -15,6 +15,7 @@
  *   import { ... } from "@/agents/observability"   // setObservabilityAdapter, ObservabilityAdapter, …
  *   import { ... } from "@/agents/providers/anthropic"  // createAnthropicHarness
  *   import { ... } from "@/agents/examples"        // createResearchAgent, createCodeAgent, …
+ *   import { ... } from "@/agents/runtime"         // validateRuntime, getRegisteredTools, getRegisteredSkills, resolveAgentAccess, …
  */
 
 // ── Quickstart entry point ──────────────────────────────────────────────────
@@ -68,5 +69,6 @@ export { memory, setMemoryAdapter } from "./memory/index";
 export type { MemoryAdapter, MemoryEntry } from "./memory/index";
 
 // ── Runtime validation & discovery ────────────────────────────────────────────
-export { validateRuntime, getRegisteredTools, getRegisteredSkills, resolveAgentAccess } from "./runtime";
-export type { RuntimeValidationResult } from "./runtime";
+// These are accessible via @/agents/runtime:
+//   import { validateRuntime, getRegisteredTools, getRegisteredSkills, resolveAgentAccess } from "@/agents/runtime";
+//   import type { RuntimeValidationResult } from "@/agents/runtime";

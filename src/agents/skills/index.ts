@@ -66,6 +66,9 @@ export function resolveSkillTools(skillNames: string[]): ToolDefinition[] {
 /**
  * Resolve skill names + explicit tool names into a deduplicated ToolDefinition[].
  * Used by the harness to build the final tool list for an agent.
+ *
+ * @param fallbackToAll - When true, returns all registered tools if neither tools nor skills are specified.
+ *   Defaults to false — returns an empty array when both are empty. Pass true to match legacy behavior.
  */
 export function resolveAgentTools(
   toolNames: string[] = [],

@@ -362,6 +362,47 @@ describe("issueCapabilityToken — algorithm detection", () => {
   });
 });
 
+// ── JWT security ──────────────────────────────────────────────────────────────
+
+describe("JWT security", () => {
+  beforeEach(() => {
+    process.env.AGENT_CAPABILITY_SECRET = TEST_SECRET;
+    delete process.env.AGENT_CAPABILITY_PRIVATE_KEY;
+    delete process.env.AGENT_CAPABILITY_PUBLIC_KEY;
+  });
+
+  it("rejects token with algorithm mismatch (RS256 header on HS256 verifier)", async () => {
+    // Issue a valid HS256 token
+    const token = await issueCapabilityToken({ sub: "user-1", tools: ["web_search"] });
+
+    // Split token parts
+    const parts = token.split(".");
+    const [, body, sig] = parts;
+
+    // Decode header and replace alg with RS256
+    const originalHeader = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8"));
+    const tamperedHeader = { ...originalHeader, alg: "RS256" };
+    const tamperedHeaderB64 = Buffer.from(JSON.stringify(tamperedHeader)).toString("base64url");
+
+    // Reassemble token with tampered header but original signature
+    const tamperedToken = `${tamperedHeaderB64}.${body}.${sig}`;
+
+    await expect(verifyCapabilityToken(tamperedToken)).rejects.toThrow(CapabilityError);
+    await expect(verifyCapabilityToken(tamperedToken)).rejects.toThrow(/mismatch|algorithm/i);
+  });
+
+  it("issued tokens include jti claim", async () => {
+    const token = await issueCapabilityToken({ sub: "user-1", tools: ["web_search"] });
+
+    const parts = token.split(".");
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+
+    expect(payload.jti).toBeDefined();
+    expect(typeof payload.jti).toBe("string");
+    expect(payload.jti.length).toBeGreaterThan(0);
+  });
+});
+
 // ── createAuditedPolicy ───────────────────────────────────────────────────────
 
 describe("createAuditedPolicy", () => {

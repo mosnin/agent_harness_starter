@@ -71,7 +71,7 @@ export function withControlPlane(opts: ControlPlaneOptions = {}): HarnessPlugin 
   const observabilityPlugin = withObservability();
 
   // All constituent plugins, in execution order
-  const plugins: HarnessPlugin[] = [securityPlugin, governancePlugin, observabilityPlugin];
+  const constituents: HarnessPlugin[] = [securityPlugin, governancePlugin, observabilityPlugin].filter(Boolean);
 
   return {
     name: "control-plane",
@@ -81,13 +81,23 @@ export function withControlPlane(opts: ControlPlaneOptions = {}): HarnessPlugin 
       ctx: PluginRunContext,
       input: RunInput
     ): Promise<string> {
-      let msg = userMessage;
-      for (const plugin of plugins) {
-        if (plugin.onBeforeRun) {
-          msg = await plugin.onBeforeRun(msg, ctx, input);
-        }
+      let result = userMessage;
+      for (const p of constituents) {
+        if (p.onBeforeRun) result = await p.onBeforeRun(result, ctx, input);
       }
-      return msg;
+      return result;
+    },
+
+    async onResolveInstructions(
+      instructions: string,
+      userMessage: string,
+      ctx: PluginRunContext
+    ): Promise<string> {
+      let result = instructions;
+      for (const p of constituents) {
+        if (p.onResolveInstructions) result = await p.onResolveInstructions(result, userMessage, ctx);
+      }
+      return result;
     },
 
     async wrapTools(
@@ -96,9 +106,9 @@ export function withControlPlane(opts: ControlPlaneOptions = {}): HarnessPlugin 
       pendingEvents: Map<string, AgentEvent>
     ): Promise<ToolDefinition[]> {
       let wrapped = tools;
-      for (const plugin of plugins) {
-        if (plugin.wrapTools) {
-          wrapped = await plugin.wrapTools(wrapped, ctx, pendingEvents);
+      for (const p of constituents) {
+        if (p.wrapTools) {
+          wrapped = await p.wrapTools(wrapped, ctx, pendingEvents);
         }
       }
       return wrapped;
@@ -109,10 +119,10 @@ export function withControlPlane(opts: ControlPlaneOptions = {}): HarnessPlugin 
       ctx: PluginRunContext
     ): Promise<AgentEvent | null> {
       let current: AgentEvent | null = event;
-      for (const plugin of plugins) {
+      for (const p of constituents) {
         if (current === null) break;
-        if (plugin.onEvent) {
-          current = await plugin.onEvent(current, ctx);
+        if (p.onEvent) {
+          current = await p.onEvent(current, ctx);
         }
       }
       return current;
@@ -120,18 +130,18 @@ export function withControlPlane(opts: ControlPlaneOptions = {}): HarnessPlugin 
 
     async onAfterRun(finalOutput: string, ctx: PluginRunContext): Promise<string> {
       let output = finalOutput;
-      for (const plugin of plugins) {
-        if (plugin.onAfterRun) {
-          output = await plugin.onAfterRun(output, ctx);
+      for (const p of constituents) {
+        if (p.onAfterRun) {
+          output = await p.onAfterRun(output, ctx);
         }
       }
       return output;
     },
 
     async onError(error: Error, ctx: PluginRunContext): Promise<void> {
-      for (const plugin of plugins) {
-        if (plugin.onError) {
-          await plugin.onError(error, ctx);
+      for (const p of constituents) {
+        if (p.onError) {
+          await p.onError(error, ctx);
         }
       }
     },
@@ -140,9 +150,9 @@ export function withControlPlane(opts: ControlPlaneOptions = {}): HarnessPlugin 
       ctx: PluginRunContext,
       result: { finalOutput: string; durationMs: number; error?: Error }
     ): Promise<void> {
-      for (const plugin of plugins) {
-        if (plugin.onComplete) {
-          await plugin.onComplete(ctx, result);
+      for (const p of constituents) {
+        if (p.onComplete) {
+          await p.onComplete(ctx, result);
         }
       }
     },

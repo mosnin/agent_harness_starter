@@ -30,7 +30,7 @@ export class GuardrailBlockError extends GuardrailError {
     message: string,
     public readonly reason: string
   ) {
-    super(message);
+    super(message, "GUARDRAIL_BLOCK");
     this.name = "GuardrailBlockError";
   }
 }
@@ -42,7 +42,7 @@ export class GuardrailHumanReviewError extends GuardrailError {
     public readonly reviewReason: string,
     public readonly payload?: unknown
   ) {
-    super(message);
+    super(message, "GUARDRAIL_HUMAN_REVIEW");
     this.name = "GuardrailHumanReviewError";
   }
 }
