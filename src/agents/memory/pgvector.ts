@@ -3,7 +3,8 @@
  * Compatible with Supabase and any Postgres instance with pgvector installed.
  *
  * Required env vars:
- *   DATABASE_URL or NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+ *   DATABASE_URL or SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+ *   (NEXT_PUBLIC_SUPABASE_URL is also accepted as a fallback for Next.js projects)
  *   OPENAI_API_KEY (used for text-embedding-3-small)
  *
  * Setup SQL (run once):
@@ -31,7 +32,7 @@ export class PgVectorAdapter implements MemoryAdapter {
   private async getDb(): Promise<any> {
     if (!this.db) {
       const { createClient } = await import("@supabase/supabase-js");
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
       const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
       this.db = createClient(url, key);
     }

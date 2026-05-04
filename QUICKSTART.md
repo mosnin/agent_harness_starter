@@ -156,6 +156,33 @@ withSecurity({ policy })  // add to plugins
 
 ---
 
+## Serverless & edge runtime considerations
+
+The default in-memory adapters (memory, cache) use `globalThis` singletons. These work correctly in long-running processes (traditional Node.js servers, containers). In serverless or edge environments, state is not shared across invocations.
+
+**If you deploy to serverless (Vercel Functions, AWS Lambda, Cloudflare Workers):**
+
+```typescript
+// ✗ Default in-memory adapter — state lost between invocations
+import { memory } from "@/agents/memory";
+
+// ✓ Persistent adapter — state survives across cold starts
+import { PgVectorAdapter } from "@/agents/memory/pgvector";
+import { setMemoryAdapter } from "@/agents/memory";
+setMemoryAdapter(new PgVectorAdapter());  // call once at startup
+
+// ✓ For cache — use Redis instead of the in-memory default
+import { createCacheManager, RedisCache } from "@/agents/routing";
+import { Redis } from "@upstash/redis";
+const cache = createCacheManager(new RedisCache(new Redis({ url: "...", token: "..." })));
+```
+
+**Edge runtimes (Cloudflare Workers, Vercel Edge):**
+
+Some adapters use Node.js APIs (`crypto`, `Buffer`). The capability token module and PgVector adapter require a Node.js runtime. Auth adapters and the governance policy engine are edge-compatible.
+
+---
+
 ## Domain example — making a document app like Notion agentic
 
 See [`src/agents/examples/notion-style/`](src/agents/examples/notion-style/README.md) for a complete walkthrough:

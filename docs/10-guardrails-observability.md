@@ -128,3 +128,86 @@ All observability calls are fire-and-forget — a failing adapter never crashes 
 | `onToolResult` | After a tool returns |
 | `onHandoff` | When one agent hands off to another |
 | `onUsage` | Token usage data after each run |
+
+---
+
+## Capability Tokens
+
+Capability tokens are scoped, short-lived JWTs that grant an agent permission to use a specific set of tools for a single run. They implement the Non-Human Identity (NHI) principle: each run gets its own token with the minimum tools needed — never a long-lived shared credential.
+
+```bash
+# Required env var (min 32 chars)
+AGENT_CAPABILITY_SECRET=your-secret-at-least-32-characters-long
+
+# Optional — override default 15-minute TTL
+AGENT_CAPABILITY_DEFAULT_TTL=10m
+```
+
+### Issue a token before the run
+
+```typescript
+import { issueCapabilityToken } from "@/agents/security";
+
+// In your API route, issue a scoped token per user request
+const token = await issueCapabilityToken({
+  sub: userId,            // who is making the request
+  runId: crypto.randomUUID(),
+  tools: ["web_search", "get_page", "create_page"],
+  ttl: "10m",             // expires after 10 minutes
+});
+```
+
+### Verify the token in tool handlers
+
+```typescript
+import { verifyCapabilityToken, CapabilityError } from "@/agents/security";
+
+// Verify before executing a sensitive tool
+async function executeTool(toolName: string, token: string) {
+  const caps = await verifyCapabilityToken(token);
+
+  if (!caps.tools.includes(toolName) && !caps.tools.includes("*")) {
+    throw new CapabilityError(`Token does not authorize "${toolName}".`);
+  }
+
+  // proceed with tool execution
+}
+```
+
+### Resolve tools from a token (convenience helper)
+
+```typescript
+import { resolveToolsFromToken } from "@/agents/security";
+
+// Validate token and get the allow-list in one call
+const { sub, tools } = await resolveToolsFromToken(token, runId);
+// tools → ["web_search", "get_page", "create_page"]
+```
+
+### Combine with withSecurity plugin
+
+```typescript
+import { withSecurity, createPolicy, issueCapabilityToken } from "@/agents/security";
+
+const token = await issueCapabilityToken({ sub: userId, tools: ["web_search"], ttl: "5m" });
+
+// Enforce at the plugin level — any tool not in the token is blocked
+withSecurity({
+  policy: createPolicy({ allowList: ["web_search"] }),
+})
+```
+
+### Token payload shape
+
+```typescript
+interface CapabilityTokenPayload {
+  sub: string;        // user/service identity
+  runId?: string;     // locks token to a specific run
+  agentName?: string; // locks token to a specific agent
+  tools: string[];    // allowed tool names; "*" = all (use with care)
+  iat: number;        // issued-at (seconds epoch)
+  exp: number;        // expires-at (seconds epoch)
+}
+```
+
+Tokens are HS256-signed JWTs. `CapabilityError` is thrown for invalid signatures, malformed tokens, or expired tokens.

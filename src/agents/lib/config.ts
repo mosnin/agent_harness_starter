@@ -66,12 +66,14 @@ export const config = {
   db: {
     provider: optional("DB_PROVIDER", "supabase") as DbProvider,
     supabase: {
-      url: optional("NEXT_PUBLIC_SUPABASE_URL"),
-      anonKey: optional("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+      // SUPABASE_URL is preferred; NEXT_PUBLIC_SUPABASE_URL accepted as fallback for Next.js projects.
+      url: optional("SUPABASE_URL") || optional("NEXT_PUBLIC_SUPABASE_URL"),
+      anonKey: optional("SUPABASE_ANON_KEY") || optional("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
       serviceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY"),
     },
     convex: {
-      url: optional("NEXT_PUBLIC_CONVEX_URL"),
+      // CONVEX_URL is preferred; NEXT_PUBLIC_CONVEX_URL accepted as fallback for Next.js projects.
+      url: optional("CONVEX_URL") || optional("NEXT_PUBLIC_CONVEX_URL"),
     },
     prisma: {
       url: optional("DATABASE_URL"),
@@ -81,7 +83,8 @@ export const config = {
   auth: {
     provider: optional("AUTH_PROVIDER", "none") as AuthProvider,
     clerk: {
-      publishableKey: optional("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"),
+      // CLERK_PUBLISHABLE_KEY is preferred; NEXT_PUBLIC_ variant accepted as fallback.
+      publishableKey: optional("CLERK_PUBLISHABLE_KEY") || optional("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"),
       secretKey: optional("CLERK_SECRET_KEY"),
     },
     auth0: {
@@ -102,7 +105,8 @@ export const config = {
   },
 
   app: {
-    url: optional("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
+    // APP_URL is preferred; NEXT_PUBLIC_APP_URL accepted as fallback for Next.js projects.
+    url: optional("APP_URL") || optional("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
     apiSecret: optional("API_SECRET", ""),
   },
 } as const;
