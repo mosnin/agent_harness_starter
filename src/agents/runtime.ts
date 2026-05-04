@@ -92,8 +92,8 @@ export function validateRuntime(options: {
       "or use short token TTLs (≤5 min) and skip revocation.";
     if (requireJtiStore) {
       errors.push(msg);
-    } else if (process.env.NODE_ENV === "production") {
-      warnings.push(msg);
+    } else {
+      warnings.push(msg); // warn in all environments — this is a correctness gap, not just a prod concern
     }
   }
 
