@@ -32,6 +32,12 @@ export function validateRuntime(options: {
   requireOpenAIKey?: boolean;
   /** Require AGENT_CAPABILITY_SECRET to be set and ≥32 chars. Default: true. */
   requireCapabilitySecret?: boolean;
+  /**
+   * Require AGENT_JTI_STORE to be set in production. Default: false.
+   * Set to true when token replay prevention must be enforced across all instances.
+   * Without a shared store, revocation only applies within the current process.
+   */
+  requireJtiStore?: boolean;
 } = {}): RuntimeValidationResult {
   const warnings: string[] = [];
   const errors: string[] = [];
@@ -40,6 +46,7 @@ export function validateRuntime(options: {
     warnOnInMemory = process.env.NODE_ENV === "production",
     requireOpenAIKey = true,
     requireCapabilitySecret = true,
+    requireJtiStore = false,
   } = options;
 
   if (requireOpenAIKey && !process.env.OPENAI_API_KEY) {
@@ -78,10 +85,16 @@ export function validateRuntime(options: {
     );
   }
 
-  if (process.env.NODE_ENV === "production" && !process.env.AGENT_JTI_STORE) {
-    warnings.push(
-      "JTI revocation store is in-process — not shared across instances. Set AGENT_JTI_STORE=redis or use short token TTLs."
-    );
+  if (!process.env.AGENT_JTI_STORE) {
+    const msg =
+      "JTI revocation store is in-process — revoked tokens are visible only to this process. " +
+      "For multi-instance deployments set AGENT_JTI_STORE=redis and wire a shared store, " +
+      "or use short token TTLs (≤5 min) and skip revocation.";
+    if (requireJtiStore) {
+      errors.push(msg);
+    } else if (process.env.NODE_ENV === "production") {
+      warnings.push(msg);
+    }
   }
 
   return { valid: errors.length === 0, warnings, errors };

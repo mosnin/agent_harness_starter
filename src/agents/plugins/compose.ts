@@ -3,8 +3,8 @@ import type { ToolDefinition } from "../tools/types";
 
 /**
  * Compose multiple plugins into one. All lifecycle hooks are called in order.
- * Handles the full HarnessPlugin interface — adding a new hook to HarnessPlugin
- * will automatically work without editing this file.
+ * Note: each hook is explicitly enumerated here — if a new hook is added to
+ * HarnessPlugin, this file must be updated to forward it.
  */
 export function composePlugins(name: string, plugins: HarnessPlugin[]): HarnessPlugin {
   const active = plugins.filter(Boolean);
