@@ -180,7 +180,7 @@ describe("withSecurity plugin", () => {
     const policy = createPolicy({ allow: [] });
     const plugin = withSecurity({ policy, auditLogger });
     const ctx = makeCtx();
-    const [wrapped] = plugin.wrapTools!([makeTool("shell_exec")], ctx, new Map());
+    const [wrapped] = await Promise.resolve(plugin.wrapTools!([makeTool("shell_exec")], ctx, new Map()));
     await expect(wrapped.execute({}, {} as never)).rejects.toThrow(PolicyViolationError);
     expect(adapter.records[0].outcome).toBe("blocked");
   });
@@ -189,7 +189,7 @@ describe("withSecurity plugin", () => {
     const policy = createPolicy({ allow: ["web_search"] });
     const plugin = withSecurity({ policy, auditLogger });
     const ctx = makeCtx();
-    const [wrapped] = plugin.wrapTools!([makeTool("web_search")], ctx, new Map());
+    const [wrapped] = await Promise.resolve(plugin.wrapTools!([makeTool("web_search")], ctx, new Map()));
     await wrapped.execute({}, {} as never);
     expect(adapter.records[0].outcome).toBe("allowed");
     expect(adapter.records[0].toolName).toBe("web_search");
@@ -205,7 +205,7 @@ describe("withSecurity plugin", () => {
     const policy = createPolicy({ allow: ["broken_tool"] });
     const plugin = withSecurity({ policy, auditLogger });
     const ctx = makeCtx();
-    const [wrapped] = plugin.wrapTools!([errorTool], ctx, new Map());
+    const [wrapped] = await Promise.resolve(plugin.wrapTools!([errorTool], ctx, new Map()));
     await expect(wrapped.execute({}, {} as never)).rejects.toThrow("tool crashed");
     expect(adapter.records[0].outcome).toBe("error");
     expect(adapter.records[0].error).toBe("tool crashed");
@@ -215,7 +215,7 @@ describe("withSecurity plugin", () => {
     const policy = createPolicy({ allow: [] });
     const plugin = withSecurity({ policy, auditLogger, auditOnly: true });
     const ctx = makeCtx();
-    const [wrapped] = plugin.wrapTools!([makeTool("shell_exec")], ctx, new Map());
+    const [wrapped] = await Promise.resolve(plugin.wrapTools!([makeTool("shell_exec")], ctx, new Map()));
     const result = await wrapped.execute({}, {} as never);
     expect(result).toBe("result:shell_exec");
     expect(adapter.records[0].outcome).toBe("blocked");

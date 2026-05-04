@@ -22,7 +22,61 @@ export type { ObservabilityPluginOptions } from "./plugins/observability";
 export { createMinimalHarness, createStandardHarness, createFullHarness } from "./presets/index";
 export type { MinimalConfig, StandardConfig, FullConfig } from "./presets/index";
 
-// ── Orchestration ──────────────────────────────────────────────────────────────
+// ── Agent definitions ──────────────────────────────────────────────────────────
+export { defineAgent, AgentDefinitionBuilder, reasoningAgent, toolingAgent, retrievalAgent, communicationAgent, monitoringAgent, optimizationAgent, orchestrationAgent } from "./definitions/index";
+export type { AgentDefinition, AgentRole, AutonomyLevel, AgentMemoryConfig, AgentBoundaries, AgentConstraints, EscalationConfig, AgentMetricsConfig, CollaborationConfig, FeedbackConfig } from "./definitions/index";
+
+// ── Workflow orchestration ─────────────────────────────────────────────────────
+export {
+  createWorkflow,
+  WorkflowBuilder,
+  agentStep,
+  sequential,
+  parallel,
+  branch,
+  loop,
+  delegate,
+  transform,
+  customStep,
+  withRetry,
+  withTimeout,
+  withFallback,
+  withErrorHandler,
+  createCircuitBreaker,
+  ConcurrencyLimiter,
+  TimeoutError,
+  CircuitBreakerOpenError,
+  InMemoryStateStore,
+  ConsoleWorkflowLogger,
+  NoopWorkflowLogger,
+  InMemoryWorkflowLogger,
+} from "./workflow/index";
+export type {
+  WorkflowBuilderConfig,
+  WorkflowContext,
+  WorkflowStep,
+  WorkflowResult,
+  Workflow,
+  StepOutput,
+  StepLogEntry,
+  BranchCase,
+  LoopConfig,
+  DelegateConfig,
+  DelegateTarget,
+  StepType,
+  StepCondition,
+  WorkflowState,
+  WorkflowStatus,
+  StateStore,
+  WorkflowLogger,
+  WorkflowLogEntry,
+  RetryConfig,
+  CircuitBreakerConfig,
+  CircuitBreaker,
+  ErrorHandlerConfig,
+} from "./workflow/index";
+
+// ── Low-level orchestration ────────────────────────────────────────────────────
 export {
   createOrchestrator,
   runAgentsInParallel,

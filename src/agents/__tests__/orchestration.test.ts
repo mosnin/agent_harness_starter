@@ -43,7 +43,7 @@ describe("runAgentChain (sequential)", () => {
   it("pipes output of each agent as input to the next", async () => {
     const outputs = ["step1-output", "step2-output", "step3-output"];
     let call = 0;
-    mockRun.mockImplementation(async () => ({ finalOutput: outputs[call++] }));
+    mockRun.mockImplementation(async () => ({ finalOutput: outputs[call++] }) as never);
 
     const result = await runAgentChain(
       [makeAgent("A"), makeAgent("B"), makeAgent("C")],
@@ -69,7 +69,7 @@ describe("runAgentsInParallel", () => {
   it("runs all agents and returns all outputs", async () => {
     let call = 0;
     const outputs = ["output-A", "output-B"];
-    mockRun.mockImplementation(async () => ({ finalOutput: outputs[call++] }));
+    mockRun.mockImplementation(async () => ({ finalOutput: outputs[call++] }) as never);
 
     const results = await runAgentsInParallel(
       [makeAgent("A"), makeAgent("B")],
@@ -82,7 +82,7 @@ describe("runAgentsInParallel", () => {
   it("records error for a failing agent without crashing others", async () => {
     mockRun
       .mockResolvedValueOnce({ finalOutput: "good" } as never)
-      .mockRejectedValueOnce(new Error("agent crashed"));
+      .mockRejectedValueOnce(new Error("agent crashed") as never);
 
     const results = await runAgentsInParallel(
       [makeAgent("Good"), makeAgent("Bad")],
@@ -159,7 +159,7 @@ describe("runIterative", () => {
     let iteration = 0;
     mockRun.mockImplementation(async () => ({
       finalOutput: iteration++ >= 1 ? "good-enough" : "not-good",
-    }));
+    }) as never);
 
     const result = await runIterative(
       {
@@ -190,10 +190,11 @@ describe("runIterative", () => {
 
   it("uses buildNextInput to transform input between iterations", async () => {
     const inputs: string[] = [];
-    mockRun.mockImplementation(async (_agent: unknown, msg: string) => {
+    const impl = async (_agent: unknown, msg: unknown) => {
       inputs.push(msg as string);
       return { finalOutput: "output" };
-    });
+    };
+    mockRun.mockImplementation(impl as never);
 
     await runIterative(
       {
@@ -215,10 +216,11 @@ describe("runHierarchical", () => {
   it("fans out to all children and supervisor synthesizes", async () => {
     // Children return their outputs; supervisor gets synthesis prompt
     let supervisorInput = "";
-    mockRun.mockImplementation(async (_agent: unknown, msg: string) => {
+    const impl = async (_agent: unknown, msg: unknown) => {
       supervisorInput = msg as string;
       return { finalOutput: "synthesized" };
-    });
+    };
+    mockRun.mockImplementation(impl as never);
 
     const result = await runHierarchical(
       {
@@ -256,17 +258,18 @@ describe("runHierarchical", () => {
 
   it("uses custom buildSynthesisPrompt", async () => {
     let capturedPrompt = "";
-    mockRun.mockImplementation(async (_agent: unknown, msg: string) => {
+    const impl2 = async (_agent: unknown, msg: unknown) => {
       capturedPrompt = msg as string;
       return { finalOutput: "ok" };
-    });
+    };
+    mockRun.mockImplementation(impl2 as never);
 
     await runHierarchical(
       {
         supervisor: makeAgent("Supervisor"),
         children: [{ name: "child1", run: async () => "child output" }],
         buildSynthesisPrompt: (original, results) =>
-          `CUSTOM: ${original} | ${results.map((r) => r.output).join(", ")}`,
+          `CUSTOM: ${original} | ${results.map((r: { name: string; output: string }) => r.output).join(", ")}`,
       },
       "original message"
     );

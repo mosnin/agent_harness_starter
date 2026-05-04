@@ -70,7 +70,6 @@ export function withSecurity(opts: SecurityPluginOptions = {}): HarnessPlugin {
                 outcome: "blocked",
                 policyName: policy.name,
                 reason: result.reason,
-                timestamp: Date.now(),
               });
 
               if (!auditOnly) {
@@ -90,7 +89,6 @@ export function withSecurity(opts: SecurityPluginOptions = {}): HarnessPlugin {
               input,
               outcome: "allowed",
               durationMs: Date.now() - start,
-              timestamp: Date.now(),
             });
             return output;
           } catch (err) {
@@ -103,7 +101,6 @@ export function withSecurity(opts: SecurityPluginOptions = {}): HarnessPlugin {
               outcome: "error",
               durationMs: Date.now() - start,
               error: err instanceof Error ? err.message : String(err),
-              timestamp: Date.now(),
             });
             throw err;
           }
