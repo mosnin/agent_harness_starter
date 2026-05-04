@@ -233,6 +233,10 @@ export async function verifyCapabilityToken(
     throw new CapabilityError("Capability token payload is not valid JSON.");
   }
 
+  // Explicit-revocation model: tokens are valid until expiry unless explicitly revoked
+  // via revokeToken(jti). This does NOT prevent replay of live tokens — it only blocks
+  // tokens that were deliberately invalidated (e.g. on logout or key rotation).
+  // For single-use token semantics, mark jti as used here and check before this block.
   if (payload.jti && isTokenRevoked(payload.jti)) {
     throw new CapabilityError(`Token has been revoked (jti: ${payload.jti})`);
   }
