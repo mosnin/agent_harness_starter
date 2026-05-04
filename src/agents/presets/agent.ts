@@ -1,8 +1,8 @@
 /**
  * createAgent — the single recommended entry point for new agents.
  *
- * Wraps createStandardHarness: wires up memory, guardrails, and observability
- * automatically based on the config you provide. No plugins array required.
+ * Wires up memory, guardrails, and observability automatically based on
+ * the config you provide. No plugins array required.
  *
  * When you need more control:
  *   createStandardHarness — same as createAgent, explicit name
@@ -20,10 +20,6 @@
  *   });
  */
 
-import { createHarness as createStandardHarness } from "./standard";
-import type { StandardConfig } from "./standard";
-import type { AgentHarness } from "../core";
-
-export function createAgent(config: StandardConfig): AgentHarness {
-  return createStandardHarness(config);
-}
+// Direct alias — no wrapper indirection.
+export { createHarness as createAgent } from "./standard";
+export type { StandardConfig } from "./standard";
