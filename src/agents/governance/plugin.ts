@@ -19,8 +19,8 @@
  *   });
  */
 
-import type { HarnessPlugin, PluginRunContext } from "@/agents/types";
-import type { ToolDefinition } from "@/agents/tools/types";
+import type { HarnessPlugin, PluginRunContext } from "../types";
+import type { ToolDefinition } from "../tools/types";
 import type { GovernancePolicy } from "./policy";
 import type { EthicsPolicy } from "./ethics";
 import type { ComplianceTracker } from "./compliance";
