@@ -125,7 +125,7 @@ export { defineSkill, registerSkill, getSkill, getAllSkills, resolveSkillTools, 
 export type { SkillDefinition } from "./skills/index";
 
 // ── Memory ─────────────────────────────────────────────────────────────────────
-export { memory, formatMemoriesForPrompt } from "./memory/index";
+export { memory, setMemoryAdapter, formatMemoriesForPrompt } from "./memory/index";
 export type { MemoryAdapter, MemoryEntry } from "./memory/index";
 
 // ── Observability ──────────────────────────────────────────────────────────────

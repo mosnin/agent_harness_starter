@@ -39,6 +39,18 @@ function createAdapter(): MemoryAdapter {
 
 export const memory: MemoryAdapter = globalThis.__agentMemory ?? (globalThis.__agentMemory = createAdapter());
 
+/**
+ * Swap in a custom MemoryAdapter at startup (e.g. in src/instrumentation.ts).
+ * Replaces the default env-configured adapter for all subsequent operations.
+ *
+ *   import { setMemoryAdapter } from "@/agents/memory";
+ *   import { MyCustomAdapter } from "./adapters/my-custom";
+ *   setMemoryAdapter(new MyCustomAdapter());
+ */
+export function setMemoryAdapter(adapter: MemoryAdapter): void {
+  globalThis.__agentMemory = adapter;
+}
+
 export type { MemoryAdapter, MemoryEntry } from "./types";
 export { anchors, AnchorStore, parseTtlMs } from "./anchors";
 export type { AnchorEntry, AnchorOptions } from "./anchors";

@@ -127,5 +127,5 @@ export class RedisMemoryAdapter implements MemoryAdapter {
 
 // Register at startup in src/instrumentation.ts:
 import { setMemoryAdapter } from "@/agents/memory";
-// (add setMemoryAdapter export to memory/index.ts if needed)
+setMemoryAdapter(new MyCustomAdapter());
 ```
