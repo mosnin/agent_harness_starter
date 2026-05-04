@@ -175,15 +175,19 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
   async function* stream(input: RunInput): AsyncGenerator<AgentEvent> {
     const runId = globalThis.crypto.randomUUID();
     const startedAt = Date.now();
-    // Resolve traceId — callers can pass one for distributed tracing; otherwise generate fresh
+    // Resolve traceId — callers can pass one for distributed tracing; otherwise generate fresh.
+    // callerSpanId is captured before it is overwritten so it can become parentSpanId.
     const inputCtx = input.context ?? {};
     const callerTraceId = (inputCtx as Record<string, unknown>)?.traceId as string | undefined;
+    const callerSpanId = (inputCtx as Record<string, unknown>)?.spanId as string | undefined;
+    const traceId = callerTraceId ?? randomUUID();
+    const spanId = randomUUID(); // always fresh — this is THIS agent's span
     const ctx: AgentContext = {
       ...inputCtx,
       runId,
       orgId: (inputCtx.orgId as string | undefined) ?? agentConfig.orgId,
-      traceId: callerTraceId ?? randomUUID(),
-      spanId: randomUUID(),
+      traceId,
+      spanId,
     };
     const pluginCtx: PluginRunContext = {
       runId,
@@ -193,6 +197,9 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
       startedAt,
       signal: input.signal,
       context: ctx,
+      traceId,
+      spanId,
+      parentSpanId: callerSpanId,
     };
 
     // ── onBeforeRun: transform / validate user message ────────────────────────
@@ -213,10 +220,10 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
             ...(agentErr?.remediation ? { remediation: agentErr.remediation } : {}),
           };
           yield { type: "done", finalOutput: "" };
-          // Still run onComplete for cleanup
+          // Still run onComplete for cleanup (REVERSE order — teardown mirrors setup)
           const durationMs = Date.now() - startedAt;
           const error = err instanceof Error ? err : new Error(msg);
-          for (const p of plugins) {
+          for (const p of [...plugins].reverse()) {
             await Promise.resolve(p.onComplete?.(pluginCtx, { finalOutput: "", durationMs, error })).catch(() => {});
           }
           return;
@@ -270,8 +277,10 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
       }>);
       finalOutput = resolved.finalOutput ?? finalOutput;
 
-      // ── onAfterRun: transform / validate final output ─────────────────────
-      for (const plugin of plugins) {
+      // ── onAfterRun: transform / validate final output (REVERSE order) ───────
+      // Reverse mirrors the before-hook setup order: last plugin to set up is
+      // first to tear down, ensuring correct cleanup sequencing.
+      for (const plugin of [...plugins].reverse()) {
         if (plugin.onAfterRun) {
           try {
             finalOutput = await plugin.onAfterRun(finalOutput, pluginCtx);
@@ -311,7 +320,8 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
       yield { type: "done", finalOutput };
     } catch (err) {
       runError = err instanceof Error ? err : new Error(String(err));
-      for (const plugin of plugins) {
+      // onError runs in REVERSE order (teardown mirrors setup)
+      for (const plugin of [...plugins].reverse()) {
         await Promise.resolve(plugin.onError?.(runError, pluginCtx)).catch(() => {});
       }
       const agentErr = err instanceof AgentError ? err : null;
@@ -325,7 +335,8 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
       };
     } finally {
       const durationMs = Date.now() - startedAt;
-      for (const plugin of plugins) {
+      // onComplete runs in REVERSE order (teardown mirrors setup)
+      for (const plugin of [...plugins].reverse()) {
         await Promise.resolve(plugin.onComplete?.(pluginCtx, { finalOutput, durationMs, error: runError })).catch(() => {});
       }
     }

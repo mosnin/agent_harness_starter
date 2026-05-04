@@ -419,7 +419,7 @@ describe("JWT security", () => {
     const token = await issueCapabilityToken({ sub: "user-1", tools: ["web_search"] });
     const parts = token.split(".");
     const { jti } = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
-    revokeToken(jti);
+    await revokeToken(jti);
     await expect(verifyCapabilityToken(token)).rejects.toThrow(/revoked/i);
   });
 

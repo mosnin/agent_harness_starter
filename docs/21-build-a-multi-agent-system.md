@@ -49,33 +49,36 @@ export const salesAgent = createAgent({
 
 ```typescript
 // src/agents/triage.ts
-import { createOrchestrator, runConditional } from "@/agents";
+import { runConditional } from "@/agents/orchestrator";
 import { billingAgent, techAgent, salesAgent } from "./specialists";
 
 export async function triageRequest(message: string, userId: string): Promise<string> {
-  return runConditional(
+  const result = await runConditional(
+    {
+      branches: [
+        {
+          when: (msg) => /invoice|refund|payment|billing/i.test(msg),
+          agent: billingAgent,
+          label: "billing",
+        },
+        {
+          when: (msg) => /bug|error|api|integration|broken/i.test(msg),
+          agent: techAgent,
+          label: "technical",
+        },
+        {
+          when: (msg) => /price|plan|upgrade|purchase/i.test(msg),
+          agent: salesAgent,
+          label: "sales",
+        },
+      ],
+      // Fallback: general support
+      fallback: billingAgent,
+    },
     message,
-    [
-      {
-        when: (msg) => /invoice|refund|payment|billing/i.test(msg),
-        agent: billingAgent,
-        context: { userId },
-      },
-      {
-        when: (msg) => /bug|error|api|integration|broken/i.test(msg),
-        agent: techAgent,
-        context: { userId },
-      },
-      {
-        when: (msg) => /price|plan|upgrade|purchase/i.test(msg),
-        agent: salesAgent,
-        context: { userId },
-      },
-    ],
-    // Fallback: general support
-    billingAgent,
     { userId }
   );
+  return result.output;
 }
 ```
 

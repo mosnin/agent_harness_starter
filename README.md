@@ -6,6 +6,16 @@ Drop this into your existing Next.js SaaS and get 80% of your agentic infrastruc
 
 ---
 
+## Why this over alternatives?
+
+- **Governance engine built-in** — policy enforcement, ethics checks, and compliance audit trails are first-class, not afterthoughts.
+- **Capability tokens per run (NHI)** — every agent run is scoped with non-human identity tokens, enabling fine-grained per-run tool authorization.
+- **MCP server out of the box** — every registered tool is instantly available to Claude Desktop, Cursor, or any MCP client at `/api/mcp` with no extra config.
+- **Copy-don't-inherit** — you own the source; no SDK lock-in, no hidden abstractions, no breaking upgrades forced on you.
+- **OpenAI Agents SDK native** — built on the official `@openai/agents` SDK, so handoffs, tracing, and model updates come from the source.
+
+---
+
 ## What you get
 
 ```

@@ -121,7 +121,7 @@ curl -X POST http://localhost:3000/api/agent \
 ```
 
 ```json
-data: {"type":"error","error":"Output blocked by guardrail","code":"GUARDRAIL_BLOCK","guardName":"blocked_keywords","remediation":"Input was blocked by a guardrail rule. Review input or adjust the guardrail configuration."}
+data: {"type":"error","error":"Output blocked by guardrail","code":"GUARDRAIL_BLOCK","guardName":"blocked_keywords","remediation":"Agent output was blocked by a guardrail rule. Review the agent's response or adjust the guardrail configuration."}
 data: {"type":"done","finalOutput":""}
 ```
 

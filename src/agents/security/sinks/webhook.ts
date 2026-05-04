@@ -19,7 +19,7 @@
  *   X-Agent-Harness-Signature: sha256=<hmac-hex>
  */
 
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import type { AuditRecord, AuditAdapter } from "../audit";
 
 export interface WebhookAuditSinkOptions {
@@ -36,11 +36,19 @@ export interface WebhookAuditSinkOptions {
    */
   timeoutMs?: number;
 
+  /** Max delivery attempts. Default: 3. */
+  maxAttempts?: number;
+
   /**
-   * Called on delivery failure (network error or non-2xx response).
+   * Called on each failed attempt (not necessarily fatal).
    * Default: logs to console.warn.
    */
-  onError?: (err: unknown, record: AuditRecord) => void;
+  onError?: (err: unknown, record: AuditRecord, attempt: number) => void;
+
+  /**
+   * Called when all retries are exhausted — last chance to persist the record.
+   */
+  onDeadLetter?: (record: AuditRecord) => void;
 }
 
 function signPayload(body: string, secret: string): string {
@@ -48,8 +56,47 @@ function signPayload(body: string, secret: string): string {
 }
 
 /**
+ * Verify a webhook signature from X-Agent-Harness-Signature header.
+ * Uses timing-safe comparison to prevent timing attacks.
+ */
+export function verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
+  const expected = signPayload(body, secret);
+  try {
+    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  } catch {
+    return false; // length mismatch — not equal
+  }
+}
+
+async function deliverWithRetry(
+  url: string,
+  headers: Record<string, string>,
+  body: string,
+  record: AuditRecord,
+  options: Required<Pick<WebhookAuditSinkOptions, "maxAttempts" | "timeoutMs" | "onError" | "onDeadLetter">>
+): Promise<void> {
+  const delays = [0, 500, 1000, 2000];
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+    if (attempt > 1) await new Promise((r) => setTimeout(r, delays[attempt - 1] ?? 2000));
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), options.timeoutMs);
+      const res = await fetch(url, { method: "POST", headers, body, signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) return;
+      throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      options.onError(err, record, attempt);
+      if (attempt === options.maxAttempts) options.onDeadLetter(record);
+    }
+  }
+}
+
+/**
  * Create a webhook-based AuditAdapter.
- * Fires-and-forgets each audit record as a signed POST to the given URL.
+ * Delivers each audit record as a signed POST to the given URL with
+ * exponential-backoff retry (default 3 attempts) and a dead-letter callback
+ * for records that exhaust all retries.
  */
 export function createWebhookAuditSink(
   url: string,
@@ -58,8 +105,12 @@ export function createWebhookAuditSink(
   const {
     secret,
     timeoutMs = 5000,
-    onError = (err: unknown, record: AuditRecord) => {
-      console.warn(`[agent-harness] Webhook audit delivery failed for ${record.toolName}:`, err);
+    maxAttempts = 3,
+    onError = (err: unknown, record: AuditRecord, attempt: number) => {
+      console.warn(`[agent-harness] Webhook audit delivery attempt ${attempt} failed for ${record.toolName}:`, err);
+    },
+    onDeadLetter = (record: AuditRecord) => {
+      console.error(`[agent-harness] Webhook audit dead-letter: all retries exhausted for ${record.toolName}.`, record);
     },
   } = options;
 
@@ -80,20 +131,7 @@ export function createWebhookAuditSink(
         headers["X-Agent-Harness-Signature"] = signPayload(body, secret);
       }
 
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-      fetch(url, { method: "POST", headers, body, signal: controller.signal })
-        .then((res) => {
-          clearTimeout(timer);
-          if (!res.ok) {
-            onError(new Error(`HTTP ${res.status}`), record);
-          }
-        })
-        .catch((err: unknown) => {
-          clearTimeout(timer);
-          onError(err, record);
-        });
+      deliverWithRetry(url, headers, body, record, { maxAttempts, timeoutMs, onError, onDeadLetter }).catch(() => {});
     },
   };
 }

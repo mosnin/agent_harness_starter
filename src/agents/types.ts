@@ -107,8 +107,10 @@ export interface AgentConfig {
   // ── Plugins ───────────────────────────────────────────────────────────────
   /**
    * Ordered list of plugins applied to every run of this agent.
-   * Plugins are called in array order for before-hooks and reverse order
-   * for after-hooks (onAfterRun, onComplete).
+   * Plugins are called in array order for before-hooks (onBeforeRun,
+   * onResolveInstructions, wrapTools, onEvent) and in REVERSE array order
+   * for after-hooks (onAfterRun, onComplete, onError) so that teardown
+   * mirrors setup — the last plugin to set up is the first to tear down.
    *
    * Use the built-in factories:
    *   withMemory()       — semantic memory retrieval + storage
@@ -148,15 +150,33 @@ export interface PluginRunContext {
    * Access custom fields (orgId, featureFlags, etc.) via this.
    */
   context: AgentContext;
+  /**
+   * Distributed trace ID shared across all agents in a single workflow.
+   * Propagated from the calling agent via input.context.traceId so that all
+   * spans in a multi-agent handoff chain share one root trace.
+   * Auto-generated (randomUUID) if not provided by the caller.
+   */
+  traceId?: string;
+  /**
+   * Span ID for this specific agent run (always a fresh randomUUID).
+   * Use as the "parent span" when instrumenting child operations.
+   */
+  spanId?: string;
+  /**
+   * Span ID of the calling agent (set from input.context.spanId).
+   * Undefined for the root agent in a workflow.
+   */
+  parentSpanId?: string;
 }
 
 /**
  * A HarnessPlugin hooks into specific lifecycle points of an agent run.
  *
  * All hooks are optional — implement only what your plugin needs.
- * Plugins are called in array order for forward hooks (onBeforeRun,
- * onResolveInstructions, wrapTools, onEvent, onAfterRun) and forward
- * order for terminal hooks (onError, onComplete).
+ * Plugins are called in array order for before-hooks (onBeforeRun,
+ * onResolveInstructions, wrapTools, onEvent) and in REVERSE array order
+ * for after-hooks (onAfterRun, onError, onComplete) so that teardown
+ * mirrors setup.
  */
 export interface HarnessPlugin {
   readonly name: string;

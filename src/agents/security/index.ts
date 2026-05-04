@@ -17,5 +17,5 @@ export type { JtiStore, RedisClient } from "./redis-jti-store";
 export { createRbacPolicy } from "./rbac";
 export type { RbacConfig, RbacRoleConfig } from "./rbac";
 
-export { createWebhookAuditSink } from "./sinks/webhook";
+export { createWebhookAuditSink, verifyWebhookSignature } from "./sinks/webhook";
 export type { WebhookAuditSinkOptions } from "./sinks/webhook";

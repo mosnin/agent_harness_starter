@@ -35,11 +35,10 @@ export const supportAgent = createAgent({
 
   guardrails: {
     input: [
-      maxLengthGuardrail(4000),                    // reject very long inputs
+      maxLengthGuardrail(4000),   // reject very long inputs
+      piiSanitizerGuardrail,      // strip PII from incoming messages
     ],
-    output: [
-      piiSanitizerGuardrail(["email", "phone"]),   // strip PII from responses
-    ],
+    output: [],
   },
 });
 ```
@@ -94,7 +93,10 @@ import { supportAgent } from "@/agents/support-agent";
 export async function POST(req: NextRequest) {
   const { message, userId } = await req.json();
 
-  const stream = supportAgent.stream(message, { userId });
+  const stream = supportAgent.stream({
+    messages: [{ role: "user", content: message }],
+    context: { userId },
+  });
 
   const encoder = new TextEncoder();
   const readable = new ReadableStream({
@@ -103,7 +105,7 @@ export async function POST(req: NextRequest) {
         if (event.type === "message_delta") {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         }
-        if (event.type === "run_complete") {
+        if (event.type === "done") {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         }
       }

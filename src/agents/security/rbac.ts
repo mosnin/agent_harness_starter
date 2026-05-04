@@ -31,6 +31,8 @@ export interface RbacRoleConfig {
   allow: string[];
   /** Denied tool names. Deny takes precedence over allow. */
   deny?: string[];
+  /** Roles this role inherits from (processed after own rules). */
+  inherits?: string[];
 }
 
 export interface RbacConfig {
@@ -45,6 +47,33 @@ export interface RbacConfig {
   defaultRole?: string;
   /** Optional policy name for audit logs. */
   name?: string;
+}
+
+function resolveRole(
+  roleName: string,
+  roles: Record<string, RbacRoleConfig>,
+  visited = new Set<string>()
+): { allow: string[]; deny: string[] } {
+  if (visited.has(roleName)) return { allow: [], deny: [] };
+  visited.add(roleName);
+  const role = roles[roleName];
+  if (!role) return { allow: [], deny: [] };
+
+  const inherited = (role.inherits ?? []).flatMap((parent) => {
+    const p = resolveRole(parent, roles, visited);
+    return [p];
+  });
+
+  return {
+    allow: [
+      ...role.allow,
+      ...inherited.flatMap((r) => r.allow),
+    ],
+    deny: [
+      ...(role.deny ?? []),
+      ...inherited.flatMap((r) => r.deny),
+    ],
+  };
 }
 
 /**
@@ -67,18 +96,18 @@ export function createRbacPolicy(config: RbacConfig): AgentPolicy {
         };
       }
 
-      const roleConfig = roles[resolvedRole];
-      const denySet = new Set(roleConfig.deny ?? []);
+      const effective = resolveRole(resolvedRole, roles);
+      const denySet = new Set(effective.deny);
 
       if (denySet.has(toolName)) {
         return { allowed: false, reason: `Tool "${toolName}" is denied for role "${resolvedRole}".` };
       }
 
-      if (roleConfig.allow.includes("*")) {
+      if (effective.allow.includes("*")) {
         return { allowed: true, reason: `Role "${resolvedRole}" has wildcard access.` };
       }
 
-      if (roleConfig.allow.includes(toolName)) {
+      if (effective.allow.includes(toolName)) {
         return { allowed: true, reason: `Tool "${toolName}" is allowed for role "${resolvedRole}".` };
       }
 

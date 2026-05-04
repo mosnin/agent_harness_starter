@@ -9,7 +9,7 @@
  * No Next.js, no database, no auth wiring needed.
  */
 
-import { createCustomHarness } from "../src/agents/core";
+import { createAgent } from "../src/agents";
 import { config as loadEnv } from "dotenv";
 
 // Load .env.local if present (optional — works without it if OPENAI_API_KEY is in env)
@@ -18,7 +18,7 @@ loadEnv({ path: ".env" });
 
 const message = process.argv[2] ?? "Hello! What can you do?";
 
-const agent = createCustomHarness({
+const agent = createAgent({
   name: "DemoAgent",
   instructions:
     "You are a helpful assistant. Be concise — this is a terminal demo.",

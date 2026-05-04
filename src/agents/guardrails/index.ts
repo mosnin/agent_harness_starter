@@ -3,8 +3,8 @@
  *
  * Usage in AgentConfig:
  *   guardrails: {
- *     input: [maxLengthGuardrail(4000), profanityGuardrail],
- *     output: [jsonSchemaGuardrail(mySchema)],
+ *     input: [maxLengthGuardrail(4000), piiSanitizerGuardrail],
+ *     output: [blockedKeywordsGuardrail(["confidential", "internal"])],
  *   }
  */
 
