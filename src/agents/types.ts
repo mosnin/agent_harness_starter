@@ -287,7 +287,7 @@ export type AgentEvent =
       input: unknown;
       description: string;
     }
-  | { type: "error"; error: string }
+  | { type: "error"; error: string; code?: string; guardName?: string; toolName?: string; remediation?: string }
   | { type: "usage"; inputTokens: number; outputTokens: number; totalTokens: number }
   | { type: "done"; finalOutput: string };
 

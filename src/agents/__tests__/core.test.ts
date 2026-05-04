@@ -10,6 +10,7 @@ import { run as mockRun } from "@openai/agents";
 import type { HarnessPlugin, AgentEvent, PluginRunContext } from "../types";
 import { createCustomHarness } from "../core";
 import { withControlPlane } from "../plugins/control-plane";
+import { GuardrailBlockError } from "../guardrails/types";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -127,6 +128,28 @@ describe("core harness — plugin lifecycle", () => {
     const events = await collect(harness.stream(baseInput));
 
     expect(events.find((e) => e.type === "error")).toMatchObject({ error: "too long" });
+    expect(events.at(-1)).toMatchObject({ type: "done", finalOutput: "" });
+    expect(runMock).not.toHaveBeenCalled();
+  });
+
+  it("enriches error event with code and guardName when onBeforeRun throws GuardrailBlockError", async () => {
+    const plugin: HarnessPlugin = {
+      name: "guardrail-blocker",
+      onBeforeRun: async () => {
+        throw new GuardrailBlockError("Input blocked by guardrail", "policy violation", "test_guard");
+      },
+    };
+
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins: [plugin] });
+    const events = await collect(harness.stream(baseInput));
+
+    const errorEvent = events.find((e) => e.type === "error");
+    expect(errorEvent).toMatchObject({
+      type: "error",
+      error: "Input blocked by guardrail",
+      code: "GUARDRAIL_BLOCK",
+      guardName: "test_guard",
+    });
     expect(events.at(-1)).toMatchObject({ type: "done", finalOutput: "" });
     expect(runMock).not.toHaveBeenCalled();
   });

@@ -27,6 +27,7 @@ import type { AgentConfig, AgentEvent, AgentContext, RunInput, RunResult, Plugin
 import { resolveAgentTools } from "./skills/index";
 import { toOpenAITool } from "./utils";
 import { config } from "./lib/config";
+import { AgentError } from "./errors/index";
 
 export interface AgentHarness {
   stream(input: RunInput): AsyncGenerator<AgentEvent>;
@@ -185,7 +186,15 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
           userMessage = await plugin.onBeforeRun(userMessage, pluginCtx, input);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          yield { type: "error", error: msg };
+          const agentErr = err instanceof AgentError ? err : null;
+          yield {
+            type: "error",
+            error: msg,
+            ...(agentErr?.code ? { code: agentErr.code } : {}),
+            ...(agentErr && "guardName" in agentErr && agentErr.guardName ? { guardName: agentErr.guardName as string } : {}),
+            ...(agentErr && "toolName" in agentErr && agentErr.toolName ? { toolName: agentErr.toolName as string } : {}),
+            ...(agentErr?.remediation ? { remediation: agentErr.remediation } : {}),
+          };
           yield { type: "done", finalOutput: "" };
           // Still run onComplete for cleanup
           const durationMs = Date.now() - startedAt;
@@ -251,7 +260,15 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
             finalOutput = await plugin.onAfterRun(finalOutput, pluginCtx);
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            yield { type: "error", error: msg };
+            const agentErr = err instanceof AgentError ? err : null;
+            yield {
+              type: "error",
+              error: msg,
+              ...(agentErr?.code ? { code: agentErr.code } : {}),
+              ...(agentErr && "guardName" in agentErr && agentErr.guardName ? { guardName: agentErr.guardName as string } : {}),
+              ...(agentErr && "toolName" in agentErr && agentErr.toolName ? { toolName: agentErr.toolName as string } : {}),
+              ...(agentErr?.remediation ? { remediation: agentErr.remediation } : {}),
+            };
             yield { type: "done", finalOutput: "" };
             return;
           }
@@ -280,7 +297,15 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
       for (const plugin of plugins) {
         await Promise.resolve(plugin.onError?.(runError, pluginCtx)).catch(() => {});
       }
-      yield { type: "error", error: runError.message };
+      const agentErr = err instanceof AgentError ? err : null;
+      yield {
+        type: "error",
+        error: runError.message,
+        ...(agentErr?.code ? { code: agentErr.code } : {}),
+        ...(agentErr && "guardName" in agentErr && agentErr.guardName ? { guardName: agentErr.guardName as string } : {}),
+        ...(agentErr && "toolName" in agentErr && agentErr.toolName ? { toolName: agentErr.toolName as string } : {}),
+        ...(agentErr?.remediation ? { remediation: agentErr.remediation } : {}),
+      };
     } finally {
       const durationMs = Date.now() - startedAt;
       for (const plugin of plugins) {
