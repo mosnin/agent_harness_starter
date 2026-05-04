@@ -11,3 +11,9 @@ export type { ObservabilityPluginOptions } from "./observability";
 
 export { withStructuredReasoning } from "./structured-reasoning";
 export type { StructuredReasoningPluginOptions } from "./structured-reasoning";
+
+export { withSecurity } from "../security/plugin";
+export type { SecurityPluginOptions } from "../security/plugin";
+
+export { withGovernance } from "../governance/plugin";
+export type { GovernancePluginOptions } from "../governance/plugin";
