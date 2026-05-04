@@ -42,6 +42,28 @@ export const memory: MemoryAdapter = globalThis.__agentMemory ?? (globalThis.__a
 export type { MemoryAdapter, MemoryEntry } from "./types";
 export { anchors, AnchorStore, parseTtlMs } from "./anchors";
 export type { AnchorEntry, AnchorOptions } from "./anchors";
+export {
+  createMemoryPolicy,
+  SESSION_POLICY,
+  USER_LONG_TERM_POLICY,
+  GLOBAL_KNOWLEDGE_POLICY,
+} from "./policy";
+export type {
+  MemoryPolicy,
+  MemoryPolicyConfig,
+  MemoryPersistence,
+  RetrievalStrategy,
+  MemoryUpdateMode,
+  MemoryScope,
+  MemoryPrivacyConfig,
+  MemoryCompressionConfig,
+} from "./policy";
+export { createRetriever, rerank } from "./retrieval";
+export type { Retriever } from "./retrieval";
+export { createCompressor, makeLlmCompressor } from "./compression";
+export type { MemoryCompressor } from "./compression";
+export { createMemoryManager, scopeKey } from "./manager";
+export type { MemoryManager, MemoryManagerConfig } from "./manager";
 
 /**
  * Format retrieved memories into a system-prompt-ready string.
