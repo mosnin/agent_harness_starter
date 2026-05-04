@@ -10,7 +10,7 @@
  * logic is tested end-to-end inside this process.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { run as mockRun } from "@openai/agents";
 import { z } from "zod";
 
