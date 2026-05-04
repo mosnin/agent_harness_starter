@@ -414,7 +414,7 @@ describe("composePlugins — chains hooks in order", () => {
     expect(result[0].description).toBe("Mock tool: web_search [A] [B]");
   });
 
-  it("composePlugins onComplete fires all plugins in order", async () => {
+  it("composePlugins onComplete fires plugins in reverse order (teardown mirrors setup)", async () => {
     const completionOrder: string[] = [];
 
     const pluginA: HarnessPlugin = {
@@ -432,7 +432,8 @@ describe("composePlugins — chains hooks in order", () => {
 
     await composed.onComplete!(ctx, { finalOutput: "done", durationMs: 100 });
 
-    expect(completionOrder).toEqual(["A", "B"]);
+    // After-hooks run in reverse order so teardown mirrors setup (LIFO).
+    expect(completionOrder).toEqual(["B", "A"]);
   });
 });
 
