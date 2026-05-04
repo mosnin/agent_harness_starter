@@ -7,8 +7,8 @@
  *   {
  *     message:    string            // the user's message
  *     threadId?:  string            // existing thread (creates new one if omitted)
- *     agentName?: string            // which agent config to use (default: "research")
- *     tools?:     string[]          // override which tool names are enabled
+ *     agentName?: string            // which agent to use (default: "research")
+ *     tools?:     string[]          // additional tool names to enable for this run
  *   }
  *
  * Response: text/event-stream
@@ -17,30 +17,28 @@
  *   data: {"type":"tool_result","name":"web_search","output":{...}}
  *   data: {"type":"done","finalOutput":"..."}
  *
+ * Adding a new agent:
+ *   1. Create your agent file and call registerAgent("name", config) at the bottom.
+ *   2. Add an import to src/agents/examples/index.ts (or your own barrel).
+ *   No edits to this route file are needed.
+ *
  * See docs/02-connecting-your-app.md for wiring to your existing auth and DB.
- * See docs/06-harness-orchestration.md for adding more agents.
+ * See docs/12-plugin-architecture.md for the plugin system.
  */
 
 import { z } from "zod";
-import { auth } from "@/agents/auth";           // adjust path to match your project
-import { db } from "@/agents/db";              // adjust path to match your project
+import { auth } from "@/agents/auth";
+import { db } from "@/agents/db";
 import { sseStream } from "@/agents/lib/utils";
-import { createHarness } from "@/agents/harness";
-import type { AgentConfig } from "@/agents/types";
+import { createCoreHarness } from "@/agents/core";
+import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 
-// ─── Register your agents here ────────────────────────────────────────────────
-// Import your agent configs. Each entry in agentMap is selectable via
-// the `agentName` field in the request body.
-import { researchAgentConfig } from "@/agents/examples/research-agent";
-import { codeAgentConfig } from "@/agents/examples/code-agent";
-// import { supportAgentConfig } from "@/agents/support-agent";   // ← your agents
-
-const agentMap: Record<string, AgentConfig> = {
-  research: researchAgentConfig,
-  code: codeAgentConfig,
-  // support: supportAgentConfig,
-};
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Agent registration ─────────────────────────────────────────────────────────
+// Importing this barrel causes each agent file to call registerAgent() once.
+// Add your own agents to src/agents/examples/index.ts or import a second barrel.
+import "@/agents/examples";
+// import "@/agents/your-agents";
+// ──────────────────────────────────────────────────────────────────────────────
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,6 +65,17 @@ export async function POST(req: Request) {
 
     const { message, threadId, agentName, tools } = parsed.data;
 
+    const agentConfig = getAgentConfig(agentName);
+    if (!agentConfig) {
+      return Response.json(
+        {
+          error: `Unknown agent: "${agentName}"`,
+          available: getAllAgentNames(),
+        },
+        { status: 400 }
+      );
+    }
+
     const thread = threadId
       ? await db.getThread(threadId)
       : await db.createThread(user.id);
@@ -81,9 +90,12 @@ export async function POST(req: Request) {
 
     const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName });
 
-    const agentConfig = agentMap[agentName] ?? researchAgentConfig;
-    const effectiveConfig = tools ? { ...agentConfig, tools } : agentConfig;
-    const harness = createHarness(effectiveConfig);
+    // Merge any extra tool names requested for this run
+    const effectiveConfig = tools?.length
+      ? { ...agentConfig, tools: [...(agentConfig.tools ?? []), ...tools] }
+      : agentConfig;
+
+    const harness = createCoreHarness(effectiveConfig);
 
     async function* eventGenerator() {
       let finalOutput = "";

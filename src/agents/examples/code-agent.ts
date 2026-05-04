@@ -5,15 +5,15 @@
  * Wire up: set SANDBOX_PROVIDER=daytona and DAYTONA_API_KEY (or modal).
  *
  * Demonstrates:
- *   - Explicit plugin composition with createCoreHarness
+ *   - Plugins embedded directly in AgentConfig (self-contained config)
+ *   - Self-registration via registerAgent (no route edits needed)
  *   - withGuardrails for input length limiting
  *   - withApprovals for shell execution sign-off
- *   - withObservability for tracing
  *   - Skills-based tool disclosure ("code" skill bundle)
  *
  * Usage:
- *   const harness = createCodeAgent();
- *   const result = await harness.run({ messages: [{ role: "user", content: "Write a Python script that..." }] });
+ *   import "@/agents/examples/code-agent"; // registers "code"
+ *   // or import the barrel: import "@/agents/examples";
  */
 
 import { createCoreHarness } from "../core";
@@ -21,6 +21,7 @@ import { withGuardrails } from "../plugins/guardrails";
 import { withApprovals } from "../plugins/approvals";
 import { withObservability } from "../plugins/observability";
 import { maxLengthGuardrail } from "../guardrails/index";
+import { registerAgent } from "../agent-registry";
 import type { AgentConfig } from "../types";
 
 export const codeAgentConfig: AgentConfig = {
@@ -46,23 +47,18 @@ Always explain what the code does before running it.`,
   },
 
   maxTurns: 15,
+
+  plugins: [
+    withGuardrails({ input: [maxLengthGuardrail(16_000)] }),
+    withApprovals({ requireApprovalFor: ["shell_exec"] }),
+    withObservability(),
+  ],
 };
 
+// Self-register so the agent route can look this up by name without
+// any manual edits to the route file.
+registerAgent("code", codeAgentConfig);
+
 export function createCodeAgent() {
-  return createCoreHarness({
-    ...codeAgentConfig,
-    plugins: [
-      // Block requests over 16k chars — prevents prompt injection via massive inputs.
-      withGuardrails({
-        input: [maxLengthGuardrail(16_000)],
-      }),
-      // Pause before running shell_exec and wait for human approval.
-      // The route handler emits an approval_required SSE event; the frontend
-      // displays a confirmation dialog before resuming.
-      withApprovals({
-        requireApprovalFor: ["shell_exec"],
-      }),
-      withObservability(),
-    ],
-  });
+  return createCoreHarness(codeAgentConfig);
 }

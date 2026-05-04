@@ -5,21 +5,21 @@
  * Wire up: set TAVILY_API_KEY (+ BROWSERBASE_API_KEY for JS-heavy sites).
  *
  * Demonstrates:
- *   - Explicit plugin composition with createCoreHarness
+ *   - Plugins embedded directly in AgentConfig (self-contained config)
+ *   - Self-registration via registerAgent (no route edits needed)
  *   - withMemory for per-user semantic recall
  *   - Skills-based tool disclosure ("research" skill bundle)
  *   - Dynamic instructions receiving user context
- *   - ModelSettings tuning
  *
  * Usage:
- *   import { createResearchAgent } from "@/agents/examples/research-agent";
- *   const harness = createResearchAgent();
- *   const result = await harness.run({ messages: [{ role: "user", content: "What is X?" }] });
+ *   import "@/agents/examples/research-agent"; // registers "research"
+ *   // or import the barrel: import "@/agents/examples";
  */
 
 import { createCoreHarness } from "../core";
 import { withMemory } from "../plugins/memory";
 import { withObservability } from "../plugins/observability";
+import { registerAgent } from "../agent-registry";
 import type { AgentConfig } from "../types";
 
 export const researchAgentConfig: AgentConfig = {
@@ -46,17 +46,17 @@ Be concise but complete. If information is conflicting, note the discrepancy.`;
   },
 
   maxTurns: 10,
+
+  plugins: [
+    withMemory({ key: "userId", topK: 5 }),
+    withObservability(),
+  ],
 };
 
+// Self-register so the agent route can look this up by name without
+// any manual edits to the route file.
+registerAgent("research", researchAgentConfig);
+
 export function createResearchAgent() {
-  return createCoreHarness({
-    ...researchAgentConfig,
-    plugins: [
-      // Retrieve relevant past Q&A pairs and inject them into the system prompt.
-      // After each run, store the exchange keyed by userId for future retrieval.
-      withMemory({ key: "userId", topK: 5 }),
-      // Fire-and-forget tracing to whatever adapter is registered at startup.
-      withObservability(),
-    ],
-  });
+  return createCoreHarness(researchAgentConfig);
 }

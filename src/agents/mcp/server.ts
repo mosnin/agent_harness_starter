@@ -4,7 +4,7 @@
  * This lets any MCP-compatible client (Claude Desktop, Cursor, other LLMs)
  * discover and call your tools without code changes.
  *
- * The server is mounted at /api/mcp in Next.js (see src/app/api/mcp/route.ts).
+ * The server is mounted at /api/mcp in Next.js (see routes/mcp/route.ts).
  *
  * Docs: https://modelcontextprotocol.io
  */
@@ -14,11 +14,14 @@ import { z } from "zod";
 import { getAllTools } from "../tools/registry";
 import type { ToolContext } from "../tools/types";
 
-let _server: McpServer | null = null;
-
-export function getMcpServer(ctx?: ToolContext): McpServer {
-  if (_server) return _server;
-
+/**
+ * Create a new MCP server bound to the given per-request context.
+ *
+ * A new instance is created per request (not a singleton) so that each
+ * request carries its own userId, signal, and request reference into every
+ * tool execution.
+ */
+export function getMcpServer(ctx: ToolContext = {}): McpServer {
   const server = new McpServer({
     name: "nextjs-agentic-starter",
     version: "0.1.0",
@@ -41,7 +44,7 @@ export function getMcpServer(ctx?: ToolContext): McpServer {
         }
       })(),
       async (args: Record<string, unknown>) => {
-        const result = await toolDef.execute(toolDef.parameters.parse(args), ctx ?? {});
+        const result = await toolDef.execute(toolDef.parameters.parse(args), ctx);
         return {
           content: [
             {
@@ -54,6 +57,5 @@ export function getMcpServer(ctx?: ToolContext): McpServer {
     );
   }
 
-  _server = server;
   return server;
 }

@@ -39,17 +39,20 @@ export type { AgentHarness };
 
 export function createHarness(agentConfig: FullConfig): AgentHarness {
   const plugins = [...(agentConfig.plugins ?? [])];
+  const has = (name: string) => plugins.some((p) => p.name === name);
 
-  if (agentConfig.memoryKey) {
+  if (agentConfig.memoryKey && !has("memory")) {
     plugins.unshift(withMemory({ key: agentConfig.memoryKey }));
   }
-  if (agentConfig.guardrails) {
+  if (agentConfig.guardrails && !has("guardrails")) {
     plugins.push(withGuardrails(agentConfig.guardrails));
   }
-  if (agentConfig.requireApprovalFor?.length) {
+  if (agentConfig.requireApprovalFor?.length && !has("approvals")) {
     plugins.push(withApprovals({ requireApprovalFor: agentConfig.requireApprovalFor }));
   }
-  plugins.push(withObservability());
+  if (!has("observability")) {
+    plugins.push(withObservability());
+  }
 
   return createCoreHarness({ ...agentConfig, plugins });
 }

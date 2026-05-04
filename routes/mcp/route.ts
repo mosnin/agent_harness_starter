@@ -13,14 +13,32 @@
 
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { getMcpServer } from "@/agents/mcp/server";
+import { auth } from "@/agents/auth";
+import type { ToolContext } from "@/agents/tools/types";
 // Import all tools to ensure they're registered before the MCP server is initialized
 import "@/agents/tools/index";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * Resolve per-request ToolContext from the incoming request.
+ * Auth failures are non-fatal — unauthenticated callers (Claude Desktop,
+ * local dev) still get a working MCP server, just without a userId.
+ * Enforce auth here if your tools require it in production.
+ */
+async function resolveContext(req: Request): Promise<ToolContext> {
+  try {
+    const user = await auth.requireAuth(req);
+    return { userId: user.id, request: req, signal: req.signal };
+  } catch {
+    return { request: req, signal: req.signal };
+  }
+}
+
 export async function POST(req: Request) {
-  const server = getMcpServer();
+  const ctx = await resolveContext(req);
+  const server = getMcpServer(ctx);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });
@@ -43,7 +61,8 @@ export async function GET(req: Request) {
     );
   }
 
-  const server = getMcpServer();
+  const ctx = await resolveContext(req);
+  const server = getMcpServer(ctx);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });

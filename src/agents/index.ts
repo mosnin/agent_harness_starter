@@ -63,6 +63,9 @@ export type { ToolDefinition, ToolContext, SandboxToolConfig } from "./tools/typ
 export { createAnthropicHarness } from "./providers/anthropic";
 export type { AnthropicAgentHarness, AnthropicAgentConfig } from "./providers/anthropic";
 
+// ── Agent registry ─────────────────────────────────────────────────────────────
+export { registerAgent, getAgentConfig, getAllAgentNames } from "./agent-registry";
+
 // ── Example agents ─────────────────────────────────────────────────────────────
 export { createResearchAgent, researchAgentConfig } from "./examples/research-agent";
 export { createCodeAgent, codeAgentConfig } from "./examples/code-agent";
