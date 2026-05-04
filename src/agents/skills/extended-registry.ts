@@ -1,25 +1,25 @@
 /**
- * Extended skill registry — stores ExtendedSkillDefinitions and provides
- * prerequisite validation, combination resolution, and prompt addendum building.
+ * Extended skill registry — prerequisite validation, combination resolution,
+ * prompt addendum building, and run recording.
+ *
+ * Populated automatically when defineSkill() is called in skills/index.ts.
+ * Do not import registerExtendedSkill directly — use defineSkill instead.
  */
 
-import type { ExtendedSkillDefinition, SkillRunRecord } from "./types";
+import type { SkillDefinition, SkillRunRecord } from "./types";
 import { buildSkillPromptAddendum } from "./builder";
-import { registerSkill } from "./index";
 
-const extendedRegistry = new Map<string, ExtendedSkillDefinition>();
+const extendedRegistry = new Map<string, SkillDefinition>();
 
-export function registerExtendedSkill(skill: ExtendedSkillDefinition): void {
+export function registerExtendedSkill(skill: SkillDefinition): void {
   extendedRegistry.set(skill.name, skill);
-  // Also register in the base skills registry so it works with existing harness code
-  registerSkill({ name: skill.name, description: skill.description, tools: skill.tools });
 }
 
-export function getExtendedSkill(name: string): ExtendedSkillDefinition | undefined {
+export function getExtendedSkill(name: string): SkillDefinition | undefined {
   return extendedRegistry.get(name);
 }
 
-export function getAllExtendedSkills(): ExtendedSkillDefinition[] {
+export function getAllExtendedSkills(): SkillDefinition[] {
   return Array.from(extendedRegistry.values());
 }
 
@@ -31,13 +31,6 @@ export interface PrerequisiteCheckResult {
   warnings: Array<{ name: string; type: string; reason: string }>;
 }
 
-/**
- * Check if all prerequisites for a skill are met.
- * @param skillName - The skill to check
- * @param availableContext - Keys available in the current context
- * @param availableTools - Tool names currently available to the agent
- * @param availableSkills - Skill names currently active for the agent
- */
 export function checkPrerequisites(
   skillName: string,
   availableContext: string[] = [],
@@ -77,9 +70,6 @@ export function checkPrerequisites(
 
 // ── Combination resolver ──────────────────────────────────────────────────────
 
-/**
- * Resolve a skill combination: return ordered skill names for the given mode.
- */
 export function resolveSkillCombination(
   primarySkillName: string,
   partnerSkillNames: string[]
@@ -98,14 +88,10 @@ export function resolveSkillCombination(
 
 // ── Prompt addendum aggregator ────────────────────────────────────────────────
 
-/**
- * Build a combined prompt addendum for a list of active skills.
- * Skips skills with no extended definition.
- */
 export function buildActiveSkillsPrompt(activeSkillNames: string[]): string {
   const blocks = activeSkillNames
     .map((name) => extendedRegistry.get(name))
-    .filter((s): s is ExtendedSkillDefinition => s !== undefined)
+    .filter((s): s is SkillDefinition => s !== undefined)
     .filter((s) => s.logic || s.inputs?.length || s.outputs?.length || s.boundaries)
     .map(buildSkillPromptAddendum);
 
@@ -113,7 +99,7 @@ export function buildActiveSkillsPrompt(activeSkillNames: string[]): string {
   return "---\n\n## Active Skills\n\n" + blocks.join("\n\n---\n\n");
 }
 
-// ── Skill run recorder (for adaptability / evaluation) ───────────────────────
+// ── Skill run recorder ────────────────────────────────────────────────────────
 
 declare global {
   // eslint-disable-next-line no-var
@@ -125,7 +111,6 @@ const runRecords: Map<string, SkillRunRecord[]> =
 export function recordSkillRun(record: SkillRunRecord): void {
   const existing = runRecords.get(record.skillName) ?? [];
   existing.push(record);
-  // Keep last 1000 records per skill
   if (existing.length > 1000) existing.shift();
   runRecords.set(record.skillName, existing);
 }
@@ -134,10 +119,6 @@ export function getSkillRunRecords(skillName: string): SkillRunRecord[] {
   return runRecords.get(skillName) ?? [];
 }
 
-/**
- * Compute average score for a skill over recent runs.
- * Returns null if no scored runs exist.
- */
 export function getSkillAverageScore(skillName: string, lastN = 50): number | null {
   const records = getSkillRunRecords(skillName).slice(-lastN);
   const scored = records.filter((r) => r.score !== undefined);

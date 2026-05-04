@@ -6,15 +6,16 @@
  * requiring the user to change their agent configs.
  *
  * Usage:
- *   import { withRetry, withTimeout, withFallback, withCircuitBreaker } from "@/agents/workflow/resilience";
+ *   import { retry, timeout, fallback } from "@/agents/workflow/resilience";
  *
- *   const robustStep = withRetry(
- *     withTimeout(agentStep("search", searchAgent), 30_000),
+ *   const robustStep = retry(
+ *     timeout(agentStep("search", searchAgent), 30_000),
  *     { maxAttempts: 3, backoff: "exponential" }
  *   );
  */
 
 import type { WorkflowContext, WorkflowStep } from "./types";
+import { WorkflowError } from "../errors";
 
 // ── Retry ─────────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ function computeDelay(
 /**
  * Wrap a step with automatic retry on failure.
  */
-export function withRetry(step: WorkflowStep, config: RetryConfig = {}): WorkflowStep {
+export function retry(step: WorkflowStep, config: RetryConfig = {}): WorkflowStep {
   const {
     maxAttempts = 3,
     backoff = "exponential",
@@ -93,7 +94,7 @@ export function withRetry(step: WorkflowStep, config: RetryConfig = {}): Workflo
 
 // ── Timeout ───────────────────────────────────────────────────────────────────
 
-export class TimeoutError extends Error {
+export class TimeoutError extends WorkflowError {
   constructor(stepName: string, ms: number) {
     super(`Step "${stepName}" timed out after ${ms}ms`);
     this.name = "TimeoutError";
@@ -103,7 +104,7 @@ export class TimeoutError extends Error {
 /**
  * Wrap a step so it throws TimeoutError if it takes longer than `ms` milliseconds.
  */
-export function withTimeout(step: WorkflowStep, ms: number): WorkflowStep {
+export function timeout(step: WorkflowStep, ms: number): WorkflowStep {
   return {
     name: step.name,
     type: step.type,
@@ -122,10 +123,10 @@ export function withTimeout(step: WorkflowStep, ms: number): WorkflowStep {
 // ── Fallback ──────────────────────────────────────────────────────────────────
 
 /**
- * Run the primary step; if it throws, run the fallback step instead.
+ * Run the primary step; if it throws, run the fallbackStep instead.
  * The error is captured in ctx.stepOutputs[`${primary.name}.__error`].
  */
-export function withFallback(primary: WorkflowStep, fallback: WorkflowStep): WorkflowStep {
+export function fallback(primary: WorkflowStep, fallbackStep: WorkflowStep): WorkflowStep {
   return {
     name: primary.name,
     type: primary.type,
@@ -140,7 +141,7 @@ export function withFallback(primary: WorkflowStep, fallback: WorkflowStep): Wor
           durationMs: 0,
           metadata: { error: msg },
         };
-        return fallback.execute(ctx);
+        return fallbackStep.execute(ctx);
       }
     },
   };
@@ -165,7 +166,7 @@ export interface CircuitBreaker {
   reset(): void;
 }
 
-export class CircuitBreakerOpenError extends Error {
+export class CircuitBreakerOpenError extends WorkflowError {
   constructor(stepName: string) {
     super(`Circuit breaker open for step "${stepName}". Too many recent failures.`);
     this.name = "CircuitBreakerOpenError";
@@ -294,7 +295,7 @@ export interface ErrorHandlerConfig {
  * Wrap a step so errors are caught and handled gracefully.
  * The handler can return a fallback message or rethrow.
  */
-export function withErrorHandler(step: WorkflowStep, config: ErrorHandlerConfig): WorkflowStep {
+export function onError(step: WorkflowStep, config: ErrorHandlerConfig): WorkflowStep {
   return {
     name: step.name,
     type: step.type,

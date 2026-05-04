@@ -16,7 +16,7 @@
  *   // or import the barrel: import "@/agents/examples";
  */
 
-import { createCoreHarness } from "../core";
+import { createCustomHarness } from "../core";
 import { withGuardrails } from "../plugins/guardrails";
 import { withApprovals } from "../plugins/approvals";
 import { withObservability } from "../plugins/observability";
@@ -60,5 +60,5 @@ Always explain what the code does before running it.`,
 registerAgent("code", codeAgentConfig);
 
 export function createCodeAgent() {
-  return createCoreHarness(codeAgentConfig);
+  return createCustomHarness(codeAgentConfig);
 }

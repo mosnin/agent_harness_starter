@@ -68,7 +68,9 @@ export interface PolicyConfig {
   name?: string;
 }
 
-export class PolicyViolationError extends Error {
+import { SecurityError } from "../errors";
+
+export class PolicyViolationError extends SecurityError {
   constructor(
     public readonly toolName: string,
     public readonly reason: string,

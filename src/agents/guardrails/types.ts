@@ -14,7 +14,9 @@
  *   https://openai.github.io/openai-agents-python/guardrails/
  */
 
-/** Context available to guardrail functions. */
+import { GuardrailError } from "../errors";
+
+
 export interface GuardrailContext {
   agentName: string;
   userId?: string;
@@ -23,7 +25,7 @@ export interface GuardrailContext {
 }
 
 /** Throw this from an input/output guardrail to stop the run immediately. */
-export class GuardrailBlockError extends Error {
+export class GuardrailBlockError extends GuardrailError {
   constructor(
     message: string,
     public readonly reason: string
@@ -34,7 +36,7 @@ export class GuardrailBlockError extends Error {
 }
 
 /** Throw this to pause the run and require human review before continuing. */
-export class GuardrailHumanReviewError extends Error {
+export class GuardrailHumanReviewError extends GuardrailError {
   constructor(
     message: string,
     public readonly reviewReason: string,

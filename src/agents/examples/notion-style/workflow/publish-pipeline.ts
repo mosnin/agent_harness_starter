@@ -5,7 +5,7 @@
  * Demonstrates:
  *   - createWorkflow() builder with named steps
  *   - Passing output between steps via ctx.currentMessage
- *   - withRetry for flaky LLM calls
+ *   - retry() for flaky LLM calls
  *   - transform() for pure data shaping between agents
  *   - Reusing the editor agent's create_page tool at the end
  *
@@ -14,7 +14,7 @@
  *   const result = await runPublishPipeline("The future of multiplayer AI editing tools");
  */
 
-import { createWorkflow, agentStep, transform, withRetry } from "../../../workflow/index";
+import { createWorkflow, agentStep, transform, retry } from "../../../workflow/index";
 import { withMemory } from "../../../plugins/memory";
 import type { AgentConfig } from "../../../types";
 
@@ -64,14 +64,14 @@ Return the revised document in full. If the draft is already good, return it unc
 
 export const publishPipeline = createWorkflow("research-draft-publish")
   .add(
-    withRetry(agentStep("research", researcherConfig), {
+    retry(agentStep("research", researcherConfig), {
       maxAttempts: 2,
       backoff: "fixed",
       baseDelayMs: 1000,
     })
   )
   .add(
-    withRetry(agentStep("draft", drafterConfig), {
+    retry(agentStep("draft", drafterConfig), {
       maxAttempts: 2,
       backoff: "fixed",
       baseDelayMs: 500,

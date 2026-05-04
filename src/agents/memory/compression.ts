@@ -93,7 +93,7 @@ export function createCompressor(policy: MemoryPolicy): MemoryCompressor {
  * The function receives the concatenated entries and returns a summary string.
  *
  * Example:
- *   const compressor = makeLlmCompressor(async (text) => {
+ *   const compressor = createLlmCompressor(async (text) => {
  *     const result = await anthropic.messages.create({
  *       model: "claude-haiku-4-5-20251001",
  *       messages: [{ role: "user", content: `Summarize these memories:\n${text}` }],
@@ -103,7 +103,7 @@ export function createCompressor(policy: MemoryPolicy): MemoryCompressor {
  *
  *   const policy = createMemoryPolicy({ compression: { enabled: true, compressor } });
  */
-export function makeLlmCompressor(
+export function createLlmCompressor(
   summarize: (text: string) => Promise<string>
 ): (entries: string[]) => Promise<string> {
   return async (entries: string[]) => {

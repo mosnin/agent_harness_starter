@@ -43,6 +43,10 @@
     "./routing": {
       "import": "./dist/routing/index.js",
       "require": "./dist/routing/index.cjs"
+    },
+    "./errors": {
+      "import": "./dist/errors/index.js",
+      "require": "./dist/errors/index.cjs"
     }
   },
   "main": "./dist/index.cjs",

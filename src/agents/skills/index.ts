@@ -13,34 +13,29 @@
  * Then in an AgentConfig:
  *   skills: ["research", "code"]   // only these tools are visible to the model
  *
+ * Extended fields (inputs, outputs, logic, boundaries, etc.) are optional on
+ * every SkillDefinition — no separate registration path needed.
+ *
  * Built-in skills are registered below. Add domain-specific skills for your
  * product in this file (or import them from a separate file and call
- * registerSkill() there).
+ * defineSkill() there).
  */
 
 import type { ToolDefinition } from "../tools/types";
 import { getAllTools, getTools } from "../tools/registry";
+import { registerExtendedSkill } from "./extended-registry";
+import type { SkillDefinition } from "./types";
 
-export interface SkillDefinition {
-  /** Unique name — used in AgentConfig.skills[]. */
-  name: string;
-  /** Shown in logs and UIs; helps the model understand when to ask for this skill. */
-  description: string;
-  /** Tool names included in this skill bundle. */
-  tools: string[];
-}
+export type { SkillDefinition, ExtendedSkillDefinition, SkillInput, SkillOutput, SkillBoundaries, SkillPrerequisite, SkillCombination, SkillAdaptability, SkillEvaluationConfig, SkillMetric, SkillRunRecord } from "./types";
+export type { PrerequisiteCheckResult } from "./extended-registry";
 
 const skillRegistry = new Map<string, SkillDefinition>();
 
-/** Register a skill bundle. Safe to call multiple times (last write wins). */
-export function registerSkill(skill: SkillDefinition): SkillDefinition {
-  skillRegistry.set(skill.name, skill);
-  return skill;
-}
-
-/** Shorthand — define and register in one call. */
+/** Define and register a skill. The only registration path. */
 export function defineSkill(skill: SkillDefinition): SkillDefinition {
-  return registerSkill(skill);
+  skillRegistry.set(skill.name, skill);
+  registerExtendedSkill(skill);
+  return skill;
 }
 
 export function getSkill(name: string): SkillDefinition | undefined {
@@ -97,6 +92,10 @@ export function resolveAgentTools(
   return results;
 }
 
+// ── Extended skill utilities (merged from extended-registry) ──────────────────
+
+export { checkPrerequisites, resolveSkillCombination, buildActiveSkillsPrompt, recordSkillRun, getSkillRunRecords, getSkillAverageScore } from "./extended-registry";
+
 // ── Built-in skills ────────────────────────────────────────────────────────────
 // These cover the tools shipped with the starter kit.
 // Comment out or override any that don't apply to your product.
@@ -125,7 +124,4 @@ defineSkill({
   tools: ["web_search", "browser_scrape"],
 });
 
-// ── Extended skill system ─────────────────────────────────────────────────────
-export { defineSkillExtended, SkillBuilder, buildSkillPromptAddendum } from "./builder";
-export type { ExtendedSkillDefinition, SkillInput, SkillOutput, SkillBoundaries, SkillPrerequisite, SkillCombination, SkillAdaptability, SkillEvaluationConfig, SkillMetric, SkillRunRecord } from "./types";
-export { registerExtendedSkill, getExtendedSkill, getAllExtendedSkills, checkPrerequisites, resolveSkillCombination, buildActiveSkillsPrompt, recordSkillRun, getSkillRunRecords, getSkillAverageScore } from "./extended-registry";
+export { buildSkillPromptAddendum } from "./builder";

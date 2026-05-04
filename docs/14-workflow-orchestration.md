@@ -16,7 +16,7 @@ The workflow system provides a fluent `createWorkflow()` builder that composes a
 | Iterative | `.loop()` | Refine until a quality bar is met |
 | Hierarchical | `.delegate()` | Fan out to specialists; supervisor synthesizes |
 
-Plus resilience wrappers: `withRetry`, `withTimeout`, `withFallback`, `withCircuitBreaker`, `withErrorHandler`.
+Plus resilience wrappers: `retry`, `timeout`, `fallback`, `createCircuitBreaker`, `onError`.
 
 ---
 
@@ -209,9 +209,9 @@ Without a coordinator, outputs are concatenated as `[agent]: output`.
 ### Retry
 
 ```typescript
-import { withRetry } from "@/agents/workflow/resilience";
+import { retry } from "@/agents/workflow/resilience";
 
-const robustSearch = withRetry(agentStep("search", searchAgent), {
+const robustSearch = retry(agentStep("search", searchAgent), {
   maxAttempts: 3,
   backoff: "exponential",  // "fixed" | "linear" | "exponential"
   baseDelayMs: 500,
@@ -224,17 +224,17 @@ const robustSearch = withRetry(agentStep("search", searchAgent), {
 ### Timeout
 
 ```typescript
-import { withTimeout } from "@/agents/workflow/resilience";
+import { timeout } from "@/agents/workflow/resilience";
 
-const timedSearch = withTimeout(agentStep("search", searchAgent), 15_000); // 15s
+const timedSearch = timeout(agentStep("search", searchAgent), 15_000); // 15s
 ```
 
 ### Fallback
 
 ```typescript
-import { withFallback } from "@/agents/workflow/resilience";
+import { fallback } from "@/agents/workflow/resilience";
 
-const searchWithFallback = withFallback(
+const searchWithFallback = fallback(
   agentStep("web-search",  webSearchAgent),   // primary
   agentStep("cache-lookup", cacheAgent),       // fallback if primary fails
 );
@@ -259,9 +259,9 @@ const protectedStep = cb.wrap(agentStep("external-api", apiAgent));
 ### Error Handler (graceful degradation)
 
 ```typescript
-import { withErrorHandler } from "@/agents/workflow/resilience";
+import { onError } from "@/agents/workflow/resilience";
 
-const graceful = withErrorHandler(agentStep("analysis", analysisAgent), {
+const graceful = onError(agentStep("analysis", analysisAgent), {
   handle: (err, stepName, ctx) => {
     // Return a fallback message instead of crashing the workflow
     return `Analysis unavailable (${err.message}). Proceeding with raw data.`;
@@ -353,7 +353,7 @@ createWorkflow("format-pipeline")
 ```typescript
 import {
   createWorkflow, agentStep, parallel, branch, loop, delegate,
-  withRetry, withTimeout, withFallback,
+  retry, timeout, fallback,
   InMemoryStateStore, ConsoleWorkflowLogger,
 } from "@/agents/workflow";
 import { retrievalAgent, reasoningAgent, communicationAgent, monitoringAgent } from "@/agents/definitions";
@@ -370,8 +370,8 @@ const pipeline = createWorkflow("research-report", {
 })
   // 1. Parallel gather
   .add(parallel("gather", [
-    withRetry(agentStep("web",    searcher), { maxAttempts: 2 }),
-    withTimeout(agentStep("deep", searcher), 30_000),
+    retry(agentStep("web",    searcher), { maxAttempts: 2 }),
+    timeout(agentStep("deep", searcher), 30_000),
   ]))
 
   // 2. Branch on complexity
@@ -407,7 +407,7 @@ export { pipeline };
 | Different tasks need different agents | Conditional |
 | Output needs multiple revision passes | Iterative |
 | Specialized sub-agents + synthesis | Hierarchical |
-| Flaky external service | withRetry |
-| Slow external service | withTimeout |
-| Service that may be down | withFallback / withCircuitBreaker |
+| Flaky external service | retry |
+| Slow external service | timeout |
+| Service that may be down | fallback / createCircuitBreaker |
 | Need run history and resume | stateStore |

@@ -30,7 +30,7 @@ import { z } from "zod";
 import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
 import { sseStream } from "@/agents/lib/utils";
-import { createCoreHarness } from "@/agents/core";
+import { createCustomHarness } from "@/agents/core";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 
 // ── Agent registration ─────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
       ? { ...agentConfig, tools: [...(agentConfig.tools ?? []), ...tools] }
       : agentConfig;
 
-    const harness = createCoreHarness(effectiveConfig);
+    const harness = createCustomHarness(effectiveConfig);
 
     async function* eventGenerator() {
       let finalOutput = "";

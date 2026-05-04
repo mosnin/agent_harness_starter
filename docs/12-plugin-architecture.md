@@ -15,17 +15,17 @@ All presets export a `createHarness(config)` function with the same return type 
 
 ## Composing plugins explicitly
 
-Use `createCoreHarness` from `@/agents/core` and pass plugins yourself:
+Use `createCustomHarness` from `@/agents/core` and pass plugins yourself:
 
 ```ts
-import { createCoreHarness } from "@/agents/core";
+import { createCustomHarness } from "@/agents/core";
 import { withMemory } from "@/agents/plugins/memory";
 import { withGuardrails } from "@/agents/plugins/guardrails";
 import { withApprovals } from "@/agents/plugins/approvals";
 import { withObservability } from "@/agents/plugins/observability";
 import { maxLengthGuardrail } from "@/agents/guardrails";
 
-const harness = createCoreHarness({
+const harness = createCustomHarness({
   name: "SupportAgent",
   instructions: (ctx) => `Helping user ${ctx.userId}.`,
   skills: ["support"],

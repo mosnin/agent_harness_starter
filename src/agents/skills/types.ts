@@ -164,9 +164,9 @@ export interface SkillRunRecord {
   flagged: boolean;
 }
 
-// ── Extended SkillDefinition ─────────────────────────────────────────────────
+// ── SkillDefinition ──────────────────────────────────────────────────────────
 
-export interface ExtendedSkillDefinition {
+export interface SkillDefinition {
   /** Unique name — used in AgentConfig.skills[]. */
   name: string;
   /** Human-readable description. */
@@ -174,7 +174,7 @@ export interface ExtendedSkillDefinition {
   /** Tool names in this skill bundle. */
   tools: string[];
 
-  // ── Extended fields (all optional for backward compatibility) ──────────────
+  // ── Optional extended fields ───────────────────────────────────────────────
 
   /** Typed inputs this skill accepts. */
   inputs?: SkillInput[];
@@ -210,3 +210,6 @@ export interface ExtendedSkillDefinition {
    */
   promptAddendum?: string;
 }
+
+/** @deprecated Use SkillDefinition directly — extended fields are now optional on the base type. */
+export type ExtendedSkillDefinition = SkillDefinition;

@@ -13,10 +13,10 @@ import { run as mockRunImport } from "@openai/agents";
 import { createWorkflow } from "../workflow/builder";
 import { agentStep, sequential, parallel, branch, loop, delegate, transform, customStep } from "../workflow/steps";
 import {
-  withRetry,
-  withTimeout,
-  withFallback,
-  withErrorHandler,
+  retry,
+  timeout,
+  fallback,
+  onError,
   createCircuitBreaker,
   ConcurrencyLimiter,
   TimeoutError,
@@ -272,9 +272,9 @@ describe("createWorkflow builder", () => {
   });
 });
 
-// ── withRetry ─────────────────────────────────────────────────────────────────
+// ── retry ─────────────────────────────────────────────────────────────────────
 
-describe("withRetry", () => {
+describe("retry", () => {
   it("retries on failure and succeeds", async () => {
     let calls = 0;
     const inner = {
@@ -287,7 +287,7 @@ describe("withRetry", () => {
         return ctx;
       },
     };
-    const step = withRetry(inner, { maxAttempts: 3, baseDelayMs: 1 });
+    const step = retry(inner, { maxAttempts: 3, baseDelayMs: 1 });
     const result = await step.execute(makeCtx());
     expect(result.currentMessage).toBe("success");
     expect(calls).toBe(3);
@@ -299,7 +299,7 @@ describe("withRetry", () => {
       type: "agent" as const,
       execute: async (_ctx: WorkflowContext): Promise<WorkflowContext> => { throw new Error("permanent"); },
     };
-    const step = withRetry(inner, { maxAttempts: 2, baseDelayMs: 1 });
+    const step = retry(inner, { maxAttempts: 2, baseDelayMs: 1 });
     await expect(step.execute(makeCtx())).rejects.toThrow("permanent");
   });
 
@@ -313,7 +313,7 @@ describe("withRetry", () => {
         throw new Error("not-retryable");
       },
     };
-    const step = withRetry(inner, {
+    const step = retry(inner, {
       maxAttempts: 5,
       baseDelayMs: 1,
       retryWhen: (err) => err.message !== "not-retryable",
@@ -323,16 +323,16 @@ describe("withRetry", () => {
   });
 });
 
-// ── withTimeout ───────────────────────────────────────────────────────────────
+// ── timeout ───────────────────────────────────────────────────────────────────
 
-describe("withTimeout", () => {
+describe("timeout", () => {
   it("resolves within timeout", async () => {
     const inner = {
       name: "fast",
       type: "agent" as const,
       execute: async (ctx: WorkflowContext) => { ctx.currentMessage = "fast"; return ctx; },
     };
-    const step = withTimeout(inner, 5000);
+    const step = timeout(inner, 5000);
     const result = await step.execute(makeCtx());
     expect(result.currentMessage).toBe("fast");
   });
@@ -344,26 +344,26 @@ describe("withTimeout", () => {
       execute: (ctx: WorkflowContext): Promise<WorkflowContext> =>
         new Promise((r) => setTimeout(() => r(ctx), 500)),
     };
-    const step = withTimeout(inner, 10);
+    const step = timeout(inner, 10);
     await expect(step.execute(makeCtx())).rejects.toThrow(TimeoutError);
   });
 });
 
-// ── withFallback ──────────────────────────────────────────────────────────────
+// ── fallback ──────────────────────────────────────────────────────────────────
 
-describe("withFallback", () => {
+describe("fallback", () => {
   it("runs fallback when primary fails", async () => {
     const primary = {
       name: "primary",
       type: "agent" as const,
       execute: async (_ctx: WorkflowContext): Promise<WorkflowContext> => { throw new Error("primary down"); },
     };
-    const fallback = {
+    const fallbackStep = {
       name: "fallback",
       type: "agent" as const,
       execute: async (ctx: WorkflowContext) => { ctx.currentMessage = "fallback output"; return ctx; },
     };
-    const step = withFallback(primary, fallback);
+    const step = fallback(primary, fallbackStep);
     const result = await step.execute(makeCtx());
     expect(result.currentMessage).toBe("fallback output");
     expect(result.stepOutputs["primary.__error"]?.output).toContain("primary down");
@@ -375,27 +375,27 @@ describe("withFallback", () => {
       type: "agent" as const,
       execute: async (ctx: WorkflowContext) => { ctx.currentMessage = "primary output"; return ctx; },
     };
-    const fallback = {
+    const fallbackStep = {
       name: "fallback",
       type: "agent" as const,
       execute: async (ctx: WorkflowContext) => { ctx.currentMessage = "should-not-run"; return ctx; },
     };
-    const step = withFallback(primary, fallback);
+    const step = fallback(primary, fallbackStep);
     const result = await step.execute(makeCtx());
     expect(result.currentMessage).toBe("primary output");
   });
 });
 
-// ── withErrorHandler ──────────────────────────────────────────────────────────
+// ── onError ──────────────────────────────────────────────────────────────────
 
-describe("withErrorHandler", () => {
+describe("onError", () => {
   it("substitutes fallback message on error", async () => {
     const inner = {
       name: "fail",
       type: "agent" as const,
       execute: async (_ctx: WorkflowContext): Promise<WorkflowContext> => { throw new Error("oops"); },
     };
-    const step = withErrorHandler(inner, {
+    const step = onError(inner, {
       handle: (err) => `Handled: ${err.message}`,
     });
     const result = await step.execute(makeCtx());

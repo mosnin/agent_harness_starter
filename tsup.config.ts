@@ -12,6 +12,7 @@ export default defineConfig({
     "definitions/index":   "src/agents/definitions/index.ts",
     "observability/index": "src/agents/observability/index.ts",
     "routing/index":       "src/agents/routing/index.ts",
+    "errors/index":        "src/agents/errors/index.ts",
   },
   format: ["esm", "cjs"],
   dts: { resolve: true },

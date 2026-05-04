@@ -4,7 +4,7 @@
  *
  * Usage:
  *   import { withMemory } from "@/agents/plugins/memory";
- *   const harness = createCoreHarness({
+ *   const harness = createCustomHarness({
  *     name: "MyAgent",
  *     instructions: "...",
  *     plugins: [withMemory({ key: "userId" })],

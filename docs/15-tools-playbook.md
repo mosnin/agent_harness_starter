@@ -124,14 +124,14 @@ permissions.canUse("researcher", "shell_exec"); // false
 **Wire permissions into your route or harness:**
 
 ```typescript
-import { createCoreHarness } from "@/agents/core";
+import { createCustomHarness } from "@/agents/core";
 import { getAllTools } from "@/agents/tools";
 
 const agentConfig = {
   ...baseConfig,
   tools: permissions.resolve("researcher", getAllTools()).map((t) => t.name),
 };
-const harness = createCoreHarness(agentConfig);
+const harness = createCustomHarness(agentConfig);
 ```
 
 ---

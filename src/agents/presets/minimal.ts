@@ -1,19 +1,19 @@
 /**
- * Minimal preset — core harness with zero optional features.
+ * Minimal preset — no plugins. Full manual control. Smallest bundle.
  *
  * No memory, no guardrails, no approvals, no observability.
  * Add only what you need via the plugins array.
  *
  * Usage:
- *   import { createHarness } from "@/agents/presets/minimal";
+ *   import { createMinimalHarness } from "@/agents/presets";
  *   import { withMemory } from "@/agents/plugins/memory";
  *
- *   const harness = createHarness({
+ *   const harness = createMinimalHarness({
  *     name: "MyAgent",
  *     instructions: "You are a helpful assistant.",
  *     plugins: [withMemory({ key: "userId" })],
  *   });
  */
 
-export { createCoreHarness as createHarness } from "../core";
+export { createCustomHarness as createHarness } from "../core";
 export type { CoreConfig as HarnessConfig, AgentHarness } from "../core";

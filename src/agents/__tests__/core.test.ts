@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { run as mockRun } from "@openai/agents";
 import type { HarnessPlugin, AgentEvent, PluginRunContext } from "../types";
-import { createCoreHarness } from "../core";
+import { createCustomHarness } from "../core";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ describe("core harness — plugin lifecycle", () => {
   });
 
   it("runs with no plugins and emits done", async () => {
-    const harness = createCoreHarness({ name: "Test", instructions: "be helpful" });
+    const harness = createCustomHarness({ name: "Test", instructions: "be helpful" });
     const events = await collect(harness.stream(baseInput));
     expect(events.at(-1)?.type).toBe("done");
   });
@@ -79,7 +79,7 @@ describe("core harness — plugin lifecycle", () => {
       onBeforeRun: vi.fn(async (msg) => msg.toUpperCase()),
     };
 
-    const harness = createCoreHarness({
+    const harness = createCustomHarness({
       name: "Test",
       instructions: "be helpful",
       plugins: [plugin],
@@ -109,7 +109,7 @@ describe("core harness — plugin lifecycle", () => {
       },
     ];
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x", plugins });
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins });
     await collect(harness.stream(baseInput));
 
     expect(order).toEqual(["first", "second"]);
@@ -122,7 +122,7 @@ describe("core harness — plugin lifecycle", () => {
       onBeforeRun: async () => { throw new Error("too long"); },
     };
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x", plugins: [plugin] });
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins: [plugin] });
     const events = await collect(harness.stream(baseInput));
 
     expect(events.find((e) => e.type === "error")).toMatchObject({ error: "too long" });
@@ -138,7 +138,7 @@ describe("core harness — plugin lifecycle", () => {
       { name: "cleanup", onComplete },
     ];
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x", plugins });
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins });
     await collect(harness.stream(baseInput));
 
     expect(onComplete).toHaveBeenCalledWith(
@@ -153,7 +153,7 @@ describe("core harness — plugin lifecycle", () => {
       onResolveInstructions: vi.fn(async (inst, msg) => `${inst}\n[context: ${msg}]`),
     };
 
-    const harness = createCoreHarness({
+    const harness = createCustomHarness({
       name: "Test",
       instructions: "base instructions",
       plugins: [plugin],
@@ -182,7 +182,7 @@ describe("core harness — plugin lifecycle", () => {
       onEvent: async (event) => { seen.push(event.type); return event; },
     };
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x", plugins: [plugin] });
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins: [plugin] });
     await collect(harness.stream(baseInput));
 
     expect(seen).toContain("message_delta");
@@ -199,7 +199,7 @@ describe("core harness — plugin lifecycle", () => {
       onEvent: async (event) => event.type === "message_delta" ? null : event,
     };
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x", plugins: [plugin] });
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins: [plugin] });
     const events = await collect(harness.stream(baseInput));
 
     expect(events.find((e) => e.type === "message_delta")).toBeUndefined();
@@ -213,7 +213,7 @@ describe("core harness — plugin lifecycle", () => {
       onAfterRun: async (output) => output.toUpperCase(),
     };
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x", plugins: [plugin] });
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins: [plugin] });
     const events = await collect(harness.stream(baseInput));
 
     const done = events.find((e): e is Extract<AgentEvent, { type: "done" }> => e.type === "done");
@@ -228,7 +228,7 @@ describe("core harness — plugin lifecycle", () => {
       onAfterRun: async () => { throw new Error("output blocked"); },
     };
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x", plugins: [plugin] });
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins: [plugin] });
     const events = await collect(harness.stream(baseInput));
 
     expect(events.find((e) => e.type === "error")).toMatchObject({ error: "output blocked" });
@@ -240,7 +240,7 @@ describe("core harness — plugin lifecycle", () => {
     const onError = vi.fn();
     const plugin: HarnessPlugin = { name: "err-handler", onError };
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x", plugins: [plugin] });
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins: [plugin] });
     const events = await collect(harness.stream(baseInput));
 
     expect(onError).toHaveBeenCalledWith(
@@ -256,7 +256,7 @@ describe("core harness — plugin lifecycle", () => {
     const onComplete = vi.fn();
     const plugin: HarnessPlugin = { name: "cleanup", onComplete };
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x", plugins: [plugin] });
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins: [plugin] });
     await collect(harness.stream(baseInput));
 
     expect(onComplete).toHaveBeenCalledOnce();
@@ -272,7 +272,7 @@ describe("core harness — plugin lifecycle", () => {
     const onComplete = vi.fn();
     const plugin: HarnessPlugin = { name: "recorder", onComplete };
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x", plugins: [plugin] });
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins: [plugin] });
     await collect(harness.stream(baseInput));
 
     expect(onComplete).toHaveBeenCalledWith(
@@ -288,7 +288,7 @@ describe("core harness — plugin lifecycle", () => {
       onBeforeRun: async (msg, ctx) => { capturedCtx.push(ctx); return msg; },
     };
 
-    const harness = createCoreHarness({ name: "MyAgent", instructions: "x", plugins: [plugin] });
+    const harness = createCustomHarness({ name: "MyAgent", instructions: "x", plugins: [plugin] });
     await collect(harness.stream({ ...baseInput, context: { userId: "u123" } }));
 
     expect(capturedCtx[0]).toMatchObject({
@@ -304,7 +304,7 @@ describe("core harness — plugin lifecycle", () => {
   it("emits usage event when SDK reports usage", async () => {
     setupRun([], "answer");
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x" });
+    const harness = createCustomHarness({ name: "Test", instructions: "x" });
     const events = await collect(harness.stream(baseInput));
 
     const usage = events.find((e): e is Extract<AgentEvent, { type: "usage" }> => e.type === "usage");
@@ -317,7 +317,7 @@ describe("core harness — run() method", () => {
     vi.clearAllMocks();
     setupRun([], "summary result");
 
-    const harness = createCoreHarness({ name: "Test", instructions: "x" });
+    const harness = createCustomHarness({ name: "Test", instructions: "x" });
     const result = await harness.run(baseInput);
 
     expect(result.finalOutput).toBe("summary result");

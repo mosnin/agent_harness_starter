@@ -27,6 +27,7 @@ import type {
   GovernanceOutcome,
   RiskLevel,
 } from "./types";
+import { GovernanceError } from "../errors";
 
 // ── Policy config ─────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ export interface GovernancePolicy {
 
 // ── Policy violation error ────────────────────────────────────────────────────
 
-export class GovernancePolicyViolationError extends Error {
+export class GovernancePolicyViolationError extends GovernanceError {
   readonly decision: GovernanceDecision;
   constructor(decision: GovernanceDecision) {
     super(`Governance policy violation [${decision.ruleId ?? "unknown"}]: ${decision.reason}`);

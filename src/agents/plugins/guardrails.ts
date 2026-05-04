@@ -6,7 +6,7 @@
  *   import { withGuardrails } from "@/agents/plugins/guardrails";
  *   import { maxLengthGuardrail, blockedKeywordsGuardrail } from "@/agents/guardrails";
  *
- *   const harness = createCoreHarness({
+ *   const harness = createCustomHarness({
  *     name: "MyAgent",
  *     instructions: "...",
  *     plugins: [

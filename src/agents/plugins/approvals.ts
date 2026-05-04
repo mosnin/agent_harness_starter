@@ -6,7 +6,7 @@
  * Usage:
  *   import { withApprovals } from "@/agents/plugins/approvals";
  *
- *   const harness = createCoreHarness({
+ *   const harness = createCustomHarness({
  *     name: "MyAgent",
  *     instructions: "...",
  *     plugins: [withApprovals({ requireApprovalFor: ["delete_file", "send_email"] })],

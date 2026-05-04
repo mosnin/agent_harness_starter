@@ -72,7 +72,7 @@ export type {
 } from "./policy";
 export { createRetriever, rerank } from "./retrieval";
 export type { Retriever } from "./retrieval";
-export { createCompressor, makeLlmCompressor } from "./compression";
+export { createCompressor, createLlmCompressor } from "./compression";
 export type { MemoryCompressor } from "./compression";
 export { createMemoryManager, scopeKey } from "./manager";
 export type { MemoryManager, MemoryManagerConfig } from "./manager";

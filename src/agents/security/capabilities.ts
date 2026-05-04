@@ -25,6 +25,7 @@
  */
 
 import { parseTtlMs } from "../memory/anchors";
+import { SecurityError } from "../errors";
 
 export interface CapabilityTokenPayload {
   /** Subject — typically userId or serviceAccountId. */
@@ -50,7 +51,7 @@ export interface IssueTokenOptions {
   ttl?: string;
 }
 
-export class CapabilityError extends Error {
+export class CapabilityError extends SecurityError {
   constructor(message: string) {
     super(message);
     this.name = "CapabilityError";

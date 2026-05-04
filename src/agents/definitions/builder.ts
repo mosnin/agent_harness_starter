@@ -59,9 +59,30 @@ export class AgentDefinitionBuilder {
   handoffs(agentNames: string[]): this { this.def.handoffs = agentNames; return this; }
   maxTurns(n: number): this { this.def.maxTurns = n; return this; }
 
+  /**
+   * Set memory scope and retrieval behavior.
+   * @injects withMemory plugin — enables persistent context across sessions.
+   */
   memory(config: AgentMemoryConfig): this { this.def.memory = config; return this; }
+
+  /**
+   * Restrict what topics and tools the agent can engage with.
+   * @injects withSecurity plugin (blockedTools) + enriches system instructions.
+   */
   boundaries(b: AgentBoundaries): this { this.def.boundaries = b; return this; }
+
+  /**
+   * Set the agent's autonomy level.
+   * @injects withApprovals plugin when "assisted" or "manual".
+   * full → no approvals, supervised → approvals for irreversible tools,
+   * assisted → approvals for all tools, manual → approvals for everything.
+   */
   autonomy(level: AutonomyLevel): this { this.def.autonomy = level; return this; }
+
+  /**
+   * Set hard constraints on tool use and run duration.
+   * @injects withSecurity plugin for irreversibleTools enforcement.
+   */
   constraints(c: AgentConstraints): this { this.def.constraints = c; return this; }
   escalation(e: EscalationConfig): this { this.def.escalation = e; return this; }
   metrics(m: AgentMetricsConfig): this { this.def.metrics = m; return this; }
@@ -80,7 +101,7 @@ export class AgentDefinitionBuilder {
 
   /**
    * Build the AgentDefinition and derive a wired AgentConfig with plugins.
-   * The returned config is ready to pass to createCoreHarness() or registerAgent().
+   * The returned config is ready to pass to createCustomHarness() or registerAgent().
    */
   build(): AgentDefinition {
     const { def, extraPlugins } = this;

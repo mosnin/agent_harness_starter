@@ -7,10 +7,10 @@ export { agentStep, sequential, parallel, branch, loop, delegate, transform, cus
 
 // ── Resilience wrappers ───────────────────────────────────────────────────────
 export {
-  withRetry,
-  withTimeout,
-  withFallback,
-  withErrorHandler,
+  retry,
+  timeout,
+  fallback,
+  onError,
   createCircuitBreaker,
   ConcurrencyLimiter,
   TimeoutError,

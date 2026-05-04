@@ -5,16 +5,16 @@
  * observability). All behaviour is injected through the plugins array on AgentConfig.
  *
  * For the batteries-included experience use a preset instead:
- *   import { createHarness } from "@/agents/presets/full";     // everything
- *   import { createHarness } from "@/agents/presets/standard"; // memory + guardrails + observability
- *   import { createHarness } from "@/agents/presets/minimal";  // this file directly
+ *   import { createFullHarness } from "@/agents/presets/full";     // everything
+ *   import { createStandardHarness } from "@/agents/presets/standard"; // memory + guardrails + observability
+ *   import { createMinimalHarness } from "@/agents/presets/minimal";   // this file directly
  *
  * Or compose your own:
- *   import { createCoreHarness } from "@/agents/core";
+ *   import { createCustomHarness } from "@/agents/core";
  *   import { withMemory } from "@/agents/plugins/memory";
  *   import { withGuardrails } from "@/agents/plugins/guardrails";
  *
- *   const harness = createCoreHarness({
+ *   const harness = createCustomHarness({
  *     name: "MyAgent",
  *     instructions: "...",
  *     plugins: [withMemory({ key: "userId" }), withGuardrails({ input: [...] })],
@@ -89,7 +89,7 @@ function mapSdkEvent(
   return null;
 }
 
-export function createCoreHarness(agentConfig: CoreConfig): AgentHarness {
+export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
   const plugins = agentConfig.plugins ?? [];
 
   async function resolveInstructions(ctx: AgentContext): Promise<string> {

@@ -1,9 +1,10 @@
-// ── Harness (backward-compatible default) ─────────────────────────────────────
-export { createHarness } from "./harness";
-export type { HarnessConfig } from "./harness";
+// ── Quickstart entry point ─────────────────────────────────────────────────────
+// The one function beginners use — delegates to createStandardHarness.
+// For more control use the named presets below.
+export { createAgent } from "./presets/agent";
 
 // ── Core engine (for custom plugin composition) ────────────────────────────────
-export { createCoreHarness } from "./core";
+export { createCustomHarness } from "./core";
 export type { CoreConfig, AgentHarness } from "./core";
 
 // ── Plugin factories ───────────────────────────────────────────────────────────
@@ -38,10 +39,10 @@ export {
   delegate,
   transform,
   customStep,
-  withRetry,
-  withTimeout,
-  withFallback,
-  withErrorHandler,
+  retry,
+  timeout,
+  fallback,
+  onError,
   createCircuitBreaker,
   ConcurrencyLimiter,
   TimeoutError,
@@ -121,7 +122,7 @@ export { createRouter, defaultRouter, exactCacheKey, semanticCacheKey, toolCache
 export type { RouterConfig, RouterSignals, ModelPlan, EscalateRules, CacheAdapter, CacheSetOptions, CacheManager, RedisClient, ContextBudgetConfig, RetrievalChunk, Message, BuiltContext } from "./routing/index";
 
 // ── Skills ─────────────────────────────────────────────────────────────────────
-export { defineSkill, registerSkill, getSkill, getAllSkills, resolveSkillTools, resolveAgentTools } from "./skills/index";
+export { defineSkill, getSkill, getAllSkills, resolveSkillTools, resolveAgentTools } from "./skills/index";
 export type { SkillDefinition } from "./skills/index";
 
 // ── Memory ─────────────────────────────────────────────────────────────────────
@@ -155,6 +156,9 @@ export type { ToolDefinition, ToolContext, SandboxToolConfig } from "./tools/typ
 // ── Anthropic provider ─────────────────────────────────────────────────────────
 export { createAnthropicHarness } from "./providers/anthropic";
 export type { AnthropicAgentHarness, AnthropicAgentConfig } from "./providers/anthropic";
+
+// ── Error hierarchy ─────────────────────────────────────────────────────────────
+export { AgentError, GovernanceError, SecurityError, GuardrailError, WorkflowError } from "./errors/index";
 
 // ── Agent registry ─────────────────────────────────────────────────────────────
 export { registerAgent, getAgentConfig, getAllAgentNames } from "./agent-registry";

@@ -21,6 +21,7 @@
 
 import { randomUUID } from "crypto";
 import type { EscalationEvent, EscalationReason, GovernanceContext } from "./types";
+import { GovernanceError } from "../errors";
 
 // ── Escalation handler config ─────────────────────────────────────────────────
 
@@ -84,7 +85,7 @@ export interface EscalationHandler {
 
 // ── Escalation error ──────────────────────────────────────────────────────────
 
-export class EscalationError extends Error {
+export class EscalationError extends GovernanceError {
   readonly event: EscalationEvent;
   constructor(event: EscalationEvent) {
     super(`Escalation triggered [${event.reason}]: ${event.description}`);

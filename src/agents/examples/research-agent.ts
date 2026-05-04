@@ -16,7 +16,7 @@
  *   // or import the barrel: import "@/agents/examples";
  */
 
-import { createCoreHarness } from "../core";
+import { createCustomHarness } from "../core";
 import { withMemory } from "../plugins/memory";
 import { withObservability } from "../plugins/observability";
 import { registerAgent } from "../agent-registry";
@@ -58,5 +58,5 @@ Be concise but complete. If information is conflicting, note the discrepancy.`;
 registerAgent("research", researchAgentConfig);
 
 export function createResearchAgent() {
-  return createCoreHarness(researchAgentConfig);
+  return createCustomHarness(researchAgentConfig);
 }

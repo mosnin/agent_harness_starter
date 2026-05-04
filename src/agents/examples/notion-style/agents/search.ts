@@ -11,7 +11,7 @@
 
 import { defineAgent } from "../../../definitions/builder";
 import { defineSkill } from "../../../skills/index";
-import { createCoreHarness } from "../../../core";
+import { createCustomHarness } from "../../../core";
 import { withMemory } from "../../../plugins/memory";
 import { registerAgent } from "../../../agent-registry";
 
@@ -77,7 +77,7 @@ registerAgent("workspace-search", definition);
 export const searchAgentConfig = definition;
 
 export function createSearchAgent() {
-  return createCoreHarness({
+  return createCustomHarness({
     ...definition,
     plugins: [
       ...(definition.plugins ?? []),

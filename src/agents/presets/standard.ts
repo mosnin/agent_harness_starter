@@ -1,18 +1,18 @@
 /**
- * Standard preset — memory + guardrails + observability.
+ * Standard preset — memory + guardrails + observability. Best for most production agents.
  *
  * Automatically wires up:
  *   - Memory (if memoryKey is set)
  *   - Guardrails (if guardrails is set)
  *   - Observability (always — uses the global adapter)
  *
- * No human-in-the-loop approvals. Use the full preset or withApprovals() for that.
+ * No human-in-the-loop approvals. Use createFullHarness() or withApprovals() for that.
  *
  * Usage:
- *   import { createHarness } from "@/agents/presets/standard";
+ *   import { createStandardHarness } from "@/agents/presets";
  *   import { maxLengthGuardrail } from "@/agents/guardrails";
  *
- *   const harness = createHarness({
+ *   const harness = createStandardHarness({
  *     name: "SupportAgent",
  *     instructions: (ctx) => `Helping user ${ctx.userId}`,
  *     memoryKey: "userId",
@@ -20,7 +20,7 @@
  *   });
  */
 
-import { createCoreHarness } from "../core";
+import { createCustomHarness } from "../core";
 import type { AgentHarness } from "../core";
 import { withMemory } from "../plugins/memory";
 import { withGuardrails } from "../plugins/guardrails";
@@ -48,5 +48,5 @@ export function createHarness(agentConfig: StandardConfig): AgentHarness {
     plugins.push(withObservability());
   }
 
-  return createCoreHarness({ ...agentConfig, plugins });
+  return createCustomHarness({ ...agentConfig, plugins });
 }

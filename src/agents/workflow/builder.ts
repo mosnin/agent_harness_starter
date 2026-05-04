@@ -16,16 +16,16 @@
  *   .custom()      — bring-your-own execute function
  *
  * Resilience wrappers available via the resilience module:
- *   withRetry, withTimeout, withFallback, withCircuitBreaker, withErrorHandler
+ *   retry, timeout, fallback, createCircuitBreaker, onError
  *
  * Usage:
  *   import { createWorkflow } from "@/agents/workflow";
  *   import { agentStep, parallel, branch, loop } from "@/agents/workflow/steps";
- *   import { withRetry, withTimeout } from "@/agents/workflow/resilience";
+ *   import { retry, timeout } from "@/agents/workflow/resilience";
  *
  *   const workflow = createWorkflow("research-pipeline")
  *     .add(agentStep("gather", researchAgent))
- *     .add(withRetry(agentStep("analyze", analysisAgent), { maxAttempts: 2 }))
+ *     .add(retry(agentStep("analyze", analysisAgent), { maxAttempts: 2 }))
  *     .add(branch("review-gate", [
  *       { when: (ctx) => ctx.stepOutputs.analyze?.output.includes("risk"),
  *         step: agentStep("review", reviewAgent) }
@@ -68,7 +68,7 @@ export interface WorkflowBuilderConfig {
   logger?: WorkflowLogger;
   /**
    * Global timeout for the entire workflow in ms.
-   * Individual steps can have their own timeouts via withTimeout().
+   * Individual steps can have their own timeouts via timeout().
    */
   timeoutMs?: number;
   /** Custom metadata to attach to every WorkflowState record. */

@@ -314,11 +314,11 @@ const policy = createMemoryPolicy({
 ### LLM-based compressor
 
 ```typescript
-import { makeLlmCompressor } from "@/agents/memory/compression";
+import { createLlmCompressor } from "@/agents/memory/compression";
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic();
-const compressor = makeLlmCompressor(async (text) => {
+const compressor = createLlmCompressor(async (text) => {
   const result = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 500,
@@ -450,5 +450,5 @@ await Promise.allSettled(knownKeys.map((id) => manager.evictExpired(`user:${id}`
 | Evict expired entries | `manager.evictExpired(key)` |
 | Inject memories into prompt | `formatMemoriesForPrompt(entries)` |
 | Use built-in policy | `SESSION_POLICY` / `USER_LONG_TERM_POLICY` / `GLOBAL_KNOWLEDGE_POLICY` |
-| LLM-based compression | `makeLlmCompressor(async text => llmSummarize(text))` |
+| LLM-based compression | `createLlmCompressor(async text => llmSummarize(text))` |
 | Switch storage backend | `MEMORY_PROVIDER=pgvector` env var |

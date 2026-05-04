@@ -12,7 +12,7 @@
  *
  * Usage:
  *   const plan = selectModel({ message, retrievalCoverage: 0.8 });
- *   const harness = createCoreHarness({ ...agentConfig, model: plan.model });
+ *   const harness = createCustomHarness({ ...agentConfig, model: plan.model });
  */
 
 export type ContextTier = "small" | "medium" | "large";

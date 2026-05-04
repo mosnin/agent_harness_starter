@@ -18,7 +18,7 @@
 
 import { defineAgent } from "../../../definitions/builder";
 import { defineSkill } from "../../../skills/index";
-import { createCoreHarness } from "../../../core";
+import { createCustomHarness } from "../../../core";
 import { withMemory } from "../../../plugins/memory";
 import { withGovernance, STANDARD_ETHICS_POLICY, compliance } from "../../../governance/index";
 import { registerAgent } from "../../../agent-registry";
@@ -97,7 +97,7 @@ registerAgent("document-editor", definition);
 export const editorAgentConfig = definition;
 
 export function createEditorAgent() {
-  return createCoreHarness({
+  return createCustomHarness({
     ...definition,
     plugins: [
       ...(definition.plugins ?? []),

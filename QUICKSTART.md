@@ -67,6 +67,48 @@ You'll get a streaming SSE response.
 
 ---
 
+## Creating your first agent
+
+`createAgent` is the single recommended starting point. It wires up memory, guardrails, and observability automatically:
+
+```typescript
+import { createAgent } from "@/agents";
+
+const agent = createAgent({
+  name: "SupportAgent",
+  instructions: "You are a helpful customer support assistant.",
+  memoryKey: "userId",   // enables per-user memory automatically
+});
+
+// Run it
+const result = await agent.run("How do I reset my password?");
+```
+
+### How it scales
+
+As your requirements grow, step up to a more specific preset:
+
+| Function | What it wires | When to use |
+|----------|--------------|-------------|
+| `createAgent()` | Memory + guardrails + observability | Starting out, most production agents |
+| `createStandardHarness()` | Same as createAgent, explicit name | When you want the name to be self-documenting |
+| `createFullHarness()` | Everything + human approval gates | Agents that take irreversible actions |
+| `createMinimalHarness()` | No plugins, smallest bundle | When you need full manual control |
+| `createCustomHarness()` | Core engine only, pass `plugins[]` | Composing exactly the plugins you need |
+
+```typescript
+import { createFullHarness } from "@/agents/presets";
+
+// For agents that delete files, send emails, or make purchases:
+const agent = createFullHarness({
+  name: "DataCleanupAgent",
+  instructions: "You help users clean up their workspace.",
+  requireApprovalFor: ["file_delete", "db_delete"],
+});
+```
+
+---
+
 ## What's available — take only what you need
 
 Everything below is independent. Use one, some, or all.
@@ -104,15 +146,17 @@ const agent = { skills: ["workspace"], ... };
 ### Workflow — multi-step agent pipelines
 
 ```typescript
-import { createWorkflow, agentStep, withRetry } from "@/agents/workflow";
+import { createWorkflow, agentStep, retry } from "@/agents/workflow";
 
 const pipeline = createWorkflow("research-and-draft")
-  .add(withRetry(agentStep("researcher", researcherConfig), { maxAttempts: 2 }))
+  .add(retry(agentStep("researcher", researcherConfig), { maxAttempts: 2 }))
   .add(agentStep("drafter", drafterConfig))
   .build();
 
 const result = await pipeline.run("Write a doc about vector databases");
 ```
+
+Resilience wrappers: `retry`, `timeout`, `fallback`, `createCircuitBreaker`, `onError`.
 
 ### Governance — policy enforcement and audit trails
 
@@ -201,8 +245,11 @@ See [`src/agents/examples/notion-style/`](src/agents/examples/notion-style/READM
 | [02 — Connecting your app](docs/02-connecting-your-app.md) | Auth, DB, session context |
 | [03 — Building tools](docs/03-building-tools.md) | Tool patterns, authorization, testing |
 | [13 — Agent definitions](docs/13-agent-definitions.md) | Roles, boundaries, autonomy levels |
-| [14 — Workflow orchestration](docs/14-workflow-orchestration.md) | Pipeline patterns |
+| [14 — Workflow orchestration](docs/14-workflow-orchestration.md) | Pipeline patterns, retry, timeout, fallback |
 | [15 — Tools playbook](docs/15-tools-playbook.md) | Permissions, chaining, abstraction |
 | [16 — Skills playbook](docs/16-skills-playbook.md) | I/O contracts, evaluation |
 | [17 — Memory playbook](docs/17-memory-playbook.md) | Retrieval strategies, TTL, privacy |
 | [18 — Governance playbook](docs/18-governance-playbook.md) | Policy, ethics, compliance, escalation |
+| [20 — Build a support agent](docs/20-build-a-support-agent.md) | End-to-end: single agent, memory, guardrails, curl test |
+| [21 — Build a multi-agent system](docs/21-build-a-multi-agent-system.md) | Triage router → specialists → workflow pipeline |
+| [22 — Go to production](docs/22-go-to-production.md) | Routing, caching, governance, Redis, deployment |

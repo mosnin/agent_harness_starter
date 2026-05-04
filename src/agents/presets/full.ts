@@ -1,5 +1,6 @@
 /**
- * Full preset — everything wired up automatically.
+ * Full preset — everything + human approval gates.
+ * Use when agents take irreversible actions.
  *
  * Automatically wires up:
  *   - Memory (if memoryKey is set)
@@ -7,13 +8,10 @@
  *   - Approvals (if requireApprovalFor is set or tools have requiresApproval)
  *   - Observability (always — uses the global adapter)
  *
- * This is the drop-in equivalent of the original harness.ts behaviour.
- * Existing code using createHarness from "@/agents" continues to work unchanged.
- *
  * Usage:
- *   import { createHarness } from "@/agents/presets/full";
+ *   import { createFullHarness } from "@/agents/presets";
  *
- *   const harness = createHarness({
+ *   const harness = createFullHarness({
  *     name: "ResearchAgent",
  *     instructions: "You are a research assistant.",
  *     memoryKey: "userId",
@@ -22,7 +20,7 @@
  *   });
  */
 
-import { createCoreHarness } from "../core";
+import { createCustomHarness } from "../core";
 import type { AgentHarness } from "../core";
 import { withMemory } from "../plugins/memory";
 import { withGuardrails } from "../plugins/guardrails";
@@ -54,5 +52,5 @@ export function createHarness(agentConfig: FullConfig): AgentHarness {
     plugins.push(withObservability());
   }
 
-  return createCoreHarness({ ...agentConfig, plugins });
+  return createCustomHarness({ ...agentConfig, plugins });
 }
