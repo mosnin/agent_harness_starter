@@ -2,26 +2,62 @@
   "name": "nextjs-agentic-starter",
   "version": "0.1.0",
   "private": false,
-  "description": "Agentic Next.js starter kit \u2014 OpenAI Agents SDK, MCP, Composio, Tavily, sandboxes, and swappable DB/auth adapters",
+  "description": "Agentic Next.js starter kit — OpenAI Agents SDK, MCP, Composio, Tavily, sandboxes, and swappable DB/auth adapters",
   "exports": {
-    ".":             { "import": "./dist/agents/index.js", "require": "./dist/agents/index.cjs" },
-    "./memory":      { "import": "./dist/agents/memory/index.js", "require": "./dist/agents/memory/index.cjs" },
-    "./governance":  { "import": "./dist/agents/governance/index.js", "require": "./dist/agents/governance/index.cjs" },
-    "./security":    { "import": "./dist/agents/security/index.js", "require": "./dist/agents/security/index.cjs" },
-    "./workflow":    { "import": "./dist/agents/workflow/index.js", "require": "./dist/agents/workflow/index.cjs" },
-    "./tools":       { "import": "./dist/agents/tools/index.js", "require": "./dist/agents/tools/index.cjs" },
-    "./skills":      { "import": "./dist/agents/skills/index.js", "require": "./dist/agents/skills/index.cjs" },
-    "./definitions": { "import": "./dist/agents/definitions/index.js", "require": "./dist/agents/definitions/index.cjs" },
-    "./observability": { "import": "./dist/agents/observability/index.js", "require": "./dist/agents/observability/index.cjs" },
-    "./routing":     { "import": "./dist/agents/routing/index.js", "require": "./dist/agents/routing/index.cjs" }
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./memory": {
+      "import": "./dist/memory/index.js",
+      "require": "./dist/memory/index.cjs"
+    },
+    "./governance": {
+      "import": "./dist/governance/index.js",
+      "require": "./dist/governance/index.cjs"
+    },
+    "./security": {
+      "import": "./dist/security/index.js",
+      "require": "./dist/security/index.cjs"
+    },
+    "./workflow": {
+      "import": "./dist/workflow/index.js",
+      "require": "./dist/workflow/index.cjs"
+    },
+    "./tools": {
+      "import": "./dist/tools/index.js",
+      "require": "./dist/tools/index.cjs"
+    },
+    "./skills": {
+      "import": "./dist/skills/index.js",
+      "require": "./dist/skills/index.cjs"
+    },
+    "./definitions": {
+      "import": "./dist/definitions/index.js",
+      "require": "./dist/definitions/index.cjs"
+    },
+    "./observability": {
+      "import": "./dist/observability/index.js",
+      "require": "./dist/observability/index.cjs"
+    },
+    "./routing": {
+      "import": "./dist/routing/index.js",
+      "require": "./dist/routing/index.cjs"
+    }
   },
-  "main": "./dist/agents/index.cjs",
-  "module": "./dist/agents/index.js",
-  "types": "./dist/agents/index.d.ts",
-  "files": ["dist/", "src/agents/", "QUICKSTART.md", "docs/"],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/",
+    "src/agents/",
+    "QUICKSTART.md",
+    "docs/"
+  ],
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:lib": "tsup",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
@@ -32,24 +68,50 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "@openai/agents": ">=0.0.11",
     "@anthropic-ai/sdk": ">=0.39.0",
+    "@openai/agents": ">=0.0.11",
     "zod": ">=3.0.0"
   },
   "peerDependenciesMeta": {
-    "@anthropic-ai/sdk":            { "optional": true },
-    "@auth0/nextjs-auth0":          { "optional": true },
-    "@clerk/nextjs":                { "optional": true },
-    "@daytonaio/sdk":               { "optional": true },
-    "@modelcontextprotocol/sdk":    { "optional": true },
-    "@pinecone-database/pinecone":  { "optional": true },
-    "@prisma/client":               { "optional": true },
-    "@supabase/supabase-js":        { "optional": true },
-    "@upstash/redis":               { "optional": true },
-    "composio-core":                { "optional": true },
-    "convex":                       { "optional": true },
-    "modal":                        { "optional": true },
-    "openai":                       { "optional": true }
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "@auth0/nextjs-auth0": {
+      "optional": true
+    },
+    "@clerk/nextjs": {
+      "optional": true
+    },
+    "@daytonaio/sdk": {
+      "optional": true
+    },
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    },
+    "@pinecone-database/pinecone": {
+      "optional": true
+    },
+    "@prisma/client": {
+      "optional": true
+    },
+    "@supabase/supabase-js": {
+      "optional": true
+    },
+    "@upstash/redis": {
+      "optional": true
+    },
+    "composio-core": {
+      "optional": true
+    },
+    "convex": {
+      "optional": true
+    },
+    "modal": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@browserbasehq/sdk": "^2.10.0",
@@ -74,6 +136,7 @@
     "openai": "^4.100.0",
     "prisma": "^7.8.0",
     "tailwindcss": "^4.1.4",
+    "tsup": "^8.5.1",
     "typescript": "^5.8.3",
     "vitest": "^4.1.5",
     "zod": "^4.0.0"

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "incremental": false,
+    "composite": false,
+    "declaration": true,
+    "declarationMap": true
+  },
+  "include": ["src/agents/**/*.ts"],
+  "exclude": ["node_modules", "dist", "src/agents/__tests__"]
+}

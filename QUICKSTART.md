@@ -136,8 +136,8 @@ const agent = defineAgent("document-assistant")
   .role("tooling")
   .instructions((ctx) => `Help ${ctx.userId} manage their workspace.`)
   .skills(["workspace"])
-  .memory({ scope: "user", ttl: "30d", retrieval: "semantic" })
-  .boundaries({ cannotDo: ["Delete content without confirmation"] })
+  .memory({ scope: "user", ttl: "30d", topK: 5 })
+  .boundaries({ refuseTopics: ["Delete content without confirmation"] })
   .autonomy("supervised")
   .build();
 ```
