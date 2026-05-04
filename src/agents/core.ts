@@ -22,6 +22,7 @@
  */
 
 import { Agent, run } from "@openai/agents";
+import { randomUUID } from "crypto";
 import type { AgentConfig, AgentEvent, AgentContext, RunInput, RunResult, PluginRunContext } from "./types";
 import { resolveAgentTools } from "./skills/index";
 import { toOpenAITool } from "./utils";
@@ -89,8 +90,23 @@ function mapSdkEvent(
   return null;
 }
 
+function validatePluginOrder(plugins: import("./types").HarnessPlugin[]): void {
+  const names = plugins.map(p => p.name);
+  const memIdx = names.indexOf("memory");
+  const guardrailsIdx = names.indexOf("guardrails");
+
+  if (memIdx !== -1 && guardrailsIdx !== -1 && memIdx > guardrailsIdx) {
+    console.warn(
+      "[agent-harness] Plugin ordering warning: \"memory\" should come before \"guardrails\" " +
+      "so retrieved memories are available when guardrails evaluate the enriched prompt. " +
+      `Current order: [${names.join(", ")}]`
+    );
+  }
+}
+
 export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
   const plugins = agentConfig.plugins ?? [];
+  validatePluginOrder(plugins);
 
   async function resolveInstructions(ctx: AgentContext): Promise<string> {
     const { instructions } = agentConfig;
@@ -141,7 +157,16 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
   async function* stream(input: RunInput): AsyncGenerator<AgentEvent> {
     const runId = globalThis.crypto.randomUUID();
     const startedAt = Date.now();
-    const ctx: AgentContext = input.context ?? {};
+    // Resolve traceId — callers can pass one for distributed tracing; otherwise generate fresh
+    const inputCtx = input.context ?? {};
+    const callerTraceId = (inputCtx as Record<string, unknown>)?.traceId as string | undefined;
+    const ctx: AgentContext = {
+      ...inputCtx,
+      runId,
+      orgId: (inputCtx.orgId as string | undefined) ?? agentConfig.orgId,
+      traceId: callerTraceId ?? randomUUID(),
+      spanId: randomUUID(),
+    };
     const pluginCtx: PluginRunContext = {
       runId,
       agentName: agentConfig.name,

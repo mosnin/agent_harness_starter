@@ -49,13 +49,18 @@ export interface AgentConfig {
   modelSettings?: ModelSettings;
 
   // ── Tools & skills ────────────────────────────────────────────────────────
-  /** Tool names from the registry. */
+  /**
+   * Tool names this agent can use.
+   * Call getToolNames() from "@/agents/tools/registry" to see all registered tools.
+   * Call getRegisteredTools() from "@/agents" for full ToolDefinition objects.
+   */
   tools?: string[];
 
   /**
    * Skill bundle names. Skills are curated subsets of tools the model
    * discovers progressively — prevents overwhelming it with the full toolbox.
    * See src/agents/skills/.
+   * Call getRegisteredSkills() from "@/agents" to see all registered skill names.
    */
   skills?: string[];
 
@@ -75,6 +80,9 @@ export interface AgentConfig {
    * (usually userId or threadId) and prepends them to the system prompt.
    */
   memoryKey?: string;
+
+  /** Tenant/org ID for multi-tenant deployments. Scopes memory and policy decisions. */
+  orgId?: string;
 
   // ── Execution ─────────────────────────────────────────────────────────────
   /** Max LLM + tool iterations. Default: 20. */
@@ -246,6 +254,18 @@ export interface ModelSettings {
 export interface AgentContext {
   /** Authenticated user ID from your auth adapter. */
   userId?: string;
+  /** Conversation thread ID. */
+  threadId?: string;
+  /** Unique run ID (auto-populated by the harness). */
+  runId?: string;
+  /** Tenant/org ID for multi-tenant deployments. Scopes memory and policy decisions. */
+  orgId?: string;
+  /** Distributed trace ID (OpenTelemetry compatible). Auto-generated if not provided. */
+  traceId?: string;
+  /** Current span ID (OpenTelemetry compatible). Auto-generated per run. */
+  spanId?: string;
+  /** Any additional per-request data (sessionData, feature flags, etc.). */
+  metadata?: Record<string, unknown>;
   /** Any additional per-request data (orgId, sessionData, feature flags, etc.). */
   [key: string]: unknown;
 }

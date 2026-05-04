@@ -49,8 +49,10 @@ export function withMemory(opts: MemoryPluginOptions): HarnessPlugin {
       ctx: PluginRunContext
     ): Promise<string> {
       const { memory, formatMemoriesForPrompt } = await import("../memory/index");
-      const userId = ctx.userId ?? opts.key;
-      const memories = await memory.retrieve(userId, userMessage, opts.topK ?? 5);
+      const baseKey = ctx.userId ?? opts.key;
+      const orgId = ctx.context?.orgId as string | undefined;
+      const effectiveKey = orgId ? `org:${orgId}:${baseKey}` : baseKey;
+      const memories = await memory.retrieve(effectiveKey, userMessage, opts.topK ?? 5);
       const block = formatMemoriesForPrompt(memories, opts.maxLength ?? 2000);
       return block ? `${instructions}\n\n## Relevant memories\n${block}` : instructions;
     },
@@ -61,9 +63,11 @@ export function withMemory(opts: MemoryPluginOptions): HarnessPlugin {
     ): Promise<void> {
       if (!result.finalOutput || result.error) return;
       const { memory } = await import("../memory/index");
-      const userId = ctx.userId ?? opts.key;
+      const baseKey = ctx.userId ?? opts.key;
+      const orgId = ctx.context?.orgId as string | undefined;
+      const effectiveKey = orgId ? `org:${orgId}:${baseKey}` : baseKey;
       // Store the exchange for future retrieval
-      await memory.store(userId, result.finalOutput).catch(() => {});
+      await memory.store(effectiveKey, result.finalOutput).catch(() => {});
     },
   };
 }

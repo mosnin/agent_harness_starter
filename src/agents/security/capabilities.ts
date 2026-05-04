@@ -3,14 +3,21 @@
  *
  * A capability token grants an agent permission to use a specific set of tools
  * for a limited duration and optionally a specific run. Tokens are signed JWTs
- * (HS256 using AGENT_CAPABILITY_SECRET) and verified on each tool call.
+ * and verified on each tool call.
  *
  * This implements the NHI (Non-Human Identity) principle: every agent run gets
  * its own token with the minimum tools needed — not a long-lived shared secret.
  *
+ * Security note: HS256 uses a symmetric secret — anyone with AGENT_CAPABILITY_SECRET
+ * can forge tokens. For production deployments where the issuer and verifier are
+ * separate services, use RS256 by setting AGENT_CAPABILITY_PRIVATE_KEY and
+ * AGENT_CAPABILITY_PUBLIC_KEY instead.
+ *
  * Env:
- *   AGENT_CAPABILITY_SECRET — required for signing/verifying (min 32 chars)
- *   AGENT_CAPABILITY_DEFAULT_TTL — optional, e.g. "15m" (default: "15m")
+ *   AGENT_CAPABILITY_SECRET        — required for HS256 signing/verifying (min 32 chars)
+ *   AGENT_CAPABILITY_PRIVATE_KEY   — PEM private key; enables RS256 when set with PUBLIC_KEY
+ *   AGENT_CAPABILITY_PUBLIC_KEY    — PEM public key; enables RS256 when set with PRIVATE_KEY
+ *   AGENT_CAPABILITY_DEFAULT_TTL   — optional, e.g. "15m" (default: "15m")
  *
  * Usage:
  *   const token = await issueCapabilityToken({
@@ -66,17 +73,29 @@ export class CapabilityError extends SecurityError {
   }
 }
 
+// ── Algorithm detection ───────────────────────────────────────────────────────
+
+type TokenAlgorithm = "HS256" | "RS256";
+
+function detectAlgorithm(): TokenAlgorithm {
+  if (process.env.AGENT_CAPABILITY_PRIVATE_KEY && process.env.AGENT_CAPABILITY_PUBLIC_KEY) {
+    return "RS256";
+  }
+  return "HS256";
+}
+
 function getSecret(): string {
   const secret = process.env.AGENT_CAPABILITY_SECRET;
   if (!secret || secret.length < 32) {
     throw new CapabilityError(
-      "AGENT_CAPABILITY_SECRET must be set and at least 32 characters long."
+      "AGENT_CAPABILITY_SECRET must be set and at least 32 characters long. " +
+      "Alternatively, set AGENT_CAPABILITY_PRIVATE_KEY + AGENT_CAPABILITY_PUBLIC_KEY for RS256 (recommended for production)."
     );
   }
   return secret;
 }
 
-// ── Minimal HS256 JWT without a heavy dependency ──────────────────────────────
+// ── Minimal JWT crypto without a heavy dependency ────────────────────────────
 
 function b64url(data: string): string {
   return Buffer.from(data).toString("base64url");
@@ -99,10 +118,24 @@ async function timingSafeEqual(a: string, b: string): Promise<boolean> {
   return tse(aBytes, bBytes);
 }
 
+async function signRS256(payload: string): Promise<string> {
+  const privateKeyPem = process.env.AGENT_CAPABILITY_PRIVATE_KEY!;
+  const { createSign } = await import("crypto");
+  const sig = createSign("RSA-SHA256").update(payload).sign(privateKeyPem);
+  return sig.toString("base64url");
+}
+
+async function verifyRS256(payload: string, sig: string): Promise<boolean> {
+  const publicKeyPem = process.env.AGENT_CAPABILITY_PUBLIC_KEY!;
+  const { createVerify } = await import("crypto");
+  const sigBuf = Buffer.from(sig, "base64url");
+  return createVerify("RSA-SHA256").update(payload).verify(publicKeyPem, sigBuf);
+}
+
 // ── Issue ─────────────────────────────────────────────────────────────────────
 
 export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<string> {
-  const secret = getSecret();
+  const alg = detectAlgorithm();
   const ttl = opts.ttl ?? process.env.AGENT_CAPABILITY_DEFAULT_TTL ?? "15m";
   const ttlMs = parseTtlMs(ttl);
 
@@ -118,9 +151,11 @@ export async function issueCapabilityToken(opts: IssueTokenOptions): Promise<str
     iss: opts.iss ?? "agent-harness",
   };
 
-  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const header = b64url(JSON.stringify({ alg, typ: "JWT" }));
   const body = b64url(JSON.stringify(payload));
-  const sig = await sign(`${header}.${body}`, secret);
+  const sig = alg === "RS256"
+    ? await signRS256(`${header}.${body}`)
+    : await sign(`${header}.${body}`, getSecret());
   return `${header}.${body}.${sig}`;
 }
 
@@ -130,13 +165,27 @@ export async function verifyCapabilityToken(
   token: string,
   options?: { expectedAud?: string; expectedIss?: string }
 ): Promise<CapabilityTokenPayload> {
-  const secret = getSecret();
   const parts = token.split(".");
   if (parts.length !== 3) throw new CapabilityError("Malformed capability token.");
 
   const [header, body, sig] = parts;
-  const expectedSig = await sign(`${header}.${body}`, secret);
-  if (!await timingSafeEqual(sig, expectedSig)) throw new CapabilityError("Capability token signature invalid.");
+
+  let headerObj: { alg?: string; typ?: string };
+  try {
+    headerObj = JSON.parse(fromB64url(header));
+  } catch {
+    throw new CapabilityError("Capability token header is not valid JSON.");
+  }
+
+  const alg = headerObj.alg ?? "HS256";
+
+  if (alg === "RS256") {
+    const valid = await verifyRS256(`${header}.${body}`, sig);
+    if (!valid) throw new CapabilityError("Capability token signature invalid.");
+  } else {
+    const expectedSig = await sign(`${header}.${body}`, getSecret());
+    if (!await timingSafeEqual(sig, expectedSig)) throw new CapabilityError("Capability token signature invalid.");
+  }
 
   let payload: CapabilityTokenPayload;
   try {

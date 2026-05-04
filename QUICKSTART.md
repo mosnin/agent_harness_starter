@@ -86,25 +86,27 @@ const result = await agent.run("How do I reset my password?");
 
 ### How it scales
 
-As your requirements grow, step up to a more specific preset:
-
-| Function | What it wires | When to use |
-|----------|--------------|-------------|
-| `createAgent()` | Memory + guardrails + observability | Starting out, most production agents |
-| `createStandardHarness()` | Same as createAgent, explicit name | When you want the name to be self-documenting |
-| `createFullHarness()` | Everything + human approval gates | Agents that take irreversible actions |
-| `createMinimalHarness()` | No plugins, smallest bundle | When you need full manual control |
-| `createCustomHarness()` | Core engine only, pass `plugins[]` | Composing exactly the plugins you need |
+Start with `createAgent()`. When you need more:
 
 ```typescript
-import { createFullHarness } from "@/agents/presets";
+// Step 1 — Start here (memory + guardrails + observability auto-wired)
+const agent = createAgent({ name: "...", instructions: "..." });
 
-// For agents that delete files, send emails, or make purchases:
-const agent = createFullHarness({
-  name: "DataCleanupAgent",
-  instructions: "You help users clean up their workspace.",
-  requireApprovalFor: ["file_delete", "db_delete"],
+// Step 2 — Add human approval gates for irreversible actions
+import { createFullHarness } from "@/agents/presets";
+const agent = createFullHarness({ ..., requireApprovalFor: ["file_delete"] });
+
+// Step 3 — Production hardening (security + governance + audit in one call)
+import { withControlPlane } from "@/agents";
+import { DEFAULT_GOVERNANCE_POLICY } from "@/agents/governance";
+const agent = createAgent({
+  ...,
+  plugins: [withControlPlane({ governance: DEFAULT_GOVERNANCE_POLICY })],
 });
+
+// Step 4 — Full control
+import { createCustomHarness } from "@/agents";
+const agent = createCustomHarness({ ..., plugins: [withMemory(...), withGuardrails(...)] });
 ```
 
 ---

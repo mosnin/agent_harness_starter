@@ -31,3 +31,16 @@ export function getTools(names: string[]): ToolDefinition[] {
     .map((n) => registry.get(n))
     .filter((t): t is ToolDefinition => t !== undefined);
 }
+
+/**
+ * Type representing a registered tool name.
+ * Use registerTool() to add names to this union at the module level.
+ * TypeScript can't widen this automatically, but getToolNames() provides
+ * runtime discovery and IDEs will show registered names via intellisense
+ * when you use const assertions.
+ */
+
+/** Returns all registered tool names as a string array (useful for allowlists). */
+export function getToolNames(): string[] {
+  return Array.from(registry.keys());
+}

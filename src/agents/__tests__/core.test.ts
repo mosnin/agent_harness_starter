@@ -312,6 +312,42 @@ describe("core harness — plugin lifecycle", () => {
   });
 });
 
+describe("plugin ordering guard", () => {
+  it("warns when memory plugin comes after guardrails", () => {
+    vi.clearAllMocks();
+    setupRun();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const guardrailsPlugin = { name: "guardrails", execute: vi.fn() } as any;
+    const memPlugin = { name: "memory", execute: vi.fn() } as any;
+    createCustomHarness({ name: "T", instructions: "x", plugins: [guardrailsPlugin, memPlugin] });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("memory"));
+    warnSpy.mockRestore();
+  });
+
+  it("does not warn when ordering is correct", () => {
+    vi.clearAllMocks();
+    setupRun();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const memPlugin = { name: "memory", execute: vi.fn() } as any;
+    const guardrailsPlugin = { name: "guardrails", execute: vi.fn() } as any;
+    createCustomHarness({ name: "T", instructions: "x", plugins: [memPlugin, guardrailsPlugin] });
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+});
+
+describe("orgId scoping", () => {
+  it("accepts orgId in AgentConfig without error", () => {
+    vi.clearAllMocks();
+    setupRun();
+    expect(() => createCustomHarness({
+      name: "T",
+      instructions: "x",
+      orgId: "org_acme",
+    })).not.toThrow();
+  });
+});
+
 describe("core harness — run() method", () => {
   it("returns finalOutput, messages, and toolCalls", async () => {
     vi.clearAllMocks();

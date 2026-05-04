@@ -47,9 +47,14 @@ export function validateRuntime(options: {
   }
 
   if (requireCapabilitySecret) {
+    const hasRs256 =
+      process.env.AGENT_CAPABILITY_PRIVATE_KEY && process.env.AGENT_CAPABILITY_PUBLIC_KEY;
     const secret = process.env.AGENT_CAPABILITY_SECRET;
-    if (!secret || secret.length < 32) {
-      errors.push("AGENT_CAPABILITY_SECRET must be set and at least 32 characters long.");
+    if (!hasRs256 && (!secret || secret.length < 32)) {
+      errors.push(
+        "AGENT_CAPABILITY_SECRET must be set and at least 32 characters long. " +
+        "For production: prefer RS256 by setting AGENT_CAPABILITY_PRIVATE_KEY + AGENT_CAPABILITY_PUBLIC_KEY."
+      );
     }
   }
 

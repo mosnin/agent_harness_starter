@@ -348,6 +348,20 @@ describe("verifyCapabilityToken — expectedAud option", () => {
   });
 });
 
+// ── issueCapabilityToken — algorithm detection ────────────────────────────────
+
+describe("issueCapabilityToken — algorithm detection", () => {
+  it("uses HS256 when only AGENT_CAPABILITY_SECRET is set", async () => {
+    process.env.AGENT_CAPABILITY_SECRET = "a".repeat(32);
+    delete process.env.AGENT_CAPABILITY_PRIVATE_KEY;
+    delete process.env.AGENT_CAPABILITY_PUBLIC_KEY;
+    const token = await issueCapabilityToken({ sub: "u1", tools: ["web_search"] });
+    const [headerB64] = token.split(".");
+    const header = JSON.parse(Buffer.from(headerB64, "base64url").toString());
+    expect(header.alg).toBe("HS256");
+  });
+});
+
 // ── createAuditedPolicy ───────────────────────────────────────────────────────
 
 describe("createAuditedPolicy", () => {
