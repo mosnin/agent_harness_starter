@@ -50,7 +50,8 @@ export function maxLengthGuardrail(maxChars: number): InputGuardrail {
       if (input.length > maxChars) {
         throw new GuardrailBlockError(
           `Input exceeds maximum length of ${maxChars} characters.`,
-          "input_too_long"
+          "input_too_long",
+          "max_length"
         );
       }
       return input;
@@ -84,7 +85,8 @@ export const requireJsonOutputGuardrail: OutputGuardrail = {
     } catch {
       throw new GuardrailBlockError(
         "Agent output is not valid JSON.",
-        "invalid_json_output"
+        "invalid_json_output",
+        "require_json"
       );
     }
   },
@@ -104,7 +106,8 @@ export function blockedKeywordsGuardrail(keywords: string[]): OutputGuardrail {
       if (found) {
         throw new GuardrailBlockError(
           `Output contains blocked content: "${found}"`,
-          "blocked_keyword"
+          "blocked_keyword",
+          "blocked_keywords"
         );
       }
       return output;

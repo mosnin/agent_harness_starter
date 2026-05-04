@@ -75,7 +75,7 @@ export function withGovernance(opts: GovernancePluginOptions = {}): HarnessPlugi
           }
 
           if (decision.outcome === "blocked" && !auditOnly) {
-            throw new GovernancePolicyViolationError(decision);
+            throw new GovernancePolicyViolationError(decision, tool.name);
           }
 
           return tool.execute(input, toolCtx);
