@@ -23,9 +23,44 @@ export { createMinimalHarness, createStandardHarness, createFullHarness } from "
 export type { MinimalConfig, StandardConfig, FullConfig } from "./presets/index";
 
 // ── Orchestration ──────────────────────────────────────────────────────────────
-export { createOrchestrator, runAgentsInParallel, runAgentChain } from "./orchestrator";
+export {
+  createOrchestrator,
+  runAgentsInParallel,
+  runAgentChain,
+  runConditional,
+  runIterative,
+  runHierarchical,
+} from "./orchestrator";
+export type {
+  OrchestratorConfig,
+  ConditionalBranch,
+  ConditionalOrchestrationConfig,
+  IterativeOrchestrationConfig,
+  IterativeResult,
+  ChildOrchestrator,
+  HierarchicalOrchestrationConfig,
+  HierarchicalResult,
+} from "./orchestrator";
 export { toOpenAITool } from "./utils";
 export type { AgentConfig, AgentEvent, RunInput, RunResult, ModelSettings, AgentContext, HarnessPlugin, PluginRunContext } from "./types";
+
+// ── Structured reasoning ───────────────────────────────────────────────────────
+export { withStructuredReasoning } from "./plugins/structured-reasoning";
+export type { StructuredReasoningPluginOptions } from "./plugins/structured-reasoning";
+export { buildStructuredReasoningPrompt, mergeInstructions } from "./lib/prompt-builder";
+export type { StructuredReasoningConfig, CriticRubric, MemoryAnchorSpec } from "./lib/prompt-builder";
+
+// ── Memory anchors ──────────────────────────────────────────────────────────────
+export { anchors, AnchorStore, parseTtlMs } from "./memory/anchors";
+export type { AnchorEntry, AnchorOptions } from "./memory/anchors";
+
+// ── Security ───────────────────────────────────────────────────────────────────
+export { createPolicy, applyPolicyToTools, PolicyViolationError, DEFAULT_DENY_POLICY, audit, AuditLogger, ConsoleAuditAdapter, InMemoryAuditAdapter, NoopAuditAdapter, hashInput, issueCapabilityToken, verifyCapabilityToken, resolveToolsFromToken, CapabilityError, withSecurity } from "./security/index";
+export type { PolicyConfig, PolicyContext, PolicyCheckResult, AgentPolicy, AuditRecord, AuditOutcome, AuditAdapter, CapabilityTokenPayload, IssueTokenOptions, SecurityPluginOptions } from "./security/index";
+
+// ── Cost routing ───────────────────────────────────────────────────────────────
+export { createRouter, defaultRouter, exactCacheKey, semanticCacheKey, toolCacheKey, TTL, InMemoryCache, RedisCache, createCacheManager, defaultCache, CONTEXT_BUDGETS, estimateTokens, trimChunks, truncateHistory, trimSystemPrompt, buildContext } from "./routing/index";
+export type { RouterConfig, RouterSignals, ModelPlan, EscalateRules, CacheAdapter, CacheSetOptions, CacheManager, RedisClient, ContextBudgetConfig, RetrievalChunk, Message, BuiltContext } from "./routing/index";
 
 // ── Skills ─────────────────────────────────────────────────────────────────────
 export { defineSkill, registerSkill, getSkill, getAllSkills, resolveSkillTools, resolveAgentTools } from "./skills/index";

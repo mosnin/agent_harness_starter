@@ -1,12 +1,18 @@
 /**
  * Multi-agent orchestrator.
  *
- * Supports three orchestration patterns:
+ * Supports five orchestration patterns:
  *
  *  1. Triage/router     — a classifier agent uses SDK handoffs to delegate to
  *                         the right specialist automatically.
  *  2. Parallel fan-out  — run multiple agents concurrently, collect all outputs.
  *  3. Sequential chain  — pipe the output of one agent as input to the next.
+ *  4. Conditional       — branch to different agents based on predicates applied
+ *                         to the input or prior agent output.
+ *  5. Iterative/loop    — repeat an agent (or chain) until a stop condition is
+ *                         met (e.g. critic score ≥ threshold, max passes).
+ *  6. Hierarchical      — a supervisor orchestrator manages a set of child
+ *                         orchestrators (each with their own specialists).
  *
  * Handoffs use the OpenAI Agents SDK's first-class handoff support. The router
  * receives the full list of specialists as eligible handoff targets; the SDK
@@ -269,4 +275,262 @@ export async function runAgentChain(
   }
 
   return { steps, finalOutput: currentMessage };
+}
+
+// ── Conditional orchestration ─────────────────────────────────────────────────
+
+export interface ConditionalBranch {
+  /**
+   * Predicate evaluated against the current message (and optional prior output).
+   * Branches are evaluated in array order — first match wins.
+   * Return true to select this branch.
+   */
+  when: (input: string, priorOutput?: string, ctx?: RunInput["context"]) => boolean | Promise<boolean>;
+  /** Agent to run if the predicate matches. */
+  agent: AgentConfig;
+  /** Human-readable label for logging. */
+  label?: string;
+}
+
+export interface ConditionalOrchestrationConfig {
+  /** Ordered list of condition → agent branches. First match wins. */
+  branches: ConditionalBranch[];
+  /** Fallback agent when no branch predicate matches. Required. */
+  fallback: AgentConfig;
+}
+
+/**
+ * Run the first agent whose predicate matches the input.
+ * If no predicate matches, runs the fallback agent.
+ *
+ * Example:
+ *   runConditional({
+ *     branches: [
+ *       { when: (msg) => /urgent/i.test(msg), agent: escalationAgent, label: "urgent" },
+ *       { when: (msg) => msg.length < 50,      agent: quickAgent,      label: "short" },
+ *     ],
+ *     fallback: generalAgent,
+ *   }, message)
+ */
+export async function runConditional(
+  config: ConditionalOrchestrationConfig,
+  message: string,
+  ctx?: RunInput["context"]
+): Promise<{ agentName: string; branch: string; output: string }> {
+  for (const branch of config.branches) {
+    const match = await Promise.resolve(branch.when(message, undefined, ctx));
+    if (match) {
+      const agent = await buildAgent(branch.agent, ctx);
+      const result = await run(agent, message, {
+        maxTurns: branch.agent.maxTurns ?? 20,
+        context: ctx ?? {},
+      });
+      return {
+        agentName: branch.agent.name,
+        branch: branch.label ?? branch.agent.name,
+        output: (result as { finalOutput?: string }).finalOutput ?? "",
+      };
+    }
+  }
+
+  const fallback = await buildAgent(config.fallback, ctx);
+  const result = await run(fallback, message, {
+    maxTurns: config.fallback.maxTurns ?? 20,
+    context: ctx ?? {},
+  });
+  return {
+    agentName: config.fallback.name,
+    branch: "fallback",
+    output: (result as { finalOutput?: string }).finalOutput ?? "",
+  };
+}
+
+// ── Iterative / loop orchestration ────────────────────────────────────────────
+
+export interface IterativeOrchestrationConfig {
+  /** The agent to run each iteration. */
+  agent: AgentConfig;
+  /**
+   * Stop condition evaluated after each iteration.
+   * Return true to stop, false to continue.
+   * Receives the current output, the iteration index (0-based), and context.
+   */
+  stopWhen: (
+    output: string,
+    iteration: number,
+    ctx?: RunInput["context"]
+  ) => boolean | Promise<boolean>;
+  /** Hard limit on iterations. Default: 5. Prevents infinite loops. */
+  maxIterations?: number;
+  /**
+   * How to build the input for the next iteration.
+   * Default: pass the previous output directly.
+   */
+  buildNextInput?: (
+    previousOutput: string,
+    iteration: number,
+    originalMessage: string
+  ) => string;
+}
+
+export interface IterativeResult {
+  iterations: Array<{ iteration: number; input: string; output: string }>;
+  finalOutput: string;
+  stoppedBy: "condition" | "max_iterations";
+}
+
+/**
+ * Run an agent in a loop until the stop condition is met or maxIterations is reached.
+ *
+ * Useful for critic-revision cycles, retry-until-confident flows,
+ * and incremental refinement pipelines.
+ *
+ * Example:
+ *   runIterative({
+ *     agent: draftAgent,
+ *     stopWhen: async (output) => await judgeScore(output) >= 8,
+ *     maxIterations: 3,
+ *   }, userMessage)
+ */
+export async function runIterative(
+  config: IterativeOrchestrationConfig,
+  initialMessage: string,
+  ctx?: RunInput["context"]
+): Promise<IterativeResult> {
+  const {
+    agent: agentConfig,
+    stopWhen,
+    maxIterations = 5,
+    buildNextInput = (prev) => prev,
+  } = config;
+
+  const iterations: Array<{ iteration: number; input: string; output: string }> = [];
+  let currentInput = initialMessage;
+  let stoppedBy: IterativeResult["stoppedBy"] = "max_iterations";
+
+  for (let i = 0; i < maxIterations; i++) {
+    const agent = await buildAgent(agentConfig, ctx);
+    const result = await run(agent, currentInput, {
+      maxTurns: agentConfig.maxTurns ?? 20,
+      context: ctx ?? {},
+    });
+    const output = (result as { finalOutput?: string }).finalOutput ?? "";
+    iterations.push({ iteration: i, input: currentInput, output });
+
+    const stop = await Promise.resolve(stopWhen(output, i, ctx));
+    if (stop) {
+      stoppedBy = "condition";
+      return { iterations, finalOutput: output, stoppedBy };
+    }
+
+    currentInput = buildNextInput(output, i + 1, initialMessage);
+  }
+
+  return {
+    iterations,
+    finalOutput: iterations.at(-1)?.output ?? "",
+    stoppedBy,
+  };
+}
+
+// ── Hierarchical orchestration ────────────────────────────────────────────────
+
+export interface ChildOrchestrator {
+  /** Label used in result and logging. */
+  name: string;
+  /**
+   * Run this sub-orchestrator with the given message and context.
+   * Returns the final output string.
+   */
+  run: (message: string, ctx?: RunInput["context"]) => Promise<string>;
+  /**
+   * Optional predicate: only invoke this child if true.
+   * When omitted, the child is always invoked.
+   */
+  when?: (message: string, ctx?: RunInput["context"]) => boolean | Promise<boolean>;
+}
+
+export interface HierarchicalOrchestrationConfig {
+  /**
+   * The supervisor agent that aggregates child outputs into a final response.
+   * Receives a synthesis prompt (child names + outputs) as input.
+   */
+  supervisor: AgentConfig;
+  /** Child orchestrators to fan out to. */
+  children: ChildOrchestrator[];
+  /**
+   * How to build the supervisor's synthesis prompt.
+   * Default: JSON block listing each child name and output.
+   */
+  buildSynthesisPrompt?: (
+    originalMessage: string,
+    childResults: Array<{ name: string; output: string }>
+  ) => string;
+}
+
+export interface HierarchicalResult {
+  childResults: Array<{ name: string; output: string; skipped?: boolean }>;
+  supervisorOutput: string;
+}
+
+/**
+ * Fan out to multiple child orchestrators (potentially each with their own agents),
+ * then have a supervisor agent synthesize the results.
+ *
+ * Children run in parallel. The supervisor receives a structured summary of all outputs.
+ *
+ * Example:
+ *   runHierarchical({
+ *     supervisor: synthesisAgent,
+ *     children: [
+ *       { name: "legal",  run: (msg, ctx) => legalOrchestrator.run({ messages: [...], context: ctx }) },
+ *       { name: "market", run: (msg, ctx) => marketOrchestrator.run(msg, ctx) },
+ *     ],
+ *   }, userMessage)
+ */
+export async function runHierarchical(
+  config: HierarchicalOrchestrationConfig,
+  message: string,
+  ctx?: RunInput["context"]
+): Promise<HierarchicalResult> {
+  const {
+    supervisor,
+    children,
+    buildSynthesisPrompt = defaultSynthesisPrompt,
+  } = config;
+
+  // Fan out to all eligible children in parallel
+  const childResults = await Promise.all(
+    children.map(async (child) => {
+      if (child.when) {
+        const eligible = await Promise.resolve(child.when(message, ctx));
+        if (!eligible) return { name: child.name, output: "", skipped: true as const };
+      }
+      const output = await child.run(message, ctx);
+      return { name: child.name, output };
+    })
+  );
+
+  // Supervisor synthesizes active children's outputs
+  const synthesisPrompt = buildSynthesisPrompt(message, childResults.filter((r) => !r.skipped));
+  const supervisorAgent = await buildAgent(supervisor, ctx);
+  const result = await run(supervisorAgent, synthesisPrompt, {
+    maxTurns: supervisor.maxTurns ?? 20,
+    context: ctx ?? {},
+  });
+
+  return {
+    childResults,
+    supervisorOutput: (result as { finalOutput?: string }).finalOutput ?? "",
+  };
+}
+
+function defaultSynthesisPrompt(
+  originalMessage: string,
+  childResults: Array<{ name: string; output: string }>
+): string {
+  const outputs = childResults
+    .map((r) => `### ${r.name}\n${r.output}`)
+    .join("\n\n");
+  return `Original request:\n${originalMessage}\n\nSub-agent outputs:\n\n${outputs}\n\nSynthesize the above into a single coherent response.`;
 }

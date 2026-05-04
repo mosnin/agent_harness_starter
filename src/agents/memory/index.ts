@@ -40,6 +40,8 @@ function createAdapter(): MemoryAdapter {
 export const memory: MemoryAdapter = globalThis.__agentMemory ?? (globalThis.__agentMemory = createAdapter());
 
 export type { MemoryAdapter, MemoryEntry } from "./types";
+export { anchors, AnchorStore, parseTtlMs } from "./anchors";
+export type { AnchorEntry, AnchorOptions } from "./anchors";
 
 /**
  * Format retrieved memories into a system-prompt-ready string.
