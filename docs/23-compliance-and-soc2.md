@@ -113,6 +113,18 @@ setJtiStore(createRedisJtiStore(new Redis(process.env.REDIS_URL!)));
 
 Revoked JTIs are stored with TTL matching the token expiry, so the store self-cleans without a background sweep.
 
+**JWKS key rotation** (`createJwksHandler`)
+
+Mount a JWKS endpoint so distributed verifiers can rotate keys without redeployment:
+
+```typescript
+// src/app/api/jwks/route.ts
+import { createJwksHandler } from "@/agents/security/jwks";
+export const GET = createJwksHandler();
+```
+
+Verifiers in other services use `createRemoteJWKSet` from `jose` pointed at this URL.
+
 **Evidence for auditors:**
 - `verifyCapabilityToken` checks the JTI revocation store on every verification.
 - `CapabilityError` with code `CAPABILITY_TOKEN_REVOKED` is thrown when a revoked token is presented.

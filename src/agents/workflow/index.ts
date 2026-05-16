@@ -12,11 +12,13 @@ export {
   fallback,
   onError,
   createCircuitBreaker,
+  getOrCreateCircuitBreaker,
+  resetCircuitBreakers,
   ConcurrencyLimiter,
   TimeoutError,
   CircuitBreakerOpenError,
 } from "./resilience";
-export type { RetryConfig, CircuitBreakerConfig, CircuitBreaker, ErrorHandlerConfig } from "./resilience";
+export type { RetryConfig, CircuitBreakerConfig, CircuitBreaker, CircuitBreakerStore, ErrorHandlerConfig } from "./resilience";
 
 // ── State management ──────────────────────────────────────────────────────────
 export {

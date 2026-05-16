@@ -100,7 +100,9 @@ export class AgentDefinitionBuilder {
   }
 
   /**
-   * Build the AgentDefinition and derive a wired AgentConfig with plugins.
+   * Build the AgentDefinition config object.
+   * Tip: use .run() or .stream() to execute directly without creating a harness.
+   *
    * The returned config is ready to pass to createCustomHarness() or registerAgent().
    */
   build(): AgentDefinition {
@@ -185,6 +187,47 @@ export class AgentDefinitionBuilder {
     };
 
     return result;
+  }
+
+  /**
+   * Run the agent directly — no separate harness creation needed.
+   * Internally creates a standard harness from the built config.
+   *
+   * @example
+   *   const result = await defineAgent("assistant")
+   *     .instructions("You are helpful.")
+   *     .run("What is the capital of France?");
+   */
+  async run(input: string | import("../types").RunInput): Promise<import("../types").RunResult> {
+    const { createStandardHarness } = await import("../presets/index");
+    const harness = createStandardHarness(this.build());
+    const normalizedInput = typeof input === "string"
+      ? { messages: [{ role: "user" as const, content: input }] }
+      : input;
+    return harness.run(normalizedInput);
+  }
+
+  /**
+   * Stream the agent directly — no separate harness creation needed.
+   *
+   * @example
+   *   for await (const event of defineAgent("assistant")
+   *     .instructions("You are helpful.")
+   *     .stream("Hello")) {
+   *     if (event.type === "message_delta") process.stdout.write(event.delta);
+   *   }
+   */
+  stream(input: string | import("../types").RunInput): AsyncGenerator<import("../types").AgentEvent> {
+    const normalizedInput = typeof input === "string"
+      ? { messages: [{ role: "user" as const, content: input }] }
+      : input;
+    // Return a generator that lazily creates the harness
+    const self = this;
+    return (async function*() {
+      const { createStandardHarness } = await import("../presets/index");
+      const harness = createStandardHarness(self.build());
+      yield* harness.stream(normalizedInput);
+    })();
   }
 }
 

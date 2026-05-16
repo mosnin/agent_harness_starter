@@ -19,3 +19,6 @@ export type { RbacConfig, RbacRoleConfig } from "./rbac";
 
 export { createWebhookAuditSink, verifyWebhookSignature } from "./sinks/webhook";
 export type { WebhookAuditSinkOptions } from "./sinks/webhook";
+
+export { buildJwks, createJwksHandler } from "./jwks";
+export type { JwksDocument, JwksKey } from "./jwks";
