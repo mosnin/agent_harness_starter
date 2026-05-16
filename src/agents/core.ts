@@ -182,12 +182,19 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
     const callerSpanId = (inputCtx as Record<string, unknown>)?.spanId as string | undefined;
     const traceId = callerTraceId ?? randomUUID();
     const spanId = randomUUID(); // always fresh — this is THIS agent's span
+
+    function toHex(uuid: string): string {
+      return uuid.replace(/-/g, "");
+    }
+    const traceparent = `00-${toHex(traceId)}-${toHex(spanId).slice(0, 16)}-01`;
+
     const ctx: AgentContext = {
       ...inputCtx,
       runId,
       orgId: (inputCtx.orgId as string | undefined) ?? agentConfig.orgId,
       traceId,
       spanId,
+      traceparent,
     };
     const pluginCtx: PluginRunContext = {
       runId,
@@ -200,6 +207,7 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
       traceId,
       spanId,
       parentSpanId: callerSpanId,
+      traceparent,
     };
 
     // ── onBeforeRun: transform / validate user message ────────────────────────
@@ -219,7 +227,7 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
             ...(agentErr && "toolName" in agentErr && agentErr.toolName ? { toolName: agentErr.toolName as string } : {}),
             ...(agentErr?.remediation ? { remediation: agentErr.remediation } : {}),
           };
-          yield { type: "done", finalOutput: "" };
+          yield { type: "done", finalOutput: "", traceId, spanId, traceparent };
           // Still run onComplete for cleanup (REVERSE order — teardown mirrors setup)
           const durationMs = Date.now() - startedAt;
           const error = err instanceof Error ? err : new Error(msg);
@@ -295,7 +303,7 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
               ...(agentErr && "toolName" in agentErr && agentErr.toolName ? { toolName: agentErr.toolName as string } : {}),
               ...(agentErr?.remediation ? { remediation: agentErr.remediation } : {}),
             };
-            yield { type: "done", finalOutput: "" };
+            yield { type: "done", finalOutput: "", traceId, spanId, traceparent };
             return;
           }
         }
@@ -317,7 +325,7 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
         if (usageEvent) yield usageEvent;
       }
 
-      yield { type: "done", finalOutput };
+      yield { type: "done", finalOutput, traceId, spanId, traceparent };
     } catch (err) {
       runError = err instanceof Error ? err : new Error(String(err));
       // onError runs in REVERSE order (teardown mirrors setup)
