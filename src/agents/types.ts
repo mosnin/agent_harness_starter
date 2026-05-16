@@ -109,7 +109,7 @@ export interface AgentConfig {
    * Ordered list of plugins applied to every run of this agent.
    * Plugins are called in array order for before-hooks (onBeforeRun,
    * onResolveInstructions, wrapTools, onEvent) and in REVERSE array order
-   * for after-hooks (onAfterRun, onComplete, onError) so that teardown
+   * for after-hooks (onAfterRun, onError, onComplete) so that teardown
    * mirrors setup — the last plugin to set up is the first to tear down.
    *
    * Use the built-in factories:
@@ -167,6 +167,12 @@ export interface PluginRunContext {
    * Undefined for the root agent in a workflow.
    */
   parentSpanId?: string;
+  /**
+   * W3C traceparent header value for this run: `00-{traceId}-{spanId}-01`.
+   * Forward in outbound HTTP calls (e.g. `traceparent` header) so downstream
+   * services and APMs can correlate spans across service boundaries.
+   */
+  traceparent?: string;
 }
 
 /**
@@ -284,6 +290,11 @@ export interface AgentContext {
   traceId?: string;
   /** Current span ID (OpenTelemetry compatible). Auto-generated per run. */
   spanId?: string;
+  /**
+   * W3C traceparent header value: `00-{traceId}-{spanId}-01`.
+   * Set by the harness after generating traceId and spanId.
+   */
+  traceparent?: string;
   /** Any additional per-request data (sessionData, feature flags, etc.). */
   metadata?: Record<string, unknown>;
   /** Any additional per-request data (orgId, sessionData, feature flags, etc.). */
@@ -309,7 +320,7 @@ export type AgentEvent =
     }
   | { type: "error"; error: string; code?: string; guardName?: string; toolName?: string; remediation?: string }
   | { type: "usage"; inputTokens: number; outputTokens: number; totalTokens: number }
-  | { type: "done"; finalOutput: string };
+  | { type: "done"; finalOutput: string; traceId?: string; spanId?: string; traceparent?: string };
 
 // ── Run I/O ───────────────────────────────────────────────────────────────────
 

@@ -88,15 +88,9 @@
     }
   },
   "dependencies": {
-    "@browserbasehq/sdk": "^2.10.0",
-    "@tavily/core": "^0.7.3",
     "ai": "^6.0.174",
     "eventsource-parser": "^3.0.1",
-    "jose": "^6.2.3",
-    "next": "15.3.1",
-    "playwright-core": "^1.59.1",
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "jose": "^6.2.3"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.53.0",
@@ -109,8 +103,11 @@
     "dotenv": "^17.4.2",
     "eslint": "^9.25.1",
     "eslint-config-next": "^15.3.1",
+    "next": "15.3.1",
     "openai": "^4.100.0",
     "prisma": "^7.8.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "tailwindcss": "^4.1.4",
     "tsup": "^8.5.1",
     "typescript": "^5.8.3",
@@ -119,13 +116,16 @@
   },
   "optionalDependencies": {
     "@auth0/nextjs-auth0": "^4.19.0",
+    "@browserbasehq/sdk": "^2.10.0",
     "@clerk/nextjs": "^7.3.0",
     "@daytonaio/sdk": "^0.171.0",
     "@pinecone-database/pinecone": "^6.0.0",
     "@prisma/client": "^7.8.0",
     "@supabase/supabase-js": "^2.105.1",
+    "@tavily/core": "^0.7.3",
     "convex": "^1.37.0",
-    "modal": "^0.7.4"
+    "modal": "^0.7.4",
+    "playwright-core": "^1.59.1"
   },
   "engines": {
     "node": ">=20.0.0"

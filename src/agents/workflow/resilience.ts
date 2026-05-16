@@ -173,6 +173,118 @@ export class CircuitBreakerOpenError extends WorkflowError {
   }
 }
 
+// ── Named registry (shared within process) ───────────────────────────────────
+
+interface CircuitBreakerState {
+  state: CircuitState;
+  failures: number;
+  openedAt: number | null;
+}
+
+const circuitBreakerRegistry = new Map<string, CircuitBreakerState>();
+
+/** External store for circuit breaker state — implement for cross-cold-start durability. */
+export interface CircuitBreakerStore {
+  get(name: string): Promise<CircuitBreakerState | null>;
+  set(name: string, state: CircuitBreakerState): Promise<void>;
+}
+
+/**
+ * Internal implementation that reads/writes state from a registry Map entry
+ * rather than closure variables.
+ */
+function createCircuitBreakerWithState(
+  name: string,
+  config: CircuitBreakerConfig,
+  registry: Map<string, CircuitBreakerState>
+): CircuitBreaker {
+  const {
+    failureThreshold = 5,
+    resetTimeoutMs = 60_000,
+    onStateChange,
+  } = config;
+
+  function getEntry(): CircuitBreakerState {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return registry.get(name)!;
+  }
+
+  function transition(to: CircuitState, stepName: string) {
+    const entry = getEntry();
+    const from = entry.state;
+    entry.state = to;
+    if (from !== to) onStateChange?.(from, to, stepName);
+  }
+
+  return {
+    get state() { return getEntry().state; },
+
+    reset() {
+      const entry = getEntry();
+      entry.state = "closed";
+      entry.failures = 0;
+      entry.openedAt = null;
+    },
+
+    wrap(step: WorkflowStep): WorkflowStep {
+      return {
+        name: step.name,
+        type: step.type,
+        async execute(ctx: WorkflowContext): Promise<WorkflowContext> {
+          const entry = getEntry();
+          if (entry.state === "open") {
+            if (entry.openedAt !== null && Date.now() - entry.openedAt >= resetTimeoutMs) {
+              transition("half-open", step.name);
+            } else {
+              throw new CircuitBreakerOpenError(step.name);
+            }
+          }
+
+          try {
+            const result = await step.execute(ctx);
+            if (getEntry().state === "half-open") {
+              transition("closed", step.name);
+              getEntry().failures = 0;
+            }
+            return result;
+          } catch (err) {
+            const e = getEntry();
+            e.failures++;
+            if (e.failures >= failureThreshold) {
+              e.openedAt = Date.now();
+              transition("open", step.name);
+            }
+            throw err;
+          }
+        },
+      };
+    },
+  };
+}
+
+/**
+ * Get-or-create a circuit breaker by name.
+ * Breakers with the same name share state within the process — safe for
+ * repeated calls from different modules or request handlers.
+ *
+ * In serverless, state still resets on cold start. For durable state
+ * across cold starts, implement CircuitBreakerStore backed by Redis/KV.
+ */
+export function getOrCreateCircuitBreaker(
+  name: string,
+  config: CircuitBreakerConfig = {}
+): CircuitBreaker {
+  if (!circuitBreakerRegistry.has(name)) {
+    circuitBreakerRegistry.set(name, { state: "closed", failures: 0, openedAt: null });
+  }
+  return createCircuitBreakerWithState(name, config, circuitBreakerRegistry);
+}
+
+/** Clear all circuit breaker state. Useful in tests. */
+export function resetCircuitBreakers(): void {
+  circuitBreakerRegistry.clear();
+}
+
 export function createCircuitBreaker(config: CircuitBreakerConfig = {}): CircuitBreaker {
   const {
     failureThreshold = 5,
