@@ -96,6 +96,10 @@ export type {
   SelectedProvider,
 } from "./providers/manager";
 
+// ── Guidance (CLAUDE.md policy compiler + enforcement gates) ─────────────────
+export { withGuidance, compileGuidance } from "./guidance/index";
+export type { GuidancePluginOptions, GuidanceRule, PolicyBundle, GateResult, GateContext } from "./guidance/index";
+
 // ── Runtime validation & discovery ────────────────────────────────────────────
 // These are accessible via @/agents/runtime:
 //   import { validateRuntime, getRegisteredTools, getRegisteredSkills, resolveAgentAccess } from "@/agents/runtime";

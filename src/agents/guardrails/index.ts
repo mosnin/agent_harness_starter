@@ -15,8 +15,9 @@ export { GuardrailBlockError, GuardrailHumanReviewError };
 export type { GuardrailContext, GuardrailSet, InputGuardrail, OutputGuardrail } from "./types";
 
 // ── Prompt injection / jailbreak detection ────────────────────────────────────
-export { promptInjectionGuardrail, detectInjection } from "./injection";
+export { promptInjectionGuardrail, detectInjection, severityOf } from "./injection";
 export type { InjectionDetectorOptions, InjectionPattern, DetectionResult } from "./injection";
+export type { ThreatType, ThreatSeverity, ThreatMatch } from "./injection";
 
 /** Run all input guardrails in order. Returns the (possibly modified) input. */
 export async function runInputGuardrails(
@@ -63,16 +64,107 @@ export function maxLengthGuardrail(maxChars: number): InputGuardrail {
   };
 }
 
-/** Strip or block messages that contain PII patterns (basic heuristic). */
+// ── PII patterns (shared between sanitizer and detector) ──────────────────────
+
+const PII_PATTERNS: Array<{ pattern: RegExp; type: string }> = [
+  { pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, type: "email" },
+  { pattern: /\b\d{3}-\d{2}-\d{4}\b/g, type: "ssn" },
+  { pattern: /\b(?:\d{4}[- ]?){3}\d{4}\b/g, type: "credit_card" },
+  { pattern: /\b(?:\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, type: "phone" },
+  // API keys
+  { pattern: /\bsk-[A-Za-z0-9]{20,}\b/g, type: "api_key" },         // OpenAI
+  { pattern: /\bghp_[A-Za-z0-9]{36,}\b/g, type: "api_key" },         // GitHub PAT
+  { pattern: /\bAKIA[A-Z0-9]{16}\b/g, type: "api_key" },             // AWS access key
+  { pattern: /\bxoxb-[A-Za-z0-9-]{50,}\b/g, type: "api_key" },      // Slack bot token
+  // Private key material
+  { pattern: /-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----/g, type: "private_key" },
+  { pattern: /\bpassword\s*[:=]\s*[^\s]{8,}/i, type: "password" },
+];
+
+/** Strip or block messages that contain PII patterns. */
 export const piiSanitizerGuardrail: InputGuardrail = {
   name: "pii_sanitizer",
   check(input) {
-    return input
-      .replace(/\b\d{3}-\d{2}-\d{4}\b/g, "[SSN]")
-      .replace(/\b\d{16}\b/g, "[CARD]")
-      .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, "[EMAIL]");
+    let result = input;
+    for (const { pattern, type } of PII_PATTERNS) {
+      // Reset lastIndex for global regexes reused across calls
+      pattern.lastIndex = 0;
+      const tag = type.toUpperCase();
+      result = result.replace(pattern, `[${tag}]`);
+      pattern.lastIndex = 0;
+    }
+    return result;
   },
 };
+
+// ── PII detection guardrail (blocks on PII in output) ─────────────────────────
+
+export interface PiiDetectionOptions {
+  /** Block if PII detected. Default: true */
+  block?: boolean;
+  /** Custom additional PII patterns */
+  additionalPatterns?: Array<{ pattern: RegExp; type: string }>;
+}
+
+export interface PiiDetectionResult {
+  found: boolean;
+  types: string[];
+}
+
+/**
+ * Scan text for PII and return which types were found.
+ *
+ * @param text     The string to scan.
+ * @param patterns Optional additional patterns to check (merged with built-ins).
+ */
+export function detectPII(
+  text: string,
+  patterns?: Array<{ pattern: RegExp; type: string }>
+): PiiDetectionResult {
+  const allPatterns = [...PII_PATTERNS, ...(patterns ?? [])];
+  const foundTypes = new Set<string>();
+
+  for (const { pattern, type } of allPatterns) {
+    pattern.lastIndex = 0;
+    if (pattern.test(text)) {
+      foundTypes.add(type);
+    }
+    pattern.lastIndex = 0;
+  }
+
+  return {
+    found: foundTypes.size > 0,
+    types: [...foundTypes],
+  };
+}
+
+/**
+ * Block output that contains PII — prevents sensitive data from leaking
+ * to callers. Use as an output guardrail.
+ *
+ * @example
+ *   withGuardrails({ output: [piiDetectionGuardrail()] })
+ */
+export function piiDetectionGuardrail(options?: PiiDetectionOptions): OutputGuardrail {
+  const shouldBlock = options?.block ?? true;
+
+  return {
+    name: "pii_detection",
+    check(output: string): string {
+      const result = detectPII(output, options?.additionalPatterns);
+
+      if (result.found && shouldBlock) {
+        throw new GuardrailBlockError(
+          `Output contains PII and was blocked. Detected type(s): ${result.types.join(", ")}.`,
+          "pii_detected_in_output",
+          "pii_detection"
+        );
+      }
+
+      return output;
+    },
+  };
+}
 
 // ── Built-in output guardrails ────────────────────────────────────────────────
 
