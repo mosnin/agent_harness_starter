@@ -100,6 +100,39 @@ export type {
 export { withGuidance, compileGuidance } from "./guidance/index";
 export type { GuidancePluginOptions, GuidanceRule, PolicyBundle, GateResult, GateContext } from "./guidance/index";
 
+// ── Swarm coordinator ─────────────────────────────────────────────────────────
+export { SwarmCoordinator } from "./swarm/coordinator";
+export { majorityVote, weightedAverage } from "./swarm/consensus";
+export type { SwarmTopology, AgentStatus, MessageType, SwarmAgent, SwarmMessage, SwarmTask, SwarmConfig, SwarmStats, Vote, ConsensusResult } from "./swarm/index";
+
+// ── Claims / work-stealing ────────────────────────────────────────────────────
+export { ClaimsService } from "./claims/service";
+export { createClaimsTools } from "./claims/mcp-tools";
+export type { Claim, ClaimStatus, Claimant, ClaimantType, ClaimsFilter, ClaimsStats } from "./claims/types";
+
+// ── Vector search (HNSWLite) ──────────────────────────────────────────────────
+export { HNSWIndex } from "./memory/hnsw";
+export { VectorStore } from "./memory/vector-store";
+export type { HNSWConfig, HNSWSearchResult } from "./memory/hnsw";
+export type { VectorEntry, VectorStoreConfig } from "./memory/vector-store";
+
+// ── Embeddings service ────────────────────────────────────────────────────────
+export { createEmbeddingService, MockEmbeddingService, OpenAIEmbeddingService, EmbeddingCache, chunkText, normalizeVector } from "./embeddings/index";
+export type { EmbeddingService, EmbeddingResult, EmbeddingProvider, ChunkOptions, Chunk, NormalizationStrategy } from "./embeddings/types";
+export type { EmbeddingServiceConfig } from "./embeddings/service";
+
+// ── Federation (zero-trust Ed25519 peer auth) ─────────────────────────────────
+export { FederationManager } from "./federation/manager";
+export { PeerRegistry } from "./federation/peer-registry";
+export { generateKeyPair, sign, verify, canonicalize, toHex, fromHex } from "./federation/crypto";
+export type { FederationPeer, FederationMessage, FederationConfig, SignedPayload, PeerStatus } from "./federation/types";
+
+// ── Codex / AGENTS.md adapter ─────────────────────────────────────────────────
+export { generateAgentsMd, generateSkillMarkdown, generateToml } from "./codex/generators";
+export { migrateClaude, migrateOpenAIAgents } from "./codex/migrator";
+export { createCodexCli } from "./codex/cli";
+export type { AgentsMdConfig, SkillMarkdown, CodexTomlConfig, MigrationResult } from "./codex/types";
+
 // ── Runtime validation & discovery ────────────────────────────────────────────
 // These are accessible via @/agents/runtime:
 //   import { validateRuntime, getRegisteredTools, getRegisteredSkills, resolveAgentAccess } from "@/agents/runtime";

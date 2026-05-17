@@ -67,6 +67,31 @@
       "import": "./dist/guidance/index.mjs",
       "require": "./dist/guidance/index.js",
       "types": "./dist/guidance/index.d.ts"
+    },
+    "./swarm": {
+      "import": "./dist/swarm/index.mjs",
+      "require": "./dist/swarm/index.js",
+      "types": "./dist/swarm/index.d.ts"
+    },
+    "./claims": {
+      "import": "./dist/claims/index.mjs",
+      "require": "./dist/claims/index.js",
+      "types": "./dist/claims/index.d.ts"
+    },
+    "./embeddings": {
+      "import": "./dist/embeddings/index.mjs",
+      "require": "./dist/embeddings/index.js",
+      "types": "./dist/embeddings/index.d.ts"
+    },
+    "./federation": {
+      "import": "./dist/federation/index.mjs",
+      "require": "./dist/federation/index.js",
+      "types": "./dist/federation/index.d.ts"
+    },
+    "./codex": {
+      "import": "./dist/codex/index.mjs",
+      "require": "./dist/codex/index.js",
+      "types": "./dist/codex/index.d.ts"
     }
   },
   "files": [
