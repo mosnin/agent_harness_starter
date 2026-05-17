@@ -39,8 +39,10 @@ function chunkByChar(text: string, chunkSize: number, overlap: number): Chunk[] 
 
 function splitIntoSentences(text: string): Array<{ sentence: string; start: number; end: number }> {
   const results: Array<{ sentence: string; start: number; end: number }> = [];
-  // Match sentence-ending punctuation followed by a space (or end of string)
-  const re = /[^.!?]*(?:[.!?](?:\s|$)|$)/g;
+  // Two alternatives, neither can match an empty string (avoiding exec() infinite-loop on zero-length matches):
+  //  1. text followed by a sentence-ending punctuation + optional whitespace
+  //  2. trailing text with no terminator (last incomplete sentence)
+  const re = /[^.!?]*[.!?](?:\s|$)|[^.!?]+$/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
     const sentence = match[0];
