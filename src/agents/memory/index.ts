@@ -76,6 +76,8 @@ export { createCompressor, createLlmCompressor } from "./compression";
 export type { MemoryCompressor } from "./compression";
 export { createMemoryManager, scopeKey } from "./manager";
 export type { MemoryManager, MemoryManagerConfig } from "./manager";
+export { SemanticMemoryAdapter, createSemanticMemory } from "./semantic";
+export type { SemanticMemoryConfig } from "./semantic";
 
 /**
  * Format retrieved memories into a system-prompt-ready string.
