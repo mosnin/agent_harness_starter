@@ -62,6 +62,11 @@
       "import": "./dist/providers/index.mjs",
       "require": "./dist/providers/index.js",
       "types": "./dist/providers/index.d.ts"
+    },
+    "./guidance": {
+      "import": "./dist/guidance/index.mjs",
+      "require": "./dist/guidance/index.js",
+      "types": "./dist/guidance/index.d.ts"
     }
   },
   "files": [
