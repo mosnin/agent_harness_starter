@@ -47,6 +47,21 @@
       "import": "./dist/guardrails/index.mjs",
       "require": "./dist/guardrails/index.js",
       "types": "./dist/guardrails/index.d.ts"
+    },
+    "./tools": {
+      "import": "./dist/tools/index.mjs",
+      "require": "./dist/tools/index.js",
+      "types": "./dist/tools/index.d.ts"
+    },
+    "./cache": {
+      "import": "./dist/cache/index.mjs",
+      "require": "./dist/cache/index.js",
+      "types": "./dist/cache/index.d.ts"
+    },
+    "./providers": {
+      "import": "./dist/providers/index.mjs",
+      "require": "./dist/providers/index.js",
+      "types": "./dist/providers/index.d.ts"
     }
   },
   "files": [

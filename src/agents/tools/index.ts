@@ -32,3 +32,11 @@ export { createToolChain, ToolChainBuilder } from "./chain";
 // Tool abstraction — standardized interface, output wrapping, selection
 export { createAbstractTool, createRuleBasedSelector } from "./abstraction";
 export type { ToolResult, AbstractToolConfig, ToolSelectorConfig } from "./abstraction";
+
+// Safe command execution — prevents shell injection via execFile + allowlist
+export { createSafeExecutor, SafeExecutorError, SafeExecutorPresets } from "./safe-exec";
+export type { SafeExecutorOptions, ExecResult } from "./safe-exec";
+
+// Per-tool execution telemetry — call counts, avg latency, error tracking
+export { createToolTelemetry } from "./telemetry";
+export type { ToolStats, TelemetryReport, ToolTelemetry } from "./telemetry";

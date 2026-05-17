@@ -52,6 +52,14 @@ export type { AgentConfig, AgentEvent, RunInput, RunResult, HarnessPlugin } from
 // ── Error hierarchy ──────────────────────────────────────────────────────────
 export { AgentError, GovernanceError, SecurityError, GuardrailError, WorkflowError } from "./errors/index";
 
+// ── Guardrails ───────────────────────────────────────────────────────────────
+export {
+  promptInjectionGuardrail,
+  sensitiveFileGuardrail,
+  destructiveCommandGuardrail,
+} from "./guardrails/index";
+export type { InjectionDetectorOptions, InjectionPattern, DetectionResult } from "./guardrails/index";
+
 // ── Workflow basics ──────────────────────────────────────────────────────────
 export {
   createWorkflow,
@@ -68,6 +76,25 @@ export {
 // ── Memory adapter ───────────────────────────────────────────────────────────
 export { memory, setMemoryAdapter } from "./memory/index";
 export type { MemoryAdapter, MemoryEntry } from "./memory/index";
+
+// ── Tool utilities ────────────────────────────────────────────────────────────
+export { createSafeExecutor, SafeExecutorError, SafeExecutorPresets } from "./tools/safe-exec";
+export { createToolTelemetry } from "./tools/telemetry";
+
+// ── Response cache ───────────────────────────────────────────────────────────
+export { createResponseCache } from "./cache/index";
+export type { ResponseCache, ResponseCacheOptions, CacheStats } from "./cache/index";
+
+// ── Provider manager ──────────────────────────────────────────────────────────
+export { createProviderManager } from "./providers/manager";
+export type {
+  ProviderManager,
+  ProviderManagerConfig,
+  ProviderConfig,
+  ProviderStats,
+  ProviderStrategy,
+  SelectedProvider,
+} from "./providers/manager";
 
 // ── Runtime validation & discovery ────────────────────────────────────────────
 // These are accessible via @/agents/runtime:
