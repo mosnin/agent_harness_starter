@@ -7,6 +7,11 @@
     "declaration": true,
     "declarationMap": true
   },
-  "include": ["src/agents/**/*.ts"],
-  "exclude": ["node_modules", "dist", "src/agents/__tests__"]
+  "include": ["src/agents/**/*.ts", "src/swarm-runtime/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/agents/__tests__",
+    "src/swarm-runtime/__tests__"
+  ]
 }

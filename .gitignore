@@ -8,6 +8,7 @@ node_modules/
 out/
 build/
 dist/
+dist-swarm/
 
 # env — NEVER commit real secrets
 .env

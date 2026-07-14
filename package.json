@@ -2,7 +2,7 @@
   "name": "@agent-harness/core",
   "version": "0.1.0",
   "private": false,
-  "description": "Drop-in agent infrastructure for Next.js SaaS — memory, guardrails, governance, capability tokens.",
+  "description": "Drop-in agent infrastructure for Next.js SaaS \u2014 memory, guardrails, governance, capability tokens.",
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -92,6 +92,11 @@
       "import": "./dist/codex/index.mjs",
       "require": "./dist/codex/index.js",
       "types": "./dist/codex/index.d.ts"
+    },
+    "./swarm-runtime": {
+      "import": "./dist/swarm-runtime/index.mjs",
+      "require": "./dist/swarm-runtime/index.js",
+      "types": "./dist/swarm-runtime/index.d.ts"
     }
   },
   "files": [
@@ -101,7 +106,11 @@
     "scripts",
     "docs",
     "QUICKSTART.md",
-    ".env.example"
+    ".env.example",
+    "dist-swarm",
+    "docker",
+    "docker-compose.swarm.yml",
+    "ARCHITECTURE.md"
   ],
   "scripts": {
     "dev": "next dev --turbopack",
@@ -114,7 +123,10 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:swarm": "node scripts/build-swarm.mjs",
+    "swarm": "tsx src/swarm-runtime/cli.ts",
+    "swarm:dashboard": "tsx src/swarm-runtime/cli.ts serve"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",
@@ -158,7 +170,8 @@
     "tsup": "^8.5.1",
     "typescript": "^5.8.3",
     "vitest": "^4.1.5",
-    "zod": "^4.0.0"
+    "zod": "^4.0.0",
+    "tsx": "^4.19.0"
   },
   "optionalDependencies": {
     "@auth0/nextjs-auth0": "^4.19.0",
@@ -175,5 +188,8 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "bin": {
+    "hermes-swarm": "./dist-swarm/cli.js"
   }
 }

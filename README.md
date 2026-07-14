@@ -6,6 +6,51 @@ Drop this into your existing Next.js SaaS and get 80% of your agentic infrastruc
 
 ---
 
+## 🐝 Hermes-Swarm — dockerized agent swarms
+
+A lightweight, Hermes-inspired swarm runtime ships in [`src/swarm-runtime/`](./src/swarm-runtime/):
+a **manager agent** decomposes a goal, **spawns each worker agent in its own
+isolated container**, delegates tasks, and accepts a result only after it clears
+an **anti-hallucination verification gate** and **anti-rogue guardrail**. See
+[**ARCHITECTURE.md**](./ARCHITECTURE.md) for the full design.
+
+```bash
+# Run a goal locally (no Docker needed — inline/process modes)
+npm run swarm -- run "Summarize the repo architecture" --caps research,code
+
+# Which isolation backends are available here?
+npm run swarm -- doctor
+
+# Launch the live web dashboard (agent grid + task board + verification feed)
+npm run swarm:dashboard         # → http://127.0.0.1:8080
+
+# Full container swarm: manager spawns worker containers via the Docker socket
+docker build -f docker/swarm/worker.Dockerfile -t hermes-swarm-worker:latest .
+docker compose -f docker-compose.swarm.yml up --build
+```
+
+| Capability | Where |
+|---|---|
+| Manager agent (plan → dispatch → verify → synthesize) | `src/swarm-runtime/manager/` |
+| Isolated worker containers (inline / process / docker) | `src/swarm-runtime/providers/` |
+| Anti-hallucination verification gate | `src/swarm-runtime/verification/gate.ts` |
+| Anti-rogue behavioural guardrail | `src/swarm-runtime/verification/guardrails.ts` |
+| Pull-based control-plane bus | `src/swarm-runtime/bus/` |
+| CLI (`hermes-swarm`) + web dashboard | `src/swarm-runtime/cli.ts`, `server/` |
+
+Library usage:
+
+```typescript
+import { createInlineSwarm } from "@agent-harness/core/swarm-runtime";
+
+const swarm = await createInlineSwarm({ capabilities: ["research", "code"], poolSize: 3 });
+const goal = await swarm.runGoal("Describe the module architecture");
+console.log(goal.status, goal.synthesis);   // "completed", <grounded synthesis>
+await swarm.shutdown();
+```
+
+---
+
 ## Why this over alternatives?
 
 - **Governance engine built-in** — policy enforcement, ethics checks, and compliance audit trails are first-class, not afterthoughts.
