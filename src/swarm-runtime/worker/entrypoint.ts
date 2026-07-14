@@ -16,6 +16,27 @@
  */
 import { HttpWorkerClient } from "../bus/http-worker-client";
 import { WorkerRuntime } from "./runtime";
+import { DemoExecutor, type TaskExecutor } from "./executor";
+import { LLMExecutor, createOpenAICompatibleChat } from "./llm-executor";
+
+/**
+ * Select the worker's executor from the environment. If an API key is present
+ * the worker runs a real LLM-backed executor against any OpenAI-compatible
+ * endpoint; otherwise it falls back to the deterministic demo executor so the
+ * swarm is always runnable, keys or not.
+ */
+function selectExecutor(model?: string): TaskExecutor {
+  const apiKey = process.env.SWARM_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (apiKey && model) {
+    const chat = createOpenAICompatibleChat({
+      apiKey,
+      model,
+      baseUrl: process.env.SWARM_BASE_URL ?? process.env.OPENAI_BASE_URL,
+    });
+    return new LLMExecutor(chat);
+  }
+  return new DemoExecutor();
+}
 
 async function main(): Promise<void> {
   const workerId = required("SWARM_WORKER_ID");
@@ -28,7 +49,13 @@ async function main(): Promise<void> {
   const model = process.env.SWARM_MODEL;
 
   const bus = new HttpWorkerClient({ managerUrl, authToken });
-  const runtime = new WorkerRuntime({ workerId, capabilities, bus, model });
+  const runtime = new WorkerRuntime({
+    workerId,
+    capabilities,
+    bus,
+    model,
+    executor: selectExecutor(model),
+  });
 
   const abort = new AbortController();
   const shutdown = () => abort.abort();

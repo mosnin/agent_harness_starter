@@ -7,8 +7,26 @@ import { LocalProcessProvider } from "../providers/local-process";
 import { SwarmManager } from "../manager/manager";
 import type { Planner } from "../manager/planner";
 import { createInlineSwarm } from "../factory";
+import { LLMPlanner } from "../manager/planner";
+import { createOpenAICompatibleChat, chatToPlannerComplete } from "../worker/llm-executor";
 import type { GuardrailPolicy } from "../verification/guardrails";
 import type { ResourceLimits } from "../types";
+
+/**
+ * Build a model-backed planner from the environment when an API key + model are
+ * available; otherwise return undefined so the manager uses its deterministic
+ * planner. Keeps the swarm runnable with or without model access.
+ */
+function plannerFromEnv(model?: string): LLMPlanner | undefined {
+  const apiKey = process.env.SWARM_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (!apiKey || !model) return undefined;
+  const chat = createOpenAICompatibleChat({
+    apiKey,
+    model,
+    baseUrl: process.env.SWARM_BASE_URL ?? process.env.OPENAI_BASE_URL,
+  });
+  return new LLMPlanner(chatToPlannerComplete(chat));
+}
 
 export type SwarmMode = "inline" | "process" | "docker";
 
@@ -79,7 +97,7 @@ export async function buildSwarm(opts: BuildSwarmOptions): Promise<BuiltSwarm> {
     const manager = await createInlineSwarm({
       capabilities,
       poolSize: opts.poolSize,
-      planner: opts.planner,
+      planner: opts.planner ?? plannerFromEnv(opts.model),
       guardrailPolicy: opts.guardrailPolicy,
       maxAttempts: opts.maxAttempts,
       model: opts.model,
@@ -121,7 +139,7 @@ export async function buildSwarm(opts: BuildSwarmOptions): Promise<BuiltSwarm> {
     authToken,
     capabilities,
     poolSize: opts.poolSize,
-    planner: opts.planner,
+    planner: opts.planner ?? plannerFromEnv(opts.model),
     guardrailPolicy: opts.guardrailPolicy,
     workerLimits: opts.workerLimits,
     workerImage: opts.workerImage,
