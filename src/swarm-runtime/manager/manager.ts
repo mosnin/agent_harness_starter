@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import { randomBytes, randomUUID } from "node:crypto";
 import type {
+  ConsensusSpec,
   ContainerHandle,
   ContainerProvider,
   Goal,
@@ -13,7 +14,20 @@ import type { HeartbeatInfo, ManagerBus, WorkerRegistration } from "../bus/types
 import { VerificationGate } from "../verification/gate";
 import { AntiRogueGuardrail } from "../verification/guardrails";
 import type { GuardrailPolicy } from "../verification/guardrails";
+import { majorityVote, type Vote } from "../../agents/swarm/consensus";
 import { DeterministicPlanner, materializeTasks, type Planner } from "./planner";
+
+interface ReplicaOutcome {
+  result: WorkerResult;
+  report: VerificationReport;
+  accepted: boolean;
+}
+
+interface ConsensusRound {
+  outcomes: ReplicaOutcome[];
+  timer?: ReturnType<typeof setTimeout>;
+  settled: boolean;
+}
 
 export interface WorkerRecord {
   workerId: string;
@@ -48,6 +62,8 @@ export interface ManagerConfig {
   model?: string;
   /** Max attempts per task before it's failed. Default 3. */
   maxAttempts?: number;
+  /** If set, run every task redundantly with quorum agreement (anti-hallucination). */
+  defaultConsensus?: ConsensusSpec;
 }
 
 export interface ManagerEvents {
@@ -88,6 +104,8 @@ export class SwarmManager extends EventEmitter {
   private tasks = new Map<string, WorkerTask>();
   private goals = new Map<string, Goal>();
   private verifications: VerificationReport[] = [];
+  private consensusRounds = new Map<string, ConsensusRound>();
+  private readonly defaultConsensus?: ConsensusSpec;
 
   constructor(private readonly config: ManagerConfig) {
     super();
@@ -99,6 +117,7 @@ export class SwarmManager extends EventEmitter {
     this.capabilities = config.capabilities ?? ["general"];
     this.poolSize = config.poolSize ?? 3;
     this.maxAttempts = config.maxAttempts ?? 3;
+    this.defaultConsensus = config.defaultConsensus;
     this.authToken = config.authToken ?? randomBytes(24).toString("hex");
 
     this.bus.onRegister((r) => this.handleRegister(r));
@@ -135,7 +154,7 @@ export class SwarmManager extends EventEmitter {
 
     const goalId = randomUUID();
     const planned = await this.planner.plan(objective, this.capabilities);
-    const tasks = materializeTasks(planned, goalId, this.maxAttempts);
+    const tasks = materializeTasks(planned, goalId, this.maxAttempts, this.defaultConsensus);
     for (const t of tasks) this.tasks.set(t.id, t);
 
     const goal: Goal = {
@@ -168,6 +187,10 @@ export class SwarmManager extends EventEmitter {
   }
 
   async shutdown(): Promise<void> {
+    for (const round of this.consensusRounds.values()) {
+      if (round.timer) clearTimeout(round.timer);
+    }
+    this.consensusRounds.clear();
     await Promise.all([...this.workers.values()].map((w) => this.teardownWorker(w.workerId)));
     await this.bus.close();
   }
@@ -258,9 +281,27 @@ export class SwarmManager extends EventEmitter {
       task.status = "dispatched";
       // Thread verified upstream results into the task input for grounding.
       task.input = { ...task.input, _dependencies: this.dependencyResults(task) };
-      this.bus.enqueueTask(task);
+
+      const replicas = task.consensus?.replicas ?? 1;
+      if (task.consensus && replicas > 1) {
+        // Start a fresh consensus round: N independent workers run this task.
+        this.startConsensusRound(task);
+        for (let i = 0; i < replicas; i++) this.bus.enqueueTask(task);
+      } else {
+        this.bus.enqueueTask(task);
+      }
       this.emit("task:dispatched", task);
     }
+  }
+
+  private startConsensusRound(task: WorkerTask): void {
+    const prior = this.consensusRounds.get(task.id);
+    if (prior?.timer) clearTimeout(prior.timer);
+    const round: ConsensusRound = { outcomes: [], settled: false };
+    const timeout = task.consensus?.roundTimeoutMs ?? 45_000;
+    round.timer = setTimeout(() => this.evaluateConsensus(task, true), timeout);
+    round.timer.unref?.();
+    this.consensusRounds.set(task.id, round);
   }
 
   private depsSatisfied(task: WorkerTask): boolean {
@@ -277,36 +318,129 @@ export class SwarmManager extends EventEmitter {
   private async handleResult(result: WorkerResult): Promise<void> {
     const task = this.tasks.get(result.taskId);
     if (!task) return;
+
+    // Evaluate this single result against behaviour + grounding.
+    const { report, accepted, killed, blocked, reason } = await this.evaluateResult(result);
+
+    // Consensus tasks accumulate replicas; single tasks resolve immediately.
+    if (task.consensus && (task.consensus.replicas ?? 1) > 1) {
+      this.accumulateConsensus(task, { result, report, accepted: accepted && !killed && !blocked });
+      return;
+    }
+
     task.result = result;
     task.status = "reported";
-
-    // 1) Anti-rogue behavioural check — can kill the worker.
-    const findings = this.guardrail.inspect(result);
-    const worst = AntiRogueGuardrail.worst(findings);
-    if (worst === "kill") {
-      await this.killWorker(result.workerId, findings.map((f) => f.rule).join(","));
-      this.rejectAndMaybeRetry(task, `rogue behaviour: ${findings.map((f) => f.detail).join("; ")}`);
+    if (killed) {
+      this.rejectAndMaybeRetry(task, reason ?? "rogue behaviour");
       return;
     }
-
-    // 2) Anti-hallucination verification gate.
-    const report = await this.gate.verify(result);
-    this.verifications.push(report);
-
-    if (worst === "block") {
-      // Behaviour was suspicious but not fatal — force a redo regardless of gate.
+    if (blocked) {
       this.emit("task:rejected", task, report);
-      this.rejectAndMaybeRetry(task, `guardrail block: ${findings.map((f) => f.detail).join("; ")}`);
+      this.rejectAndMaybeRetry(task, reason ?? "guardrail block");
       return;
     }
-
-    if (report.verdict === "accept") {
+    if (accepted) {
       task.status = "verified";
       this.emit("task:verified", task, report);
       this.onProgress(task.goalId);
     } else {
       this.emit("task:rejected", task, report);
       this.rejectAndMaybeRetry(task, report.feedback);
+    }
+  }
+
+  /** Run the anti-rogue guardrail + verification gate over one worker result. */
+  private async evaluateResult(result: WorkerResult): Promise<{
+    report: VerificationReport;
+    accepted: boolean;
+    killed: boolean;
+    blocked: boolean;
+    reason?: string;
+  }> {
+    const findings = this.guardrail.inspect(result);
+    const worst = AntiRogueGuardrail.worst(findings);
+    if (worst === "kill") {
+      await this.killWorker(result.workerId, findings.map((f) => f.rule).join(","));
+    }
+    const report = await this.gate.verify(result);
+    this.verifications.push(report);
+    return {
+      report,
+      accepted: report.verdict === "accept" && worst !== "kill" && worst !== "block",
+      killed: worst === "kill",
+      blocked: worst === "block",
+      reason:
+        worst === "kill"
+          ? `rogue behaviour: ${findings.map((f) => f.detail).join("; ")}`
+          : worst === "block"
+            ? `guardrail block: ${findings.map((f) => f.detail).join("; ")}`
+            : undefined,
+    };
+  }
+
+  // ── Consensus (redundant execution) ──────────────────────────────────────────
+
+  private accumulateConsensus(task: WorkerTask, outcome: ReplicaOutcome): void {
+    const round = this.consensusRounds.get(task.id);
+    if (!round || round.settled) return;
+    round.outcomes.push(outcome);
+    if (round.outcomes.length >= (task.consensus?.replicas ?? 1)) {
+      this.evaluateConsensus(task, false);
+    }
+  }
+
+  /**
+   * Decide a consensus task once all replicas have reported (or the round timed
+   * out). A task is verified only if at least ceil(replicas * quorum) workers
+   * both cleared the gate AND produced the same canonical output — so no single
+   * worker can carry a task to "done", and a lone hallucinated answer is
+   * outvoted by the grounded majority.
+   */
+  private evaluateConsensus(task: WorkerTask, timedOut: boolean): void {
+    const round = this.consensusRounds.get(task.id);
+    if (!round || round.settled) return;
+    round.settled = true;
+    if (round.timer) clearTimeout(round.timer);
+
+    const spec = task.consensus!;
+    const threshold = Math.max(1, Math.ceil(spec.replicas * (spec.quorum ?? 0.5)));
+    const acceptedOutcomes = round.outcomes.filter((o) => o.accepted);
+
+    task.status = "reported";
+
+    if (acceptedOutcomes.length === 0) {
+      this.rejectAndMaybeRetry(
+        task,
+        `consensus failed: no replica cleared verification${timedOut ? " (round timed out)" : ""}`
+      );
+      return;
+    }
+
+    // Vote over canonical outputs of the gate-passing replicas.
+    const votes: Vote[] = acceptedOutcomes.map((o, i) => ({
+      agentId: o.result.workerId || `replica-${i}`,
+      value: canonicalize(o.result.output),
+      weight: 1,
+      timestamp: o.result.finishedAt,
+    }));
+    const vote = majorityVote<string>(votes);
+    const winnerCount = Math.round(vote.confidence * acceptedOutcomes.length);
+
+    if (winnerCount >= threshold) {
+      // Adopt a representative winning result.
+      const winner = acceptedOutcomes.find((o) => canonicalize(o.result.output) === vote.value)!;
+      task.result = winner.result;
+      task.status = "verified";
+      this.emit("task:verified", task, {
+        ...winner.report,
+        feedback: `consensus: ${winnerCount}/${spec.replicas} workers agreed (threshold ${threshold})`,
+      });
+      this.onProgress(task.goalId);
+    } else {
+      this.rejectAndMaybeRetry(
+        task,
+        `consensus not reached: top answer had ${winnerCount}/${spec.replicas} agreeing (need ${threshold})`
+      );
     }
   }
 
@@ -382,5 +516,15 @@ export class SwarmManager extends EventEmitter {
         this.off("goal:failed", onFail as never);
       };
     });
+  }
+}
+
+/** Stable string form of a worker output, used to group agreeing replicas. */
+function canonicalize(v: unknown): string {
+  if (typeof v === "string") return v.trim();
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
   }
 }

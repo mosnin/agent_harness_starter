@@ -7,6 +7,7 @@ import { WorkerRuntime } from "./worker/runtime";
 import type { TaskExecutor } from "./worker/executor";
 import { VerificationGate, type GateConfig } from "./verification/gate";
 import { AntiRogueGuardrail, type GuardrailPolicy } from "./verification/guardrails";
+import type { ConsensusSpec } from "./types";
 
 export interface InlineSwarmOptions {
   capabilities?: string[];
@@ -18,6 +19,8 @@ export interface InlineSwarmOptions {
   guardrailPolicy?: GuardrailPolicy;
   maxAttempts?: number;
   model?: string;
+  /** Run every task redundantly across N workers with quorum agreement. */
+  defaultConsensus?: ConsensusSpec;
 }
 
 /**
@@ -61,6 +64,7 @@ export async function createInlineSwarm(opts: InlineSwarmOptions = {}): Promise<
     guardrail: new AntiRogueGuardrail(opts.guardrailPolicy),
     maxAttempts: opts.maxAttempts,
     model: opts.model,
+    defaultConsensus: opts.defaultConsensus,
   });
 
   return manager;

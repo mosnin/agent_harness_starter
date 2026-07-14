@@ -93,6 +93,22 @@ export type WorkerTaskStatus =
   | "rejected"
   | "failed";
 
+/**
+ * Redundant-execution policy for a task. When set, the manager dispatches the
+ * task to `replicas` independent workers and accepts the result only if at
+ * least `ceil(replicas * quorum)` of them both clear the verification gate and
+ * agree on the same canonical output. This makes a single hallucinating (or
+ * compromised) worker unable to move a task to "done" on its own.
+ */
+export interface ConsensusSpec {
+  /** Number of independent workers to run this task. */
+  replicas: number;
+  /** Fraction of replicas that must agree (0..1). Default 0.5 (majority). */
+  quorum: number;
+  /** Max wait for all replicas before evaluating with whatever arrived (ms). */
+  roundTimeoutMs?: number;
+}
+
 export interface WorkerTask {
   id: string;
   /** Goal this task belongs to. */
@@ -111,6 +127,8 @@ export interface WorkerTask {
   maxAttempts: number;
   createdAt: number;
   result?: WorkerResult;
+  /** If set, run this task redundantly and require quorum agreement. */
+  consensus?: ConsensusSpec;
 }
 
 /** A single grounded assertion a worker makes about its output. */

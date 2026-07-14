@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { WorkerTask } from "../types";
+import type { ConsensusSpec, WorkerTask } from "../types";
 
 export interface PlannedTask {
   description: string;
@@ -8,6 +8,8 @@ export interface PlannedTask {
   /** Indices (into the returned array) of tasks this one depends on. */
   dependsOn?: number[];
   priority?: number;
+  /** Override the default consensus policy for this specific task. */
+  consensus?: ConsensusSpec;
 }
 
 /**
@@ -111,7 +113,12 @@ export class LLMPlanner implements Planner {
 }
 
 /** Materialize planned tasks into concrete WorkerTasks with real ids + deps. */
-export function materializeTasks(planned: PlannedTask[], goalId: string, maxAttempts = 3): WorkerTask[] {
+export function materializeTasks(
+  planned: PlannedTask[],
+  goalId: string,
+  maxAttempts = 3,
+  defaultConsensus?: ConsensusSpec
+): WorkerTask[] {
   const ids = planned.map(() => randomUUID());
   return planned.map((p, i) => ({
     id: ids[i],
@@ -125,6 +132,7 @@ export function materializeTasks(planned: PlannedTask[], goalId: string, maxAtte
     attempts: 0,
     maxAttempts,
     createdAt: Date.now(),
+    consensus: p.consensus ?? defaultConsensus,
   }));
 }
 
