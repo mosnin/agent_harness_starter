@@ -41,7 +41,7 @@ Baseline: swarm-runtime (699) + Hades v1 complete, **909 tests green**.
 - [x] 5. Streaming A2A (chunked replies) + backpressure-safe delivery.
 
 ## Phase H — Teams & Dynamic Spawning
-- [ ] 6. Role registry + `TeamBlueprint` (roles, capabilities, size bounds).
+- [x] 6. Role registry + `TeamBlueprint` (roles, capabilities, size bounds).
 - [ ] 7. `TeamFormer`: decompose a task → required roles → a concrete roster.
 - [ ] 8. `Team` spawn over injectable spawner (isolation providers / RemoteBackend).
 - [ ] 9. Team lifecycle: form → work → disband (+ failure-aware teardown).
@@ -86,3 +86,6 @@ _(newest last; one entry per completed iteration)_
 - **Iter 3 — pub/sub topics.** `a2a/PubSub` over an `AgentEndpoint`: `subscribe(topic, handler)` so a team broadcast on `"build:done"` only wakes that topic's subscribers, `publish(topic, payload, {team})` is a topic-carrying team broadcast, and `ALL_TOPICS` taps the firehose (coordination/logging). Unsubscribe prunes empty topics; multiple subscribers per topic fan out. 4 tests. Full suite green (924).
 - **Iter 4 — request/response RPC.** `a2a/RpcPeer` over an `AgentEndpoint` both `serve`s inbound requests and `request`s (awaiting the correlated response). Correlation by `correlationId`; a handler that throws surfaces to the caller as a rejected promise via an `error` message; an unanswered request rejects on timeout; concurrent requests correlate independently; `close()` rejects everything in flight. Timers are injectable, so timeout tests deterministically (manual scheduler). 5 tests. Full suite green (929).
 - **Iter 5 — streaming A2A (Phase G complete).** `a2a/StreamPeer`: `serveStream` turns an async-iterable handler into a stream of `stream` messages terminated by `stream_end`/`error`; `requestStream` returns an async generator yielding chunks in order, completing on `stream_end`, throwing on producer error. Built on `AsyncQueue` — ordered, lossless, buffered, with a high-water-mark overflow flag as the backpressure signal. Independent streams run concurrently. 6 tests. **Phase G done.** Full suite green (935).
+
+### Phase H — Teams
+- **Iter 6 — role registry + team blueprint.** `teams/`: `AgentRole` (capabilities route tasks; skills + prompt fragment specialize) and `RoleRegistry` with a `defaultRoleRegistry` (planner/researcher/coder/reviewer/tester) + `withCapability` lookup. `TeamBlueprint` (role requirements with counts + min/max, `maxAgents` runaway ceiling); pure `blueprintSize`, `validateBlueprint` (unknown roles, bad counts, oversize teams), and `expandRoster` → concrete namespaced `{agentId, role}` slots. 6 tests. Full suite green (941).
