@@ -4,3 +4,5 @@ export { SlackConnector, createSlackHttpTransport } from "./slack";
 export type { SlackTransport, SlackEventPayload } from "./slack";
 export { DiscordConnector, createDiscordHttpTransport } from "./discord";
 export type { DiscordTransport, DiscordMessagePayload } from "./discord";
+export { WhatsAppConnector, createWhatsAppHttpTransport, parseWhatsApp } from "./whatsapp";
+export type { WhatsAppTransport, WhatsAppWebhookPayload, WhatsAppConnectorOptions } from "./whatsapp";
