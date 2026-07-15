@@ -20,6 +20,7 @@ import { buildSwarm, type SwarmMode } from "./server/build-swarm";
 import { SwarmServer } from "./server/swarm-server";
 import { DockerProvider } from "./providers/docker";
 import { LocalProcessProvider } from "./providers/local-process";
+import { renderTui } from "./tui/render";
 
 interface Flags {
   mode: SwarmMode;
@@ -72,6 +73,7 @@ const HELP = `hermes-swarm — lightweight dockerized agent swarm
 USAGE
   hermes-swarm run "<objective>"   [flags]
   hermes-swarm serve               [flags]
+  hermes-swarm tui                 [--manager-url URL | --host --port]
   hermes-swarm doctor
 
 FLAGS
@@ -154,6 +156,25 @@ async function cmdServe(f: Flags): Promise<void> {
   process.on("SIGTERM", shutdown);
 }
 
+async function cmdTui(f: Flags): Promise<void> {
+  const url = f.managerUrl ?? `http://${f.host}:${f.port}`;
+  console.log(`hermes-swarm tui → polling ${url}/api/state (Ctrl+C to exit)`);
+  const tick = async () => {
+    try {
+      const res = await fetch(`${url}/api/state`);
+      const state = await res.json();
+      process.stdout.write("\x1b[2J\x1b[H" + renderTui(state) + "\n");
+    } catch (e) {
+      process.stdout.write("\x1b[2J\x1b[H" + `cannot reach ${url}: ${e instanceof Error ? e.message : e}\n`);
+    }
+  };
+  await tick();
+  const timer = setInterval(tick, 1000);
+  const stop = () => { clearInterval(timer); process.exit(0); };
+  process.on("SIGINT", stop);
+  process.on("SIGTERM", stop);
+}
+
 async function main(): Promise<void> {
   const f = parseArgs(process.argv.slice(2));
   const cmd = f._[0];
@@ -161,6 +182,7 @@ async function main(): Promise<void> {
   switch (cmd) {
     case "run": return cmdRun(f);
     case "serve": return cmdServe(f);
+    case "tui": return cmdTui(f);
     case "doctor": return cmdDoctor();
     default:
       console.error(`unknown command: ${cmd}\n`);

@@ -55,7 +55,7 @@ infra. 582 tests green.
 - [x] 26. Dashboard: goal history + replay.
 - [x] 27. Dashboard: live controls (pause / kill / scale).
 - [x] 28. Dashboard: metrics & charts.
-- [ ] 29. TUI (terminal UI) for the swarm.
+- [x] 29. TUI (terminal UI) for the swarm.
 
 ## Phase E — Ops / hardening
 - [ ] 30. Dashboard auth + bus token rotation.
@@ -105,3 +105,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 26 — goal history + replay.** Manager `listGoals()` (newest-first) + `replayGoal(id)`; `GET /api/goals` list + `POST /api/goals/:id/replay`. Dashboard Goal History panel with per-goal replay (finished) / cancel (running) buttons. 4 tests (manager + REST). Full suite green.
 - **Iter 27 — live controls.** Public `killWorker` (kills + replaces, returns bool) and `scalePool(n)`/`workerCount()`. Endpoints `POST /api/workers/:id/kill` and `POST /api/pool/scale`. Dashboard: per-agent kill button + pool ＋/− scale controls. 3 tests (manager + REST). Full suite green.
 - **Iter 28 — metrics & charts.** `manager.metrics()` aggregates goals/tasks/workers/verification/usage into a `SwarmMetrics`; `GET /api/metrics` + metrics in the streamed snapshot. Dashboard Metrics panel: stat tiles (goals done, grounded %, cost) + accepted/verified bar charts + summary line. 2 tests. Full suite green.
+- **Iter 29 — TUI (Phase D complete).** Pure `renderTui(state)` renders a boxed terminal view (metrics, verify meter, workers, tasks, recent logs) with uniform line width; `hermes-swarm tui` CLI command polls a running dashboard's /api/state and redraws each second. 3 tests (sections, empty state, alignment). Phase D done. Full suite green.
