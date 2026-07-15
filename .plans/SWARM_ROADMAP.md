@@ -44,7 +44,7 @@ infra. 582 tests green.
 - [x] 17. Harness-backed executor: wire the existing `@/agents` harness + tool registry into workers.
 - [x] 18. Worker tool access (web search / sandbox) with grounded traces.
 - [x] 19. Provider abstraction: OpenAI / Anthropic / Nous / OpenRouter / local.
-- [ ] 20. Stream live worker token output to the dashboard.
+- [x] 20. Stream live worker token output to the dashboard.
 - [x] 21. Gateway trigger stub: a message (Slack/Discord/Telegram-shaped) launches a swarm.
 - [x] 22. Skills for workers (curated capability bundles).
 
