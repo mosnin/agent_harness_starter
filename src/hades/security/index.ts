@@ -16,3 +16,5 @@ export {
 export type { Signer, SigningTransportOptions } from "./signing";
 export { LeastPrivilege, scopedCapabilities } from "./scopes";
 export type { TeamPolicy } from "./scopes";
+export { AuditLog, AuditingA2ATransport } from "./audit";
+export type { AuditEvent, AuditEventType } from "./audit";
