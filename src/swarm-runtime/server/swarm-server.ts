@@ -3,10 +3,32 @@ import type { BuiltSwarm } from "./build-swarm";
 import { DASHBOARD_HTML } from "./dashboard";
 import type { VerificationReport, WorkerTask } from "../types";
 import type { WorkerRecord } from "../manager/manager";
+import type { SwarmScheduler } from "../scheduling/scheduler";
 
 interface SseClient {
   res: ServerResponse;
 }
+
+/** Self-describing REST surface — served at GET /api/schema. */
+const API_SCHEMA = {
+  service: "hermes-swarm",
+  endpoints: [
+    { method: "GET", path: "/", desc: "Live dashboard (HTML)" },
+    { method: "GET", path: "/api/schema", desc: "This schema" },
+    { method: "GET", path: "/api/state", desc: "Full snapshot: mode, workers, tasks, goals, verifications, provenance, groundingRate" },
+    { method: "GET", path: "/api/events", desc: "Server-Sent Events stream of manager activity" },
+    { method: "GET", path: "/api/workers", desc: "List worker agents" },
+    { method: "POST", path: "/api/goals", desc: "Start a goal: { objective, timeoutMs? } → { goalId }" },
+    { method: "GET", path: "/api/goals/:id", desc: "Goal detail" },
+    { method: "GET", path: "/api/goals/:id/tasks", desc: "Tasks for a goal" },
+    { method: "GET", path: "/api/goals/:id/usage", desc: "Resource accounting for a goal" },
+    { method: "GET", path: "/api/goals/:id/provenance", desc: "Evidence provenance for a goal" },
+    { method: "POST", path: "/api/goals/:id/cancel", desc: "Cancel a running goal" },
+    { method: "GET", path: "/api/schedules", desc: "List recurring schedules (if scheduler enabled)" },
+    { method: "POST", path: "/api/schedules", desc: "Create a schedule: { objective, intervalMs?|cron? }" },
+    { method: "DELETE", path: "/api/schedules/:id", desc: "Remove a schedule" },
+  ],
+} as const;
 
 /**
  * The GUI/REST server. Wraps a {@link BuiltSwarm} and exposes:
@@ -24,10 +46,13 @@ export class SwarmServer {
   private server?: Server;
   private sseClients = new Set<SseClient>();
 
+  private readonly scheduler?: SwarmScheduler;
+
   constructor(
     private readonly swarm: BuiltSwarm,
-    private readonly opts: { port?: number; host?: string } = {}
+    private readonly opts: { port?: number; host?: string; scheduler?: SwarmScheduler } = {}
   ) {
+    this.scheduler = opts.scheduler;
     this.wireEvents();
   }
 
@@ -95,19 +120,58 @@ export class SwarmServer {
       if (req.method === "GET" && path === "/api/events") {
         return this.openSse(res);
       }
+      if (req.method === "GET" && path === "/api/schema") {
+        return json(res, 200, API_SCHEMA);
+      }
+      if (req.method === "GET" && path === "/api/workers") {
+        return json(res, 200, this.swarm.manager.listWorkers());
+      }
       if (req.method === "POST" && path === "/api/goals") {
         const body = (await readJson(req)) as { objective?: string; timeoutMs?: number };
         const objective = (body.objective ?? "").trim();
         if (!objective) return json(res, 400, { error: "objective required" });
-        // Fire-and-forget; progress streams over SSE.
-        void this.swarm.manager.runGoal(objective, { timeoutMs: body.timeoutMs });
-        return json(res, 202, { started: true });
+        const { goalId, done } = await this.swarm.manager.startGoal(objective, { timeoutMs: body.timeoutMs });
+        void done.catch(() => undefined); // progress streams over SSE
+        return json(res, 202, { started: true, goalId });
       }
-      if (req.method === "GET" && path.startsWith("/api/goals/")) {
-        const id = path.slice("/api/goals/".length);
+
+      // ── Schedules (recurring goals) ──────────────────────────────────────────
+      if (this.scheduler && path === "/api/schedules") {
+        if (req.method === "GET") return json(res, 200, this.scheduler.list());
+        if (req.method === "POST") {
+          const body = (await readJson(req)) as { objective?: string; intervalMs?: number; cron?: string };
+          if (!body.objective) return json(res, 400, { error: "objective required" });
+          try {
+            const s = this.scheduler.add({ objective: body.objective, intervalMs: body.intervalMs, cron: body.cron });
+            return json(res, 201, s);
+          } catch (e) {
+            return json(res, 400, { error: e instanceof Error ? e.message : String(e) });
+          }
+        }
+      }
+      if (this.scheduler && req.method === "DELETE" && path.startsWith("/api/schedules/")) {
+        const id = path.slice("/api/schedules/".length);
+        return json(res, 200, { removed: this.scheduler.remove(id) });
+      }
+
+      // ── Goal sub-resources: /api/goals/:id[/provenance|/usage|/cancel] ────────
+      if (path.startsWith("/api/goals/")) {
+        const rest = path.slice("/api/goals/".length);
+        const [id, sub] = rest.split("/");
         const goal = this.swarm.manager.getGoal(id);
-        return goal ? json(res, 200, goal) : json(res, 404, { error: "not found" });
+        if (!goal) return json(res, 404, { error: "not found" });
+        if (req.method === "GET" && !sub) return json(res, 200, goal);
+        if (req.method === "GET" && sub === "usage") return json(res, 200, this.swarm.manager.getUsage(id));
+        if (req.method === "GET" && sub === "provenance")
+          return json(res, 200, this.swarm.manager.listProvenance(id));
+        if (req.method === "GET" && sub === "tasks")
+          return json(res, 200, this.swarm.manager.listTasks(id));
+        if (req.method === "POST" && sub === "cancel") {
+          const cancelled = this.swarm.manager.cancelGoal(id);
+          return json(res, 200, { cancelled });
+        }
       }
+
       json(res, 404, { error: "not found" });
     } catch (e) {
       json(res, 500, { error: e instanceof Error ? e.message : String(e) });
