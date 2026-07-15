@@ -51,7 +51,13 @@ export class SwarmServer {
 
   constructor(
     private readonly swarm: BuiltSwarm,
-    private readonly opts: { port?: number; host?: string; scheduler?: SwarmScheduler } = {}
+    private readonly opts: {
+      port?: number;
+      host?: string;
+      scheduler?: SwarmScheduler;
+      /** When set, /api/* requires this token (bearer, X-Swarm-Token, or ?token=). */
+      authToken?: string;
+    } = {}
   ) {
     this.scheduler = opts.scheduler;
     this.wireEvents();
@@ -104,6 +110,16 @@ export class SwarmServer {
     }
   }
 
+  private authorized(req: IncomingMessage, url: URL): boolean {
+    const token = this.opts.authToken;
+    if (!token) return true; // auth disabled
+    const bearer = req.headers["authorization"];
+    if (bearer === `Bearer ${token}`) return true;
+    if ((req.headers["x-swarm-token"] as string | undefined) === token) return true;
+    if (url.searchParams.get("token") === token) return true;
+    return false;
+  }
+
   // ── request handling ─────────────────────────────────────────────────────────
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -114,6 +130,12 @@ export class SwarmServer {
         res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
         res.end(DASHBOARD_HTML);
         return;
+      }
+      // Auth-guard the API when a token is configured. EventSource can't set
+      // headers, so a `?token=` query param is accepted alongside the bearer
+      // header for the SSE endpoint (and any GET) convenience.
+      if (path.startsWith("/api/") && !this.authorized(req, url)) {
+        return json(res, 401, { error: "unauthorized" });
       }
       if (req.method === "GET" && path === "/api/state") {
         return json(res, 200, this.snapshot());

@@ -32,6 +32,7 @@ interface Flags {
   host: string;
   managerUrl?: string;
   dockerNetwork?: string;
+  authToken?: string;
   json: boolean;
   _: string[];
 }
@@ -60,6 +61,7 @@ function parseArgs(argv: string[]): Flags {
       case "--manager-url": f.managerUrl = next(); break;
       case "--docker-network": f.dockerNetwork = next(); break;
       case "--host": f.host = next(); break;
+      case "--auth-token": f.authToken = next(); break;
       case "--json": f.json = true; break;
       case "-h": case "--help": f._.push("help"); break;
       default: f._.push(a);
@@ -143,7 +145,7 @@ async function cmdServe(f: Flags): Promise<void> {
     managerUrl: f.managerUrl,
     dockerNetwork: f.dockerNetwork,
   });
-  const server = new SwarmServer(swarm, { port: f.port, host: f.host });
+  const server = new SwarmServer(swarm, { port: f.port, host: f.host, authToken: f.authToken });
   await server.listen();
   console.log(`hermes-swarm dashboard → http://${f.host}:${f.port}  (mode=${f.mode}, workers=${f.workers})`);
   console.log("press Ctrl+C to stop");

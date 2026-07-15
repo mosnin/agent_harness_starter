@@ -16,6 +16,9 @@ import type { HeartbeatInfo, ManagerBus, WorkerRegistration } from "./types";
 export class HttpControlPlane implements ManagerBus {
   private server?: Server;
   private readonly bus = new InMemoryBus();
+  /** Currently-valid tokens. Rotation temporarily keeps the old one too. */
+  private validTokens: Set<string>;
+  private rotationTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     private readonly opts: {
@@ -25,7 +28,29 @@ export class HttpControlPlane implements ManagerBus {
       /** Max long-poll wait for GET /task. */
       pollTimeoutMs?: number;
     }
-  ) {}
+  ) {
+    this.validTokens = new Set([opts.authToken]);
+  }
+
+  /**
+   * Rotate the bus auth token. The new token takes effect immediately; the old
+   * token stays valid for `graceMs` so in-flight workers can re-authenticate
+   * with the new one before it's revoked (no dropped workers on rotation).
+   */
+  rotateToken(newToken: string, graceMs = 30_000): void {
+    const old = [...this.validTokens];
+    this.validTokens = new Set([newToken, ...old]);
+    if (this.rotationTimer) clearTimeout(this.rotationTimer);
+    this.rotationTimer = setTimeout(() => {
+      this.validTokens = new Set([newToken]);
+    }, graceMs);
+    this.rotationTimer.unref?.();
+  }
+
+  /** Tokens currently accepted (for tests/inspection). */
+  activeTokens(): string[] {
+    return [...this.validTokens];
+  }
 
   get port(): number {
     return this.opts.port;
@@ -47,6 +72,7 @@ export class HttpControlPlane implements ManagerBus {
   onDeregister = (h: (w: string) => void) => this.bus.onDeregister(h);
 
   async close(): Promise<void> {
+    if (this.rotationTimer) clearTimeout(this.rotationTimer);
     await this.bus.close();
     if (this.server) {
       await new Promise<void>((resolve) => this.server!.close(() => resolve()));
@@ -98,7 +124,8 @@ export class HttpControlPlane implements ManagerBus {
 
   private authorized(req: IncomingMessage): boolean {
     const auth = req.headers["authorization"];
-    return auth === `Bearer ${this.opts.authToken}`;
+    if (typeof auth !== "string" || !auth.startsWith("Bearer ")) return false;
+    return this.validTokens.has(auth.slice("Bearer ".length));
   }
 }
 

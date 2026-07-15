@@ -58,7 +58,7 @@ infra. 582 tests green.
 - [x] 29. TUI (terminal UI) for the swarm.
 
 ## Phase E — Ops / hardening
-- [ ] 30. Dashboard auth + bus token rotation.
+- [x] 30. Dashboard auth + bus token rotation.
 - [ ] 31. Structured logging + tracing + metrics export.
 - [ ] 32. Resource-limit enforcement + tests (docker + process).
 - [ ] 33. Docker: healthchecks, slimmer images, multi-arch notes.
@@ -106,3 +106,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 27 — live controls.** Public `killWorker` (kills + replaces, returns bool) and `scalePool(n)`/`workerCount()`. Endpoints `POST /api/workers/:id/kill` and `POST /api/pool/scale`. Dashboard: per-agent kill button + pool ＋/− scale controls. 3 tests (manager + REST). Full suite green.
 - **Iter 28 — metrics & charts.** `manager.metrics()` aggregates goals/tasks/workers/verification/usage into a `SwarmMetrics`; `GET /api/metrics` + metrics in the streamed snapshot. Dashboard Metrics panel: stat tiles (goals done, grounded %, cost) + accepted/verified bar charts + summary line. 2 tests. Full suite green.
 - **Iter 29 — TUI (Phase D complete).** Pure `renderTui(state)` renders a boxed terminal view (metrics, verify meter, workers, tasks, recent logs) with uniform line width; `hermes-swarm tui` CLI command polls a running dashboard's /api/state and redraws each second. 3 tests (sections, empty state, alignment). Phase D done. Full suite green.
+- **Iter 30 — dashboard auth + bus token rotation (Phase E start).** SwarmServer optional `authToken` guards `/api/*` (bearer, X-Swarm-Token, or `?token=` for SSE); dashboard page stays open. HttpControlPlane gains `rotateToken(new, graceMs)` with a dual-token grace window so workers re-auth without being dropped, plus `activeTokens()`. `--auth-token` CLI flag. 2 tests. Full suite green.
