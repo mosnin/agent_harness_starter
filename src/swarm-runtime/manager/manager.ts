@@ -1,10 +1,12 @@
 import { EventEmitter } from "node:events";
 import { randomBytes, randomUUID } from "node:crypto";
 import type {
+  BudgetSpec,
   ConsensusSpec,
   ContainerHandle,
   ContainerProvider,
   Goal,
+  GoalUsage,
   ResourceLimits,
   RevisionEntry,
   VerificationReport,
@@ -22,7 +24,7 @@ import { ProvenanceStore, buildProvenance } from "../verification/provenance";
 import type { ProvenanceRecord } from "../verification/provenance";
 import type { AdversarialVerifier } from "../verification/adversarial";
 import { DeterministicPlanner, materializeTasks, type Planner } from "./planner";
-import { computeDemand, desiredWorkers, isReady, isStale, scheduleReady } from "./scheduler";
+import { budgetBreach, computeDemand, desiredWorkers, isReady, isStale, scheduleReady } from "./scheduler";
 
 interface ReplicaOutcome {
   result: WorkerResult;
@@ -89,6 +91,8 @@ export interface ManagerConfig {
   monitorIntervalMs?: number;
   /** Max times a task may be requeued before it's failed. Default 3. */
   maxRequeues?: number;
+  /** Resource ceilings applied to every goal (a breach aborts the goal). */
+  defaultBudget?: BudgetSpec;
 }
 
 export interface ManagerEvents {
@@ -104,6 +108,7 @@ export interface ManagerEvents {
   "worker:dead": (rec: WorkerRecord, reason: string) => void;
   "goal:completed": (goal: Goal) => void;
   "goal:failed": (goal: Goal, reason: string) => void;
+  "goal:aborted": (goal: Goal, reason: string) => void;
   "goal:contradiction": (goal: Goal, contradictions: Contradiction[]) => void;
   log: (workerId: string, line: string) => void;
 }
@@ -147,6 +152,9 @@ export class SwarmManager extends EventEmitter {
   private readonly maxRequeues: number;
   private monitorTimer?: ReturnType<typeof setInterval>;
   private dispatchedAt = new Map<string, number>();
+  private readonly defaultBudget?: BudgetSpec;
+  private goalBudgets = new Map<string, BudgetSpec>();
+  private goalUsage = new Map<string, { workerRuns: number; toolCalls: number; costUsd: number; startedAt: number }>();
 
   constructor(private readonly config: ManagerConfig) {
     super();
@@ -168,6 +176,7 @@ export class SwarmManager extends EventEmitter {
     this.taskTimeoutMs = config.taskTimeoutMs ?? 90_000;
     this.monitorIntervalMs = config.monitorIntervalMs ?? 5_000;
     this.maxRequeues = config.maxRequeues ?? 3;
+    this.defaultBudget = config.defaultBudget;
     this.authToken = config.authToken ?? randomBytes(24).toString("hex");
 
     this.bus.onRegister((r) => this.handleRegister(r));
@@ -249,6 +258,54 @@ export class SwarmManager extends EventEmitter {
     this.dispatchReady(task.goalId);
   }
 
+  // ── Budget accounting ────────────────────────────────────────────────────────
+
+  private accountUsage(goalId: string, result: WorkerResult): void {
+    const u = this.goalUsage.get(goalId);
+    if (!u) return;
+    u.workerRuns += 1;
+    u.toolCalls += result.toolTrace.length;
+    u.costUsd += result.costUsd ?? 0;
+  }
+
+  /** Returns true (and aborts the goal) if a budget ceiling has been breached. */
+  private enforceBudget(goalId: string): boolean {
+    const budget = this.goalBudgets.get(goalId);
+    if (!budget) return false;
+    const breach = budgetBreach(this.usageFor(goalId), budget);
+    if (!breach) return false;
+    this.abortGoal(goalId, `budget exceeded: ${breach}`);
+    return true;
+  }
+
+  private usageFor(goalId: string): GoalUsage {
+    const u = this.goalUsage.get(goalId);
+    if (!u) return { workerRuns: 0, toolCalls: 0, costUsd: 0, wallClockMs: 0 };
+    return {
+      workerRuns: u.workerRuns,
+      toolCalls: u.toolCalls,
+      costUsd: u.costUsd,
+      wallClockMs: Date.now() - u.startedAt,
+    };
+  }
+
+  /** Live resource accounting for a goal. */
+  getUsage(goalId: string): GoalUsage {
+    return this.usageFor(goalId);
+  }
+
+  /** Terminate a goal that's still running (budget breach, cancellation). */
+  private abortGoal(goalId: string, reason: string): void {
+    const goal = this.goals.get(goalId);
+    if (!goal || goal.status !== "running") return;
+    goal.status = "aborted";
+    goal.completedAt = Date.now();
+    for (const t of this.listTasks(goalId)) {
+      if (t.status !== "verified" && t.status !== "failed") t.status = "failed";
+    }
+    this.emit("goal:aborted", goal, reason);
+  }
+
   private liveWorkers(): WorkerRecord[] {
     return [...this.workers.values()].filter((w) => w.status !== "killed" && w.status !== "dead");
   }
@@ -287,10 +344,14 @@ export class SwarmManager extends EventEmitter {
    * Run a goal end-to-end: plan → dispatch → verify → synthesize. Resolves with
    * the completed (or failed) goal once every task reaches a terminal state.
    */
-  async runGoal(objective: string, opts?: { timeoutMs?: number }): Promise<Goal> {
+  async runGoal(objective: string, opts?: { timeoutMs?: number; budget?: BudgetSpec }): Promise<Goal> {
     await this.ensurePool();
 
     const goalId = randomUUID();
+    const budget = opts?.budget ?? this.defaultBudget;
+    if (budget) this.goalBudgets.set(goalId, budget);
+    this.goalUsage.set(goalId, { workerRuns: 0, toolCalls: 0, costUsd: 0, startedAt: Date.now() });
+
     const planned = await this.planner.plan(objective, this.capabilities);
     const tasks = materializeTasks(planned, goalId, this.maxAttempts, this.defaultConsensus);
     for (const t of tasks) this.tasks.set(t.id, t);
@@ -427,6 +488,9 @@ export class SwarmManager extends EventEmitter {
   // ── Dispatch & verification ──────────────────────────────────────────────────
 
   private dispatchReady(goalId: string): void {
+    // Never dispatch into a goal that has been aborted/cancelled/completed.
+    const g = this.goals.get(goalId);
+    if (g && g.status !== "running") return;
     // Grow the pool to meet demand before selecting what to release.
     this.autoscaleTick(goalId);
     const isVerified = (id: string) => this.tasks.get(id)?.status === "verified";
@@ -494,6 +558,10 @@ export class SwarmManager extends EventEmitter {
     // state (e.g. a requeued task's original worker finally reporting).
     if (task.status === "verified" || task.status === "failed") return;
     this.dispatchedAt.delete(result.taskId);
+
+    // Account for this worker run and enforce the goal's budget ceilings.
+    this.accountUsage(task.goalId, result);
+    if (this.enforceBudget(task.goalId)) return; // goal aborted — stop processing
 
     // Evaluate this single result against behaviour + grounding.
     const { report, accepted, killed, blocked, reason } = await this.evaluateResult(result);
@@ -751,8 +819,10 @@ export class SwarmManager extends EventEmitter {
       };
       const onDone = (g: Goal) => g.id === goalId && finish();
       const onFail = (g: Goal) => g.id === goalId && finish();
+      const onAbort = (g: Goal) => g.id === goalId && finish();
       this.on("goal:completed", onDone);
       this.on("goal:failed", onFail);
+      this.on("goal:aborted", onAbort);
       const timer = setTimeout(() => {
         if (goal.status === "running") {
           goal.status = "aborted";
@@ -765,6 +835,7 @@ export class SwarmManager extends EventEmitter {
         clearTimeout(timer);
         this.off("goal:completed", onDone as never);
         this.off("goal:failed", onFail as never);
+        this.off("goal:aborted", onAbort as never);
       };
     });
   }

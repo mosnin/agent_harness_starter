@@ -168,6 +168,28 @@ export interface WorkerResult {
   finishedAt: number;
   /** Set when the worker itself errored. */
   error?: string;
+  /** Optional USD cost the worker incurred (LLM tokens, tool fees). */
+  costUsd?: number;
+}
+
+/** Resource ceilings for a goal. A breach aborts the goal. */
+export interface BudgetSpec {
+  /** Max total worker runs (each replica/attempt counts once). */
+  maxWorkerRuns?: number;
+  /** Max total tool calls across all worker runs. */
+  maxToolCalls?: number;
+  /** Max cumulative USD cost. */
+  maxCostUsd?: number;
+  /** Max wall-clock time for the whole goal. */
+  maxWallClockMs?: number;
+}
+
+/** Live accounting for a running/finished goal. */
+export interface GoalUsage {
+  workerRuns: number;
+  toolCalls: number;
+  costUsd: number;
+  wallClockMs: number;
 }
 
 export interface ToolCallRecord {

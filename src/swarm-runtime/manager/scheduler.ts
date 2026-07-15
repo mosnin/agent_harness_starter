@@ -1,4 +1,4 @@
-import type { WorkerTask } from "../types";
+import type { BudgetSpec, GoalUsage, WorkerTask } from "../types";
 
 /**
  * Pure DAG-scheduling helpers, split out from the manager so the ordering and
@@ -41,6 +41,19 @@ export function desiredWorkers(demand: number, min: number, max: number): number
 /** A worker/task is stale if its last signal is older than `timeoutMs`. */
 export function isStale(lastSignalAt: number, now: number, timeoutMs: number): boolean {
   return now - lastSignalAt > timeoutMs;
+}
+
+/** Return the name of the first breached budget ceiling, or null if within budget. */
+export function budgetBreach(usage: GoalUsage, budget: BudgetSpec): string | null {
+  if (budget.maxWorkerRuns != null && usage.workerRuns > budget.maxWorkerRuns)
+    return `worker runs ${usage.workerRuns} > ${budget.maxWorkerRuns}`;
+  if (budget.maxToolCalls != null && usage.toolCalls > budget.maxToolCalls)
+    return `tool calls ${usage.toolCalls} > ${budget.maxToolCalls}`;
+  if (budget.maxCostUsd != null && usage.costUsd > budget.maxCostUsd)
+    return `cost $${usage.costUsd.toFixed(4)} > $${budget.maxCostUsd}`;
+  if (budget.maxWallClockMs != null && usage.wallClockMs > budget.maxWallClockMs)
+    return `wall-clock ${usage.wallClockMs}ms > ${budget.maxWallClockMs}ms`;
+  return null;
 }
 
 /**

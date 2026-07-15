@@ -7,7 +7,7 @@ import { WorkerRuntime } from "./worker/runtime";
 import type { TaskExecutor } from "./worker/executor";
 import { VerificationGate, type GateConfig } from "./verification/gate";
 import { AntiRogueGuardrail, type GuardrailPolicy } from "./verification/guardrails";
-import type { ConsensusSpec } from "./types";
+import type { BudgetSpec, ConsensusSpec } from "./types";
 import type { AdversarialVerifier } from "./verification/adversarial";
 
 export interface InlineSwarmOptions {
@@ -36,6 +36,8 @@ export interface InlineSwarmOptions {
   taskTimeoutMs?: number;
   monitorIntervalMs?: number;
   maxRequeues?: number;
+  /** Resource ceilings applied to every goal (a breach aborts the goal). */
+  defaultBudget?: BudgetSpec;
 }
 
 /**
@@ -89,6 +91,7 @@ export async function createInlineSwarm(opts: InlineSwarmOptions = {}): Promise<
     taskTimeoutMs: opts.taskTimeoutMs,
     monitorIntervalMs: opts.monitorIntervalMs,
     maxRequeues: opts.maxRequeues,
+    defaultBudget: opts.defaultBudget,
   });
 
   return manager;
