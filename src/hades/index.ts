@@ -14,3 +14,4 @@ export * from "./gateway/index";
 export * from "./backends/index";
 export * from "./acp/index";
 export * from "./models/index";
+export * from "./plugins/index";
