@@ -6,3 +6,5 @@ export { mapReduce } from "./mapreduce";
 export type { MapReduceSpec, MapReduceResult } from "./mapreduce";
 export { pipeline } from "./pipeline";
 export type { PipelineStage, PipelineResult, PipelineOptions } from "./pipeline";
+export { modelSpeedup, timed, benchmarkSpeedup } from "./speedup";
+export type { SpeedupModel, Timed, SpeedupReport } from "./speedup";
