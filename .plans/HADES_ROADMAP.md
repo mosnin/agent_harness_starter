@@ -32,7 +32,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 - [x] 4. Memory nudges: periodic "persist this?" prompts + a nudge scheduler.
 - [x] 5. Autonomous skill creation: synthesize a reusable `SwarmSkill` from a completed trajectory.
 - [x] 6. Skill self-improvement: refine a skill from usage feedback (success/failure deltas).
-- [ ] 7. User modeling (Honcho-style dialectic): build a durable model of the user across sessions.
+- [x] 7. User modeling (Honcho-style dialectic): build a durable model of the user across sessions.
 - [ ] 8. Memory-augmented executor: inject relevant memories + user model + skills into worker prompts.
 
 ## Phase B — Real Platform Connectors (lives-where-you-do)
@@ -88,3 +88,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 4 — memory nudges.** Pure `evaluateNudges` (persist after N new turns since curation; summarize an idle, unsummarized session) + `NudgeEngine` that tracks per-session curation progress, emits nudges, and stops re-firing after `markCurated`. Injectable clock. 5 tests. Full suite green.
 - **Iter 5 — autonomous skill creation.** `learning/SkillForge` distills a completed `Trajectory` into a reusable playbook `SwarmSkill`: capabilities = the tools that worked + a slugified name, plus a prompt fragment describing the known-good approach; `forgeAndRegister` drops it into a SkillRegistry. Skips failed/trivial trajectories; injectable LLM synthesizer optional. 6 tests. Full suite green.
 - **Iter 6 — skill self-improvement.** `learning/SkillTuner` records per-skill success/failure and, once there's enough signal, refines: annotates high performers with their track record, flags chronic under-performers for retirement, or hands off to an injectable LLM refiner. `report()` ranks worst-first. 6 tests. Full suite green.
+- **Iter 7 — user modeling (dialectic).** `learning/UserModel` (+ `FileUserModel`): durable traits (attribute→value, confidence, evidence) updated dialectically via pure `reconcile` — create / reinforce (asymptotic confidence) / revise-on-stronger-evidence / ignore-weaker. `ingest(memories)` builds it (offline `deriveTraitsFromMemories`), `describe()` renders prose. Durable across sessions. 7 tests. Full suite green.

@@ -6,3 +6,5 @@ export { SkillForge, slugifyObjective } from "./skill-forge";
 export type { Trajectory, TrajectoryStep, SkillSynthesizer, SkillForgeOptions } from "./skill-forge";
 export { SkillTuner } from "./skill-tuner";
 export type { SkillStats, SkillRefiner, TuneAction, SkillTunerOptions } from "./skill-tuner";
+export { UserModel, FileUserModel, reconcile, deriveTraitsFromMemories } from "./user-model";
+export type { UserTrait, Assertion, TraitDeriver } from "./user-model";
