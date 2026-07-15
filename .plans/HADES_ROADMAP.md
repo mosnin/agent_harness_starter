@@ -54,7 +54,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 - [x] 22. Serverless hibernate/wake + scale-to-zero lifecycle.
 
 ## Phase D — Protocols, Models, Plugins
-- [ ] 23. ACP adapter: server + session model (injectable transport).
+- [x] 23. ACP adapter: server + session model (injectable transport).
 - [ ] 24. ACP: edit-approval + permissions + provenance events.
 - [ ] 25. Model-switching UX: `hades model` + model registry + persisted selection.
 - [ ] 26. Plugin system: `HadesPlugin` interface + loader + lifecycle hooks.
@@ -108,3 +108,6 @@ _(newest last; one entry per completed iteration)_
 - **Iter 20 — Daytona backend.** `DaytonaBackend` (serverless with **persistent volumes**) over an injectable `DaytonaClient`. Unlike Modal's fresh-call-per-wake, `hibernate` *stops* the workspace (compute → 0, disk kept) and `wake` *resumes the same workspace id*, so the worker returns to its files and installed deps; `terminate` destroys the volume for good. Workspace state maps to `RemoteState` (stopped → hibernated). Verified standalone and via the registry. 5 tests. Full suite green (795).
 - **Iter 21 — Singularity/Apptainer backend.** `SingularityBackend` runs each worker as a named container **instance** from a `.sif` image over an injectable `CommandRunner`: `provision` → `instance start` with `--env`/`--memory`, `status` parses `instance list`, `terminate` → `instance stop`, `logs` tails the instance's stdout log. Requires a `.sif` (spec or default); binary configurable (`apptainer`/`singularity`). Persistent HPC node, so no hibernate/wake. Tested against a fake CLI simulating the instance table. 7 tests. Full suite green (802).
 - **Iter 22 — scale-to-zero lifecycle (Phase C complete).** `ScaleToZeroManager` wraps the `RemoteBackendRegistry` and drives idle workers to zero cost and back: `markActive` stamps last-use, `sweep` auto-hibernates every running worker idle past `idleMs` (skipping backends without hibernate — SSH/Singularity — never erroring on a mixed fleet), `ensureAwake`/`acquire` wake a hibernated worker on demand and reset its idle timer. Injectable clock makes the idle reaper deterministic; lifecycle events (`active`/`hibernated`/`woken`/`skipped`) feed observability. 5 tests. **Phase C done.** Full suite green (807).
+
+### Phase D
+- **Iter 23 — ACP adapter (Phase D start).** `acp/`: the agent side of the Agent Client Protocol so an editor can drive a coding session against the swarm. `AcpServer` answers JSON-RPC over an injectable `AcpTransport` — `initialize` handshake, `session/new`, `session/prompt` (delegating to an injectable handler that streams `session/update` notifications: message/thought chunks, tool calls, plans), and the `session/cancel` notification — with a session model, ordering/guard checks (init before session, unknown-session/method errors), and handler errors surfaced as JSON-RPC internal errors. `InMemoryAcpTransport.pair()` wires a client and agent in-process for testing (no stdio). 7 tests. Full suite green (814).

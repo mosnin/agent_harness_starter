@@ -12,3 +12,4 @@ export * from "./memory/index";
 export * from "./learning/index";
 export * from "./gateway/index";
 export * from "./backends/index";
+export * from "./acp/index";
