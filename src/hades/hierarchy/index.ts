@@ -22,3 +22,5 @@ export { BreakerRegistry } from "./breaker-registry";
 export type { BreakerRegistryOptions } from "./breaker-registry";
 export { mulberry32, reduceRef, randomTreeSpec, runFuzzCase, fuzzMany } from "./fuzz";
 export type { ReductionName, FuzzTreeSpec, FuzzCase } from "./fuzz";
+export { runChaosHierarchy } from "./chaos";
+export type { ChaosConfig, ChaosAudit, ChaosOutcome, ChaosTimerOpts } from "./chaos";

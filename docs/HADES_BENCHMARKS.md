@@ -254,3 +254,36 @@ signal the probe reads truly reacts to a leak. It also verified real concurrency
 (`peakInFlight` hits the cap, never stuck at 1), recomputed the throughput
 arithmetic, and confirmed a 12-window run does **not** collapse over time
 (last/first throughput ≈ 1.93).
+
+## Chaos — correct-verified XOR clean-audited, never silent-wrong
+
+Under injected faults — drops, delays, reorders, node deaths — the swarm must
+return **either** a correct *verified* aggregate **or** a clean *audited* failure;
+never a silently-wrong answer, never a hang. `runChaosHierarchy`
+(`src/hades/hierarchy/chaos.ts`) runs a seeded hierarchy sum under configurable
+fault probabilities with bounded retries: a dropped/failed leaf is retried, and if
+it exhausts its budget the whole run returns `ok:false` with the failed leaves
+audited — it never quietly omits a leaf into a wrong sum. Each leaf owns an
+isolated PRNG stream so the outcome is a pure function of `(seed, config)`,
+independent of async settlement order.
+
+`runChaosSuite()` (`src/hades/bench/chaos-suite.ts`) runs five fault regimes over
+many seeds with instant fake timers. Measured (125 runs):
+
+| Scenario | Runs | Verified correct | Clean failures | Silent-wrong |
+| --- | ---: | ---: | ---: | ---: |
+| calm       | 25 | 25 | 0  | 0 |
+| lossy      | 25 | 25 | 0  | 0 |
+| slow       | 25 | 25 | 0  | 0 |
+| dead-nodes | 25 | 5  | 20 | 0 |
+| storm      | 25 | 0  | 25 | 0 |
+| **total**  | **125** | **80** | **45** | **0** |
+
+Both branches genuinely occur (calm → all verified; storm → all clean), and
+`totalSilentWrong === 0`. An adversarial suite (11 tests) hammered 300 runs across
+regimes and **caught a real crash bug** in the first cut (a leaf-node id misread
+that threw on every call — neither outcome, a hard guarantee violation); after the
+fix it confirmed every `ok:true` result equals the independently-recomputed true
+sum, `dropProb:1`/`killProb:1` resolve promptly to `ok:false` (no hang), retries
+genuinely recover dropped leaves back into the exact sum, and outcomes are
+deterministic per `(seed, config)`.

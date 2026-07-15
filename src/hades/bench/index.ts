@@ -36,3 +36,5 @@ export {
   assertResultsMatch,
 } from "./invariants";
 export type { LinearFit } from "./invariants";
+export { runChaosSuite, makeInstantTimer } from "./chaos-suite";
+export type { ChaosScenarioResult, ChaosSuiteReport } from "./chaos-suite";
