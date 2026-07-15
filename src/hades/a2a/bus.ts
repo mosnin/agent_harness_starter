@@ -1,4 +1,4 @@
-import { MessageFactory, deliversTo } from "./types";
+import { MessageFactory, deliversTo, isBroadcast } from "./types";
 import type { A2AMessage, AgentAddress, Recipient } from "./types";
 
 /**
@@ -19,13 +19,17 @@ interface Sub {
 }
 
 /**
- * In-process A2A transport: delivers each published message to every registered
- * agent it addresses (direct by id, broadcast by team), never echoing to the
- * sender. Delivery is synchronous but the endpoint mailbox decouples producers
- * from consumers.
+ * In-process A2A transport with **indexed routing**. A direct message is
+ * dispatched by an O(1) `Map.get(agentId)` lookup instead of scanning every
+ * subscriber — the hot path for RPC and streaming, which are all point-to-point.
+ * Only broadcasts fan out across subscribers (inherent, and scoped by team).
+ * Delivery is synchronous; the endpoint mailbox decouples producers from
+ * consumers. `routeScans` counts fan-out iterations for perf assertions.
  */
 export class InMemoryA2ATransport implements A2ATransport {
   private subs = new Map<string, Sub>();
+  /** Instrumentation: number of subscriber comparisons made during routing. */
+  routeScans = 0;
 
   register(address: AgentAddress, handler: (msg: A2AMessage) => void): () => void {
     this.subs.set(address.agentId, { address, handler });
@@ -33,15 +37,27 @@ export class InMemoryA2ATransport implements A2ATransport {
   }
 
   publish(msg: A2AMessage): void {
-    for (const sub of this.subs.values()) {
-      if (sub.address.agentId === msg.from.agentId) continue; // never echo to self
-      if (deliversTo(msg.to, sub.address)) sub.handler(msg);
+    if (isBroadcast(msg.to)) {
+      // Broadcast: fan out (unavoidable), skipping the sender and off-team subs.
+      for (const sub of this.subs.values()) {
+        this.routeScans++;
+        if (sub.address.agentId === msg.from.agentId) continue;
+        if (deliversTo(msg.to, sub.address)) sub.handler(msg);
+      }
+      return;
     }
+    // Direct message: O(1) lookup — no scan over the roster.
+    this.routeScans++;
+    const sub = this.subs.get(msg.to.agentId);
+    if (sub && sub.address.agentId !== msg.from.agentId) sub.handler(msg);
   }
 
   /** Currently connected agent ids (for tests / diagnostics). */
   members(): string[] {
     return [...this.subs.keys()];
+  }
+  size(): number {
+    return this.subs.size;
   }
 }
 
