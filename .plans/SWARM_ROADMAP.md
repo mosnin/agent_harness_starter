@@ -25,7 +25,7 @@ infra. 582 tests green.
 - [x] 2. Cross-claim contradiction detection across a goal's verified results.
 - [x] 3. Evidence provenance store — every accepted claim keeps a traceable citation record.
 - [x] 4. Revision loop hardening: structured feedback, attempt caps, escalation.
-- [ ] 5. Semantic grounding check via embeddings (reuse `src/agents/embeddings`).
+- [x] 5. Semantic grounding check via embeddings (reuse `src/agents/embeddings`).
 - [ ] 6. Adversarial verifier: an independent skeptic pass that tries to refute claims.
 
 ## Phase B — Orchestration depth
@@ -81,3 +81,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 2 — contradiction detection.** New `verification/contradiction.ts`: conservative `subject <copula> value` parser that flags conflicting/negated values for the same subject across a goal's verified claims. Manager runs it at completion, attaches `Goal.contradictions`, emits `goal:contradiction`, and (opt-in `failOnContradiction`) fails an internally-inconsistent goal. 5 tests. 590 green.
 - **Iter 3 — evidence provenance store.** New `verification/provenance.ts` + exported trace helpers from the gate. Manager records a `ProvenanceRecord` on every accept (single + consensus): claims, which evidence was confirmed against the tool trace, verdict/score. Exposed `listProvenance`/`getProvenance`/`groundingRate` and surfaced in `/api/state`. 3 tests. 593 green.
 - **Iter 4 — revision loop hardening.** `WorkerTask.revisions` history + `RevisionEntry`. Rejections record attempt/verdict/score/failedChecks and re-dispatch with structured `_revision.failedChecks` feedback (LLMExecutor now cites the exact failed checks). New `escalateAfter` config + `task:escalated` event (fires at threshold and at terminal failure) carrying full history. 2 tests. 595 green.
+- **Iter 5 — semantic grounding judge.** New `SemanticGroundingJudge` (implements the gate's `Judge` hook) that embeds each claim's evidence and the tool trace and scores best cosine similarity — catching correctly-paraphrased grounding (fewer false rejects) and semantic fabrication (keyword-overlap but wrong meaning). Composs via the existing `gate.judge` option; degrades to no-op if embeddings unavailable. Reuses `@/agents/embeddings`. 4 tests. 

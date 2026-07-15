@@ -7,3 +7,5 @@ export type { Contradiction, ClaimRef } from "./contradiction";
 export { ProvenanceStore, buildProvenance } from "./provenance";
 export type { ProvenanceRecord, ClaimProvenance } from "./provenance";
 export { buildTraceHaystack, isEvidenceTraceable } from "./gate";
+export { SemanticGroundingJudge, cosine } from "./semantic-judge";
+export type { SemanticJudgeOptions } from "./semantic-judge";
