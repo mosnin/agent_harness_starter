@@ -16,3 +16,7 @@ export { PriorityScheduler, propagateDeadline } from "./scheduling";
 export type { Job, SchedEvent, SchedEventType, SchedulerOptions, ScheduleResult } from "./scheduling";
 export { StreamingHierarchyAggregator } from "./streaming-aggregate";
 export type { StreamingAggExec, StreamingOptions, StreamingStats } from "./streaming-aggregate";
+export { CircuitBreaker, CircuitOpenError, TimeoutError, withTimeout } from "./circuit-breaker";
+export type { BreakerState, CircuitBreakerOptions } from "./circuit-breaker";
+export { BreakerRegistry } from "./breaker-registry";
+export type { BreakerRegistryOptions } from "./breaker-registry";
