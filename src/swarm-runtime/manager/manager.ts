@@ -23,6 +23,7 @@ import type { Contradiction } from "../verification/contradiction";
 import { ProvenanceStore, buildProvenance } from "../verification/provenance";
 import type { ProvenanceRecord } from "../verification/provenance";
 import type { AdversarialVerifier } from "../verification/adversarial";
+import type { StateStore, SwarmSnapshot } from "../persistence/state-store";
 import { DeterministicPlanner, materializeTasks, type Planner } from "./planner";
 import { budgetBreach, computeDemand, desiredWorkers, isReady, isStale, scheduleReady } from "./scheduler";
 
@@ -93,6 +94,10 @@ export interface ManagerConfig {
   maxRequeues?: number;
   /** Resource ceilings applied to every goal (a breach aborts the goal). */
   defaultBudget?: BudgetSpec;
+  /** Durable store; when set, goal/task state is persisted for crash recovery. */
+  stateStore?: StateStore;
+  /** Debounce window for persistence writes. Default 250ms. */
+  persistDebounceMs?: number;
 }
 
 export interface ManagerEvents {
@@ -155,6 +160,9 @@ export class SwarmManager extends EventEmitter {
   private readonly defaultBudget?: BudgetSpec;
   private goalBudgets = new Map<string, BudgetSpec>();
   private goalUsage = new Map<string, { workerRuns: number; toolCalls: number; costUsd: number; startedAt: number }>();
+  private readonly stateStore?: StateStore;
+  private readonly persistDebounceMs: number;
+  private persistTimer?: ReturnType<typeof setTimeout>;
 
   constructor(private readonly config: ManagerConfig) {
     super();
@@ -177,6 +185,8 @@ export class SwarmManager extends EventEmitter {
     this.monitorIntervalMs = config.monitorIntervalMs ?? 5_000;
     this.maxRequeues = config.maxRequeues ?? 3;
     this.defaultBudget = config.defaultBudget;
+    this.stateStore = config.stateStore;
+    this.persistDebounceMs = config.persistDebounceMs ?? 250;
     this.authToken = config.authToken ?? randomBytes(24).toString("hex");
 
     this.bus.onRegister((r) => this.handleRegister(r));
@@ -294,6 +304,62 @@ export class SwarmManager extends EventEmitter {
     return this.usageFor(goalId);
   }
 
+  // ── Persistence ──────────────────────────────────────────────────────────────
+
+  /** Build a serializable snapshot of all goal/task state. */
+  snapshot(): SwarmSnapshot {
+    const usage: Record<string, GoalUsage> = {};
+    for (const goalId of this.goals.keys()) usage[goalId] = this.usageFor(goalId);
+    return {
+      version: 1,
+      savedAt: Date.now(),
+      goals: [...this.goals.values()],
+      tasks: [...this.tasks.values()],
+      usage,
+    };
+  }
+
+  private schedulePersist(): void {
+    if (!this.stateStore || this.persistTimer) return;
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = undefined;
+      void this.stateStore!.save(this.snapshot()).catch(() => undefined);
+    }, this.persistDebounceMs);
+    this.persistTimer.unref?.();
+  }
+
+  /** Write the current state immediately (used on shutdown). */
+  async flushState(): Promise<void> {
+    if (!this.stateStore) return;
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = undefined;
+    }
+    await this.stateStore.save(this.snapshot());
+  }
+
+  /**
+   * Rehydrate goals/tasks/usage from the state store into a fresh manager, so a
+   * restarted process can inspect (and report on) the prior run's state after a
+   * crash. Returns false if there was nothing to restore.
+   */
+  async loadState(): Promise<boolean> {
+    if (!this.stateStore) return false;
+    const snap = await this.stateStore.load();
+    if (!snap) return false;
+    for (const g of snap.goals) this.goals.set(g.id, g);
+    for (const t of snap.tasks) this.tasks.set(t.id, t);
+    for (const [goalId, u] of Object.entries(snap.usage)) {
+      this.goalUsage.set(goalId, {
+        workerRuns: u.workerRuns,
+        toolCalls: u.toolCalls,
+        costUsd: u.costUsd,
+        startedAt: Date.now() - u.wallClockMs,
+      });
+    }
+    return true;
+  }
+
   /** Terminate a goal that's still running (budget breach, cancellation). */
   private abortGoal(goalId: string, reason: string): void {
     const goal = this.goals.get(goalId);
@@ -304,6 +370,7 @@ export class SwarmManager extends EventEmitter {
       if (t.status !== "verified" && t.status !== "failed") t.status = "failed";
     }
     this.emit("goal:aborted", goal, reason);
+    this.schedulePersist();
   }
 
   private liveWorkers(): WorkerRecord[] {
@@ -378,6 +445,7 @@ export class SwarmManager extends EventEmitter {
     }
 
     this.emit("goal:planned", goal, tasks);
+    this.schedulePersist();
     this.dispatchReady(goalId);
 
     return await this.waitForGoal(goalId, opts?.timeoutMs ?? 10 * 60_000);
@@ -429,6 +497,7 @@ export class SwarmManager extends EventEmitter {
       if (round.timer) clearTimeout(round.timer);
     }
     this.consensusRounds.clear();
+    await this.flushState().catch(() => undefined);
     await Promise.all([...this.workers.values()].map((w) => this.teardownWorker(w.workerId)));
     await this.bus.close();
   }
@@ -781,6 +850,7 @@ export class SwarmManager extends EventEmitter {
   }
 
   private onProgress(goalId: string): void {
+    this.schedulePersist();
     // Newly-verified task may unblock dependents.
     this.dispatchReady(goalId);
 

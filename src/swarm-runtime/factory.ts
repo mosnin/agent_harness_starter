@@ -9,6 +9,7 @@ import { VerificationGate, type GateConfig } from "./verification/gate";
 import { AntiRogueGuardrail, type GuardrailPolicy } from "./verification/guardrails";
 import type { BudgetSpec, ConsensusSpec } from "./types";
 import type { AdversarialVerifier } from "./verification/adversarial";
+import type { StateStore } from "./persistence/state-store";
 
 export interface InlineSwarmOptions {
   capabilities?: string[];
@@ -38,6 +39,8 @@ export interface InlineSwarmOptions {
   maxRequeues?: number;
   /** Resource ceilings applied to every goal (a breach aborts the goal). */
   defaultBudget?: BudgetSpec;
+  /** Durable store; persists goal/task state for crash recovery. */
+  stateStore?: StateStore;
 }
 
 /**
@@ -92,6 +95,7 @@ export async function createInlineSwarm(opts: InlineSwarmOptions = {}): Promise<
     monitorIntervalMs: opts.monitorIntervalMs,
     maxRequeues: opts.maxRequeues,
     defaultBudget: opts.defaultBudget,
+    stateStore: opts.stateStore,
   });
 
   return manager;

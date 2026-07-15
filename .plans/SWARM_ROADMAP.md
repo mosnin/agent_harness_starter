@@ -35,7 +35,7 @@ infra. 582 tests green.
 - [x] 10. Hierarchical swarms: a manager can spawn sub-managers.
 - [x] 11. Per-goal budget/cost + tool-call accounting with ceilings.
 - [x] 12. Goal cancellation / abort mid-flight (propagate to workers).
-- [ ] 13. Persistent goal/task state (file/SQLite) for crash recovery.
+- [x] 13. Persistent goal/task state (file/SQLite) for crash recovery.
 
 ## Phase C — Integrations & modes (Hermes parity)
 - [ ] 14. Expose swarm control as MCP tools (spawn/status/dispatch).
@@ -89,3 +89,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 10 — hierarchical swarms.** `SubSwarmExecutor`: a worker holding a delegated task (opt-in via `input.subSwarm`) spins up a whole child sub-swarm (own manager/workers/gate) to solve it, then returns the child's synthesis grounded in its verified sub-results — which the parent gate re-verifies, so delegation never bypasses trust. Falls back to a base executor for non-delegated tasks. 2 tests. Full suite green.
 - **Iter 11 — per-goal budgets.** `BudgetSpec` (maxWorkerRuns/toolCalls/costUsd/wallClockMs) + `WorkerResult.costUsd`. Manager accounts every worker run (runs, tool calls, cost) and aborts a goal via `abortGoal` + `goal:aborted` when a ceiling breaks (pure `budgetBreach`). `runGoal` takes a per-goal `budget`; `getUsage` exposes live accounting; dispatch is blocked into non-running goals. 3 tests. Full suite green.
 - **Iter 12 — goal cancellation.** Public `cancelGoal(goalId, reason)` + `runGoal` `AbortSignal` support. Cancellation reuses `abortGoal`: dispatch stops (non-running guard), in-flight results are ignored on arrival, non-terminal tasks are failed, goal resolves as `aborted`. 2 tests. Full suite green.
+- **Iter 13 — persistent state (Phase B complete).** `persistence/state-store.ts`: `StateStore` with `MemoryStateStore` and atomic-write `FileStateStore` (temp+rename, no deps). Manager snapshots goals/tasks/usage (debounced) on plan/progress/abort, flushes on shutdown, and `loadState()` hydrates a fresh manager for post-crash inspection. Exported from the root barrel + factory. 2 tests. Full suite green.
