@@ -50,7 +50,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 - [x] 18. SSH backend (run worker over ssh, injectable exec).
 - [x] 19. Modal backend (serverless, injectable client).
 - [x] 20. Daytona backend (serverless persistence, injectable client).
-- [ ] 21. Singularity/Apptainer backend.
+- [x] 21. Singularity/Apptainer backend.
 - [ ] 22. Serverless hibernate/wake + scale-to-zero lifecycle.
 
 ## Phase D — Protocols, Models, Plugins
@@ -106,3 +106,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 18 — SSH backend.** `SshBackend` runs each worker as a `nohup` background process on a remote host over an injectable `SshTransport`: `provision` launches with the worker env, captures the PID as the native id, and tees to a per-worker log; `status` probes with `kill -0`; `terminate` kills the PID; `logs` tails the file. No hibernate/wake (a plain host isn't serverless). `createSshCliTransport` builds a real `ssh` invocation (port/identity/BatchMode) with an injectable local spawner. Tested against a fake host simulating a process table. 7 tests. Full suite green (784).
 - **Iter 19 — Modal backend.** `ModalBackend` (serverless) spawns a Modal function call hosting the worker and returns its web endpoint, over an injectable `ModalClient`. True scale-to-zero: `hibernate` cancels the live call (cost → 0) while preserving app + env in `meta`; `wake` re-spawns an identical call from that saved spec; `status`/`logs` short-circuit while hibernated so no poll bills a stopped call. Poll status maps to `RemoteState`. Verified standalone and through the registry's hibernate/wake tracking. 6 tests. Full suite green (790).
 - **Iter 20 — Daytona backend.** `DaytonaBackend` (serverless with **persistent volumes**) over an injectable `DaytonaClient`. Unlike Modal's fresh-call-per-wake, `hibernate` *stops* the workspace (compute → 0, disk kept) and `wake` *resumes the same workspace id*, so the worker returns to its files and installed deps; `terminate` destroys the volume for good. Workspace state maps to `RemoteState` (stopped → hibernated). Verified standalone and via the registry. 5 tests. Full suite green (795).
+- **Iter 21 — Singularity/Apptainer backend.** `SingularityBackend` runs each worker as a named container **instance** from a `.sif` image over an injectable `CommandRunner`: `provision` → `instance start` with `--env`/`--memory`, `status` parses `instance list`, `terminate` → `instance stop`, `logs` tails the instance's stdout log. Requires a `.sif` (spec or default); binary configurable (`apptainer`/`singularity`). Persistent HPC node, so no hibernate/wake. Tested against a fake CLI simulating the instance table. 7 tests. Full suite green (802).

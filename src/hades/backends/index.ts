@@ -26,3 +26,5 @@ export type {
   DaytonaCreateInput,
   DaytonaBackendOptions,
 } from "./daytona";
+export { SingularityBackend } from "./singularity";
+export type { CommandRunner, SingularityBackendOptions } from "./singularity";
