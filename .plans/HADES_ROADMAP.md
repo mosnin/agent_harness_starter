@@ -64,7 +64,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 ## Phase E — Research/Training + Interactive REPL
 - [x] 29. Trajectory recording: capture goal→task→tool→result trajectories.
 - [x] 30. Batch trajectory generation runner (drive N goals → dataset).
-- [ ] 31. Trajectory compression for training data.
+- [x] 31. Trajectory compression for training data.
 - [ ] 32. Interactive terminal REPL: multiline input, history, streaming.
 - [ ] 33. REPL: slash-command registry + autocomplete + interrupt-and-redirect.
 - [ ] 34. REPL wired to memory + swarm (a real conversational agent loop).
@@ -120,3 +120,4 @@ _(newest last; one entry per completed iteration)_
 ### Phase E
 - **Iter 29 — trajectory recording (Phase E start).** `research/`: `TrajectoryRecorder` captures goal→task→tool→result trajectories as the swarm runs, built incrementally (`beginGoal`→`beginTask`→`recordTool`→`endTask`→`endGoal`) with an injectable clock for deterministic recordings; ignores events for unknown goals/tasks. `GoalTrajectory`/`TaskTrajectory`/`ToolEvent` are the training-data unit; `toSkillTrajectory` distills a recording down to the lighter `Trajectory` `SkillForge` learns from (verified end-to-end: record → distill → forge a skill). `InMemoryTrajectoryStore`/`FileTrajectoryStore` accumulate datasets with atomic-write persistence. 4 tests. Full suite green (852).
 - **Iter 30 — batch trajectory generation.** `BatchTrajectoryRunner` drives a list of objectives through an injectable `GoalRunner` (wired to the swarm + recorder) to build a training dataset: bounded concurrency (worker-pool, never exceeds the limit), per-goal failure isolation (recorded in `failures`, never aborting the batch), progress callbacks, and results returned in input order regardless of completion order — optionally appended to a `TrajectoryStore`. 4 tests. Full suite green (856).
+- **Iter 31 — trajectory compression.** `compressTrajectory` shrinks a verbose recording into a compact training example: flattens tasks→tools, optionally drops failed steps, collapses runs of the identical tool+ok into one repeat-counted step, and caps length (head+tail, marking `truncated`) — keeping objective, outcome, tool sequence, and per-tool counts. `toTrainingExample` renders a prompt/completion pair (numbered plan with `(xN)`/`[failed]` annotations); `toJsonl` serializes a dataset. Pure and deterministic. 5 tests. Full suite green (861).
