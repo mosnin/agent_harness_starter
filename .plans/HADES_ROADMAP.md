@@ -31,7 +31,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 - [x] 3. Agent-curated memory: extract & persist salient anchors from a finished session/goal.
 - [x] 4. Memory nudges: periodic "persist this?" prompts + a nudge scheduler.
 - [x] 5. Autonomous skill creation: synthesize a reusable `SwarmSkill` from a completed trajectory.
-- [ ] 6. Skill self-improvement: refine a skill from usage feedback (success/failure deltas).
+- [x] 6. Skill self-improvement: refine a skill from usage feedback (success/failure deltas).
 - [ ] 7. User modeling (Honcho-style dialectic): build a durable model of the user across sessions.
 - [ ] 8. Memory-augmented executor: inject relevant memories + user model + skills into worker prompts.
 
@@ -87,3 +87,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 3 — agent-curated memory.** `learning/MemoryCurator`: reads a finished session and extracts salient facts (offline salient-statement pattern extractor normalizing 1st→3rd person, or an injectable LLM `FactExtractor`), persisting new ones to the MemoryStore and deduping (token-overlap) against existing memories. 3 tests. Full suite green.
 - **Iter 4 — memory nudges.** Pure `evaluateNudges` (persist after N new turns since curation; summarize an idle, unsummarized session) + `NudgeEngine` that tracks per-session curation progress, emits nudges, and stops re-firing after `markCurated`. Injectable clock. 5 tests. Full suite green.
 - **Iter 5 — autonomous skill creation.** `learning/SkillForge` distills a completed `Trajectory` into a reusable playbook `SwarmSkill`: capabilities = the tools that worked + a slugified name, plus a prompt fragment describing the known-good approach; `forgeAndRegister` drops it into a SkillRegistry. Skips failed/trivial trajectories; injectable LLM synthesizer optional. 6 tests. Full suite green.
+- **Iter 6 — skill self-improvement.** `learning/SkillTuner` records per-skill success/failure and, once there's enough signal, refines: annotates high performers with their track record, flags chronic under-performers for retirement, or hands off to an injectable LLM refiner. `report()` ranks worst-first. 6 tests. Full suite green.
