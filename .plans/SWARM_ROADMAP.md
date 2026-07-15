@@ -29,7 +29,7 @@ infra. 582 tests green.
 - [x] 6. Adversarial verifier: an independent skeptic pass that tries to refute claims.
 
 ## Phase B — Orchestration depth
-- [ ] 7. Task DAG scheduler: priorities, backpressure, ready-set batching.
+- [x] 7. Task DAG scheduler: priorities, backpressure, ready-set batching.
 - [ ] 8. Worker autoscaling to ready parallelism (min/max bounds).
 - [ ] 9. Dead-worker detection, heartbeat timeouts, replacement + task requeue.
 - [ ] 10. Hierarchical swarms: a manager can spawn sub-managers.
@@ -83,3 +83,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 4 — revision loop hardening.** `WorkerTask.revisions` history + `RevisionEntry`. Rejections record attempt/verdict/score/failedChecks and re-dispatch with structured `_revision.failedChecks` feedback (LLMExecutor now cites the exact failed checks). New `escalateAfter` config + `task:escalated` event (fires at threshold and at terminal failure) carrying full history. 2 tests. 595 green.
 - **Iter 5 — semantic grounding judge.** New `SemanticGroundingJudge` (implements the gate's `Judge` hook) that embeds each claim's evidence and the tool trace and scores best cosine similarity — catching correctly-paraphrased grounding (fewer false rejects) and semantic fabrication (keyword-overlap but wrong meaning). Composs via the existing `gate.judge` option; degrades to no-op if embeddings unavailable. Reuses `@/agents/embeddings`. 4 tests.
 - **Iter 6 — adversarial verifier (Phase A complete).** New `AdversarialVerifier` interface + `RuleBasedAdversary` (deterministic skeptic: absolutes, overconfidence-vs-evidence, non-matching evidence) and `LLMAdversary`. Runs after the gate in `evaluateResult`; a result must *survive* refutation to be accepted (applies to single + consensus paths). Refutation is recorded as a gate check + revision feedback. 4 tests.
+- **Iter 7 — DAG scheduler.** Extracted pure `manager/scheduler.ts` (`isReady`, `orderByPriority`, `scheduleReady`). Manager now dispatches ready tasks in priority order (FIFO tie-break) under a configurable `maxInFlight` backpressure cap (default unbounded); consensus replicas count as one in-flight task. 5 tests (pure logic + completes under tight cap).

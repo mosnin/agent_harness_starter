@@ -28,6 +28,8 @@ export interface InlineSwarmOptions {
   escalateAfter?: number;
   /** Independent skeptic that must fail to refute a result before it's accepted. */
   adversary?: AdversarialVerifier;
+  /** Max tasks in flight per goal (backpressure). Default: unbounded. */
+  maxInFlight?: number;
 }
 
 /**
@@ -75,6 +77,7 @@ export async function createInlineSwarm(opts: InlineSwarmOptions = {}): Promise<
     failOnContradiction: opts.failOnContradiction,
     escalateAfter: opts.escalateAfter,
     adversary: opts.adversary,
+    maxInFlight: opts.maxInFlight,
   });
 
   return manager;

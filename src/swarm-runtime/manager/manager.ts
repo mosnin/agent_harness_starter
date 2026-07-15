@@ -22,6 +22,7 @@ import { ProvenanceStore, buildProvenance } from "../verification/provenance";
 import type { ProvenanceRecord } from "../verification/provenance";
 import type { AdversarialVerifier } from "../verification/adversarial";
 import { DeterministicPlanner, materializeTasks, type Planner } from "./planner";
+import { isReady, scheduleReady } from "./scheduler";
 
 interface ReplicaOutcome {
   result: WorkerResult;
@@ -76,6 +77,8 @@ export interface ManagerConfig {
   escalateAfter?: number;
   /** Independent skeptic that must fail to refute a result before it's accepted. */
   adversary?: AdversarialVerifier;
+  /** Max tasks in flight per goal (backpressure). Default: unbounded. */
+  maxInFlight?: number;
 }
 
 export interface ManagerEvents {
@@ -124,6 +127,7 @@ export class SwarmManager extends EventEmitter {
   private readonly failOnContradiction: boolean;
   private readonly escalateAfter?: number;
   private readonly adversary?: AdversarialVerifier;
+  private readonly maxInFlight: number;
 
   constructor(private readonly config: ManagerConfig) {
     super();
@@ -139,6 +143,7 @@ export class SwarmManager extends EventEmitter {
     this.failOnContradiction = config.failOnContradiction ?? false;
     this.escalateAfter = config.escalateAfter;
     this.adversary = config.adversary;
+    this.maxInFlight = config.maxInFlight ?? Number.POSITIVE_INFINITY;
     this.authToken = config.authToken ?? randomBytes(24).toString("hex");
 
     this.bus.onRegister((r) => this.handleRegister(r));
@@ -306,10 +311,17 @@ export class SwarmManager extends EventEmitter {
   // ── Dispatch & verification ──────────────────────────────────────────────────
 
   private dispatchReady(goalId: string): void {
-    for (const task of this.tasks.values()) {
-      if (task.goalId !== goalId) continue;
-      if (task.status !== "pending") continue;
-      if (!this.depsSatisfied(task)) continue;
+    const isVerified = (id: string) => this.tasks.get(id)?.status === "verified";
+    const candidates = [...this.tasks.values()].filter(
+      (t) => t.goalId === goalId && isReady(t, isVerified)
+    );
+    const toDispatch = scheduleReady({
+      candidates,
+      inFlight: this.inFlightCount(goalId),
+      maxInFlight: this.maxInFlight,
+    });
+
+    for (const task of toDispatch) {
       task.status = "dispatched";
       // Thread verified upstream results into the task input for grounding.
       task.input = { ...task.input, _dependencies: this.dependencyResults(task) };
@@ -324,6 +336,15 @@ export class SwarmManager extends EventEmitter {
       }
       this.emit("task:dispatched", task);
     }
+  }
+
+  /** Number of a goal's tasks currently occupying dispatch capacity. */
+  private inFlightCount(goalId: string): number {
+    let n = 0;
+    for (const t of this.tasks.values()) {
+      if (t.goalId === goalId && (t.status === "dispatched" || t.status === "reported")) n++;
+    }
+    return n;
   }
 
   private startConsensusRound(task: WorkerTask): void {
