@@ -59,7 +59,7 @@ infra. 582 tests green.
 
 ## Phase E — Ops / hardening
 - [x] 30. Dashboard auth + bus token rotation.
-- [ ] 31. Structured logging + tracing + metrics export.
+- [x] 31. Structured logging + tracing + metrics export.
 - [ ] 32. Resource-limit enforcement + tests (docker + process).
 - [ ] 33. Docker: healthchecks, slimmer images, multi-arch notes.
 - [ ] 34. Config file support (swarm.config.yaml / env precedence).
@@ -107,3 +107,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 28 — metrics & charts.** `manager.metrics()` aggregates goals/tasks/workers/verification/usage into a `SwarmMetrics`; `GET /api/metrics` + metrics in the streamed snapshot. Dashboard Metrics panel: stat tiles (goals done, grounded %, cost) + accepted/verified bar charts + summary line. 2 tests. Full suite green.
 - **Iter 29 — TUI (Phase D complete).** Pure `renderTui(state)` renders a boxed terminal view (metrics, verify meter, workers, tasks, recent logs) with uniform line width; `hermes-swarm tui` CLI command polls a running dashboard's /api/state and redraws each second. 3 tests (sections, empty state, alignment). Phase D done. Full suite green.
 - **Iter 30 — dashboard auth + bus token rotation (Phase E start).** SwarmServer optional `authToken` guards `/api/*` (bearer, X-Swarm-Token, or `?token=` for SSE); dashboard page stays open. HttpControlPlane gains `rotateToken(new, graceMs)` with a dual-token grace window so workers re-auth without being dropped, plus `activeTokens()`. `--auth-token` CLI flag. 2 tests. Full suite green.
+- **Iter 31 — observability.** `observability/`: `formatPrometheus(metrics)` (labelled + scalar gauges) served at `GET /metrics` for scrapers; `attachStructuredLogging(manager, sink)` emits ndjson records for worker/task/goal lifecycle events (default stdout sink). 3 tests. Full suite green.

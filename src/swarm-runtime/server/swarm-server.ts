@@ -5,6 +5,7 @@ import type { VerificationReport, WorkerTask } from "../types";
 import type { WorkerRecord } from "../manager/manager";
 import type { SwarmScheduler } from "../scheduling/scheduler";
 import { computeDagLayout } from "./dag";
+import { formatPrometheus } from "../observability/prometheus";
 
 interface SseClient {
   res: ServerResponse;
@@ -129,6 +130,12 @@ export class SwarmServer {
       if (req.method === "GET" && (path === "/" || path === "/index.html")) {
         res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
         res.end(DASHBOARD_HTML);
+        return;
+      }
+      // Prometheus scrape endpoint (left open; scrapers rarely send auth).
+      if (req.method === "GET" && path === "/metrics") {
+        res.writeHead(200, { "content-type": "text/plain; version=0.0.4" });
+        res.end(formatPrometheus(this.swarm.manager.metrics()));
         return;
       }
       // Auth-guard the API when a token is configured. EventSource can't set
