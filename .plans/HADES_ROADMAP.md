@@ -51,7 +51,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 - [x] 19. Modal backend (serverless, injectable client).
 - [x] 20. Daytona backend (serverless persistence, injectable client).
 - [x] 21. Singularity/Apptainer backend.
-- [ ] 22. Serverless hibernate/wake + scale-to-zero lifecycle.
+- [x] 22. Serverless hibernate/wake + scale-to-zero lifecycle.
 
 ## Phase D — Protocols, Models, Plugins
 - [ ] 23. ACP adapter: server + session model (injectable transport).
@@ -107,3 +107,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 19 — Modal backend.** `ModalBackend` (serverless) spawns a Modal function call hosting the worker and returns its web endpoint, over an injectable `ModalClient`. True scale-to-zero: `hibernate` cancels the live call (cost → 0) while preserving app + env in `meta`; `wake` re-spawns an identical call from that saved spec; `status`/`logs` short-circuit while hibernated so no poll bills a stopped call. Poll status maps to `RemoteState`. Verified standalone and through the registry's hibernate/wake tracking. 6 tests. Full suite green (790).
 - **Iter 20 — Daytona backend.** `DaytonaBackend` (serverless with **persistent volumes**) over an injectable `DaytonaClient`. Unlike Modal's fresh-call-per-wake, `hibernate` *stops* the workspace (compute → 0, disk kept) and `wake` *resumes the same workspace id*, so the worker returns to its files and installed deps; `terminate` destroys the volume for good. Workspace state maps to `RemoteState` (stopped → hibernated). Verified standalone and via the registry. 5 tests. Full suite green (795).
 - **Iter 21 — Singularity/Apptainer backend.** `SingularityBackend` runs each worker as a named container **instance** from a `.sif` image over an injectable `CommandRunner`: `provision` → `instance start` with `--env`/`--memory`, `status` parses `instance list`, `terminate` → `instance stop`, `logs` tails the instance's stdout log. Requires a `.sif` (spec or default); binary configurable (`apptainer`/`singularity`). Persistent HPC node, so no hibernate/wake. Tested against a fake CLI simulating the instance table. 7 tests. Full suite green (802).
+- **Iter 22 — scale-to-zero lifecycle (Phase C complete).** `ScaleToZeroManager` wraps the `RemoteBackendRegistry` and drives idle workers to zero cost and back: `markActive` stamps last-use, `sweep` auto-hibernates every running worker idle past `idleMs` (skipping backends without hibernate — SSH/Singularity — never erroring on a mixed fleet), `ensureAwake`/`acquire` wake a hibernated worker on demand and reset its idle timer. Injectable clock makes the idle reaper deterministic; lifecycle events (`active`/`hibernated`/`woken`/`skipped`) feed observability. 5 tests. **Phase C done.** Full suite green (807).

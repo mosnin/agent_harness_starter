@@ -28,3 +28,5 @@ export type {
 } from "./daytona";
 export { SingularityBackend } from "./singularity";
 export type { CommandRunner, SingularityBackendOptions } from "./singularity";
+export { ScaleToZeroManager } from "./scale-to-zero";
+export type { ScaleToZeroOptions, ScaleEvent } from "./scale-to-zero";
