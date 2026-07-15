@@ -21,6 +21,8 @@ export interface InlineSwarmOptions {
   model?: string;
   /** Run every task redundantly across N workers with quorum agreement. */
   defaultConsensus?: ConsensusSpec;
+  /** Fail a goal whose verified results contradict each other. */
+  failOnContradiction?: boolean;
 }
 
 /**
@@ -65,6 +67,7 @@ export async function createInlineSwarm(opts: InlineSwarmOptions = {}): Promise<
     maxAttempts: opts.maxAttempts,
     model: opts.model,
     defaultConsensus: opts.defaultConsensus,
+    failOnContradiction: opts.failOnContradiction,
   });
 
   return manager;

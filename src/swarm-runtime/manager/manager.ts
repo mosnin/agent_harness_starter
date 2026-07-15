@@ -15,6 +15,8 @@ import { VerificationGate } from "../verification/gate";
 import { AntiRogueGuardrail } from "../verification/guardrails";
 import type { GuardrailPolicy } from "../verification/guardrails";
 import { majorityVote, type Vote } from "../../agents/swarm/consensus";
+import { claimsToRefs, detectContradictions } from "../verification/contradiction";
+import type { Contradiction } from "../verification/contradiction";
 import { DeterministicPlanner, materializeTasks, type Planner } from "./planner";
 
 interface ReplicaOutcome {
@@ -64,6 +66,8 @@ export interface ManagerConfig {
   maxAttempts?: number;
   /** If set, run every task redundantly with quorum agreement (anti-hallucination). */
   defaultConsensus?: ConsensusSpec;
+  /** Treat a goal with cross-claim contradictions as failed instead of completed. */
+  failOnContradiction?: boolean;
 }
 
 export interface ManagerEvents {
@@ -76,6 +80,7 @@ export interface ManagerEvents {
   "task:failed": (task: WorkerTask, reason: string) => void;
   "goal:completed": (goal: Goal) => void;
   "goal:failed": (goal: Goal, reason: string) => void;
+  "goal:contradiction": (goal: Goal, contradictions: Contradiction[]) => void;
   log: (workerId: string, line: string) => void;
 }
 
@@ -106,6 +111,7 @@ export class SwarmManager extends EventEmitter {
   private verifications: VerificationReport[] = [];
   private consensusRounds = new Map<string, ConsensusRound>();
   private readonly defaultConsensus?: ConsensusSpec;
+  private readonly failOnContradiction: boolean;
 
   constructor(private readonly config: ManagerConfig) {
     super();
@@ -118,6 +124,7 @@ export class SwarmManager extends EventEmitter {
     this.poolSize = config.poolSize ?? 3;
     this.maxAttempts = config.maxAttempts ?? 3;
     this.defaultConsensus = config.defaultConsensus;
+    this.failOnContradiction = config.failOnContradiction ?? false;
     this.authToken = config.authToken ?? randomBytes(24).toString("hex");
 
     this.bus.onRegister((r) => this.handleRegister(r));
@@ -466,11 +473,32 @@ export class SwarmManager extends EventEmitter {
     if (!goal) return;
     const tasks = this.listTasks(goalId);
     if (tasks.every((t) => t.status === "verified")) {
-      goal.status = "completed";
+      // Cross-check the whole goal for internally contradictory claims — each
+      // result may be individually grounded yet collectively inconsistent.
+      const contradictions = this.findContradictions(tasks);
+      goal.contradictions = contradictions;
       goal.completedAt = Date.now();
+
+      if (contradictions.length > 0) {
+        this.emit("goal:contradiction", goal, contradictions);
+        if (this.failOnContradiction) {
+          goal.status = "failed";
+          this.emit("goal:failed", goal, `contradictory claims across results: ${describe(contradictions)}`);
+          return;
+        }
+      }
+
+      goal.status = "completed";
       goal.synthesis = this.synthesize(tasks);
       this.emit("goal:completed", goal);
     }
+  }
+
+  private findContradictions(tasks: WorkerTask[]): Contradiction[] {
+    const entries = tasks
+      .filter((t) => t.result)
+      .map((t) => ({ taskId: t.id, workerId: t.result!.workerId, claims: t.result!.claims }));
+    return detectContradictions(claimsToRefs(entries));
   }
 
   private checkGoalFailure(goalId: string): void {
@@ -517,6 +545,14 @@ export class SwarmManager extends EventEmitter {
       };
     });
   }
+}
+
+/** Short human-readable summary of contradictions for logs/feedback. */
+function describe(contradictions: Contradiction[]): string {
+  return contradictions
+    .slice(0, 3)
+    .map((c) => `${c.subject} → {${c.conflicts.map((x) => x.value).join(" | ")}}`)
+    .join("; ");
 }
 
 /** Stable string form of a worker output, used to group agreeing replicas. */

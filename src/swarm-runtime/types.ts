@@ -202,6 +202,8 @@ export interface Goal {
   taskIds: string[];
   /** Final synthesized answer once all tasks verify. */
   synthesis?: unknown;
+  /** Cross-claim contradictions found across the goal's verified results. */
+  contradictions?: import("./verification/contradiction").Contradiction[];
 }
 
 // ── Bus messages ─────────────────────────────────────────────────────────────
