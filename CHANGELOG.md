@@ -39,3 +39,52 @@ iterations (see [`.plans/SWARM_ROADMAP.md`](./.plans/SWARM_ROADMAP.md)).
   benchmark suites.
 
 **699 tests. Zero-config quickstart:** `npm run swarm:demo`.
+
+---
+
+## Hades — the learning agent (`src/hades/`)
+
+The fuller agent layered on the Hermes-Swarm core: it remembers, learns, and
+lives where you do, without bypassing the swarm's verification gate. Built across
+a second 40 iterations (see [`.plans/HADES_ROADMAP.md`](./.plans/HADES_ROADMAP.md)).
+Everything is injectable, so the whole tree tests without real credentials, a
+network, an LLM, or a real clock.
+
+### Closed learning loop (Phase A)
+- Cross-session memory store (ranked by lexical overlap · salience · recency)
+  and session store with FTS-style search.
+- Agent-curated memory extraction; memory nudges; autonomous skill creation
+  (`SkillForge`) and skill self-improvement (`SkillTuner`) from trajectories.
+- Durable dialectic user model; memory-augmented executor that injects learned
+  context into worker prompts.
+
+### Platform connectors (Phase B)
+- `ConnectorHub` (one handler, many channels; rate-limit + mirror) with
+  Telegram / Slack / Discord / WhatsApp Cloud / Signal connectors over injectable
+  transports; voice pipeline (injectable STT/TTS); cross-platform conversation
+  continuity (one identity + session across channels with a link-code flow).
+
+### Execution backends (Phase C)
+- `RemoteBackend` registry beyond local isolation: SSH, Modal (serverless),
+  Daytona (persistent serverless), Singularity/Apptainer (HPC); `ScaleToZeroManager`
+  idle-hibernate + wake-on-demand.
+
+### Protocols, models, plugins (Phase D)
+- ACP adapter (server + session model, streamed updates) with edit-approval,
+  permissions, and a provenance log; model-switching UX (`hades model`);
+  `HadesPlugin` system + example plugins (browser/kanban/achievements) + local
+  registry; domain skill packs (devops/research/finance) + loader.
+
+### Research/training + REPL (Phase E)
+- Trajectory recording (goal→task→tool→result); batch generation runner;
+  compression → JSONL training data; interactive REPL (multiline, history,
+  slash commands + autocomplete + interrupt) wired to memory + a conversational
+  agent loop.
+
+### Packaging / polish (Phase F)
+- Unified `hades` CLI; layered config + `HADES_*` env + i18n (en/es);
+  `Dockerfile.hades` + `scripts/install-hades.sh`; guide + architecture docs +
+  a runnable example; an end-to-end suite composing gateway + backend + learning
+  loop + REPL.
+
+**Swarm + Hades: 909 tests.**

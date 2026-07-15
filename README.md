@@ -42,7 +42,7 @@ docker compose -f docker-compose.swarm.yml up --build
 | Dashboard · TUI · REST · Prometheus `/metrics` · structured logs | `server/`, `tui/`, `observability/` |
 | CLI (`hermes-swarm`) | `src/swarm-runtime/cli.ts` |
 
-Full reference: [**ARCHITECTURE.md**](./ARCHITECTURE.md), [**docs/24-swarm-runtime.md**](./docs/24-swarm-runtime.md), [**CHANGELOG.md**](./CHANGELOG.md). 699 tests.
+Full reference: [**ARCHITECTURE.md**](./ARCHITECTURE.md), [**docs/24-swarm-runtime.md**](./docs/24-swarm-runtime.md), [**CHANGELOG.md**](./CHANGELOG.md).
 
 Library usage:
 
@@ -54,6 +54,38 @@ const goal = await swarm.runGoal("Describe the module architecture");
 console.log(goal.status, goal.synthesis);   // "completed", <grounded synthesis>
 await swarm.shutdown();
 ```
+
+---
+
+## 🔱 Hades — the learning agent on top of the swarm
+
+Where the swarm *executes and verifies*, **Hades remembers, learns, and lives
+where you do** — without giving up the verification guarantees. It ships in
+[`src/hades/`](./src/hades/) as a second 40-iteration build on top of the swarm
+core, closing the gaps against Hermes:
+
+| Capability | Where |
+|---|---|
+| Closed learning loop: cross-session memory, curation, skill forge/tuner, user model | `src/hades/memory/`, `src/hades/learning/` |
+| Real messaging connectors (Telegram/Slack/Discord/WhatsApp/Signal), voice, cross-channel continuity | `src/hades/gateway/` |
+| Remote execution backends (SSH/Modal/Daytona/Singularity) + serverless scale-to-zero | `src/hades/backends/` |
+| ACP adapter: editor sessions, streamed updates, edit-approval + provenance | `src/hades/acp/` |
+| Model switching · plugin system + examples · domain skill packs | `src/hades/models/`, `plugins/`, `skill-packs/` |
+| Trajectory recording · batch generation · training-data compression | `src/hades/research/` |
+| Interactive REPL (multiline, history, slash commands, streaming) wired to memory | `src/hades/repl/` |
+| Unified `hades` CLI · layered config + env + i18n · Docker/installer | `src/hades/cli/`, `config/`, `bin/` |
+
+Everything is built to test **without real credentials** — every connector,
+backend, client, LLM/brain, clock, and transport is injectable.
+
+```bash
+./scripts/install-hades.sh    # Node 18+, installs, type-checks, drops `hades` on PATH
+hades help
+```
+
+Full reference: [**docs/HADES.md**](./docs/HADES.md),
+[**docs/HADES_ARCHITECTURE.md**](./docs/HADES_ARCHITECTURE.md),
+[`.plans/HADES_ROADMAP.md`](./.plans/HADES_ROADMAP.md). Swarm + Hades: 909 tests.
 
 ---
 

@@ -75,7 +75,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 - [x] 37. Installer script + packaging notes + Dockerfile for the Hades gateway.
 - [x] 38. Docs: Hades guide + architecture + runnable examples.
 - [x] 39. End-to-end suite across learning loop + gateway + backend + REPL.
-- [ ] 40. Final review, README, CHANGELOG, build verification; STOP the loop.
+- [x] 40. Final review, README, CHANGELOG, build verification; STOP the loop.
 
 ---
 
@@ -131,3 +131,20 @@ _(newest last; one entry per completed iteration)_
 - **Iter 37 — packaging (installer + Dockerfile + bin).** `defaultModelRegistry` seeds the current Claude catalog (opus/sonnet/haiku/fable, aliases, config default marked). `buildHadesCli(config)` wires the full CLI from resolved config — model catalog, plugin + skill-pack catalogs, a file-backed (or in-memory for tests) memory store, trajectory store. `src/hades/bin/hades.ts` is the thin process shell (argv → config → run → print → exit) with an import guard so tests can call `main()` without exiting. `Dockerfile.hades` builds a non-root gateway image with a `/data` volume and runtime-only secrets; `scripts/install-hades.sh` verifies Node 18+, installs deps, type-checks, and drops a `hades` launcher on PATH. 4 tests (build + bin `main`), no disk writes in tests. Full suite green (906).
 - **Iter 38 — docs + runnable example.** `docs/HADES.md` (guide: install, CLI, learning loop, connectors, backends, ACP, models/plugins/skill-packs, config/env/i18n, research) and `docs/HADES_ARCHITECTURE.md` (layer diagram, module map, design invariants). `src/hades/examples/learning-loop.ts` is a dependency-free `demoLearningLoop()` that wires memory + sessions + a canned brain into a `ConversationalAgent`, runs a scripted `/remember`-then-ask conversation, and returns the transcript — a runnable demo doubling as a regression test proving a remembered fact resurfaces on the next turn. 1 test. Full suite green (907).
 - **Iter 39 — end-to-end suite.** One scenario file composing the subsystems: (1) a message arrives on a `ConnectorHub` channel → routed to a handler that provisions a worker on the remote-backend registry, runs a goal, and records a trajectory → reply delivered through the gateway → the worker is swept to zero on idle and woken by the next message, with the dataset growing each turn; (2) the REPL learning loop remembers a fact via `/remember` and retrieves it into a later turn, while `ContinuityRouter` unifies telegram + slack into one identity/session. Proves gateway + backends + scale-to-zero + trajectories + memory + continuity compose. 2 tests. Full suite green (909).
+- **Iter 40 — final review + release (Phase F complete).** Added a Hades section to the README (capability map, install, docs links) and a full Hades entry to the CHANGELOG (all six phases). Final build verification: `tsc -p tsconfig.lib.json` clean and the full `vitest run` green at **909 tests across 98 files**. All 40 Hades iterations complete on top of the 699-test swarm baseline; every subsystem tests without real credentials via injected transports/clients/clocks/brains. **Hades build done — loop stopped.**
+
+---
+
+## Completion summary
+
+**Hades is complete: all 40 iterations across 6 phases, 909 tests green, `tsc` clean.**
+
+Built as `src/hades/` on top of the Hermes-Swarm core:
+- **Phase A — closed learning loop:** durable memory + sessions, curation, nudges, skill forge/tuner, user model, memory-augmented executor.
+- **Phase B — platform connectors:** ConnectorHub + Telegram/Slack/Discord/WhatsApp/Signal, voice, cross-platform continuity.
+- **Phase C — execution backends:** RemoteBackend registry + SSH/Modal/Daytona/Singularity + scale-to-zero.
+- **Phase D — protocols/models/plugins:** ACP server + edit-approval/provenance, model switching, plugin system + examples, skill packs.
+- **Phase E — research + REPL:** trajectory recording/batch/compression, interactive REPL + conversational agent loop.
+- **Phase F — packaging:** unified `hades` CLI, config/env/i18n, Docker + installer, docs + runnable example, e2e suite.
+
+The verification gate is never bypassed: every channel reply, ACP result, and REPL answer is still the product of the swarm's grounded anti-hallucination pipeline. Everything is injectable, so the whole tree runs in tests without credentials, a network, an LLM, or a real clock.
