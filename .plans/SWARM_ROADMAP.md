@@ -64,7 +64,7 @@ infra. 582 tests green.
 - [x] 33. Docker: healthchecks, slimmer images, multi-arch notes.
 - [x] 34. Config file support (swarm.config.yaml / env precedence).
 - [x] 35. Graceful shutdown & signal handling everywhere.
-- [ ] 36. Chaos tests: kill workers / drop network / slow responses.
+- [x] 36. Chaos tests: kill workers / drop network / slow responses.
 
 ## Phase F — Docs / polish / release
 - [ ] 37. Comprehensive docs + runnable examples.
@@ -112,3 +112,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 33 — docker hardening.** Unauth `GET /healthz` liveness probe (works even when API is token-guarded); worker touches a health-heartbeat file each beat (`SWARM_HEALTH_FILE`, best-effort). Added `HEALTHCHECK` to worker (file-freshness) and manager (/healthz) Dockerfiles + multi-arch buildx notes. 2 tests. Full suite green.
 - **Iter 34 — config file support.** `config/`: pure `resolveConfig` merge with defaults < file < env precedence (undefined never clobbers), `configFromEnv` (SWARM_* vars), `loadConfigFile` (JSON), `loadSwarmConfig` convenience. `swarm.config.example.json`. 7 tests. Full suite green.
 - **Iter 35 — graceful shutdown.** `lifecycle/installGracefulShutdown(cleanup, opts)`: run-once cleanup on SIGINT/SIGTERM with a hard-timeout force-exit (injectable `exit` for tests) so a wedged drain can't hang a container. Manager `shutdown()` made idempotent. CLI serve now uses it. 4 tests. Full suite green.
+- **Iter 36 — chaos tests (Phase E complete).** Resilience integration suite: worker killed mid-goal → requeue+replace recovers; flaky executor throwing on early attempts → retry loop recovers; jittery slow responses → still completes; all-ungrounded → fails cleanly without hanging. 4 tests. Phase E done. Full suite green.
