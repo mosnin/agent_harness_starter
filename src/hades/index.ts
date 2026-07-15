@@ -29,3 +29,4 @@ export * from "./bench/index";
 export * from "./hierarchy/index";
 export * from "./metrics/index";
 export * from "./agent/index";
+export * from "./styx/index";
