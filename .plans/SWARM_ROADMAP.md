@@ -50,7 +50,7 @@ infra. 582 tests green.
 
 ## Phase D — GUI / UX
 - [x] 23. Dashboard: task DAG visualization.
-- [ ] 24. Dashboard: per-worker log drill-down.
+- [x] 24. Dashboard: per-worker log drill-down.
 - [ ] 25. Dashboard: verification detail + evidence viewer.
 - [ ] 26. Dashboard: goal history + replay.
 - [ ] 27. Dashboard: live controls (pause / kill / scale).
@@ -100,3 +100,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 21 — gateway trigger.** `gateway/`: platform-agnostic `InboundMessage` + Slack/Telegram/Discord parsers, and `SwarmGateway.handle()` that launches a goal from a chat message and replies with the verified synthesis (or contradiction warning). Access allowlist, optional trigger prefix, sync/async modes. 5 tests. Full suite green.
 - **Iter 22 — worker skills (Phase C complete).** `skills/`: `SwarmSkill` = capabilities + tools + prompt fragment; `SkillRegistry.resolve(names)` merges/dedupes into a bundle (capabilities, ToolBox, prompts). `createSkilledExecutor` turns a bundle into a grounded tool-executor (curated toolbox is the boundary). Built-in `researchSkill`. 4 tests. Phase C done. Full suite green.
 - **Iter 23 — task-DAG visualization.** Pure `computeDagLayout(tasks)` (topological levels, edges, cycle-safe) + `GET /api/goals/:id/dag`. Dashboard renders tasks grouped by level with status-colored nodes + consensus counts. 3 unit tests + HTTP dag-endpoint assertion. Full suite green.
+- **Iter 24 — per-worker log drill-down.** Dashboard agent cards are now clickable → fetch `GET /api/workers/:id/logs` and render that worker's timestamped log stream. Added HTTP test for the per-worker logs endpoint. Full suite green.

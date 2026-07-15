@@ -50,5 +50,11 @@ describe("live worker log streaming", () => {
 
     const state = await (await fetch(`${base}/api/state`)).json();
     expect(Array.isArray(state.logs)).toBe(true);
+
+    // Per-worker drill-down endpoint.
+    const workerId = logs[0].workerId;
+    const wlogs = await (await fetch(`${base}/api/workers/${workerId}/logs`)).json();
+    expect(Array.isArray(wlogs)).toBe(true);
+    expect(wlogs.every((l: { line: string }) => typeof l.line === "string")).toBe(true);
   });
 });

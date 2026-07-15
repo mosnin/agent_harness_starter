@@ -129,6 +129,9 @@ function render() {
   for (const w of workers) {
     const el = document.createElement("div");
     el.className = "agent";
+    el.style.cursor = "pointer";
+    el.title = "click to view this worker's logs";
+    el.onclick = () => showWorkerLogs(w.workerId);
     el.innerHTML = '<div class="id">'+w.workerId+'</div>'+
       '<span class="st '+w.status+'">'+w.status+'</span>'+
       '<div class="cap">['+(w.capabilities||[]).join(", ")+']'+(w.killReason?'<br>⚠ '+w.killReason:'')+'</div>';
@@ -186,6 +189,13 @@ function renderDag(tasks){
     }
     row.innerHTML=html; el.appendChild(row);
   });
+}
+async function showWorkerLogs(workerId){
+  try {
+    const logs = await (await fetch("/api/workers/"+encodeURIComponent(workerId)+"/logs")).json();
+    const body = (logs||[]).map(l=>"["+new Date(l.at).toLocaleTimeString()+"] "+l.line).join("\\n") || "(no logs yet)";
+    $("log").textContent = "── worker "+workerId+" ──\\n"+body;
+  } catch { /* ignore */ }
 }
 function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function logLine(s){ const l=$("log"); l.textContent = (s+"\\n"+l.textContent).split("\\n").slice(0,200).join("\\n"); }
