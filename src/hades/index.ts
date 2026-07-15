@@ -25,3 +25,4 @@ export * from "./teams/index";
 export * from "./modules/index";
 export * from "./parallel/index";
 export * from "./security/index";
+export * from "./bench/index";

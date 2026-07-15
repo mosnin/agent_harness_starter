@@ -69,7 +69,7 @@ Baseline: swarm-runtime (699) + Hades v1 complete, **909 tests green**.
 - [x] 25. Secure-by-default spawn policy (resource caps, no-net default, egress allowlist).
 
 ## Phase L — Benchmarks / Lightweight / Release
-- [ ] 26. Benchmark harness: throughput, latency, A2A round-trip, spawn time.
+- [x] 26. Benchmark harness: throughput, latency, A2A round-trip, spawn time.
 - [ ] 27. Footprint pass: lazy module loading + slim team defaults (lightweight win).
 - [ ] 28. `hades team` CLI surface + team/A2A docs + runnable team example.
 - [ ] 29. End-to-end: task → form team → A2A parallel work → verified aggregate → disband.
@@ -93,6 +93,9 @@ _(newest last; one entry per completed iteration)_
 - **Iter 18 — map-reduce over A2A.** `mapReduce(agents, items, {map, reduce, initial})` runs the classic scatter → gather → reduce: the **map** fans across the roster in parallel (via `FanOutCoordinator`), the **gather** preserves input order regardless of completion order, and the **reduce** folds deterministically. The expensive map shrinks toward 1/N wall-clock on a team of N; verified with sum-of-squares and word-count reduces. 3 tests. Full suite green (1004).
 - **Iter 19 — role pipeline (assembly-line).** `pipeline(items, stages)` flows every item through role-owned stages (researcher → coder → reviewer) with **no barrier between stages** — item B can be in stage 1 while item A is in stage 3 — so wall-clock is the slowest single-item chain, not the sum of per-stage totals. Each stage carries a concurrency bound (its role's agent count) via a semaphore; results stay in input order; `continueOnError` collects instead of rejecting. Overlap + bound verified by timeline. 4 tests. Full suite green (1008).
 - **Iter 20 — speedup benchmark (Phase J complete).** `modelSpeedup(costs, agents)` predicts parallel makespan via greedy list-scheduling and returns `speedup` (serial/parallel) + `efficiency` (speedup/agents) deterministically — the metric a "fraction of the time" claim is measured against. `timed`/`benchmarkSpeedup` measure real serial-vs-parallel wall-clock with an injectable clock (deterministic in tests). 6 tests. **Phase J done.** Full suite green (1014).
+
+### Phase L — Benchmarks / lightweight / release
+- **Iter 26 — benchmark harness.** `bench/`: `summarize` computes throughput (ops/sec) + latency percentiles (mean/p50/p95/min/max) from per-op durations; `measure(fn, iters, now)` times each op with an injectable clock (deterministic in tests); `BenchSuite` runs named benchmarks (A2A round-trip, spawn, …) and renders a comparable text table. The measurement backbone for the release benchmark table. 4 tests. Full suite green (1044).
 
 ### Phase K — Security
 - **Iter 21 — capability tokens (NHI).** `security/tokens`: `CapabilityMinter` mints a per-agent `CapabilityToken` scoping exactly what a team member may do (capabilities, team, issued/expiry), one per membership (`mintForTeam` over the roster); `CapabilityChecker` validates (structure + expiry) and authorizes **deny-by-default** — a capability is granted only if the token holds it or `*`; `assert` throws for guard sites. The non-human-identity base for the A2A/spawn checks that follow. 6 tests. Full suite green (1020).
