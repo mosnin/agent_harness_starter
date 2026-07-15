@@ -37,7 +37,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 
 ## Phase B — Real Platform Connectors (lives-where-you-do)
 - [x] 9. `PlatformConnector` interface + registry + delivery/mirroring + rate limiting.
-- [ ] 10. Telegram connector (send/receive via injectable transport).
+- [x] 10. Telegram connector (send/receive via injectable transport).
 - [ ] 11. Slack connector (Events API + Web API via injectable transport).
 - [ ] 12. Discord connector.
 - [ ] 13. WhatsApp Cloud connector.
@@ -93,3 +93,4 @@ _(newest last; one entry per completed iteration)_
 
 ### Phase B
 - **Iter 9 — connector abstraction (Phase B start).** `gateway/`: `PlatformConnector` interface (normalize inbound → handler → deliver reply), `ConnectorHub` (register many connectors; per-message rate-limit → mirror → route to one handler; proactive `deliver`), token-bucket `RateLimiter` (injectable clock), and `InMemoryConnector` test double / in-process channel. One handler, many channels. 5 tests. Full suite green.
+- **Iter 10 — Telegram connector.** `TelegramConnector` long-polls `getUpdates` over an injectable `TelegramTransport`, normalizes via `parseTelegram`, routes through the handler, replies via `sendMessage`, and advances the update offset. Real `createTelegramHttpTransport(token)` for production. Tested with a fake transport (no token). 3 tests. Full suite green.
