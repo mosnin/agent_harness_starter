@@ -22,3 +22,5 @@ export {
   compareMakespan,
 } from "./latency-makespan";
 export type { SimNode, LatencyParams, MakespanRow, MakespanReport } from "./latency-makespan";
+export { benchMetricsOverhead, runMetricsBenchmarks } from "./metrics-overhead";
+export type { MetricsOverheadResult, MetricsBenchReport } from "./metrics-overhead";

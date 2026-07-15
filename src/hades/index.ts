@@ -27,3 +27,4 @@ export * from "./parallel/index";
 export * from "./security/index";
 export * from "./bench/index";
 export * from "./hierarchy/index";
+export * from "./metrics/index";
