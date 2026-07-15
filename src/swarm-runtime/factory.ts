@@ -30,6 +30,8 @@ export interface InlineSwarmOptions {
   adversary?: AdversarialVerifier;
   /** Max tasks in flight per goal (backpressure). Default: unbounded. */
   maxInFlight?: number;
+  /** Autoscale the worker pool to demand within these bounds. */
+  autoscale?: { min: number; max: number };
 }
 
 /**
@@ -78,6 +80,7 @@ export async function createInlineSwarm(opts: InlineSwarmOptions = {}): Promise<
     escalateAfter: opts.escalateAfter,
     adversary: opts.adversary,
     maxInFlight: opts.maxInFlight,
+    autoscale: opts.autoscale,
   });
 
   return manager;

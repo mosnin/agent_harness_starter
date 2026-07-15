@@ -32,3 +32,22 @@ export function scheduleReady(params: {
   if (capacity === 0) return [];
   return orderByPriority(params.candidates).slice(0, capacity);
 }
+
+/** Clamp demand to the autoscale envelope. */
+export function desiredWorkers(demand: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, Math.max(demand, 0)));
+}
+
+/**
+ * Demand = worker-slots the goal's live tasks want right now. A consensus task
+ * wants `replicas` slots; every other pending-or-in-flight task wants one.
+ */
+export function computeDemand(tasks: WorkerTask[], isVerified: (id: string) => boolean): number {
+  let demand = 0;
+  for (const t of tasks) {
+    const wants = t.consensus?.replicas ?? 1;
+    if (t.status === "pending" && isReady(t, isVerified)) demand += wants;
+    else if (t.status === "dispatched" || t.status === "reported") demand += wants;
+  }
+  return demand;
+}

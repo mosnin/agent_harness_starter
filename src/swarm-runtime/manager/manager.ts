@@ -22,7 +22,7 @@ import { ProvenanceStore, buildProvenance } from "../verification/provenance";
 import type { ProvenanceRecord } from "../verification/provenance";
 import type { AdversarialVerifier } from "../verification/adversarial";
 import { DeterministicPlanner, materializeTasks, type Planner } from "./planner";
-import { isReady, scheduleReady } from "./scheduler";
+import { computeDemand, desiredWorkers, isReady, scheduleReady } from "./scheduler";
 
 interface ReplicaOutcome {
   result: WorkerResult;
@@ -79,6 +79,8 @@ export interface ManagerConfig {
   adversary?: AdversarialVerifier;
   /** Max tasks in flight per goal (backpressure). Default: unbounded. */
   maxInFlight?: number;
+  /** Autoscale the worker pool to demand within these bounds. */
+  autoscale?: { min: number; max: number };
 }
 
 export interface ManagerEvents {
@@ -128,6 +130,7 @@ export class SwarmManager extends EventEmitter {
   private readonly escalateAfter?: number;
   private readonly adversary?: AdversarialVerifier;
   private readonly maxInFlight: number;
+  private readonly autoscale?: { min: number; max: number };
 
   constructor(private readonly config: ManagerConfig) {
     super();
@@ -144,6 +147,7 @@ export class SwarmManager extends EventEmitter {
     this.escalateAfter = config.escalateAfter;
     this.adversary = config.adversary;
     this.maxInFlight = config.maxInFlight ?? Number.POSITIVE_INFINITY;
+    this.autoscale = config.autoscale;
     this.authToken = config.authToken ?? randomBytes(24).toString("hex");
 
     this.bus.onRegister((r) => this.handleRegister(r));
@@ -163,12 +167,47 @@ export class SwarmManager extends EventEmitter {
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  /** Ensure the worker pool is up. Idempotent. */
+  /** Ensure the worker pool is up. Idempotent. Starts at `min` when autoscaling. */
   async ensurePool(): Promise<void> {
-    const missing = this.poolSize - this.workers.size;
+    const target = this.autoscale ? this.autoscale.min : this.poolSize;
+    const missing = target - this.liveWorkers().length;
     const spawns: Promise<void>[] = [];
     for (let i = 0; i < missing; i++) spawns.push(this.spawnWorker());
     await Promise.all(spawns);
+  }
+
+  private liveWorkers(): WorkerRecord[] {
+    return [...this.workers.values()].filter((w) => w.status !== "killed" && w.status !== "dead");
+  }
+
+  /** Grow/shrink the pool toward demand within the autoscale envelope. */
+  private autoscaleTick(goalId: string): void {
+    if (!this.autoscale) return;
+    const isVerified = (id: string) => this.tasks.get(id)?.status === "verified";
+    const demand = computeDemand(
+      [...this.tasks.values()].filter((t) => t.goalId === goalId),
+      isVerified
+    );
+    const target = desiredWorkers(demand, this.autoscale.min, this.autoscale.max);
+    void this.scaleTo(target);
+  }
+
+  private async scaleTo(target: number): Promise<void> {
+    const live = this.liveWorkers();
+    if (live.length < target) {
+      const spawns: Promise<void>[] = [];
+      for (let i = live.length; i < target; i++) spawns.push(this.spawnWorker());
+      await Promise.all(spawns);
+    } else if (live.length > target) {
+      // Only retire idle workers — never interrupt a running task.
+      const idle = live.filter((w) => w.status === "idle");
+      let toStop = live.length - target;
+      for (const w of idle) {
+        if (toStop <= 0) break;
+        await this.teardownWorker(w.workerId);
+        toStop -= 1;
+      }
+    }
   }
 
   /**
@@ -311,6 +350,8 @@ export class SwarmManager extends EventEmitter {
   // ── Dispatch & verification ──────────────────────────────────────────────────
 
   private dispatchReady(goalId: string): void {
+    // Grow the pool to meet demand before selecting what to release.
+    this.autoscaleTick(goalId);
     const isVerified = (id: string) => this.tasks.get(id)?.status === "verified";
     const candidates = [...this.tasks.values()].filter(
       (t) => t.goalId === goalId && isReady(t, isVerified)
