@@ -8,6 +8,7 @@ import { defaultPluginRegistry } from "../plugins/registry";
 import { builtinSkillPackCatalog } from "../skill-packs/builtin";
 import { InMemoryMemoryStore, FileMemoryStore, type MemoryStore } from "../memory/store";
 import { InMemoryTrajectoryStore } from "../research/recorder";
+import { defaultRoleRegistry } from "../teams/role";
 
 export const HADES_VERSION = "0.1.0";
 
@@ -47,6 +48,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     skillPacks: builtinSkillPackCatalog(),
     memory,
     trajectories: new InMemoryTrajectoryStore(),
+    roles: defaultRoleRegistry(),
     onChat: opts.onChat,
     onGateway: opts.onGateway,
   });

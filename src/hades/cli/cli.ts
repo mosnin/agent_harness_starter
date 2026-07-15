@@ -4,6 +4,8 @@ import type { SkillPackCatalog } from "../skill-packs/pack";
 import type { SkillRegistry } from "../../swarm-runtime/skills/skill";
 import type { MemoryStore } from "../memory/store";
 import type { InMemoryTrajectoryStore } from "../research/recorder";
+import type { RoleRegistry } from "../teams/role";
+import { TeamFormer } from "../teams/former";
 
 export interface CliResult {
   code: number;
@@ -18,13 +20,15 @@ export interface HadesCliDeps {
   skills?: SkillRegistry;
   memory?: MemoryStore;
   trajectories?: InMemoryTrajectoryStore;
+  /** Role catalog for `hades team`. */
+  roles?: RoleRegistry;
   /** Launch the interactive chat REPL (long-running). */
   onChat?: (args: string[]) => Promise<CliResult> | CliResult;
   /** Launch the messaging gateway (long-running). */
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "gateway", "model", "skills", "plugins", "memory", "learn", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "gateway", "team", "model", "skills", "plugins", "memory", "learn", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -63,6 +67,8 @@ export class HadesCli {
         return this.memory(rest);
       case "learn":
         return this.learn(rest);
+      case "team":
+        return this.team(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -89,6 +95,7 @@ export class HadesCli {
         "  skills [packs]       List skills / available skill packs",
         "  plugins [list]       List available plugins",
         "  memory <search|add>  Search or add long-term memories",
+        "  team <roles|plan>    List roles / preview a team for an objective",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -139,6 +146,30 @@ export class HadesCli {
       return { code: 0, lines: hits.map((h) => `• ${h.fact}`) };
     }
     return { code: 1, lines: [`Unknown memory command: ${sub}`] };
+  }
+
+  private async team(args: string[]): Promise<CliResult> {
+    if (!this.deps.roles) return { code: 1, lines: ["Team roles are not configured."] };
+    const [sub, ...rest] = args;
+    if (sub === "roles" || sub === undefined) {
+      const lines = this.deps.roles.list().map((r) => `${r.name} — ${r.capabilities.join(", ")}`);
+      return { code: 0, lines: lines.length ? lines : ["No roles registered."] };
+    }
+    if (sub === "plan") {
+      const objective = rest.join(" ");
+      if (!objective) return { code: 1, lines: ["Usage: hades team plan <objective>"] };
+      try {
+        const former = new TeamFormer(this.deps.roles);
+        const team = await former.form({ objective });
+        const counts = new Map<string, number>();
+        for (const s of team.roster) counts.set(s.role, (counts.get(s.role) ?? 0) + 1);
+        const roster = [...counts.entries()].map(([role, n]) => `  ${role} ×${n}`);
+        return { code: 0, lines: [`Team ${team.teamId} (${team.roster.length} agents):`, ...roster] };
+      } catch (err) {
+        return { code: 1, lines: [err instanceof Error ? err.message : String(err)] };
+      }
+    }
+    return { code: 1, lines: [`Unknown team command: ${sub}`] };
   }
 
   private learn(args: string[]): CliResult {

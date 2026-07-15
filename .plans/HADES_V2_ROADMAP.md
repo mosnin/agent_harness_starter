@@ -71,7 +71,7 @@ Baseline: swarm-runtime (699) + Hades v1 complete, **909 tests green**.
 ## Phase L — Benchmarks / Lightweight / Release
 - [x] 26. Benchmark harness: throughput, latency, A2A round-trip, spawn time.
 - [x] 27. Footprint pass: lazy module loading + slim team defaults (lightweight win).
-- [ ] 28. `hades team` CLI surface + team/A2A docs + runnable team example.
+- [x] 28. `hades team` CLI surface + team/A2A docs + runnable team example.
 - [ ] 29. End-to-end: task → form team → A2A parallel work → verified aggregate → disband.
 - [ ] 30. Final review, README/CHANGELOG, benchmark table, build verification; STOP.
 
@@ -97,6 +97,7 @@ _(newest last; one entry per completed iteration)_
 ### Phase L — Benchmarks / lightweight / release
 - **Iter 26 — benchmark harness.** `bench/`: `summarize` computes throughput (ops/sec) + latency percentiles (mean/p50/p95/min/max) from per-op durations; `measure(fn, iters, now)` times each op with an injectable clock (deterministic in tests); `BenchSuite` runs named benchmarks (A2A round-trip, spawn, …) and renders a comparable text table. The measurement backbone for the release benchmark table. 4 tests. Full suite green (1044).
 - **Iter 27 — footprint / lazy loading.** `Lazy<T>` builds a value at most once on first access; `LazyModuleRegistry` holds factories and instantiates on demand (caching), with `evict` to free memory while keeping the factory. Registering a 100-module catalog builds nothing until something is requested; `footprintReport` quantifies the win (registered vs instantiated, ratio, lazy names). This is how a Hades gateway stays lighter than an eager one. 4 tests. Full suite green (1048).
+- **Iter 28 — `hades team` CLI + docs + example.** Added a `team` subcommand to `HadesCli` (`roles` lists the vocabulary; `plan <objective>` previews the formed roster) wired into `buildHadesCli`. `docs/HADES_TEAMS.md` documents A2A, teams, parallelism, security, and modularity. `demoTeamParallel()` is a dependency-free runnable example that forms a team, spawns it, has each member serve an A2A RPC, fans 12 subtasks across the roster in parallel, aggregates, and reports the modeled speedup — doubling as a regression test. 7 tests. Full suite green (1055).
 
 ### Phase K — Security
 - **Iter 21 — capability tokens (NHI).** `security/tokens`: `CapabilityMinter` mints a per-agent `CapabilityToken` scoping exactly what a team member may do (capabilities, team, issued/expiry), one per membership (`mintForTeam` over the roster); `CapabilityChecker` validates (structure + expiry) and authorizes **deny-by-default** — a capability is granted only if the token holds it or `*`; `assert` throws for guard sites. The non-human-identity base for the A2A/spawn checks that follow. 6 tests. Full suite green (1020).
