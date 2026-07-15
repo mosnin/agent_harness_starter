@@ -63,7 +63,7 @@ infra. 582 tests green.
 - [x] 32. Resource-limit enforcement + tests (docker + process).
 - [x] 33. Docker: healthchecks, slimmer images, multi-arch notes.
 - [x] 34. Config file support (swarm.config.yaml / env precedence).
-- [ ] 35. Graceful shutdown & signal handling everywhere.
+- [x] 35. Graceful shutdown & signal handling everywhere.
 - [ ] 36. Chaos tests: kill workers / drop network / slow responses.
 
 ## Phase F — Docs / polish / release
@@ -111,3 +111,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 32 — resource-limit enforcement + tests.** Extracted pure `buildDockerRunArgs(spec, opts)` from DockerProvider so every hardening/limit flag (no-new-privileges, pids-limit, cpus/memory, --network none, --read-only, --cap-drop ALL, env) is unit-testable without a daemon. Tests also verify LocalProcessProvider kills a worker at its lifetime ceiling. 5 tests. Full suite green.
 - **Iter 33 — docker hardening.** Unauth `GET /healthz` liveness probe (works even when API is token-guarded); worker touches a health-heartbeat file each beat (`SWARM_HEALTH_FILE`, best-effort). Added `HEALTHCHECK` to worker (file-freshness) and manager (/healthz) Dockerfiles + multi-arch buildx notes. 2 tests. Full suite green.
 - **Iter 34 — config file support.** `config/`: pure `resolveConfig` merge with defaults < file < env precedence (undefined never clobbers), `configFromEnv` (SWARM_* vars), `loadConfigFile` (JSON), `loadSwarmConfig` convenience. `swarm.config.example.json`. 7 tests. Full suite green.
+- **Iter 35 — graceful shutdown.** `lifecycle/installGracefulShutdown(cleanup, opts)`: run-once cleanup on SIGINT/SIGTERM with a hard-timeout force-exit (injectable `exit` for tests) so a wedged drain can't hang a container. Manager `shutdown()` made idempotent. CLI serve now uses it. 4 tests. Full suite green.

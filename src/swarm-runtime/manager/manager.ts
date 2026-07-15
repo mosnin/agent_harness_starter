@@ -158,6 +158,7 @@ export class SwarmManager extends EventEmitter {
   private readonly maxRequeues: number;
   private monitorTimer?: ReturnType<typeof setInterval>;
   private dispatchedAt = new Map<string, number>();
+  private shuttingDown = false;
   private readonly defaultBudget?: BudgetSpec;
   private goalBudgets = new Map<string, BudgetSpec>();
   private goalUsage = new Map<string, { workerRuns: number; toolCalls: number; costUsd: number; startedAt: number }>();
@@ -544,6 +545,8 @@ export class SwarmManager extends EventEmitter {
   }
 
   async shutdown(): Promise<void> {
+    if (this.shuttingDown) return; // idempotent — safe to call from multiple signals
+    this.shuttingDown = true;
     if (this.monitorTimer) {
       clearInterval(this.monitorTimer);
       this.monitorTimer = undefined;

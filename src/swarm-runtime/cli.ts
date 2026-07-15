@@ -21,6 +21,7 @@ import { SwarmServer } from "./server/swarm-server";
 import { DockerProvider } from "./providers/docker";
 import { LocalProcessProvider } from "./providers/local-process";
 import { renderTui } from "./tui/render";
+import { installGracefulShutdown } from "./lifecycle/shutdown";
 
 interface Flags {
   mode: SwarmMode;
@@ -149,13 +150,7 @@ async function cmdServe(f: Flags): Promise<void> {
   await server.listen();
   console.log(`hermes-swarm dashboard → http://${f.host}:${f.port}  (mode=${f.mode}, workers=${f.workers})`);
   console.log("press Ctrl+C to stop");
-  const shutdown = async () => {
-    console.log("\nshutting down…");
-    await server.close();
-    process.exit(0);
-  };
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+  installGracefulShutdown(() => server.close(), { log: (m) => console.log(m), timeoutMs: 15_000 });
 }
 
 async function cmdTui(f: Flags): Promise<void> {
