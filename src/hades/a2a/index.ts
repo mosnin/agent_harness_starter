@@ -30,3 +30,5 @@ export { RemoteA2ATransport, jsonCodec, loopbackWire } from "./remote-transport"
 export type { Codec, Wire } from "./remote-transport";
 export { runA2AConformance } from "./conformance";
 export type { ConformanceResult } from "./conformance";
+export { ReliableSender, ReliableReceiver } from "./reliable";
+export type { Frame, SenderOptions } from "./reliable";
