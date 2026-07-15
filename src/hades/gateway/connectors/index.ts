@@ -6,3 +6,5 @@ export { DiscordConnector, createDiscordHttpTransport } from "./discord";
 export type { DiscordTransport, DiscordMessagePayload } from "./discord";
 export { WhatsAppConnector, createWhatsAppHttpTransport, parseWhatsApp } from "./whatsapp";
 export type { WhatsAppTransport, WhatsAppWebhookPayload, WhatsAppConnectorOptions } from "./whatsapp";
+export { SignalConnector, createSignalJsonRpcTransport, parseSignal } from "./signal";
+export type { SignalTransport, SignalEnvelope, SignalConnectorOptions } from "./signal";

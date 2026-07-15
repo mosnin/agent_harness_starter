@@ -41,7 +41,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 - [x] 11. Slack connector (Events API + Web API via injectable transport).
 - [x] 12. Discord connector.
 - [x] 13. WhatsApp Cloud connector.
-- [ ] 14. Signal connector (signal-cli shape).
+- [x] 14. Signal connector (signal-cli shape).
 - [ ] 15. Voice: injectable STT (transcribe inbound audio) + TTS reply hook.
 - [ ] 16. Cross-platform conversation continuity (one session across channels).
 
@@ -97,3 +97,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 11 — Slack connector.** `SlackConnector` exposes `ingest(payload)` for the Events-API webhook: answers the url_verification challenge, dedupes retried `event_id`s, ignores bot/edited messages, normalizes via `parseSlack`, and replies through an injectable `chat.postMessage` transport (`createSlackHttpTransport`). 4 tests. Full suite green.
 - **Iter 12 — Discord connector.** `DiscordConnector.ingest(payload)` normalizes MESSAGE_CREATE events (skipping bot authors + empty content) via `parseDiscord`, routes them, and replies through an injectable `createMessage` transport (`createDiscordHttpTransport`). 3 tests. Full suite green.
 - **Iter 13 — WhatsApp Cloud connector.** `WhatsAppConnector.verify()` answers the GET webhook handshake; `ingest()` walks the entry→changes→messages envelope, handles text messages only (ignores status/media), routes them, replies via an injectable send transport (`createWhatsAppHttpTransport`). 3 tests. Full suite green.
+- **Iter 14 — Signal connector.** Poll-based `SignalConnector` over an injectable `SignalTransport` (signal-cli receive/send shape): drains data messages, skips receipts/empties, routes, replies to source. `createSignalJsonRpcTransport` for a signal-cli daemon. Added `signal` to `GatewayPlatform`. 2 tests. Full suite green.
