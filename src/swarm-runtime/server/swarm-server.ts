@@ -132,6 +132,14 @@ export class SwarmServer {
         res.end(DASHBOARD_HTML);
         return;
       }
+      // Unauthenticated liveness probe for container HEALTHCHECK / load balancers.
+      if (req.method === "GET" && path === "/healthz") {
+        return json(res, 200, {
+          ok: true,
+          mode: this.swarm.mode,
+          workers: this.swarm.manager.workerCount(),
+        });
+      }
       // Prometheus scrape endpoint (left open; scrapers rarely send auth).
       if (req.method === "GET" && path === "/metrics") {
         res.writeHead(200, { "content-type": "text/plain; version=0.0.4" });

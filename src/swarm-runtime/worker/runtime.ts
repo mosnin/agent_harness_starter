@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import type { WorkerBus } from "../bus/types";
 import type { WorkerResult, WorkerTask } from "../types";
 import { DemoExecutor, type TaskExecutor, type WorkerContext } from "./executor";
@@ -14,6 +15,12 @@ export interface WorkerRuntimeConfig {
   pollTimeoutMs?: number;
   /** Stop after this many idle polls (no task). 0 = run forever. Default 0. */
   maxIdlePolls?: number;
+  /**
+   * If set, the worker touches this file with the current epoch-ms on every
+   * heartbeat. A container HEALTHCHECK reads it to confirm the worker loop is
+   * alive and still talking to the manager (freshness = liveness).
+   */
+  healthFilePath?: string;
 }
 
 /**
@@ -104,12 +111,23 @@ export class WorkerRuntime {
 
   private startHeartbeat(): void {
     const { bus, workerId } = this.config;
-    const beat = () =>
+    const beat = () => {
+      this.touchHealthFile();
       void bus
         .heartbeat({ workerId, load: this.currentLoad, status: this.currentLoad > 0 ? "busy" : "idle" })
         .catch(() => undefined);
+    };
     beat();
     this.heartbeatTimer = setInterval(beat, this.config.heartbeatMs ?? 3000);
     this.heartbeatTimer.unref?.();
+  }
+
+  private touchHealthFile(): void {
+    if (!this.config.healthFilePath) return;
+    try {
+      writeFileSync(this.config.healthFilePath, String(Date.now()));
+    } catch {
+      /* health file is best-effort; never crash the worker over it */
+    }
   }
 }

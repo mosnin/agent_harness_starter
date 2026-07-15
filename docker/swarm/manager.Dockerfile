@@ -30,6 +30,9 @@ COPY --from=build /build/dist-swarm ./dist-swarm
 ENV NODE_ENV=production
 # Dashboard + control-plane ports.
 EXPOSE 8080 8787
+# Liveness: the dashboard's unauthenticated /healthz must return 200.
+HEALTHCHECK --interval=15s --timeout=3s --start-period=15s --retries=3 \
+  CMD ["node", "-e", "require('http').get('http://127.0.0.1:8080/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
 ENTRYPOINT ["node", "dist-swarm/cli.js"]
 CMD ["serve", "--mode", "docker", "--host", "0.0.0.0", "--workers", "3", \
      "--image", "hermes-swarm-worker:latest"]

@@ -55,6 +55,7 @@ async function main(): Promise<void> {
     bus,
     model,
     executor: selectExecutor(model),
+    healthFilePath: process.env.SWARM_HEALTH_FILE ?? "/tmp/swarm-worker-health",
   });
 
   const abort = new AbortController();
