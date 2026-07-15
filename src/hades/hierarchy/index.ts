@@ -10,3 +10,5 @@ export { DistributedHierarchy } from "./distributed";
 export type { DistributedHierarchyOptions } from "./distributed";
 export { ResilientHierarchyOrchestrator } from "./resilient";
 export type { ResilientOptions, ResilientEvent, ResilientRunStats } from "./resilient";
+export { planAdaptiveHierarchy, compareToFixed } from "./adaptive";
+export type { WorkloadEstimate, AdaptivePlanOptions, AdaptivePlan } from "./adaptive";

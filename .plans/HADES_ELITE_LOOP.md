@@ -28,7 +28,7 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 
 ### Hierarchy depth & resilience
 - [x] 1. **Fault-tolerant hierarchy**: a coordinator whose child RPC fails/times-out re-delegates to a healthy sibling or a spare; node failure never fails the whole run. Adversarial agent injects flaky/dead nodes.
-- [ ] 2. **Adaptive/elastic hierarchy**: rebalance subtree width to load; grow/shrink branching from a work estimate; measure makespan vs a fixed tree.
+- [x] 2. **Adaptive/elastic hierarchy**: rebalance subtree width to load; grow/shrink branching from a work estimate; measure makespan vs a fixed tree.
 - [ ] 3. **Priority + deadline scheduling** through the hierarchy: high-priority subtasks preempt queue order; per-node deadline propagation + cancellation.
 - [ ] 4. **Streaming aggregation up the tree**: partial results stream to parents as children finish (no buffering the whole level) — lower latency + memory.
 
@@ -56,5 +56,7 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 
 ## Iteration log
 _(newest last; one entry per completed iteration)_
+
+- **Iter 2 — adaptive/elastic hierarchy.** Team: a builder + an adversarial verifier in parallel. `planAdaptiveHierarchy(estimate)` (`src/hades/hierarchy/adaptive.ts`) sizes the tree shape (branching/depth/workers) to the workload and `compareToFixed` proves it against a fixed tree. **The adversarial verifier caught a real bug**: the tree search capped leaves at `maxWorkers` but ignored `itemCount`, provisioning 125 workers for a 100-item job (25 idle). Fixed centrally: the search is now makespan-optimal *within* a hard `min(maxWorkers, itemCount)` ceiling — never more workers than items, and for bottlenecked (skewed-cost) workloads it keeps the pool small at the same makespan (faster **and** lighter). Reconciled the builder's chunk-cost-era assertion to the improved contract; the adversarial suite (which itself fairly reframed an over-cap comparison) passes fully. Builder 8 + adversarial 10 tests. Full suite green (1105 / 137 files).
 
 - **Iter 1 — fault-tolerant hierarchy.** Team: a builder agent + an adversarial-verifier agent in parallel against a locked API. `ResilientHierarchyOrchestrator` (`src/hades/hierarchy/resilient.ts`): a coordinator whose child subtree throws or times out re-delegates that subtask to a healthy sibling (round-robin), retrying up to `maxReassignments`; a node failing `deadAfter` times is marked dead and skipped; injectable timers make timeout deterministic; uncancellable timed-out work is ignored via a `settled` guard. Stats expose retries/reassignments/deadNodes + events. Builder: 5 tests. Adversarial verifier: 6 tough tests (partial/cascading failure exactness, dead-node dedup, exhaustion-without-hang via a deadline race, no double-execution of succeeded subtasks, event emission) — **all green, no implementation bugs found**; flagged that `deadAfter:1` retires a node after one recoverable failure (documented contract edge). Full suite green (1087 / 135 files).
