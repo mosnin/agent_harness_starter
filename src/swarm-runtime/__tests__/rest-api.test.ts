@@ -54,6 +54,10 @@ describe("SwarmServer REST API", () => {
 
     const workers = await (await fetch(`${base}/api/workers`)).json();
     expect(workers.length).toBeGreaterThan(0);
+
+    const dag = await (await fetch(`${base}/api/goals/${started.goalId}/dag`)).json();
+    expect(dag.nodes.length).toBe(3);
+    expect(dag.levels.length).toBeGreaterThanOrEqual(2); // investigate levels + synthesis
   });
 
   it("manages schedules over REST", async () => {

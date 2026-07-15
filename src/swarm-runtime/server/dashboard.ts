@@ -65,6 +65,13 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   .ver .chk .x{color:var(--bad);} .ver .chk .ok{color:var(--ok);}
   .log { font:11px ui-monospace,monospace; color:var(--muted); max-height:160px; overflow:auto; white-space:pre-wrap; }
   .empty { color:var(--muted); font-size:12px; padding:8px 0; }
+  .dag { display:flex; flex-direction:column; gap:6px; }
+  .dag-level { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .dag-level .lvl { font:10px ui-monospace,monospace; color:var(--muted); width:26px; flex:none; }
+  .dag-node { font:10px ui-monospace,monospace; padding:3px 7px; border-radius:6px; border:1px solid var(--border);
+    background:var(--panel2); }
+  .dag-node.verified{ border-color:var(--ok); color:var(--ok);} .dag-node.failed{ border-color:var(--kill); color:var(--kill);}
+  .dag-node.dispatched,.dag-node.reported{ border-color:var(--accent2); color:var(--accent2);}
 </style>
 </head>
 <body>
@@ -93,6 +100,8 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   </section>
 
   <section class="panel">
+    <h2>Task Graph (DAG)</h2>
+    <div class="body"><div id="dag" class="dag"><div class="empty">no tasks yet</div></div></div>
     <h2>Tasks</h2>
     <div class="body" id="tasks"><div class="empty">no tasks yet — launch a goal</div></div>
   </section>
@@ -126,6 +135,9 @@ function render() {
     ag.appendChild(el);
   }
 
+  // DAG: group tasks by topological level and render columns.
+  renderDag(state.tasks || []);
+
   // tasks
   const tk = $("tasks");
   const tasks = state.tasks || [];
@@ -152,6 +164,29 @@ function render() {
   }
 }
 
+function dagLevels(tasks){
+  const byId = {}; tasks.forEach(t=>byId[t.id]=t);
+  const cache = {}; const seen = {};
+  function lvl(id){ if(cache[id]!=null)return cache[id]; if(seen[id])return 0; seen[id]=1;
+    const t=byId[id]; const deps=(t&&t.dependsOn||[]).filter(d=>byId[d]);
+    const v = deps.length? 1+Math.max.apply(null,deps.map(lvl)) : 0; cache[id]=v; return v; }
+  const levels=[]; tasks.forEach(t=>{ const l=lvl(t.id); (levels[l]=levels[l]||[]).push(t); });
+  return levels;
+}
+function renderDag(tasks){
+  const el=$("dag");
+  if(!tasks.length){ el.innerHTML='<div class="empty">no tasks yet</div>'; return; }
+  el.innerHTML="";
+  dagLevels(tasks).forEach((tasksAtLevel,i)=>{
+    const row=document.createElement("div"); row.className="dag-level";
+    let html='<span class="lvl">L'+i+'</span>';
+    for(const t of (tasksAtLevel||[])){
+      const c = t.consensus? ' ×'+t.consensus.replicas : '';
+      html += '<span class="dag-node '+t.status+'" title="'+esc(t.description)+'">'+t.status+c+'</span>';
+    }
+    row.innerHTML=html; el.appendChild(row);
+  });
+}
 function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function logLine(s){ const l=$("log"); l.textContent = (s+"\\n"+l.textContent).split("\\n").slice(0,200).join("\\n"); }
 

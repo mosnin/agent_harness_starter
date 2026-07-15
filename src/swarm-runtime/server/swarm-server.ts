@@ -4,6 +4,7 @@ import { DASHBOARD_HTML } from "./dashboard";
 import type { VerificationReport, WorkerTask } from "../types";
 import type { WorkerRecord } from "../manager/manager";
 import type { SwarmScheduler } from "../scheduling/scheduler";
+import { computeDagLayout } from "./dag";
 
 interface SseClient {
   res: ServerResponse;
@@ -173,6 +174,8 @@ export class SwarmServer {
           return json(res, 200, this.swarm.manager.listProvenance(id));
         if (req.method === "GET" && sub === "tasks")
           return json(res, 200, this.swarm.manager.listTasks(id));
+        if (req.method === "GET" && sub === "dag")
+          return json(res, 200, computeDagLayout(this.swarm.manager.listTasks(id)));
         if (req.method === "POST" && sub === "cancel") {
           const cancelled = this.swarm.manager.cancelGoal(id);
           return json(res, 200, { cancelled });

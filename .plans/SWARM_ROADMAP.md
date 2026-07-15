@@ -49,7 +49,7 @@ infra. 582 tests green.
 - [x] 22. Skills for workers (curated capability bundles).
 
 ## Phase D — GUI / UX
-- [ ] 23. Dashboard: task DAG visualization.
+- [x] 23. Dashboard: task DAG visualization.
 - [ ] 24. Dashboard: per-worker log drill-down.
 - [ ] 25. Dashboard: verification detail + evidence viewer.
 - [ ] 26. Dashboard: goal history + replay.
@@ -99,3 +99,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 20 — live worker output streaming.** Manager now buffers a rolling activity log (bounded) as worker log lines arrive over the bus, still emitting the SSE `log` event. New `recentLogs`/`getWorkerLogs`; SwarmServer serves `GET /api/logs` and `GET /api/workers/:id/logs`, and includes recent logs in `/api/state` so late-joining dashboard clients see history. 2 tests. Full suite green.
 - **Iter 21 — gateway trigger.** `gateway/`: platform-agnostic `InboundMessage` + Slack/Telegram/Discord parsers, and `SwarmGateway.handle()` that launches a goal from a chat message and replies with the verified synthesis (or contradiction warning). Access allowlist, optional trigger prefix, sync/async modes. 5 tests. Full suite green.
 - **Iter 22 — worker skills (Phase C complete).** `skills/`: `SwarmSkill` = capabilities + tools + prompt fragment; `SkillRegistry.resolve(names)` merges/dedupes into a bundle (capabilities, ToolBox, prompts). `createSkilledExecutor` turns a bundle into a grounded tool-executor (curated toolbox is the boundary). Built-in `researchSkill`. 4 tests. Phase C done. Full suite green.
+- **Iter 23 — task-DAG visualization.** Pure `computeDagLayout(tasks)` (topological levels, edges, cycle-safe) + `GET /api/goals/:id/dag`. Dashboard renders tasks grouped by level with status-colored nodes + consensus counts. 3 unit tests + HTTP dag-endpoint assertion. Full suite green.
