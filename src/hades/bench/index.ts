@@ -15,3 +15,10 @@ export { FlatOrchestrator } from "./flat-baseline";
 export type { FlatExec, FlatRunStats } from "./flat-baseline";
 export { runHeadToHead } from "./head-to-head";
 export type { HeadToHeadRow, HeadToHeadReport } from "./head-to-head";
+export {
+  simulateMakespan,
+  buildFlatTopology,
+  buildBalancedTopology,
+  compareMakespan,
+} from "./latency-makespan";
+export type { SimNode, LatencyParams, MakespanRow, MakespanReport } from "./latency-makespan";
