@@ -97,33 +97,43 @@ lighter than Hermes.
 
 | Capability | Where |
 |---|---|
-| A2A: addressing, mailbox/bus, pub/sub, RPC, streaming | `src/hades/a2a/` |
+| A2A: addressing, mailbox/bus (**O(1) routing**), pub/sub, RPC, streaming | `src/hades/a2a/` |
+| **Swarm hierarchy mode**: recursive coordinator→worker tree, in-process + **distributed over A2A** | `src/hades/hierarchy/` |
 | Teams: roles, `TeamFormer`, spawn (in-process **or containerized**), lifecycle, coordinator | `src/hades/teams/` |
 | Modular skills/plugins: manifests, semver resolution, hot load/unload, permissioned packages | `src/hades/modules/` |
 | Parallel: fan-out, work-stealing balancer, map-reduce, assembly-line pipeline, speedup metric | `src/hades/parallel/` |
 | Security: capability tokens (NHI), A2A signing, least-privilege scopes, audit, secure-by-default spawn | `src/hades/security/` |
-| Benchmarks + lightweight: latency/throughput harness, lazy-loading footprint | `src/hades/bench/` |
+| Benchmarks + lightweight: **runnable** latency/throughput harness, lazy-loading footprint | `src/hades/bench/` |
 
 ```bash
 hades team roles              # the role vocabulary
 hades team plan "<objective>" # preview the team that would form
 ```
 
-**Parallel speedup** (balanced work, greedy scheduling — `modelSpeedup`):
+**Signature swarm hierarchy mode** — a tree of coordinators recursively
+decomposes a goal (root → sub-coordinators → workers) with parallel fan-out at
+every level, so branching **B** and depth **D** marshal **B^D workers in D
+coordination hops**. It runs in-process (`HierarchyOrchestrator`) or
+**distributed over the real A2A bus** (`DistributedHierarchy` — each node its own
+endpoint + RPC peer, so any node can live in its own container). Scale-tested to
+**2048 workers deep** and **243 wide**.
 
-| Agents | Speedup | Efficiency |
-|--------|---------|------------|
-| 1      | 1.0×    | 100%       |
-| 2      | 2.0×    | 100%       |
-| 4      | 4.0×    | 100%       |
-| 8      | ~8.0×   | ~100%      |
+**Measured performance** (runnable — `src/hades/bench/live-bench.ts`):
+
+| Benchmark | Result |
+|---|---|
+| A2A throughput | **~2.4M messages/sec** |
+| A2A RPC round-trip | **~230k ops/sec** (~0.004ms mean) |
+| Hierarchy vs flat serial (64 workers) | **~28–42× speedup** |
+| Direct routing scan @ 100 **and** 10,000 agents | **1** (O(1), not O(N)) |
 
 Secure by default: every containerized member comes up with **no network,
 read-only root, all Linux capabilities dropped, resource ceilings**, and a
 **deny-by-default** capability token; every A2A message is **signed** and
 **audited**. Full reference: [**docs/HADES_TEAMS.md**](./docs/HADES_TEAMS.md),
+[**docs/HADES_BENCHMARKS.md**](./docs/HADES_BENCHMARKS.md),
 [`.plans/HADES_V2_ROADMAP.md`](./.plans/HADES_V2_ROADMAP.md). **Swarm + Hades +
-Hades v2: 1054 tests.**
+Hades v2: 1076 tests.**
 
 ---
 

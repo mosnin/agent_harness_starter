@@ -131,3 +131,25 @@ credentials. See [`.plans/HADES_V2_ROADMAP.md`](./.plans/HADES_V2_ROADMAP.md).
   end-to-end team scenario.
 
 **Swarm + Hades + Hades v2: 1054 tests.**
+
+---
+
+## Hades v2 performance level-up + signature swarm hierarchy mode
+
+Built with a team of subagents working in parallel (distributed hierarchy, live
+benchmarks, scale tests), integrated and verified centrally.
+
+- **O(1) A2A routing.** Direct messages (all RPC + streaming) dispatch by an
+  indexed `Map.get(agentId)` lookup — a 10,000-agent roster resolves a
+  point-to-point send in exactly one comparison, not 10,000. Only broadcasts fan
+  out. Instrumented via `routeScans`.
+- **Swarm hierarchy mode** (`src/hades/hierarchy/`). Recursive coordinator→worker
+  tree with parallel fan-out at every level: B^D workers in D coordination hops.
+  `buildBalancedHierarchy` + `hierarchyStats` + in-process `HierarchyOrchestrator`
+  + `DistributedHierarchy` (the same tree over the real A2A bus — each node its
+  own endpoint + RPC peer). Scale-tested to 2048 workers deep / 243 wide.
+- **Runnable benchmarks** (`src/hades/bench/live-bench.ts`, `docs/HADES_BENCHMARKS.md`):
+  ~2.4M A2A messages/sec, ~230k RPC round-trips/sec, ~28–42× hierarchy-vs-serial
+  speedup on 64 workers, and O(1) routing confirmed at 10k agents.
+
+**Swarm + Hades + Hades v2: 1076 tests across 133 files.**

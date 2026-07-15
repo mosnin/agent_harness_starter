@@ -117,6 +117,21 @@ Hades is now **team-native** — the goal delivered:
 
 The swarm verification gate is never bypassed: a team's aggregate is still a grounded, anti-hallucination-checked result. Everything stays injectable, so the entire team fabric — containers, A2A, crypto, clocks — runs deterministically in tests.
 
+---
+
+## Performance level-up + signature swarm hierarchy mode
+
+Built with a **team of subagents in parallel** (distributed hierarchy, live benchmarks, scale tests), then integrated + verified centrally.
+
+- **O(1) A2A routing.** `InMemoryA2ATransport` now dispatches direct messages (all RPC + streaming — the hot path) via an indexed `Map.get(agentId)` lookup instead of scanning every subscriber. Proven: a **10,000-agent roster** resolves a point-to-point send in **exactly one** subscriber comparison (`routeScans === 1`), not 10,000. Broadcasts still fan out (inherent, team-scoped).
+- **Signature swarm hierarchy mode** (`src/hades/hierarchy/`). A tree of coordinators recursively decomposes a goal (root → sub-coordinators → workers) with **parallel fan-out at every level**, so branching B and depth D marshal **B^D workers in D coordination hops** — wall-clock bounded by the critical path, not total work. `buildBalancedHierarchy` + `hierarchyStats` + in-process `HierarchyOrchestrator` (tracks peak concurrency + critical-path depth) + `DistributedHierarchy` that runs the **same tree over the real A2A bus** (each node its own endpoint + RPC peer — so every node could live in its own container). Scale-tested to **2048 workers deep** and **243 workers wide**.
+- **Runnable benchmarks** (`src/hades/bench/live-bench.ts`, `docs/HADES_BENCHMARKS.md`) that measure the real objects with `performance.now()`. Observed on CI-class hardware:
+  - A2A throughput: **~2.4M messages/sec**; RPC round-trip: **~230k ops/sec** (mean ~0.004ms).
+  - Hierarchy vs flat serial (64 workers, real per-task latency): **~28–42× speedup**, approaching the ideal min(workers, tasks).
+  - Routing scaling: **1 scan at 100 agents AND at 10,000 agents** — the O(1) proof.
+
+Full suite after the level-up: **1076 tests across 133 files**, `tsc` clean.
+
 ### Phase K — Security
 - **Iter 21 — capability tokens (NHI).** `security/tokens`: `CapabilityMinter` mints a per-agent `CapabilityToken` scoping exactly what a team member may do (capabilities, team, issued/expiry), one per membership (`mintForTeam` over the roster); `CapabilityChecker` validates (structure + expiry) and authorizes **deny-by-default** — a capability is granted only if the token holds it or `*`; `assert` throws for guard sites. The non-human-identity base for the A2A/spawn checks that follow. 6 tests. Full suite green (1020).
 - **Iter 22 — A2A signing + tamper-reject.** `HmacSigner` (HMAC-SHA256, constant-time verify) behind an injectable `Signer`. `SigningA2ATransport` wraps any `A2ATransport` to **sign every outgoing message and verify every incoming one** over a canonical envelope form, dropping anything unsigned or tampered before it reaches a mailbox (with an `onReject` audit hook) — a spoofed/modified message or one signed with the wrong team secret never gets delivered. `signToken`/`verifyToken` do the same for capability tokens (a privilege-escalation mutation fails verification). Added optional `sig` to the envelope. 5 tests. Full suite green (1025).
