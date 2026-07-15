@@ -17,3 +17,5 @@ export { Team, InProcessAgentSpawner } from "./team";
 export type { AgentContext, SpawnedAgent, AgentSpawner } from "./team";
 export { BackendAgentSpawner } from "./backend-spawner";
 export type { BackendSpawnerOptions } from "./backend-spawner";
+export { TeamRunner } from "./lifecycle";
+export type { TeamState, TeamRunnerDeps } from "./lifecycle";
