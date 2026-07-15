@@ -14,3 +14,5 @@ export {
   verifyToken,
 } from "./signing";
 export type { Signer, SigningTransportOptions } from "./signing";
+export { LeastPrivilege, scopedCapabilities } from "./scopes";
+export type { TeamPolicy } from "./scopes";
