@@ -20,3 +20,4 @@ export * from "./research/index";
 export * from "./repl/index";
 export * from "./cli/index";
 export * from "./config/index";
+export * from "./a2a/index";
