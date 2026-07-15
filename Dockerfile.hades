@@ -1,0 +1,30 @@
+# Hades gateway image — the learning agent + messaging gateway on top of the swarm.
+#
+# Build:  docker build -f Dockerfile.hades -t hades-gateway .
+# Run:    docker run --rm -e HADES_MODEL=claude-opus-4-8 \
+#                 -e HADES_DATA_DIR=/data -v hades-data:/data hades-gateway hades help
+#
+# The container ships the compiled library + the `hades` CLI. Messaging
+# connectors (Slack/Telegram/…) and remote-execution backends are configured at
+# runtime via env vars and mounted secrets — nothing sensitive is baked in.
+
+FROM node:22-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+COPY . .
+# Type-check + build the library bundle (adjust to your build script).
+RUN npx tsc --noEmit -p tsconfig.lib.json
+
+FROM node:22-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production \
+    HADES_DATA_DIR=/data
+# Durable state (memory, sessions, model selection, command history).
+VOLUME ["/data"]
+COPY --from=build /app /app
+# A non-root user for defense in depth.
+RUN useradd --system --create-home hades && mkdir -p /data && chown -R hades /data
+USER hades
+ENTRYPOINT ["node", "--import", "tsx", "src/hades/bin/hades.ts"]
+CMD ["help"]

@@ -4,3 +4,4 @@ export { InMemoryModelSelection, FileModelSelection } from "./selection";
 export type { SelectionState } from "./selection";
 export { ModelCommand } from "./command";
 export type { CommandResult } from "./command";
+export { defaultModelRegistry } from "./defaults";
