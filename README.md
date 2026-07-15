@@ -132,8 +132,40 @@ read-only root, all Linux capabilities dropped, resource ceilings**, and a
 **deny-by-default** capability token; every A2A message is **signed** and
 **audited**. Full reference: [**docs/HADES_TEAMS.md**](./docs/HADES_TEAMS.md),
 [**docs/HADES_BENCHMARKS.md**](./docs/HADES_BENCHMARKS.md),
-[`.plans/HADES_V2_ROADMAP.md`](./.plans/HADES_V2_ROADMAP.md). **Swarm + Hades +
-Hades v2: 1076 tests.**
+[`.plans/HADES_V2_ROADMAP.md`](./.plans/HADES_V2_ROADMAP.md).
+
+#### ⚡ Elite performance loop — the swarm hierarchy beats a flat baseline, proven
+
+A 16-iteration performance-engineering pass (each iteration built by a **team of
+parallel agents with a dedicated adversarial verifier**; see
+[`.plans/HADES_ELITE_LOOP.md`](./.plans/HADES_ELITE_LOOP.md)) pits the signature
+swarm hierarchy head-to-head against a **naive flat manager→worker orchestrator**
+on an identical workload, and proves the win with **measured, adversarially-checked
+numbers** — run any of them yourself:
+
+```bash
+hades hierarchy head-to-head   # routing + makespan: hierarchy vs flat baseline
+hades hierarchy makespan       # O(N)→O(log N) makespan under a latency model
+hades hierarchy chaos          # correct-verified XOR clean-audited under faults
+hades hierarchy fuzz 300       # hierarchy result == flat reference, 300 random cases
+hades hierarchy stats 4 3      # tree shape (workers/depth/nodes)
+```
+
+| Metric (hierarchy vs flat) | 16 workers | 64 | 256 | 1024 |
+|---|---|---|---|---|
+| **Routing cost** O(N²)→O(N) (`routeScans`) | 6.8× | 24.8× | **96.8×** | — |
+| **Makespan** O(N)→O(log N) (latency model) | 1.33× | 4.1× | 13.5× | **45.5×** |
+| Aggregate correctness (hier == flat reference) | ✓ | ✓ | ✓ | ✓ |
+
+Plus: **live metrics** at ~180 ns/op (`MetricsCollector.snapshot()`); **soak**
+holds ~1.1M msg/s with **zero leak** (endpoints return to baseline); **circuit
+breakers** short-circuit a dead subtree (≤threshold retries, never forever);
+**property-based** correctness (300 random trees/reductions all match a flat
+reducer); a **chaos** pass that returns a correct verified aggregate **or** a clean
+audited failure — **0 silent-wrong across 125 fault runs**; and **regression
+guardrails** that fail CI if O(1) routing or the depth-bounded critical path ever
+breaks. Every claim is backed by an adversarial test suite. **Swarm + Hades +
+Hades v2 + Elite: 1444 tests.**
 
 ---
 

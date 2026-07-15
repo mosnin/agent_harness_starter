@@ -153,3 +153,50 @@ benchmarks, scale tests), integrated and verified centrally.
   speedup on 64 workers, and O(1) routing confirmed at 10k agents.
 
 **Swarm + Hades + Hades v2: 1076 tests across 133 files.**
+
+## Hades Elite — high-performance hierarchy, proven against a flat baseline
+
+A 16-iteration performance-engineering loop
+([`.plans/HADES_ELITE_LOOP.md`](./.plans/HADES_ELITE_LOOP.md)) run under a sustained
+autonomous `/loop`. **Every iteration was built by a team of 2–4 parallel subagents
+with a dedicated adversarial verifier** trying to break the others' work; the main
+loop integrated centrally, kept `tsc` clean and the suite green, ran the real
+benchmark, and recorded only measured numbers. The adversarial passes caught and
+forced fixes for real bugs (an over-provisioning tree search, a chaos-harness leaf
+crash) rather than rubber-stamping.
+
+### Beat-the-flat-baseline proof
+- **Head-to-head harness** (`bench/flat-baseline.ts`, `bench/head-to-head.ts`): a
+  naive flat manager→worker orchestrator (honest, still concurrent) vs the swarm
+  hierarchy on an identical workload. **Routing cost O(N²)→O(N)**: measured **6.8×
+  @16, 24.8× @64, 96.8× @256 workers** (hard `routeScans` counts, not wall-clock),
+  aggregate parity proven every row.
+- **Makespan O(N)→O(log N)** (`bench/latency-makespan.ts`): under a realistic
+  discrete-event latency model (delivery costs latency; each agent is one
+  sequential event loop) flat makespan is linear, hierarchy logarithmic —
+  **1.33×→4.1×→13.5×→45.5×** speedup growing with N. The one regime where flat wins
+  (single-node pure-CPU aggregation) is stated plainly, not hidden.
+
+### Resilience, correctness & observability
+- **Reliable delivery** (`a2a/reliable.ts`): exactly-once, in-order over a lossy
+  link (seq/ACK/retransmit/dedupe) — property-tested across 30 chaos seeds.
+- **Live metrics** (`metrics/collector.ts`): per-node throughput / nearest-rank
+  latency percentiles / queue depth with an atomic pure-read `snapshot()` at
+  **~180 ns/op** overhead.
+- **Soak + leak probe** (`bench/soak.ts`, `bench/leak-probe.ts`): ~1.1M msg/s stable
+  under sustained load, **zero leak** (endpoints return to baseline, maxDrift 0).
+- **Circuit breakers + timeouts** (`hierarchy/circuit-breaker.ts`,
+  `breaker-registry.ts`): a persistently failing subtree is short-circuited
+  (≤threshold retries, never forever); per-hop timeouts feed the same breaker.
+- **Property-based correctness** (`hierarchy/fuzz.ts`): 300 random trees ×
+  reductions × workloads — hierarchy result **==** flat reference every time.
+- **Chaos pass** (`hierarchy/chaos.ts`, `bench/chaos-suite.ts`): under
+  drops/delays/reorders/node-deaths the swarm returns a correct **verified**
+  aggregate **or** a clean **audited** failure — **0 silent-wrong across 125 runs**.
+- **Regression guardrails** (`bench/invariants.ts`): perf-invariant tests that fail
+  CI if O(1) routing, the depth-bounded critical path, or aggregation correctness
+  ever regress.
+- **CLI**: `hades hierarchy <head-to-head|makespan|chaos|fuzz|stats>` runs any of
+  the above from the terminal.
+
+**Swarm + Hades + Hades v2 + Elite: 1444 tests across 169 files.**
