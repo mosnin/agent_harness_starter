@@ -8,3 +8,5 @@ export { HierarchyOrchestrator } from "./orchestrator";
 export type { HierarchyExec, RunStats } from "./orchestrator";
 export { DistributedHierarchy } from "./distributed";
 export type { DistributedHierarchyOptions } from "./distributed";
+export { ResilientHierarchyOrchestrator } from "./resilient";
+export type { ResilientOptions, ResilientEvent, ResilientRunStats } from "./resilient";
