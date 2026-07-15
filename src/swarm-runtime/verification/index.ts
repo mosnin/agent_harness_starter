@@ -9,3 +9,5 @@ export type { ProvenanceRecord, ClaimProvenance } from "./provenance";
 export { buildTraceHaystack, isEvidenceTraceable } from "./gate";
 export { SemanticGroundingJudge, cosine } from "./semantic-judge";
 export type { SemanticJudgeOptions } from "./semantic-judge";
+export { RuleBasedAdversary, LLMAdversary } from "./adversarial";
+export type { AdversarialVerifier, Refutation, RuleBasedAdversaryOptions } from "./adversarial";

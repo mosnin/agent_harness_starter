@@ -8,6 +8,7 @@ import type { TaskExecutor } from "./worker/executor";
 import { VerificationGate, type GateConfig } from "./verification/gate";
 import { AntiRogueGuardrail, type GuardrailPolicy } from "./verification/guardrails";
 import type { ConsensusSpec } from "./types";
+import type { AdversarialVerifier } from "./verification/adversarial";
 
 export interface InlineSwarmOptions {
   capabilities?: string[];
@@ -25,6 +26,8 @@ export interface InlineSwarmOptions {
   failOnContradiction?: boolean;
   /** Emit `task:escalated` once a task reaches this many failed attempts. */
   escalateAfter?: number;
+  /** Independent skeptic that must fail to refute a result before it's accepted. */
+  adversary?: AdversarialVerifier;
 }
 
 /**
@@ -71,6 +74,7 @@ export async function createInlineSwarm(opts: InlineSwarmOptions = {}): Promise<
     defaultConsensus: opts.defaultConsensus,
     failOnContradiction: opts.failOnContradiction,
     escalateAfter: opts.escalateAfter,
+    adversary: opts.adversary,
   });
 
   return manager;

@@ -20,6 +20,7 @@ import { claimsToRefs, detectContradictions } from "../verification/contradictio
 import type { Contradiction } from "../verification/contradiction";
 import { ProvenanceStore, buildProvenance } from "../verification/provenance";
 import type { ProvenanceRecord } from "../verification/provenance";
+import type { AdversarialVerifier } from "../verification/adversarial";
 import { DeterministicPlanner, materializeTasks, type Planner } from "./planner";
 
 interface ReplicaOutcome {
@@ -73,6 +74,8 @@ export interface ManagerConfig {
   failOnContradiction?: boolean;
   /** Emit `task:escalated` once a task reaches this many failed attempts. */
   escalateAfter?: number;
+  /** Independent skeptic that must fail to refute a result before it's accepted. */
+  adversary?: AdversarialVerifier;
 }
 
 export interface ManagerEvents {
@@ -120,6 +123,7 @@ export class SwarmManager extends EventEmitter {
   private readonly defaultConsensus?: ConsensusSpec;
   private readonly failOnContradiction: boolean;
   private readonly escalateAfter?: number;
+  private readonly adversary?: AdversarialVerifier;
 
   constructor(private readonly config: ManagerConfig) {
     super();
@@ -134,6 +138,7 @@ export class SwarmManager extends EventEmitter {
     this.defaultConsensus = config.defaultConsensus;
     this.failOnContradiction = config.failOnContradiction ?? false;
     this.escalateAfter = config.escalateAfter;
+    this.adversary = config.adversary;
     this.authToken = config.authToken ?? randomBytes(24).toString("hex");
 
     this.bus.onRegister((r) => this.handleRegister(r));
@@ -392,9 +397,36 @@ export class SwarmManager extends EventEmitter {
     }
     const report = await this.gate.verify(result);
     this.verifications.push(report);
+
+    let accepted = report.verdict === "accept" && worst !== "kill" && worst !== "block";
+
+    // Independent adversarial pass: a result must *survive* refutation, not just
+    // pass grounding. Catches overreach the gate accepts.
+    if (accepted && this.adversary) {
+      const refutation = await this.adversary.refute(result);
+      if (refutation.refuted) {
+        accepted = false;
+        report.verdict = "revise";
+        report.checks.push({
+          name: "adversarial-refutation",
+          passed: false,
+          weight: 2,
+          detail: refutation.reasons.join("; "),
+        });
+        report.feedback = `Adversarial reviewer refuted this result: ${refutation.reasons.join("; ")}`;
+      } else {
+        report.checks.push({
+          name: "adversarial-survived",
+          passed: true,
+          weight: 0,
+          detail: "survived independent refutation",
+        });
+      }
+    }
+
     return {
       report,
-      accepted: report.verdict === "accept" && worst !== "kill" && worst !== "block",
+      accepted,
       killed: worst === "kill",
       blocked: worst === "block",
       reason:
