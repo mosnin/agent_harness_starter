@@ -55,7 +55,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 
 ## Phase D — Protocols, Models, Plugins
 - [x] 23. ACP adapter: server + session model (injectable transport).
-- [ ] 24. ACP: edit-approval + permissions + provenance events.
+- [x] 24. ACP: edit-approval + permissions + provenance events.
 - [ ] 25. Model-switching UX: `hades model` + model registry + persisted selection.
 - [ ] 26. Plugin system: `HadesPlugin` interface + loader + lifecycle hooks.
 - [ ] 27. Example plugins (browser, kanban, achievements) + a local plugin registry.
@@ -111,3 +111,4 @@ _(newest last; one entry per completed iteration)_
 
 ### Phase D
 - **Iter 23 — ACP adapter (Phase D start).** `acp/`: the agent side of the Agent Client Protocol so an editor can drive a coding session against the swarm. `AcpServer` answers JSON-RPC over an injectable `AcpTransport` — `initialize` handshake, `session/new`, `session/prompt` (delegating to an injectable handler that streams `session/update` notifications: message/thought chunks, tool calls, plans), and the `session/cancel` notification — with a session model, ordering/guard checks (init before session, unknown-session/method errors), and handler errors surfaced as JSON-RPC internal errors. `InMemoryAcpTransport.pair()` wires a client and agent in-process for testing (no stdio). 7 tests. Full suite green (814).
+- **Iter 24 — ACP edit-approval + permissions + provenance.** Extended `AcpServer` with outbound requests (`sendRequest`, exposed on the prompt context) so the agent can call client-side methods mid-turn, correlating responses back to pending promises. `EditApprovalManager` drives the `session/request_permission` flow: a `PermissionPolicy` remembers allow-always/reject-always per (session, path) so repeated edits don't re-prompt, and a `ProvenanceLog` records every attempted/approved/denied/cancelled/auto-*/applied edit — extending the swarm's provenance guarantees to the ACP surface. Verified in isolation and end-to-end over the paired transport (agent requests permission during a prompt, client grants, edit applied, trail logged). 6 tests. Full suite green (820).

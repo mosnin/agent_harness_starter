@@ -7,6 +7,7 @@ import {
   type InitializeResult,
   type JsonRpcMessage,
   type JsonRpcRequest,
+  type JsonRpcResponse,
   type NewSessionParams,
   type PromptParams,
   type PromptResult,
@@ -29,6 +30,12 @@ export interface AcpPromptContext {
   emit: (update: SessionUpdate) => Promise<void>;
   /** Cooperative cancellation — the handler should check this between steps. */
   isCancelled: () => boolean;
+  /**
+   * Call a client-side method and await its result (e.g.
+   * `session/request_permission`, `fs/read_text_file`). This is how the agent
+   * asks the editor to approve edits mid-turn.
+   */
+  sendRequest: (method: string, params?: unknown) => Promise<unknown>;
 }
 
 export type AcpPromptHandler = (ctx: AcpPromptContext) => Promise<PromptResult>;
@@ -56,6 +63,8 @@ export class AcpServer {
   private readonly newSessionId: () => string;
   private readonly now: () => number;
   private initialized = false;
+  private outboundId = 0;
+  private outbound = new Map<number | string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
 
   constructor(
     private readonly transport: AcpTransport,
@@ -63,6 +72,19 @@ export class AcpServer {
   ) {
     this.newSessionId = opts.newSessionId ?? (() => randomUUID());
     this.now = opts.now ?? (() => Date.now());
+  }
+
+  /**
+   * Send a JSON-RPC request to the *client* and await its response. The agent
+   * uses this for client-side methods like `session/request_permission`.
+   */
+  sendRequest(method: string, params?: unknown): Promise<unknown> {
+    const id = `srv-${++this.outboundId}`;
+    const promise = new Promise<unknown>((resolve, reject) => {
+      this.outbound.set(id, { resolve, reject });
+    });
+    void this.transport.send({ jsonrpc: "2.0", id, method, params });
+    return promise;
   }
 
   /** Begin serving: wire the transport's inbound handler. */
@@ -85,6 +107,18 @@ export class AcpServer {
   }
 
   private async dispatch(message: JsonRpcMessage): Promise<void> {
+    // Responses to our outbound requests (id, no method).
+    if (!("method" in message) && "id" in message && (message as JsonRpcResponse).id !== undefined) {
+      const resp = message as JsonRpcResponse;
+      const pending = this.outbound.get(resp.id);
+      if (pending) {
+        this.outbound.delete(resp.id);
+        if (resp.error) pending.reject(new Error(resp.error.message));
+        else pending.resolve(resp.result);
+      }
+      return;
+    }
+
     // Notifications (no id) — only session/cancel is meaningful to the agent.
     if (!isRequest(message)) {
       if ("method" in message && message.method === "session/cancel") {
@@ -133,6 +167,7 @@ export class AcpServer {
             prompt: params?.prompt ?? [],
             emit,
             isCancelled: () => session.cancelled,
+            sendRequest: (method, p) => this.sendRequest(method, p),
           });
           await this.reply(message.id, session.cancelled ? { stopReason: "cancelled" } : result);
           return;
