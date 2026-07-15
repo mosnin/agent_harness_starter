@@ -22,3 +22,7 @@ export {
 export type { CertificatePayload, VerificationCertificate } from "./certificate";
 export { routeTier, tierConfidenceFloor, WeakVerifierEnsemble } from "./tiers";
 export type { TierId, TaskSignals, VerifierVote, EnsembleResult } from "./tiers";
+export { BranchTree } from "./branches";
+export type { BranchState, BranchNode, BranchTreeStats } from "./branches";
+export { BanditController } from "./controller";
+export type { WorkerOracle, ControllerOptions, ControllerReport } from "./controller";
