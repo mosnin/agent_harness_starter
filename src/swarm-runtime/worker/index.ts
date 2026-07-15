@@ -8,3 +8,13 @@ export { SubSwarmExecutor } from "./sub-swarm-executor";
 export type { SubManager, SubSwarmExecutorOptions } from "./sub-swarm-executor";
 export { HarnessExecutor } from "./harness-executor";
 export type { RunnableHarness, HarnessExecutorOptions } from "./harness-executor";
+export {
+  ToolBox,
+  ToolRunner,
+  ToolAccessError,
+  createToolExecutor,
+  webSearchTool,
+  httpGetTool,
+  defineTool,
+} from "./toolbox";
+export type { SwarmTool, Reasoner, ToolExecutorOptions } from "./toolbox";
