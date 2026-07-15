@@ -37,7 +37,12 @@ export interface ScheduleResult<R> {
   completed: Array<{ id: string; result: R }>;
   /** Ids skipped because their deadline had passed. */
   cancelled: string[];
-  /** Dispatch order (ids actually dispatched), priority-desc then EDF. */
+  /**
+   * Every job in priority-ranked order (priority-desc, then EDF, then id) — the
+   * order jobs were *considered* for dispatch. A job that was later cancelled
+   * still appears in its ranked position, so this is the full schedule, not only
+   * the dispatched subset (intersect with `completed`/`cancelled` to filter).
+   */
   order: string[];
 }
 

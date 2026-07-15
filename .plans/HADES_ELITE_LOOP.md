@@ -29,7 +29,7 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 ### Hierarchy depth & resilience
 - [x] 1. **Fault-tolerant hierarchy**: a coordinator whose child RPC fails/times-out re-delegates to a healthy sibling or a spare; node failure never fails the whole run. Adversarial agent injects flaky/dead nodes.
 - [x] 2. **Adaptive/elastic hierarchy**: rebalance subtree width to load; grow/shrink branching from a work estimate; measure makespan vs a fixed tree.
-- [ ] 3. **Priority + deadline scheduling** through the hierarchy: high-priority subtasks preempt queue order; per-node deadline propagation + cancellation.
+- [x] 3. **Priority + deadline scheduling** through the hierarchy: high-priority subtasks preempt queue order; per-node deadline propagation + cancellation.
 - [ ] 4. **Streaming aggregation up the tree**: partial results stream to parents as children finish (no buffering the whole level) — lower latency + memory.
 
 ### A2A performance engineering
@@ -56,6 +56,8 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 
 ## Iteration log
 _(newest last; one entry per completed iteration)_
+
+- **Iter 3 — priority + deadline scheduling.** Team: a builder + an adversarial verifier in parallel. `PriorityScheduler` (`src/hades/hierarchy/scheduling.ts`) dispatches subtasks priority-desc with EDF tiebreak (then id, for a total deterministic order), and **sheds late work** — any subtask whose deadline has already passed at dispatch is cancelled (never run, emits `cancel-deadline`) instead of wasting compute; `propagateDeadline` carries the earliest deadline down the tree. Injectable clock (re-read per dispatch, so clock-advancing work can shed strictly-later jobs), bounded-concurrency worker pool that still pulls in priority order. Adversarial verifier: 9 tough tests (exact total order over a shuffled mix, `now===deadline` boundary, cascading deadline misses with a hand-computed completed/cancelled split, all-expired, event-stream consistency, 200-job seeded sort vs an independent comparator) — **all pass, no bugs found**; flagged a doc/code mismatch on the `order` field, which I aligned (order = full priority-ranked schedule, cancelled jobs keep their rank). Builder 7 + adversarial 9 tests. Full suite green (1121 / 138 files).
 
 - **Iter 2 — adaptive/elastic hierarchy.** Team: a builder + an adversarial verifier in parallel. `planAdaptiveHierarchy(estimate)` (`src/hades/hierarchy/adaptive.ts`) sizes the tree shape (branching/depth/workers) to the workload and `compareToFixed` proves it against a fixed tree. **The adversarial verifier caught a real bug**: the tree search capped leaves at `maxWorkers` but ignored `itemCount`, provisioning 125 workers for a 100-item job (25 idle). Fixed centrally: the search is now makespan-optimal *within* a hard `min(maxWorkers, itemCount)` ceiling — never more workers than items, and for bottlenecked (skewed-cost) workloads it keeps the pool small at the same makespan (faster **and** lighter). Reconciled the builder's chunk-cost-era assertion to the improved contract; the adversarial suite (which itself fairly reframed an over-cap comparison) passes fully. Builder 8 + adversarial 10 tests. Full suite green (1105 / 137 files).
 
