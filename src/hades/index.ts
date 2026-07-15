@@ -17,3 +17,4 @@ export * from "./models/index";
 export * from "./plugins/index";
 export * from "./skill-packs/index";
 export * from "./research/index";
+export * from "./repl/index";
