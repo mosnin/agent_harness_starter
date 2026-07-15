@@ -30,7 +30,7 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 - [x] 1. **Fault-tolerant hierarchy**: a coordinator whose child RPC fails/times-out re-delegates to a healthy sibling or a spare; node failure never fails the whole run. Adversarial agent injects flaky/dead nodes.
 - [x] 2. **Adaptive/elastic hierarchy**: rebalance subtree width to load; grow/shrink branching from a work estimate; measure makespan vs a fixed tree.
 - [x] 3. **Priority + deadline scheduling** through the hierarchy: high-priority subtasks preempt queue order; per-node deadline propagation + cancellation.
-- [ ] 4. **Streaming aggregation up the tree**: partial results stream to parents as children finish (no buffering the whole level) — lower latency + memory.
+- [x] 4. **Streaming aggregation up the tree**: partial results stream to parents as children finish (no buffering the whole level) — lower latency + memory.
 
 ### A2A performance engineering
 - [ ] 5. **Batched delivery + message pooling**: coalesce bursts, reuse envelopes; benchmark messages/sec before/after with a real number.
@@ -56,6 +56,8 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 
 ## Iteration log
 _(newest last; one entry per completed iteration)_
+
+- **Iter 4 — streaming aggregation up the tree.** Team: a builder + an adversarial verifier in parallel. `StreamingHierarchyAggregator` (`src/hades/hierarchy/streaming-aggregate.ts`): a coordinator folds each child's result into a running accumulator the moment that child resolves (`childPromise.then(fold)`, no `Promise.all` barrier), holding **O(1) results per level** instead of O(branching) — lower memory, partial results stream upward with lower latency. `onPartial` streams progress; `combine` must be commutative+associative. The adversarial verifier's decisive anti-cheat: **measured `peakBuffered == 1` at branching 2, 8, AND 16** (a buffer-then-aggregate impl would spike to 8/16), plus exactly-once folding via a powers-of-two bitmask (65535), out-of-order resolution, and associativity independence — **8 tests, all pass, no bugs**. Builder 5 + adversarial 8 tests. Full suite green (1134 / 139 files).
 
 - **Iter 3 — priority + deadline scheduling.** Team: a builder + an adversarial verifier in parallel. `PriorityScheduler` (`src/hades/hierarchy/scheduling.ts`) dispatches subtasks priority-desc with EDF tiebreak (then id, for a total deterministic order), and **sheds late work** — any subtask whose deadline has already passed at dispatch is cancelled (never run, emits `cancel-deadline`) instead of wasting compute; `propagateDeadline` carries the earliest deadline down the tree. Injectable clock (re-read per dispatch, so clock-advancing work can shed strictly-later jobs), bounded-concurrency worker pool that still pulls in priority order. Adversarial verifier: 9 tough tests (exact total order over a shuffled mix, `now===deadline` boundary, cascading deadline misses with a hand-computed completed/cancelled split, all-expired, event-stream consistency, 200-job seeded sort vs an independent comparator) — **all pass, no bugs found**; flagged a doc/code mismatch on the `order` field, which I aligned (order = full priority-ranked schedule, cancelled jobs keep their rank). Builder 7 + adversarial 9 tests. Full suite green (1121 / 138 files).
 
