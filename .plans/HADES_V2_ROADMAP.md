@@ -73,7 +73,7 @@ Baseline: swarm-runtime (699) + Hades v1 complete, **909 tests green**.
 - [x] 27. Footprint pass: lazy module loading + slim team defaults (lightweight win).
 - [x] 28. `hades team` CLI surface + team/A2A docs + runnable team example.
 - [x] 29. End-to-end: task → form team → A2A parallel work → verified aggregate → disband.
-- [ ] 30. Final review, README/CHANGELOG, benchmark table, build verification; STOP.
+- [x] 30. Final review, README/CHANGELOG, benchmark table, build verification; STOP.
 
 ---
 
@@ -99,6 +99,23 @@ _(newest last; one entry per completed iteration)_
 - **Iter 27 — footprint / lazy loading.** `Lazy<T>` builds a value at most once on first access; `LazyModuleRegistry` holds factories and instantiates on demand (caching), with `evict` to free memory while keeping the factory. Registering a 100-module catalog builds nothing until something is requested; `footprintReport` quantifies the win (registered vs instantiated, ratio, lazy names). This is how a Hades gateway stays lighter than an eager one. 4 tests. Full suite green (1048).
 - **Iter 28 — `hades team` CLI + docs + example.** Added a `team` subcommand to `HadesCli` (`roles` lists the vocabulary; `plan <objective>` previews the formed roster) wired into `buildHadesCli`. `docs/HADES_TEAMS.md` documents A2A, teams, parallelism, security, and modularity. `demoTeamParallel()` is a dependency-free runnable example that forms a team, spawns it, has each member serve an A2A RPC, fans 12 subtasks across the roster in parallel, aggregates, and reports the modeled speedup — doubling as a regression test. 7 tests. Full suite green (1052).
 - **Iter 29 — end-to-end team stack.** One scenario composing everything: a task forms a **containerized** team (BackendAgentSpawner + FakeBackend) over a **signed + audited** A2A fabric with **secure-by-default** clamped/no-network spawn limits; least-privilege capability tokens are minted per member and enforced (`checker.assert`) before each RPC; the coordinator scatters a batch across coders in parallel and `mapReduce`s the **verified aggregate** (91); the team disbands leaving zero live workers; and the whole run is audited (non-empty conversation graph). A second test proves a forged/mis-signed message injected on the bus is dropped before delivery. 2 tests. Full suite green (1054).
+- **Iter 30 — final review + release (Phase L complete).** Added a "Hades v2 — teams, A2A & on-demand parallel swarms" section to the README (capability map, `hades team` usage, a speedup table, secure-by-default note) and a full Hades v2 entry to the CHANGELOG (all six phases). Final verification: `tsc -p tsconfig.lib.json` clean and the full `vitest run` green at **1054 tests across 127 files**. All 30 v2 iterations complete on top of Hades v1 (909) and the swarm baseline; every subsystem tests without containers, a network, or credentials. **Hades v2 build done — loop stopped.**
+
+---
+
+## Completion summary
+
+**Hades v2 is complete: all 30 iterations across 6 phases, 1054 tests green, `tsc` clean.**
+
+Hades is now **team-native** — the goal delivered:
+- **A2A (G):** agents address each other directly — mailbox/bus, pub/sub, RPC, streaming.
+- **Teams (H):** roles → `TeamFormer` → spawn (in-process *or* **containerized** on Modal/SSH/Daytona/Singularity) → form/work/disband → coordinator. Teams form **on demand** and disband cleanly.
+- **Modularity (I):** manifests + semver resolution, hot load/unload, permissioned plugin packages, unified registry — skills and plugins are truly modular.
+- **Parallelism (J):** fan-out, work-stealing balancer, map-reduce, assembly-line pipeline, measured speedup — work runs **in parallel in a fraction of the time**.
+- **Security (K):** capability tokens (NHI), signed + tamper-rejecting A2A, least-privilege scopes, audit trail, secure-by-default spawn — **more locked down than Hermes**.
+- **Lightweight + release (L):** benchmark harness, lazy-loading footprint, `hades team` CLI, docs, e2e — **faster and lighter**.
+
+The swarm verification gate is never bypassed: a team's aggregate is still a grounded, anti-hallucination-checked result. Everything stays injectable, so the entire team fabric — containers, A2A, crypto, clocks — runs deterministically in tests.
 
 ### Phase K — Security
 - **Iter 21 — capability tokens (NHI).** `security/tokens`: `CapabilityMinter` mints a per-agent `CapabilityToken` scoping exactly what a team member may do (capabilities, team, issued/expiry), one per membership (`mintForTeam` over the roster); `CapabilityChecker` validates (structure + expiry) and authorizes **deny-by-default** — a capability is granted only if the token holds it or `*`; `assert` throws for guard sites. The non-human-identity base for the A2A/spawn checks that follow. 6 tests. Full suite green (1020).

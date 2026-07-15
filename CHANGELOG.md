@@ -88,3 +88,46 @@ network, an LLM, or a real clock.
   loop + REPL.
 
 **Swarm + Hades: 909 tests.**
+
+---
+
+## Hades v2 — Teams, A2A & on-demand parallel swarms (`src/hades/{a2a,teams,modules,parallel,security,bench}/`)
+
+A third 30-iteration build makes Hades team-native — closing the remaining gaps
+against Hermes on capability, security, and footprint. Everything is injectable,
+so teams of containerized agents test without containers, a network, or
+credentials. See [`.plans/HADES_V2_ROADMAP.md`](./.plans/HADES_V2_ROADMAP.md).
+
+### A2A communication (Phase G)
+- Agent-to-agent addressing + envelope; per-agent mailbox + in-memory bus;
+  topic pub/sub + team broadcast; correlated request/response RPC (timeout,
+  error propagation); ordered lossless streaming.
+
+### Teams & dynamic spawning (Phase H)
+- Role registry + `TeamBlueprint`; `TeamFormer` (task → validated roster);
+  `Team` spawn over an injectable spawner — in-process or **containerized** on a
+  RemoteBackend (Modal/SSH/Daytona/Singularity); form→work→disband lifecycle with
+  failure-aware teardown; `TeamCoordinator` (addressed + broadcast).
+
+### Modular skills & plugins (Phase I)
+- Module manifests with semver dependency resolution + topological load order;
+  hot skill-module load/unload/reload; plugin packages with deny-by-default
+  declared permissions; a unified skill+plugin registry with conflict checks.
+
+### Parallel execution (Phase J)
+- Fan-out (shared-queue map across the roster); work-stealing load balancer
+  (retry + quarantine); map-reduce (scatter/gather/reduce); assembly-line role
+  pipeline; deterministic speedup + efficiency metrics.
+
+### Security hardening (Phase K)
+- Per-agent capability tokens (NHI); HMAC A2A signing with tamper-reject;
+  least-privilege team permission scopes; an append-only audit trail (who talked
+  to whom, what spawned); secure-by-default spawn policy (no network, read-only
+  root, caps dropped, resource ceilings, egress allowlist).
+
+### Benchmarks / lightweight / release (Phase L)
+- Latency/throughput/round-trip benchmark harness; lazy-loading footprint pass;
+  `hades team` CLI; teams/A2A docs + a runnable parallel-team example; a secure
+  end-to-end team scenario.
+
+**Swarm + Hades + Hades v2: 1054 tests.**

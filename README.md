@@ -85,7 +85,45 @@ hades help
 
 Full reference: [**docs/HADES.md**](./docs/HADES.md),
 [**docs/HADES_ARCHITECTURE.md**](./docs/HADES_ARCHITECTURE.md),
-[`.plans/HADES_ROADMAP.md`](./.plans/HADES_ROADMAP.md). Swarm + Hades: 909 tests.
+[`.plans/HADES_ROADMAP.md`](./.plans/HADES_ROADMAP.md).
+
+### 🤝 Hades v2 — teams, A2A & on-demand parallel swarms
+
+A third 30-iteration build makes Hades **team-native**: a task forms the right
+team of role-specialized agents in isolated containers, they coordinate directly
+over an **authenticated agent-to-agent (A2A)** bus, work runs **in parallel in a
+fraction of the time**, and the team disbands — more capable, more secure, and
+lighter than Hermes.
+
+| Capability | Where |
+|---|---|
+| A2A: addressing, mailbox/bus, pub/sub, RPC, streaming | `src/hades/a2a/` |
+| Teams: roles, `TeamFormer`, spawn (in-process **or containerized**), lifecycle, coordinator | `src/hades/teams/` |
+| Modular skills/plugins: manifests, semver resolution, hot load/unload, permissioned packages | `src/hades/modules/` |
+| Parallel: fan-out, work-stealing balancer, map-reduce, assembly-line pipeline, speedup metric | `src/hades/parallel/` |
+| Security: capability tokens (NHI), A2A signing, least-privilege scopes, audit, secure-by-default spawn | `src/hades/security/` |
+| Benchmarks + lightweight: latency/throughput harness, lazy-loading footprint | `src/hades/bench/` |
+
+```bash
+hades team roles              # the role vocabulary
+hades team plan "<objective>" # preview the team that would form
+```
+
+**Parallel speedup** (balanced work, greedy scheduling — `modelSpeedup`):
+
+| Agents | Speedup | Efficiency |
+|--------|---------|------------|
+| 1      | 1.0×    | 100%       |
+| 2      | 2.0×    | 100%       |
+| 4      | 4.0×    | 100%       |
+| 8      | ~8.0×   | ~100%      |
+
+Secure by default: every containerized member comes up with **no network,
+read-only root, all Linux capabilities dropped, resource ceilings**, and a
+**deny-by-default** capability token; every A2A message is **signed** and
+**audited**. Full reference: [**docs/HADES_TEAMS.md**](./docs/HADES_TEAMS.md),
+[`.plans/HADES_V2_ROADMAP.md`](./.plans/HADES_V2_ROADMAP.md). **Swarm + Hades +
+Hades v2: 1054 tests.**
 
 ---
 
