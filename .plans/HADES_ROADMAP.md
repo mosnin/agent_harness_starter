@@ -42,7 +42,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 - [x] 12. Discord connector.
 - [x] 13. WhatsApp Cloud connector.
 - [x] 14. Signal connector (signal-cli shape).
-- [ ] 15. Voice: injectable STT (transcribe inbound audio) + TTS reply hook.
+- [x] 15. Voice: injectable STT (transcribe inbound audio) + TTS reply hook.
 - [ ] 16. Cross-platform conversation continuity (one session across channels).
 
 ## Phase C — Execution Backends
@@ -98,3 +98,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 12 — Discord connector.** `DiscordConnector.ingest(payload)` normalizes MESSAGE_CREATE events (skipping bot authors + empty content) via `parseDiscord`, routes them, and replies through an injectable `createMessage` transport (`createDiscordHttpTransport`). 3 tests. Full suite green.
 - **Iter 13 — WhatsApp Cloud connector.** `WhatsAppConnector.verify()` answers the GET webhook handshake; `ingest()` walks the entry→changes→messages envelope, handles text messages only (ignores status/media), routes them, replies via an injectable send transport (`createWhatsAppHttpTransport`). 3 tests. Full suite green.
 - **Iter 14 — Signal connector.** Poll-based `SignalConnector` over an injectable `SignalTransport` (signal-cli receive/send shape): drains data messages, skips receipts/empties, routes, replies to source. `createSignalJsonRpcTransport` for a signal-cli daemon. Added `signal` to `GatewayPlatform`. 2 tests. Full suite green.
+- **Iter 15 — voice.** `gateway/VoicePipeline` wraps a text handler into a voice-aware one via injectable `SpeechToText` + optional `TextToSpeech`: inbound audio is transcribed before routing (prefers provided text when both present), and the reply is spoken back only when the turn was voice. `AudioRef`/`VoiceInbound`/`VoiceReply` carry audio alongside the platform-agnostic message; no audio backend needed to test. 4 tests. Full suite green (763).
