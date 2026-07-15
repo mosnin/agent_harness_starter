@@ -9,6 +9,63 @@ import type {
 
 const pExecFile = promisify(execFile);
 
+/** Bounded PID ceiling to blunt fork-bombs from a misbehaving worker. */
+const DEFAULT_PIDS_LIMIT = 512;
+
+/**
+ * Build the full `docker run` argument vector for a worker, applying all
+ * isolation/resource controls. Extracted as a pure function so the exact
+ * hardening flags are unit-testable without a Docker daemon — these flags are
+ * the enforcement boundary that keeps a rogue or injected worker off the host.
+ */
+export function buildDockerRunArgs(
+  spec: SpawnSpec,
+  opts: { image: string; name: string; label: string; network?: string }
+): string[] {
+  const limits = spec.limits ?? {};
+  const args: string[] = [
+    "run",
+    "-d",
+    "--rm",
+    "--name",
+    opts.name,
+    "--label",
+    `${opts.label}=worker`,
+    "--label",
+    `hermes-swarm-worker-id=${spec.workerId}`,
+  ];
+
+  // ── Isolation & hardening ────────────────────────────────────────────────
+  if (limits.noNetwork) {
+    args.push("--network", "none");
+  } else if (opts.network) {
+    args.push("--network", opts.network);
+  }
+  if (limits.readOnlyRootFs) args.push("--read-only", "--tmpfs", "/tmp");
+  if (limits.dropAllCapabilities) args.push("--cap-drop", "ALL");
+  // Never allow privilege escalation regardless of caller config.
+  args.push("--security-opt", "no-new-privileges");
+  if (limits.cpus) args.push("--cpus", String(limits.cpus));
+  if (limits.memory) args.push("--memory", limits.memory);
+  args.push("--pids-limit", String(DEFAULT_PIDS_LIMIT));
+
+  // ── Environment ──────────────────────────────────────────────────────────
+  const env: Record<string, string> = {
+    SWARM_WORKER_ID: spec.workerId,
+    SWARM_MANAGER_URL: spec.managerUrl,
+    SWARM_AUTH_TOKEN: spec.authToken,
+    SWARM_CAPABILITIES: spec.capabilities.join(","),
+    ...(spec.model ? { SWARM_MODEL: spec.model } : {}),
+    ...spec.env,
+  };
+  for (const [k, v] of Object.entries(env)) {
+    args.push("-e", `${k}=${v}`);
+  }
+
+  args.push(opts.image);
+  return args;
+}
+
 /**
  * Runs each worker as an isolated **Docker container**. This is the production
  * isolation boundary: separate kernel namespaces, cgroup resource limits,
@@ -57,51 +114,9 @@ export class DockerProvider implements ContainerProvider {
   async spawn(spec: SpawnSpec): Promise<ContainerHandle> {
     const name = this.containerName(spec.workerId);
     const image = spec.image ?? this.opts.image;
-    const limits = spec.limits ?? {};
     const label = this.opts.swarmLabel ?? "hermes-swarm";
 
-    const args: string[] = [
-      "run",
-      "-d",
-      "--rm",
-      "--name",
-      name,
-      "--label",
-      `${label}=worker`,
-      "--label",
-      `hermes-swarm-worker-id=${spec.workerId}`,
-    ];
-
-    // ── Isolation & hardening ────────────────────────────────────────────────
-    if (limits.noNetwork) {
-      args.push("--network", "none");
-    } else if (this.opts.network) {
-      args.push("--network", this.opts.network);
-    }
-    if (limits.readOnlyRootFs) args.push("--read-only", "--tmpfs", "/tmp");
-    if (limits.dropAllCapabilities) args.push("--cap-drop", "ALL");
-    // Never allow privilege escalation regardless of caller config.
-    args.push("--security-opt", "no-new-privileges");
-    if (limits.cpus) args.push("--cpus", String(limits.cpus));
-    if (limits.memory) args.push("--memory", limits.memory);
-    // Bound PIDs to blunt fork-bombs from a misbehaving worker.
-    args.push("--pids-limit", "512");
-
-    // ── Environment ──────────────────────────────────────────────────────────
-    const env: Record<string, string> = {
-      SWARM_WORKER_ID: spec.workerId,
-      SWARM_MANAGER_URL: spec.managerUrl,
-      SWARM_AUTH_TOKEN: spec.authToken,
-      SWARM_CAPABILITIES: spec.capabilities.join(","),
-      ...(spec.model ? { SWARM_MODEL: spec.model } : {}),
-      ...spec.env,
-    };
-    for (const [k, v] of Object.entries(env)) {
-      args.push("-e", `${k}=${v}`);
-    }
-
-    args.push(image);
-
+    const args = buildDockerRunArgs(spec, { image, name, label, network: this.opts.network });
     const { stdout } = await pExecFile(this.bin, args, { timeout: 60_000 });
     const containerId = stdout.trim();
     this.handles.set(spec.workerId, name);
