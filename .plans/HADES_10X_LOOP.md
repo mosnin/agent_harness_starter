@@ -32,6 +32,8 @@ done (README/CHANGELOG/HADES_BENCHMARKS captions corrected).
 - [ ] 0.3 **Eval suite** (`bench/eval-suite.ts`): 30–50 LLM-shaped but programmatically-gradable decomposable tasks (extraction / classification / transformation / structured reasoning), each with a pure `grade(output)`; categories + decomposition metadata.
 - [ ] 0.4 **Multi-provider model client** (`models/client.ts`): real `ModelClient` (OpenAI-dialect + Anthropic-native over injectable fetch) + `MultiProviderClient` fan-out with per-model **cost accounting** and rate-limit-aware concurrency; price table from the model catalog.
 - [ ] 0.5 **Scoreboard CLI** (`hades bench vtph`): wire a `bench` subcommand that runs the suite for a chosen runner and prints the V-TPH$ table. Integrate 0.2–0.4 exports centrally.
+- [ ] 0.6 **`hades verify-claims`** *(salvaged idea)*: a command that maps each load-bearing README/docs claim to a runnable check and reports pass/fail, so the docs can never drift back into overselling. CI runs it.
+- [ ] 0.7 **CI "reality lane"** *(salvaged idea)*: a test tag/lane that exercises real sockets, real child processes, and (when Docker is present) a real container — so the green-test count reflects integration, not only in-memory fakes. Feeds Phase 2/3.
 
 ## Phase 1 — Give it a brain + inherit Hermes' tools (MCP)
 - [ ] 1.1 **Real worker brain wiring**: select a real model/executor in the default swarm path when keys exist (`--model`, `SWARM_MODEL` propagation); deterministic executor only when explicitly offline. (Central wiring + a new adapter file; keyed smoke test.)
