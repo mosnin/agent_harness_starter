@@ -15,16 +15,18 @@ an **anti-hallucination verification gate** and **anti-rogue guardrail**. See
 [**ARCHITECTURE.md**](./ARCHITECTURE.md) for the full design.
 
 ```bash
-# Run a goal locally (no Docker needed — inline/process modes)
+# Zero-config end-to-end demo (no Docker, no API keys)
+npm run swarm:demo
+
+# Run a goal locally (inline/process modes)
 npm run swarm -- run "Summarize the repo architecture" --caps research,code
+npm run swarm -- doctor          # which isolation backends are available?
 
-# Which isolation backends are available here?
-npm run swarm -- doctor
+# Live web dashboard (DAG, agents, evidence, metrics, controls) + terminal UI
+npm run swarm:dashboard          # → http://127.0.0.1:8080
+npm run swarm -- tui --manager-url http://127.0.0.1:8080
 
-# Launch the live web dashboard (agent grid + task board + verification feed)
-npm run swarm:dashboard         # → http://127.0.0.1:8080
-
-# Full container swarm: manager spawns worker containers via the Docker socket
+# Full container swarm: manager spawns hardened worker containers
 docker build -f docker/swarm/worker.Dockerfile -t hermes-swarm-worker:latest .
 docker compose -f docker-compose.swarm.yml up --build
 ```
@@ -32,11 +34,15 @@ docker compose -f docker-compose.swarm.yml up --build
 | Capability | Where |
 |---|---|
 | Manager agent (plan → dispatch → verify → synthesize) | `src/swarm-runtime/manager/` |
-| Isolated worker containers (inline / process / docker) | `src/swarm-runtime/providers/` |
-| Anti-hallucination verification gate | `src/swarm-runtime/verification/gate.ts` |
+| Isolated workers (inline / process / hardened docker) | `src/swarm-runtime/providers/` |
+| Anti-hallucination: gate, consensus, contradiction, provenance, semantic + adversarial | `src/swarm-runtime/verification/` |
 | Anti-rogue behavioural guardrail | `src/swarm-runtime/verification/guardrails.ts` |
-| Pull-based control-plane bus | `src/swarm-runtime/bus/` |
-| CLI (`hermes-swarm`) + web dashboard | `src/swarm-runtime/cli.ts`, `server/` |
+| Autoscaling · recovery · budgets · cancellation · persistence | `src/swarm-runtime/manager/`, `persistence/` |
+| MCP tools · cron · gateways · skills · provider abstraction | `mcp/`, `scheduling/`, `gateway/`, `skills/`, `worker/providers.ts` |
+| Dashboard · TUI · REST · Prometheus `/metrics` · structured logs | `server/`, `tui/`, `observability/` |
+| CLI (`hermes-swarm`) | `src/swarm-runtime/cli.ts` |
+
+Full reference: [**ARCHITECTURE.md**](./ARCHITECTURE.md), [**docs/24-swarm-runtime.md**](./docs/24-swarm-runtime.md), [**CHANGELOG.md**](./CHANGELOG.md). 699 tests.
 
 Library usage:
 
