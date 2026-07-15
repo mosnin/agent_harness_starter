@@ -55,7 +55,7 @@ Baseline: swarm-runtime (699) + Hades v1 complete, **909 tests green**.
 - [x] 15. Unified module registry (skills + plugins) with conflict + version checks.
 
 ## Phase J — Parallel Execution & Speedup
-- [ ] 16. Parallel fan-out coordinator (map a task across the team).
+- [x] 16. Parallel fan-out coordinator (map a task across the team).
 - [ ] 17. Work-stealing / load balancer across idle roster members.
 - [ ] 18. Map-reduce aggregation over A2A (scatter → gather → reduce).
 - [ ] 19. Pipeline stages across roles (assembly-line parallelism).
@@ -86,6 +86,9 @@ _(newest last; one entry per completed iteration)_
 - **Iter 3 — pub/sub topics.** `a2a/PubSub` over an `AgentEndpoint`: `subscribe(topic, handler)` so a team broadcast on `"build:done"` only wakes that topic's subscribers, `publish(topic, payload, {team})` is a topic-carrying team broadcast, and `ALL_TOPICS` taps the firehose (coordination/logging). Unsubscribe prunes empty topics; multiple subscribers per topic fan out. 4 tests. Full suite green (924).
 - **Iter 4 — request/response RPC.** `a2a/RpcPeer` over an `AgentEndpoint` both `serve`s inbound requests and `request`s (awaiting the correlated response). Correlation by `correlationId`; a handler that throws surfaces to the caller as a rejected promise via an `error` message; an unanswered request rejects on timeout; concurrent requests correlate independently; `close()` rejects everything in flight. Timers are injectable, so timeout tests deterministically (manual scheduler). 5 tests. Full suite green (929).
 - **Iter 5 — streaming A2A (Phase G complete).** `a2a/StreamPeer`: `serveStream` turns an async-iterable handler into a stream of `stream` messages terminated by `stream_end`/`error`; `requestStream` returns an async generator yielding chunks in order, completing on `stream_end`, throwing on producer error. Built on `AsyncQueue` — ordered, lossless, buffered, with a high-water-mark overflow flag as the backpressure signal. Independent streams run concurrently. 6 tests. **Phase G done.** Full suite green (935).
+
+### Phase J — Parallel execution
+- **Iter 16 — parallel fan-out.** `FanOutCoordinator.map(items)` distributes items across the roster through a **shared work queue** — each member processes one item at a time and pulls the next when free, so max parallelism equals roster size and faster members implicitly do more work. Results return in input order; `byAgent` reports load distribution; `continueOnError` collects `failures` while keeping successes (else the first error rejects). The "fraction of the time" primitive, over an injectable dispatch (RPC/local). 6 tests. Full suite green (995).
 
 ### Phase I — Modular skills & plugins
 - **Iter 11 — module manifest + semver.** `modules/manifest`: `ModuleManifest` (name, semver version, kind skill/plugin/pack, dependencies as name→range, capabilities, provides, permissions) and a dependency-free semver matcher — `parseVersion`, `compareVersions`, and `satisfies` supporting `*`, exact, caret `^`, tilde `~`, and `>=/>/<=/<`. `validateManifest` checks name/version/kind shape and that every dependency range parses. The foundation for resolution + hot-load. 9 tests. Full suite green (966).

@@ -23,3 +23,4 @@ export * from "./config/index";
 export * from "./a2a/index";
 export * from "./teams/index";
 export * from "./modules/index";
+export * from "./parallel/index";
