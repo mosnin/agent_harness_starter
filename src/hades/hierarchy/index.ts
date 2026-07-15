@@ -14,3 +14,5 @@ export { planAdaptiveHierarchy, compareToFixed } from "./adaptive";
 export type { WorkloadEstimate, AdaptivePlanOptions, AdaptivePlan } from "./adaptive";
 export { PriorityScheduler, propagateDeadline } from "./scheduling";
 export type { Job, SchedEvent, SchedEventType, SchedulerOptions, ScheduleResult } from "./scheduling";
+export { StreamingHierarchyAggregator } from "./streaming-aggregate";
+export type { StreamingAggExec, StreamingOptions, StreamingStats } from "./streaming-aggregate";
