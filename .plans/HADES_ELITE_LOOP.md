@@ -35,7 +35,7 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 ### A2A performance engineering
 - [x] 5. **Batched delivery + message pooling**: coalesce bursts, reuse envelopes; benchmark messages/sec before/after with a real number.
 - [x] 6. **Credit-based backpressure** (real flow control, not a flag): bounded in-flight per link, sender awaits credit; prove no unbounded buffering under a fast producer / slow consumer.
-- [ ] 7. **Cross-process transport parity**: an HTTP/WS `A2ATransport` with the SAME O(1) direct-routing semantics + a conformance test the in-memory transport also passes.
+- [x] 7. **Cross-process transport parity**: an HTTP/WS `A2ATransport` with the SAME O(1) direct-routing semantics + a conformance test the in-memory transport also passes.
 - [ ] 8. **Ordered + at-least-once delivery guarantees** with dedupe; property test message ordering per link under concurrency.
 
 ### Beat-Hermes proof
@@ -56,6 +56,8 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 
 ## Iteration log
 _(newest last; one entry per completed iteration)_
+
+- **Iter 7 — cross-process transport parity.** Team: a builder + an adversarial verifier. `RemoteA2ATransport` (`src/hades/a2a/remote-transport.ts`) serializes every message over an injectable `Wire` (loopback default; swap for a WebSocket to go genuinely distributed) and routes decoded frames with the **same O(1) direct dispatch** as in-memory. `conformance.ts` is a reusable `runA2AConformance` battery (6 real behavioral checks) that **both** `InMemoryA2ATransport` and `RemoteA2ATransport` pass — parity *proven*, not asserted. Adversarial verifier: **15 tests, no bugs** — `routeScans==500` for 500 sends at **10,000 agents** (a scanning router would be ~5M → confirmed O(1) over a serialized wire), battery proven non-vacuous (≥6 checks, identical names both transports), no cross-team broadcast leak, per-link FIFO matches in-memory, serialization fidelity pinned (unicode/nested survive; function/undefined dropped; Date→ISO; Infinity→null), custom codec actually invoked. Builder 6 + adversarial 15 tests. Full suite green (1195 / 145 files).
 
 - **Iter 6 — credit-based backpressure.** Team: a builder + an adversarial verifier. `CreditController` + `BackpressuredChannel` (`src/hades/a2a/backpressure.ts`): **real flow control, not a flag** — a sender must hold one of a bounded set of credits to send, so in-flight work can never exceed capacity; a fast producer **blocks on `send()`** instead of buffering unboundedly (the thing that OOMs naive pipelines). FIFO credit fairness; a rejecting consume still releases its credit (no deadlock/leak); event-driven `drain()` (no poll, no hang, no early resolve). The adversarial verifier hammered every failure mode — **14 tests, no bugs**: `maxInFlight === capacity` at 1/3/7 with an *independent* live concurrency counter (stats not trusted), never breached under a 2000-item varying-delay blast; exactly-once delivery; throwing-consume no-deadlock (timeout-guarded); over-release floored at 0; seeded-storm credit conservation (`available()===capacity`, `inFlight()===0` after drain). Builder 8 + adversarial 14 tests. Full suite green (1174 / 142 files).
 
