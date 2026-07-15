@@ -130,6 +130,9 @@ export class SwarmServer {
       if (req.method === "GET" && path === "/api/goals") {
         return json(res, 200, this.swarm.manager.listGoals());
       }
+      if (req.method === "GET" && path === "/api/metrics") {
+        return json(res, 200, this.swarm.manager.metrics());
+      }
       if (req.method === "GET" && path === "/api/logs") {
         return json(res, 200, this.swarm.manager.recentLogs());
       }
@@ -227,6 +230,7 @@ export class SwarmServer {
     provenance: unknown[];
     groundingRate: number;
     logs: Array<{ workerId: string; line: string; at: number }>;
+    metrics: ReturnType<BuiltSwarm["manager"]["metrics"]>;
   } {
     return {
       mode: this.swarm.mode,
@@ -237,6 +241,7 @@ export class SwarmServer {
       provenance: this.swarm.manager.listProvenance().slice(-50),
       groundingRate: this.swarm.manager.groundingRate(),
       logs: this.swarm.manager.recentLogs(100),
+      metrics: this.swarm.manager.metrics(),
     };
   }
 

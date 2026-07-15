@@ -54,7 +54,7 @@ infra. 582 tests green.
 - [x] 25. Dashboard: verification detail + evidence viewer.
 - [x] 26. Dashboard: goal history + replay.
 - [x] 27. Dashboard: live controls (pause / kill / scale).
-- [ ] 28. Dashboard: metrics & charts.
+- [x] 28. Dashboard: metrics & charts.
 - [ ] 29. TUI (terminal UI) for the swarm.
 
 ## Phase E — Ops / hardening
@@ -104,3 +104,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 25 — verification detail + evidence viewer.** Dashboard shows overall grounding-rate badge and a per-record provenance panel: each accepted claim with its confirmed (traced) evidence and grounded ✓/✗ marks. New `dashboard.test.ts` asserts the served HTML is well-formed and includes the panels. Full suite green.
 - **Iter 26 — goal history + replay.** Manager `listGoals()` (newest-first) + `replayGoal(id)`; `GET /api/goals` list + `POST /api/goals/:id/replay`. Dashboard Goal History panel with per-goal replay (finished) / cancel (running) buttons. 4 tests (manager + REST). Full suite green.
 - **Iter 27 — live controls.** Public `killWorker` (kills + replaces, returns bool) and `scalePool(n)`/`workerCount()`. Endpoints `POST /api/workers/:id/kill` and `POST /api/pool/scale`. Dashboard: per-agent kill button + pool ＋/− scale controls. 3 tests (manager + REST). Full suite green.
+- **Iter 28 — metrics & charts.** `manager.metrics()` aggregates goals/tasks/workers/verification/usage into a `SwarmMetrics`; `GET /api/metrics` + metrics in the streamed snapshot. Dashboard Metrics panel: stat tiles (goals done, grounded %, cost) + accepted/verified bar charts + summary line. 2 tests. Full suite green.

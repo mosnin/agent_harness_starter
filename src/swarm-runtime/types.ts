@@ -192,6 +192,15 @@ export interface GoalUsage {
   wallClockMs: number;
 }
 
+/** Aggregate swarm metrics for dashboards and monitoring. */
+export interface SwarmMetrics {
+  goals: { total: number; completed: number; failed: number; aborted: number; running: number };
+  tasks: { total: number; verified: number; failed: number; pending: number; dispatched: number };
+  workers: { total: number; idle: number; busy: number; killed: number; dead: number };
+  verification: { total: number; accepted: number; rejected: number; avgScore: number; groundingRate: number };
+  usage: { toolCalls: number; costUsd: number };
+}
+
 export interface ToolCallRecord {
   tool: string;
   args: Record<string, unknown>;

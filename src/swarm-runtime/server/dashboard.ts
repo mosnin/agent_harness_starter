@@ -107,6 +107,8 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   </section>
 
   <section class="panel">
+    <h2>Metrics</h2>
+    <div class="body" id="metrics"><div class="empty">no data yet</div></div>
     <h2>Task Graph (DAG)</h2>
     <div class="body"><div id="dag" class="dag"><div class="empty">no tasks yet</div></div></div>
     <h2>Tasks</h2>
@@ -150,6 +152,9 @@ function render() {
     ag.appendChild(el);
   }
 
+  // metrics tiles + bars
+  if (state.metrics) renderMetrics(state.metrics);
+
   // DAG: group tasks by topological level and render columns.
   renderDag(state.tasks || []);
 
@@ -188,6 +193,24 @@ function render() {
   }
 }
 
+function bar(label, ok, bad){
+  const total = ok+bad || 1; const pct = Math.round(ok/total*100);
+  return '<div style="margin:6px 0"><div style="font-size:11px;color:var(--muted);display:flex;justify-content:space-between">'
+    +'<span>'+label+'</span><span>'+ok+'/'+(ok+bad)+'</span></div>'
+    +'<div style="height:8px;background:#3a1414;border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--ok)"></div></div></div>';
+}
+function renderMetrics(m){
+  const el=$("metrics");
+  el.innerHTML =
+    '<div class="stat-row">'
+    +'<div class="stat"><div class="n">'+m.goals.completed+'/'+m.goals.total+'</div><div class="l">Goals done</div></div>'
+    +'<div class="stat"><div class="n">'+Math.round(m.verification.groundingRate*100)+'%</div><div class="l">Grounded</div></div>'
+    +'<div class="stat"><div class="n">$'+(m.usage.costUsd||0).toFixed(3)+'</div><div class="l">Cost</div></div>'
+    +'</div>'
+    + bar("Verification accepted", m.verification.accepted, m.verification.rejected)
+    + bar("Tasks verified", m.tasks.verified, m.tasks.failed)
+    + '<div style="font-size:11px;color:var(--muted);margin-top:6px">avg score '+Math.round((m.verification.avgScore||0)*100)+'% · '+m.usage.toolCalls+' tool calls · '+m.workers.total+' workers</div>';
+}
 function dagLevels(tasks){
   const byId = {}; tasks.forEach(t=>byId[t.id]=t);
   const cache = {}; const seen = {};

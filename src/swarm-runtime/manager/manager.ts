@@ -9,6 +9,7 @@ import type {
   GoalUsage,
   ResourceLimits,
   RevisionEntry,
+  SwarmMetrics,
   VerificationReport,
   WorkerResult,
   WorkerTask,
@@ -624,6 +625,55 @@ export class SwarmManager extends EventEmitter {
   /** Current live worker count. */
   workerCount(): number {
     return this.liveWorkers().length;
+  }
+
+  /** Aggregate metrics across the whole swarm — for the dashboard + monitoring. */
+  metrics(): SwarmMetrics {
+    const goals = [...this.goals.values()];
+    const tasks = [...this.tasks.values()];
+    const workers = [...this.workers.values()];
+    const verifs = this.verifications;
+    const accepted = verifs.filter((v) => v.verdict === "accept").length;
+    const avgScore = verifs.length ? verifs.reduce((s, v) => s + v.score, 0) / verifs.length : 0;
+    let toolCalls = 0;
+    let costUsd = 0;
+    for (const u of this.goalUsage.values()) {
+      toolCalls += u.toolCalls;
+      costUsd += u.costUsd;
+    }
+    const count = <T extends string>(items: { status: T }[], status: T) =>
+      items.filter((i) => i.status === status).length;
+    return {
+      goals: {
+        total: goals.length,
+        completed: count(goals, "completed"),
+        failed: count(goals, "failed"),
+        aborted: count(goals, "aborted"),
+        running: count(goals, "running"),
+      },
+      tasks: {
+        total: tasks.length,
+        verified: count(tasks, "verified"),
+        failed: count(tasks, "failed"),
+        pending: count(tasks, "pending"),
+        dispatched: count(tasks, "dispatched"),
+      },
+      workers: {
+        total: workers.length,
+        idle: count(workers, "idle"),
+        busy: count(workers, "busy"),
+        killed: count(workers, "killed"),
+        dead: count(workers, "dead"),
+      },
+      verification: {
+        total: verifs.length,
+        accepted,
+        rejected: verifs.length - accepted,
+        avgScore,
+        groundingRate: this.groundingRate(),
+      },
+      usage: { toolCalls, costUsd },
+    };
   }
 
   private handleRegister(reg: WorkerRegistration): void {
