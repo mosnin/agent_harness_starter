@@ -93,3 +93,68 @@ is an automatic reject. A goal completes only when **every** task is verified.
 
 The in-app entry point lives at `/swarm` (`src/app/swarm/page.tsx`), which embeds
 the dashboard.
+
+---
+
+## Module reference
+
+| Module | Exports |
+|---|---|
+| `swarm-runtime` (root) | `createInlineSwarm`, `buildSwarm`, `SwarmServer`, everything below |
+| `manager/` | `SwarmManager`, `DeterministicPlanner`, `LLMPlanner` |
+| `providers/` | `InlineProvider`, `LocalProcessProvider`, `DockerProvider`, `buildDockerRunArgs` |
+| `bus/` | `InMemoryBus`, `HttpControlPlane` (`rotateToken`), `HttpWorkerClient` |
+| `verification/` | `VerificationGate`, `AntiRogueGuardrail`, `detectContradictions`, `ProvenanceStore`, `SemanticGroundingJudge`, `RuleBasedAdversary`/`LLMAdversary` |
+| `worker/` | `WorkerRuntime`, `DemoExecutor`, `LLMExecutor`, `HarnessExecutor`, `SubSwarmExecutor`, `ToolBox`/`createToolExecutor`, `createChat` (providers) |
+| `skills/` | `SkillRegistry`, `defineSkill`, `createSkilledExecutor`, `researchSkill` |
+| `scheduling/` | `SwarmScheduler`, `cronMatches` |
+| `gateway/` | `SwarmGateway`, `parseSlack`/`parseTelegram`/`parseDiscord` |
+| `persistence/` | `StateStore`, `MemoryStateStore`, `FileStateStore` |
+| `observability/` | `formatPrometheus`, `attachStructuredLogging` |
+| `config/` | `loadSwarmConfig`, `resolveConfig`, `configFromEnv` |
+| `lifecycle/` | `installGracefulShutdown` |
+| `mcp/` | `createSwarmMcpTools` |
+| `tui/` | `renderTui` |
+
+## Anti-hallucination / anti-rogue layers
+
+1. **Verification gate** — per-result grounding; fabricated evidence is auto-rejected.
+2. **Consensus** — critical tasks require ≥`ceil(replicas·quorum)` workers to agree.
+3. **Contradiction detection** — cross-checks a goal's claims for conflicting values.
+4. **Adversarial verifier** — a result must *survive* an independent skeptic.
+5. **Semantic grounding judge** — embeddings catch paraphrased fabrication.
+6. **Provenance store** — every accepted claim keeps a confirmed-evidence audit trail.
+7. **Anti-rogue guardrail** — kills workers on destructive/exfil/escape/self-preservation behaviour.
+
+## Configuration (`swarm.config.json`, precedence: defaults < file < `SWARM_*` env < CLI)
+
+| Key / env | Meaning |
+|---|---|
+| `mode` / `SWARM_MODE` | `inline` \| `process` \| `docker` |
+| `capabilities` / `SWARM_CAPABILITIES` | worker capabilities (comma-sep in env) |
+| `poolSize` / `SWARM_POOL_SIZE` | worker pool size |
+| `dashboardPort` / `SWARM_DASHBOARD_PORT` | dashboard port |
+| `controlPort` / `SWARM_CONTROL_PORT` | worker control-plane port |
+| `authToken` / `SWARM_AUTH_TOKEN` | dashboard API + bus token |
+| `workerImage` / `SWARM_WORKER_IMAGE` | docker worker image |
+| `autoscale` | `{ min, max }` pool autoscaling |
+
+## REST + ops endpoints (`SwarmServer`)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/` | live dashboard |
+| GET | `/healthz` | unauth liveness probe (for HEALTHCHECK/LB) |
+| GET | `/metrics` | Prometheus exposition |
+| GET | `/api/schema` | self-describing API |
+| GET | `/api/state` · `/api/events` | snapshot · SSE stream |
+| GET | `/api/metrics` · `/api/workers` · `/api/logs` | metrics · workers · logs |
+| POST | `/api/goals` | start a goal → `{ goalId }` |
+| GET | `/api/goals` · `/api/goals/:id` | list · detail |
+| GET | `/api/goals/:id/{tasks,dag,usage,provenance}` | goal sub-resources |
+| POST | `/api/goals/:id/{cancel,replay}` | control a goal |
+| POST | `/api/workers/:id/kill` · `/api/pool/scale` | live controls |
+| GET/POST/DELETE | `/api/schedules[/:id]` | recurring goals |
+
+When `authToken` is set, `/api/*` requires it via `Authorization: Bearer`,
+`X-Swarm-Token`, or `?token=` (for SSE). `/`, `/healthz`, and `/metrics` stay open.

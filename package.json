@@ -126,7 +126,8 @@
     "test:watch": "vitest",
     "build:swarm": "node scripts/build-swarm.mjs",
     "swarm": "tsx src/swarm-runtime/cli.ts",
-    "swarm:dashboard": "tsx src/swarm-runtime/cli.ts serve"
+    "swarm:dashboard": "tsx src/swarm-runtime/cli.ts serve",
+    "swarm:demo": "tsx examples/swarm/demo.ts"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",
