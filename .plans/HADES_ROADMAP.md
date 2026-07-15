@@ -26,7 +26,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 ---
 
 ## Phase A — The Closed Learning Loop (Hades's soul)
-- [ ] 1. Cross-session memory store: `MemoryStore` (memory + file backends) + `MemoryRecord` (fact, salience, tags, ts, embedding?).
+- [x] 1. Cross-session memory store: `MemoryStore` (memory + file backends) + `MemoryRecord` (fact, salience, tags, ts, embedding?).
 - [ ] 2. Session store + FTS-style search over past sessions (keyword rank + summarization hook).
 - [ ] 3. Agent-curated memory: extract & persist salient anchors from a finished session/goal.
 - [ ] 4. Memory nudges: periodic "persist this?" prompts + a nudge scheduler.
@@ -81,3 +81,5 @@ Baseline: swarm-runtime complete, 699 tests green.
 
 ## Iteration log
 _(newest last; one entry per completed iteration)_
+
+- **Iter 1 — cross-session memory store.** `src/hades/memory/`: `MemoryRecord` (fact, salience, tags, access stats) + `MemoryStore` with `InMemoryMemoryStore` and atomic-write `FileMemoryStore`. Pure `scoreMemory` ranks retrieval by lexical overlap · salience · recency decay (2-week half-life); retrieval records access. 6 tests. Full suite green.
