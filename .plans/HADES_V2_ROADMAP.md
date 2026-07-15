@@ -51,7 +51,7 @@ Baseline: swarm-runtime (699) + Hades v1 complete, **909 tests green**.
 - [x] 11. Skill **module manifest** (name, version, deps, capabilities, provides).
 - [x] 12. Semver-ish dependency resolution + topological load order.
 - [x] 13. Skill module loader: hot **load/unload/reload** into a live registry.
-- [ ] 14. Plugin **package** format + capability manifest + declared permissions.
+- [x] 14. Plugin **package** format + capability manifest + declared permissions.
 - [ ] 15. Unified module registry (skills + plugins) with conflict + version checks.
 
 ## Phase J — Parallel Execution & Speedup
@@ -91,6 +91,7 @@ _(newest last; one entry per completed iteration)_
 - **Iter 11 — module manifest + semver.** `modules/manifest`: `ModuleManifest` (name, semver version, kind skill/plugin/pack, dependencies as name→range, capabilities, provides, permissions) and a dependency-free semver matcher — `parseVersion`, `compareVersions`, and `satisfies` supporting `*`, exact, caret `^`, tilde `~`, and `>=/>/<=/<`. `validateManifest` checks name/version/kind shape and that every dependency range parses. The foundation for resolution + hot-load. 9 tests. Full suite green (966).
 - **Iter 12 — dependency resolution + load order.** `resolveModules(available, roots)` chooses one version per module satisfying **all** accumulated ranges (highest wins) via a bounded constraint fixpoint, reports missing modules and unsatisfiable version conflicts, then returns the chosen set in **dependency-first topological order** (Kahn) — detecting cycles and deduping a shared dep across roots. 6 tests. Full suite green (972).
 - **Iter 13 — hot skill-module loader.** `SkillModuleLoader` loads/unloads/reloads skill modules at runtime (validating each manifest, emitting load/unload/reload events) and `skillRegistry()` projects the currently-loaded set into a fresh `SkillRegistry` for the swarm. `loadAll` resolves dependency order first so nothing loads before what it needs; unloading a module others depend on is refused (returns `blockedBy`) unless forced. 5 tests. Full suite green (977).
+- **Iter 14 — governed plugin packages.** `PluginPackage` = manifest (capabilities, provided hooks, **requested permissions**) + factory. `PluginPackageLoader` installs into a live `PluginManager` enforcing declared permissions **deny-by-default**: a package requesting any ungranted permission is refused before its code runs (returned as `denied`); permission-free packages always pass. Configurable via `allowedPermissions` or a custom `grant`; non-plugin manifests rejected; `installAll` resolves dependency order. More secure than a bare registry. 6 tests. Full suite green (983).
 
 ### Phase H — Teams
 - **Iter 6 — role registry + team blueprint.** `teams/`: `AgentRole` (capabilities route tasks; skills + prompt fragment specialize) and `RoleRegistry` with a `defaultRoleRegistry` (planner/researcher/coder/reviewer/tester) + `withCapability` lookup. `TeamBlueprint` (role requirements with counts + min/max, `maxAgents` runaway ceiling); pure `blueprintSize`, `validateBlueprint` (unknown roles, bad counts, oversize teams), and `expandRoster` → concrete namespaced `{agentId, role}` slots. 6 tests. Full suite green (941).
