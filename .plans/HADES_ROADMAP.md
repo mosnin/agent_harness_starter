@@ -43,7 +43,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 - [x] 13. WhatsApp Cloud connector.
 - [x] 14. Signal connector (signal-cli shape).
 - [x] 15. Voice: injectable STT (transcribe inbound audio) + TTS reply hook.
-- [ ] 16. Cross-platform conversation continuity (one session across channels).
+- [x] 16. Cross-platform conversation continuity (one session across channels).
 
 ## Phase C — Execution Backends
 - [ ] 17. `RemoteBackend` abstraction (beyond worker providers) + registry.
@@ -99,3 +99,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 13 — WhatsApp Cloud connector.** `WhatsAppConnector.verify()` answers the GET webhook handshake; `ingest()` walks the entry→changes→messages envelope, handles text messages only (ignores status/media), routes them, replies via an injectable send transport (`createWhatsAppHttpTransport`). 3 tests. Full suite green.
 - **Iter 14 — Signal connector.** Poll-based `SignalConnector` over an injectable `SignalTransport` (signal-cli receive/send shape): drains data messages, skips receipts/empties, routes, replies to source. `createSignalJsonRpcTransport` for a signal-cli daemon. Added `signal` to `GatewayPlatform`. 2 tests. Full suite green.
 - **Iter 15 — voice.** `gateway/VoicePipeline` wraps a text handler into a voice-aware one via injectable `SpeechToText` + optional `TextToSpeech`: inbound audio is transcribed before routing (prefers provided text when both present), and the reply is spoken back only when the turn was voice. `AudioRef`/`VoiceInbound`/`VoiceReply` carry audio alongside the platform-agnostic message; no audio backend needed to test. 4 tests. Full suite green (763).
+- **Iter 16 — cross-platform continuity (Phase B complete).** `gateway/continuity`: an `Identity` unifies a user's per-platform handles into one canonical record carrying a single `sessionId` and `lastSeen` channel. `InMemoryIdentityStore`/`FileIdentityStore` resolve handle→identity, `link` (merging two identities, preserving the target's session), and persist. `IdentityLinker` runs the "prove it's you" flow — a one-time, TTL-bound, single-use code issued from a known channel and redeemed from a new one. `ContinuityRouter` wraps a handler so one identity keeps one conversation across channels, flags a `switchedChannel`, records `lastSeen`, and exposes `deliveryTargetFor` for proactive replies — drops straight into `ConnectorHub`. Injectable clock + code/session generators. 8 tests. **Phase B done.** Full suite green (771).

@@ -5,4 +5,18 @@ export type { PlatformConnector, DeliveryTarget, Mirror, ConnectorHubOptions } f
 export { InMemoryConnector } from "./in-memory-connector";
 export { VoicePipeline } from "./voice";
 export type { AudioRef, SpeechToText, TextToSpeech, VoiceInbound, VoiceReply } from "./voice";
+export {
+  InMemoryIdentityStore,
+  FileIdentityStore,
+  IdentityLinker,
+  ContinuityRouter,
+} from "./continuity";
+export type {
+  ChannelRef,
+  Identity,
+  LinkCodeOptions,
+  ContinuityContext,
+  ContinuityHandler,
+  ContinuityRouterOptions,
+} from "./continuity";
 export * from "./connectors/index";
