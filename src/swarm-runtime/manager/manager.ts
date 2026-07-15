@@ -17,6 +17,8 @@ import type { GuardrailPolicy } from "../verification/guardrails";
 import { majorityVote, type Vote } from "../../agents/swarm/consensus";
 import { claimsToRefs, detectContradictions } from "../verification/contradiction";
 import type { Contradiction } from "../verification/contradiction";
+import { ProvenanceStore, buildProvenance } from "../verification/provenance";
+import type { ProvenanceRecord } from "../verification/provenance";
 import { DeterministicPlanner, materializeTasks, type Planner } from "./planner";
 
 interface ReplicaOutcome {
@@ -109,6 +111,7 @@ export class SwarmManager extends EventEmitter {
   private tasks = new Map<string, WorkerTask>();
   private goals = new Map<string, Goal>();
   private verifications: VerificationReport[] = [];
+  private readonly provenance = new ProvenanceStore();
   private consensusRounds = new Map<string, ConsensusRound>();
   private readonly defaultConsensus?: ConsensusSpec;
   private readonly failOnContradiction: boolean;
@@ -191,6 +194,17 @@ export class SwarmManager extends EventEmitter {
   }
   listVerifications(): VerificationReport[] {
     return [...this.verifications];
+  }
+  /** Audit trail: every accepted result's claims + confirmed evidence. */
+  listProvenance(goalId?: string): ProvenanceRecord[] {
+    return goalId ? this.provenance.forGoal(goalId) : this.provenance.list();
+  }
+  getProvenance(taskId: string): ProvenanceRecord | undefined {
+    return this.provenance.get(taskId);
+  }
+  /** Fraction of all accepted claims grounded in observed evidence (0..1). */
+  groundingRate(): number {
+    return this.provenance.groundingRate();
   }
 
   async shutdown(): Promise<void> {
@@ -348,6 +362,7 @@ export class SwarmManager extends EventEmitter {
     }
     if (accepted) {
       task.status = "verified";
+      this.provenance.record(buildProvenance(result, report, task.goalId));
       this.emit("task:verified", task, report);
       this.onProgress(task.goalId);
     } else {
@@ -438,6 +453,7 @@ export class SwarmManager extends EventEmitter {
       const winner = acceptedOutcomes.find((o) => canonicalize(o.result.output) === vote.value)!;
       task.result = winner.result;
       task.status = "verified";
+      this.provenance.record(buildProvenance(winner.result, winner.report, task.goalId));
       this.emit("task:verified", task, {
         ...winner.report,
         feedback: `consensus: ${winnerCount}/${spec.replicas} workers agreed (threshold ${threshold})`,

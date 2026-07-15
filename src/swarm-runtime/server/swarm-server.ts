@@ -132,6 +132,8 @@ export class SwarmServer {
     tasks: WorkerTask[];
     goals: unknown[];
     verifications: VerificationReport[];
+    provenance: unknown[];
+    groundingRate: number;
   } {
     return {
       mode: this.swarm.mode,
@@ -139,6 +141,8 @@ export class SwarmServer {
       tasks: this.swarm.manager.listTasks(),
       goals: this.goalList(),
       verifications: this.swarm.manager.listVerifications().slice(-50),
+      provenance: this.swarm.manager.listProvenance().slice(-50),
+      groundingRate: this.swarm.manager.groundingRate(),
     };
   }
 

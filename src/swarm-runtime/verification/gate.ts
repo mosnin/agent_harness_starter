@@ -305,6 +305,19 @@ function truncate(s: string, n = 80): string {
   return s.length > n ? `${s.slice(0, n)}…` : s;
 }
 
+/** Lower-cased concatenation of a tool trace — the searchable evidence corpus. */
+export function buildTraceHaystack(toolTrace: ToolCallRecord[]): string {
+  return toolTrace
+    .map((t) => `${t.tool} ${JSON.stringify(t.args)} ${t.output}`)
+    .join("\n")
+    .toLowerCase();
+}
+
+/** True if a piece of cited evidence traces back to what the worker observed. */
+export function isEvidenceTraceable(evidence: string, toolTrace: ToolCallRecord[]): boolean {
+  return isTraceable(evidence, buildTraceHaystack(toolTrace));
+}
+
 function isTraceable(evidence: string, haystackLower: string): boolean {
   const ev = evidence.trim().toLowerCase();
   if (ev.length === 0) return false;

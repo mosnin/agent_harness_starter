@@ -23,7 +23,7 @@ infra. 582 tests green.
 ## Phase A — Anti-hallucination hardening (trust is the headline feature)
 - [x] 1. Redundant-worker consensus: dispatch critical tasks to N workers, require majority agreement (reuse `majorityVote`).
 - [x] 2. Cross-claim contradiction detection across a goal's verified results.
-- [ ] 3. Evidence provenance store — every accepted claim keeps a traceable citation record.
+- [x] 3. Evidence provenance store — every accepted claim keeps a traceable citation record.
 - [ ] 4. Revision loop hardening: structured feedback, attempt caps, escalation.
 - [ ] 5. Semantic grounding check via embeddings (reuse `src/agents/embeddings`).
 - [ ] 6. Adversarial verifier: an independent skeptic pass that tries to refute claims.
@@ -79,3 +79,4 @@ _(newest last; one entry per completed iteration)_
 
 - **Iter 1 — consensus voting.** Added `ConsensusSpec` + `WorkerTask.consensus`. Manager dispatches N replicas of a consensus task, evaluates each independently (guardrail + gate), then requires ≥`ceil(replicas·quorum)` gate-passing replicas to agree on canonical output (via `majorityVote`) before verifying. Round timeout backstop; timers cleared on shutdown. Wired `defaultConsensus` through factory. 3 tests (agree→pass, disagree→fail, single-worker unchanged). 585 tests green.
 - **Iter 2 — contradiction detection.** New `verification/contradiction.ts`: conservative `subject <copula> value` parser that flags conflicting/negated values for the same subject across a goal's verified claims. Manager runs it at completion, attaches `Goal.contradictions`, emits `goal:contradiction`, and (opt-in `failOnContradiction`) fails an internally-inconsistent goal. 5 tests. 590 green.
+- **Iter 3 — evidence provenance store.** New `verification/provenance.ts` + exported trace helpers from the gate. Manager records a `ProvenanceRecord` on every accept (single + consensus): claims, which evidence was confirmed against the tool trace, verdict/score. Exposed `listProvenance`/`getProvenance`/`groundingRate` and surfaced in `/api/state`. 3 tests. 593 green.

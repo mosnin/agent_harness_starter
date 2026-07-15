@@ -4,3 +4,6 @@ export { AntiRogueGuardrail } from "./guardrails";
 export type { GuardrailPolicy, RogueFinding, RogueSeverity } from "./guardrails";
 export { detectContradictions, claimsToRefs } from "./contradiction";
 export type { Contradiction, ClaimRef } from "./contradiction";
+export { ProvenanceStore, buildProvenance } from "./provenance";
+export type { ProvenanceRecord, ClaimProvenance } from "./provenance";
+export { buildTraceHaystack, isEvidenceTraceable } from "./gate";
