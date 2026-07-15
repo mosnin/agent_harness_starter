@@ -17,10 +17,10 @@ validity*; `tsc` clean; suite green; real numbers only.
   fitness-gain/$). **Adversary 121 tests: spent ≤ budget always; controller beats
   uniform by 1.88× verified-work-per-$ (bar was 1.2×); spend skewed ~10× to good
   branches; honest pruning (no refund).** Suite 1796.
-- [ ] **S3 — Anti-gaming**. `styx/perturb.ts`: isomorphic-perturbation harness
-  (a passing answer must keep passing under semantics-preserving rewrites) +
-  held-out verifier rotation. Red-team suite: scripted gaming strategies must be
-  caught; directly targets the S1 correlated-bias limitation.
+- [x] **S3 — Anti-gaming**. `styx/perturb.ts`: isomorphic-perturbation harness +
+  held-out verifier rotation. **Red-team 18 tests: catch rate 83.3% of gamers the
+  raw ensemble misses (bar 50%), 0% false-positives on robust solvers, layered
+  defense non-redundant, one honest slip-through documented.** Suite 1828.
 - [ ] **S4 — Real-inference binding** (keyed). A Styx `AgentRunner` (speculate →
   bandit-race cheap workers → tier-route + ensemble-verify → conformal gate →
   certificate) over the multi-provider client; `hades bench styx` head-to-head vs
@@ -35,9 +35,16 @@ validity*; `tsc` clean; suite green; real numbers only.
 2. Measured silent-wrong ≤ ε on held-out — **S1 ✓ (synthetic); S4 (real).**
 3. Bandit beats uniform by ≥ 20% verified-work/$ — **S2 ✓ (measured 1.88×).**
 4. Certificate rejects 100% of tampered outputs — **S1 ✓.**
-5. Perturbation catches ≥ half of gaming attempts the raw ensemble misses — **S3.**
+5. Perturbation catches ≥ half of gaming attempts the raw ensemble misses — **S3 ✓ (measured 83.3%).**
 
 ## Log
+- **S3 complete.** Isomorphic-perturbation + verifier-rotation anti-gaming layer,
+  built by a builder + a red-team adversary (18 tests). Catches 83.3% of gaming
+  attempts the raw S1 ensemble accepts at score 1.0, with 0% false-positives on
+  genuinely-robust solvers; the two defenses are non-redundant (perturbation and
+  rotation catch different attacks); the single constructed slip-through is the
+  documented "no verifier is unhackable" boundary. Closes the S1 correlated-bias
+  limitation. Full suite green (1828 / 187 files).
 - **S1 complete.** Trust kernel built by 3 builders + 1 external-validity
   adversary (24 tests). The core novel claim — a distribution-free, tunable bound
   on silent-wrong — holds empirically and tightly (mean realized wrong-rate ≈ ε

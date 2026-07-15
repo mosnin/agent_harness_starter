@@ -26,3 +26,12 @@ export { BranchTree } from "./branches";
 export type { BranchState, BranchNode, BranchTreeStats } from "./branches";
 export { BanditController } from "./controller";
 export type { WorkerOracle, ControllerOptions, ControllerReport } from "./controller";
+export {
+  checkRobustness,
+  whitespaceJitter,
+  caseFlip,
+  synonymSwap,
+  numberRename,
+  verifierRotation,
+} from "./perturb";
+export type { Perturbation, Solver, RobustnessReport, RotationReport } from "./perturb";
