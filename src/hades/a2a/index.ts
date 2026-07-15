@@ -18,3 +18,5 @@ export { PubSub, ALL_TOPICS } from "./pubsub";
 export type { TopicHandler } from "./pubsub";
 export { RpcPeer } from "./rpc";
 export type { RpcOptions, RpcHandler, RpcPeerOptions } from "./rpc";
+export { StreamPeer, AsyncQueue } from "./stream";
+export type { StreamHandler, StreamPeerOptions } from "./stream";
