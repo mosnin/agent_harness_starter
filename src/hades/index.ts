@@ -22,3 +22,4 @@ export * from "./cli/index";
 export * from "./config/index";
 export * from "./a2a/index";
 export * from "./teams/index";
+export * from "./modules/index";
