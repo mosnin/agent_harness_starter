@@ -38,7 +38,7 @@ infra. 582 tests green.
 - [x] 13. Persistent goal/task state (file/SQLite) for crash recovery.
 
 ## Phase C — Integrations & modes (Hermes parity)
-- [ ] 14. Expose swarm control as MCP tools (spawn/status/dispatch).
+- [x] 14. Expose swarm control as MCP tools (spawn/status/dispatch).
 - [ ] 15. Cron-scheduled swarms (recurring goals).
 - [ ] 16. REST API expansion + documented schema.
 - [ ] 17. Harness-backed executor: wire the existing `@/agents` harness + tool registry into workers.
@@ -90,3 +90,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 11 — per-goal budgets.** `BudgetSpec` (maxWorkerRuns/toolCalls/costUsd/wallClockMs) + `WorkerResult.costUsd`. Manager accounts every worker run (runs, tool calls, cost) and aborts a goal via `abortGoal` + `goal:aborted` when a ceiling breaks (pure `budgetBreach`). `runGoal` takes a per-goal `budget`; `getUsage` exposes live accounting; dispatch is blocked into non-running goals. 3 tests. Full suite green.
 - **Iter 12 — goal cancellation.** Public `cancelGoal(goalId, reason)` + `runGoal` `AbortSignal` support. Cancellation reuses `abortGoal`: dispatch stops (non-running guard), in-flight results are ignored on arrival, non-terminal tasks are failed, goal resolves as `aborted`. 2 tests. Full suite green.
 - **Iter 13 — persistent state (Phase B complete).** `persistence/state-store.ts`: `StateStore` with `MemoryStateStore` and atomic-write `FileStateStore` (temp+rename, no deps). Manager snapshots goals/tasks/usage (debounced) on plan/progress/abort, flushes on shutdown, and `loadState()` hydrates a fresh manager for post-crash inspection. Exported from the root barrel + factory. 2 tests. Full suite green.
+- **Iter 14 — swarm MCP tools (Phase C start).** Refactored `runGoal` into `startGoal` (returns goalId + done promise, non-blocking) + thin wrapper. New `createSwarmMcpTools(manager)`: `swarm_run_goal` / `swarm_goal_status` / `swarm_cancel_goal` / `swarm_list_workers` / `swarm_provenance`, same self-contained tool shape the repo uses — register with the MCP server to drive the swarm from Claude Desktop/Cursor. 2 tests (async run+poll+provenance, cancel). Full suite green.

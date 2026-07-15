@@ -415,6 +415,19 @@ export class SwarmManager extends EventEmitter {
     objective: string,
     opts?: { timeoutMs?: number; budget?: BudgetSpec; signal?: AbortSignal }
   ): Promise<Goal> {
+    const { done } = await this.startGoal(objective, opts);
+    return done;
+  }
+
+  /**
+   * Start a goal and return its id immediately, plus a `done` promise that
+   * resolves when it finishes. Useful for request/response callers (MCP tools,
+   * REST) that need the id to poll status while the goal runs in the background.
+   */
+  async startGoal(
+    objective: string,
+    opts?: { timeoutMs?: number; budget?: BudgetSpec; signal?: AbortSignal }
+  ): Promise<{ goalId: string; done: Promise<Goal> }> {
     await this.ensurePool();
 
     const goalId = randomUUID();
@@ -422,16 +435,12 @@ export class SwarmManager extends EventEmitter {
     if (budget) this.goalBudgets.set(goalId, budget);
     this.goalUsage.set(goalId, { workerRuns: 0, toolCalls: 0, costUsd: 0, startedAt: Date.now() });
 
-    const planned = await this.planner.plan(objective, this.capabilities);
-    const tasks = materializeTasks(planned, goalId, this.maxAttempts, this.defaultConsensus);
-    for (const t of tasks) this.tasks.set(t.id, t);
-
     const goal: Goal = {
       id: goalId,
       objective,
       status: "running",
       createdAt: Date.now(),
-      taskIds: tasks.map((t) => t.id),
+      taskIds: [],
     };
     this.goals.set(goalId, goal);
 
@@ -444,11 +453,26 @@ export class SwarmManager extends EventEmitter {
         });
     }
 
+    const done = this.executeGoal(goalId, objective, opts?.timeoutMs ?? 10 * 60_000);
+    return { goalId, done };
+  }
+
+  private async executeGoal(goalId: string, objective: string, timeoutMs: number): Promise<Goal> {
+    const planned = await this.planner.plan(objective, this.capabilities);
+    const tasks = materializeTasks(planned, goalId, this.maxAttempts, this.defaultConsensus);
+    for (const t of tasks) this.tasks.set(t.id, t);
+
+    const goal = this.goals.get(goalId)!;
+    goal.taskIds = tasks.map((t) => t.id);
+
+    // A signal may have aborted the goal while we were planning.
+    if (goal.status !== "running") return goal;
+
     this.emit("goal:planned", goal, tasks);
     this.schedulePersist();
     this.dispatchReady(goalId);
 
-    return await this.waitForGoal(goalId, opts?.timeoutMs ?? 10 * 60_000);
+    return await this.waitForGoal(goalId, timeoutMs);
   }
 
   /**
