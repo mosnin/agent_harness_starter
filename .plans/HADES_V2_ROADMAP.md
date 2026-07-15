@@ -63,7 +63,7 @@ Baseline: swarm-runtime (699) + Hades v1 complete, **909 tests green**.
 
 ## Phase K — Security Hardening (beat Hermes)
 - [x] 21. Per-agent capability tokens (NHI) minted per team membership.
-- [ ] 22. A2A message signing + verification (injectable signer; tamper-reject).
+- [x] 22. A2A message signing + verification (injectable signer; tamper-reject).
 - [ ] 23. Least-privilege team permission scopes (deny-by-default capability grants).
 - [ ] 24. A2A + team **audit trail** (who talked to whom, what was spawned).
 - [ ] 25. Secure-by-default spawn policy (resource caps, no-net default, egress allowlist).
@@ -96,6 +96,7 @@ _(newest last; one entry per completed iteration)_
 
 ### Phase K — Security
 - **Iter 21 — capability tokens (NHI).** `security/tokens`: `CapabilityMinter` mints a per-agent `CapabilityToken` scoping exactly what a team member may do (capabilities, team, issued/expiry), one per membership (`mintForTeam` over the roster); `CapabilityChecker` validates (structure + expiry) and authorizes **deny-by-default** — a capability is granted only if the token holds it or `*`; `assert` throws for guard sites. The non-human-identity base for the A2A/spawn checks that follow. 6 tests. Full suite green (1020).
+- **Iter 22 — A2A signing + tamper-reject.** `HmacSigner` (HMAC-SHA256, constant-time verify) behind an injectable `Signer`. `SigningA2ATransport` wraps any `A2ATransport` to **sign every outgoing message and verify every incoming one** over a canonical envelope form, dropping anything unsigned or tampered before it reaches a mailbox (with an `onReject` audit hook) — a spoofed/modified message or one signed with the wrong team secret never gets delivered. `signToken`/`verifyToken` do the same for capability tokens (a privilege-escalation mutation fails verification). Added optional `sig` to the envelope. 5 tests. Full suite green (1025).
 
 ### Phase I — Modular skills & plugins
 - **Iter 11 — module manifest + semver.** `modules/manifest`: `ModuleManifest` (name, semver version, kind skill/plugin/pack, dependencies as name→range, capabilities, provides, permissions) and a dependency-free semver matcher — `parseVersion`, `compareVersions`, and `satisfies` supporting `*`, exact, caret `^`, tilde `~`, and `>=/>/<=/<`. `validateManifest` checks name/version/kind shape and that every dependency range parses. The foundation for resolution + hot-load. 9 tests. Full suite green (966).

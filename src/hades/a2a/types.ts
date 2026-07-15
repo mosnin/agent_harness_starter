@@ -36,6 +36,8 @@ export interface A2AMessage<T = unknown> {
   correlationId?: string;
   payload: T;
   ts: number;
+  /** Optional signature over the envelope body (set by a signing transport). */
+  sig?: string;
 }
 
 export function isBroadcast(to: Recipient): to is BroadcastAddress {
