@@ -344,7 +344,10 @@ export class SwarmManager extends EventEmitter {
    * Run a goal end-to-end: plan → dispatch → verify → synthesize. Resolves with
    * the completed (or failed) goal once every task reaches a terminal state.
    */
-  async runGoal(objective: string, opts?: { timeoutMs?: number; budget?: BudgetSpec }): Promise<Goal> {
+  async runGoal(
+    objective: string,
+    opts?: { timeoutMs?: number; budget?: BudgetSpec; signal?: AbortSignal }
+  ): Promise<Goal> {
     await this.ensurePool();
 
     const goalId = randomUUID();
@@ -364,11 +367,32 @@ export class SwarmManager extends EventEmitter {
       taskIds: tasks.map((t) => t.id),
     };
     this.goals.set(goalId, goal);
-    this.emit("goal:planned", goal, tasks);
 
+    // Wire cancellation: an aborted signal terminates the goal mid-flight.
+    if (opts?.signal) {
+      if (opts.signal.aborted) this.abortGoal(goalId, "cancelled before start");
+      else
+        opts.signal.addEventListener("abort", () => this.abortGoal(goalId, "cancelled via signal"), {
+          once: true,
+        });
+    }
+
+    this.emit("goal:planned", goal, tasks);
     this.dispatchReady(goalId);
 
     return await this.waitForGoal(goalId, opts?.timeoutMs ?? 10 * 60_000);
+  }
+
+  /**
+   * Cancel a running goal. Dispatch stops immediately, in-flight worker results
+   * are ignored on arrival, and any non-terminal task is marked failed. Returns
+   * false if the goal isn't running.
+   */
+  cancelGoal(goalId: string, reason = "cancelled by request"): boolean {
+    const goal = this.goals.get(goalId);
+    if (!goal || goal.status !== "running") return false;
+    this.abortGoal(goalId, reason);
+    return true;
   }
 
   getGoal(id: string): Goal | undefined {
