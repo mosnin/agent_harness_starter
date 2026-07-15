@@ -45,7 +45,7 @@ infra. 582 tests green.
 - [x] 18. Worker tool access (web search / sandbox) with grounded traces.
 - [x] 19. Provider abstraction: OpenAI / Anthropic / Nous / OpenRouter / local.
 - [ ] 20. Stream live worker token output to the dashboard.
-- [ ] 21. Gateway trigger stub: a message (Slack/Discord/Telegram-shaped) launches a swarm.
+- [x] 21. Gateway trigger stub: a message (Slack/Discord/Telegram-shaped) launches a swarm.
 - [ ] 22. Skills for workers (curated capability bundles).
 
 ## Phase D — GUI / UX
@@ -97,3 +97,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 18 — worker tool access.** `worker/toolbox.ts`: `ToolBox` registry + `ToolRunner` that records every call into the trace (grounded-by-construction) and enforces a per-task capability allowlist (anti-rogue at the point of use). `createToolExecutor` auto-synthesizes grounded claims from tool outputs. Example `webSearchTool`/`httpGetTool`/`defineTool` (injectable/mockable). 4 tests. Full suite green.
 - **Iter 19 — provider abstraction.** `worker/providers.ts`: `createChat({provider,model,...})` returns a `ChatFn` for OpenAI/Nous/OpenRouter/Together/Groq/local (OpenAI-compatible) and Anthropic (native messages API), resolving base URLs + key envs from a `PROVIDERS` directory. Injectable fetch. 3 tests (directory, unknown-provider, Anthropic request/response shaping). Full suite green.
 - **Iter 20 — live worker output streaming.** Manager now buffers a rolling activity log (bounded) as worker log lines arrive over the bus, still emitting the SSE `log` event. New `recentLogs`/`getWorkerLogs`; SwarmServer serves `GET /api/logs` and `GET /api/workers/:id/logs`, and includes recent logs in `/api/state` so late-joining dashboard clients see history. 2 tests. Full suite green.
+- **Iter 21 — gateway trigger.** `gateway/`: platform-agnostic `InboundMessage` + Slack/Telegram/Discord parsers, and `SwarmGateway.handle()` that launches a goal from a chat message and replies with the verified synthesis (or contradiction warning). Access allowlist, optional trigger prefix, sync/async modes. 5 tests. Full suite green.

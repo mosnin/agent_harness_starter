@@ -25,6 +25,7 @@ export * from "./worker";
 export * from "./persistence/index";
 export * from "./mcp/index";
 export * from "./scheduling/index";
+export * from "./gateway/index";
 export { createInlineSwarm } from "./factory";
 export type { InlineSwarmOptions } from "./factory";
 export { buildSwarm, SwarmServer, DASHBOARD_HTML } from "./server/index";
