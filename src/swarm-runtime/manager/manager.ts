@@ -170,6 +170,9 @@ export class SwarmManager extends EventEmitter {
 
   constructor(private readonly config: ManagerConfig) {
     super();
+    // Each concurrent runGoal registers temporary terminal-event listeners;
+    // lift the default cap so running many goals at once doesn't warn/leak.
+    this.setMaxListeners(0);
     this.provider = config.provider;
     this.bus = config.bus;
     this.planner = config.planner ?? new DeterministicPlanner();

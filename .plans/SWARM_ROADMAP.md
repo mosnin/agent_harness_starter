@@ -69,7 +69,7 @@ infra. 582 tests green.
 ## Phase F — Docs / polish / release
 - [x] 37. Comprehensive docs + runnable examples.
 - [x] 38. End-to-end integration test suite.
-- [ ] 39. Benchmarks / load test + tuning.
+- [x] 39. Benchmarks / load test + tuning.
 - [ ] 40. Final review, README polish, CHANGELOG, release prep.
 
 ---
@@ -115,3 +115,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 36 — chaos tests (Phase E complete).** Resilience integration suite: worker killed mid-goal → requeue+replace recovers; flaky executor throwing on early attempts → retry loop recovers; jittery slow responses → still completes; all-ungrounded → fails cleanly without hanging. 4 tests. Phase E done. Full suite green.
 - **Iter 37 — docs + runnable example (Phase F start).** `examples/swarm/demo.ts` (+README, `npm run swarm:demo`): offline inline swarm with a mock research skill, prints plan/verification/synthesis/provenance/metrics — verified running end-to-end. Expanded `docs/24-swarm-runtime.md` with a full module/anti-hallucination-layer/config/REST-endpoint reference. Full suite green.
 - **Iter 38 — end-to-end integration suite.** One `e2e.test.ts` drives the whole stack together: REST goal start → DAG → poll to completion → provenance (all gate-cleared); a Slack-shaped gateway message launches + replies; the scheduler registers + fires a cron goal; /healthz + Prometheus /metrics; and structured logging captures lifecycle events. Full suite green.
+- **Iter 39 — benchmarks / load test.** Pure `summarizeLatencies`/`percentile`/`formatSummary` (throughput + p50/p95/p99) + `examples/swarm/bench.ts` (`npm run swarm:bench`). Load test surfaced and fixed an EventEmitter listener leak under concurrent goals (`setMaxListeners(0)`); inline bench ~2500 goals/s, 100% grounded. 4 tests. Full suite green.
