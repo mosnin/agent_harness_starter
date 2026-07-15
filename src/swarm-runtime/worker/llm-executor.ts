@@ -49,12 +49,16 @@ export class LLMExecutor implements TaskExecutor {
   async execute(task: WorkerTask, ctx: WorkerContext): Promise<ExecutionOutput> {
     const deps = (task.input as { _dependencies?: Array<{ output: unknown }> })._dependencies ?? [];
     const feedback = (task.input as { _revisionFeedback?: string })._revisionFeedback;
+    const revision = (task.input as { _revision?: { attempt: number; failedChecks: string[] } })._revision;
+    const failedChecks = revision?.failedChecks?.length
+      ? `The verifier failed these checks last time: ${revision.failedChecks.join(", ")}. Fix each specifically.`
+      : "";
 
     const userContent = [
       `TASK: ${task.description}`,
       `INPUT: ${JSON.stringify(task.input)}`,
       deps.length ? `VERIFIED DEPENDENCIES:\n${JSON.stringify(deps, null, 2)}` : "",
-      feedback ? `PRIOR ATTEMPT WAS REJECTED. Address this feedback:\n${feedback}` : "",
+      feedback ? `PRIOR ATTEMPT WAS REJECTED (attempt ${revision?.attempt ?? "?"}). Address this feedback:\n${feedback}\n${failedChecks}` : "",
     ]
       .filter(Boolean)
       .join("\n\n");

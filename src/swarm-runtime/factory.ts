@@ -23,6 +23,8 @@ export interface InlineSwarmOptions {
   defaultConsensus?: ConsensusSpec;
   /** Fail a goal whose verified results contradict each other. */
   failOnContradiction?: boolean;
+  /** Emit `task:escalated` once a task reaches this many failed attempts. */
+  escalateAfter?: number;
 }
 
 /**
@@ -68,6 +70,7 @@ export async function createInlineSwarm(opts: InlineSwarmOptions = {}): Promise<
     model: opts.model,
     defaultConsensus: opts.defaultConsensus,
     failOnContradiction: opts.failOnContradiction,
+    escalateAfter: opts.escalateAfter,
   });
 
   return manager;

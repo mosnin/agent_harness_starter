@@ -6,6 +6,7 @@ import type {
   ContainerProvider,
   Goal,
   ResourceLimits,
+  RevisionEntry,
   VerificationReport,
   WorkerResult,
   WorkerTask,
@@ -70,6 +71,8 @@ export interface ManagerConfig {
   defaultConsensus?: ConsensusSpec;
   /** Treat a goal with cross-claim contradictions as failed instead of completed. */
   failOnContradiction?: boolean;
+  /** Emit `task:escalated` once a task reaches this many failed attempts. */
+  escalateAfter?: number;
 }
 
 export interface ManagerEvents {
@@ -80,6 +83,7 @@ export interface ManagerEvents {
   "task:verified": (task: WorkerTask, report: VerificationReport) => void;
   "task:rejected": (task: WorkerTask, report: VerificationReport) => void;
   "task:failed": (task: WorkerTask, reason: string) => void;
+  "task:escalated": (task: WorkerTask, revisions: RevisionEntry[]) => void;
   "goal:completed": (goal: Goal) => void;
   "goal:failed": (goal: Goal, reason: string) => void;
   "goal:contradiction": (goal: Goal, contradictions: Contradiction[]) => void;
@@ -115,6 +119,7 @@ export class SwarmManager extends EventEmitter {
   private consensusRounds = new Map<string, ConsensusRound>();
   private readonly defaultConsensus?: ConsensusSpec;
   private readonly failOnContradiction: boolean;
+  private readonly escalateAfter?: number;
 
   constructor(private readonly config: ManagerConfig) {
     super();
@@ -128,6 +133,7 @@ export class SwarmManager extends EventEmitter {
     this.maxAttempts = config.maxAttempts ?? 3;
     this.defaultConsensus = config.defaultConsensus;
     this.failOnContradiction = config.failOnContradiction ?? false;
+    this.escalateAfter = config.escalateAfter;
     this.authToken = config.authToken ?? randomBytes(24).toString("hex");
 
     this.bus.onRegister((r) => this.handleRegister(r));
@@ -357,7 +363,7 @@ export class SwarmManager extends EventEmitter {
     }
     if (blocked) {
       this.emit("task:rejected", task, report);
-      this.rejectAndMaybeRetry(task, reason ?? "guardrail block");
+      this.rejectAndMaybeRetry(task, reason ?? "guardrail block", report);
       return;
     }
     if (accepted) {
@@ -367,7 +373,7 @@ export class SwarmManager extends EventEmitter {
       this.onProgress(task.goalId);
     } else {
       this.emit("task:rejected", task, report);
-      this.rejectAndMaybeRetry(task, report.feedback);
+      this.rejectAndMaybeRetry(task, report.feedback, report);
     }
   }
 
@@ -467,17 +473,42 @@ export class SwarmManager extends EventEmitter {
     }
   }
 
-  private rejectAndMaybeRetry(task: WorkerTask, feedback: string): void {
+  private rejectAndMaybeRetry(task: WorkerTask, feedback: string, report?: VerificationReport): void {
     task.attempts += 1;
+    const failedChecks = (report?.checks ?? []).filter((c) => !c.passed).map((c) => c.name);
+    const entry = {
+      attempt: task.attempts,
+      verdict: report?.verdict,
+      score: report?.score,
+      failedChecks,
+      feedback,
+      at: Date.now(),
+    };
+    task.revisions = [...(task.revisions ?? []), entry];
+
+    // Escalate for visibility once a task has burned through half its budget —
+    // a persistently-failing task is a signal an operator may need to see.
+    if (this.escalateAfter && task.attempts === this.escalateAfter) {
+      this.emit("task:escalated", task, task.revisions);
+    }
+
     if (task.attempts >= task.maxAttempts) {
       task.status = "failed";
+      this.emit("task:escalated", task, task.revisions);
       this.emit("task:failed", task, feedback);
       this.checkGoalFailure(task.goalId);
       return;
     }
-    // Re-dispatch with the verifier's feedback so the worker can correct course.
+
+    // Re-dispatch with structured, actionable feedback so the worker can correct
+    // course rather than repeating the same ungrounded mistake.
     task.status = "pending";
-    task.input = { ...task.input, _revisionFeedback: feedback, _attempt: task.attempts };
+    task.input = {
+      ...task.input,
+      _revisionFeedback: feedback,
+      _revision: { attempt: task.attempts, failedChecks },
+      _attempt: task.attempts,
+    };
     this.dispatchReady(task.goalId);
   }
 

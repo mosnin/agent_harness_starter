@@ -129,6 +129,18 @@ export interface WorkerTask {
   result?: WorkerResult;
   /** If set, run this task redundantly and require quorum agreement. */
   consensus?: ConsensusSpec;
+  /** History of rejected attempts — why each prior try was sent back. */
+  revisions?: RevisionEntry[];
+}
+
+export interface RevisionEntry {
+  attempt: number;
+  verdict?: Verdict;
+  score?: number;
+  /** Names of the grounding checks that failed this attempt. */
+  failedChecks: string[];
+  feedback: string;
+  at: number;
 }
 
 /** A single grounded assertion a worker makes about its output. */
