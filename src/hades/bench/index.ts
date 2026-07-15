@@ -28,3 +28,11 @@ export { runSoak } from "./soak";
 export type { SoakWindow, SoakResult } from "./soak";
 export { probeLeaks } from "./leak-probe";
 export type { LeakSample, LeakReport } from "./leak-probe";
+export {
+  linearFit,
+  measureRouteScans,
+  assertO1Routing,
+  assertSubLinearGrowth,
+  assertResultsMatch,
+} from "./invariants";
+export type { LinearFit } from "./invariants";
