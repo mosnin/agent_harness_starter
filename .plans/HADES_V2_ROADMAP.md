@@ -57,7 +57,7 @@ Baseline: swarm-runtime (699) + Hades v1 complete, **909 tests green**.
 ## Phase J — Parallel Execution & Speedup
 - [x] 16. Parallel fan-out coordinator (map a task across the team).
 - [x] 17. Work-stealing / load balancer across idle roster members.
-- [ ] 18. Map-reduce aggregation over A2A (scatter → gather → reduce).
+- [x] 18. Map-reduce aggregation over A2A (scatter → gather → reduce).
 - [ ] 19. Pipeline stages across roles (assembly-line parallelism).
 - [ ] 20. Speedup benchmark: parallel-vs-serial wall-clock + efficiency metric.
 
@@ -90,6 +90,7 @@ _(newest last; one entry per completed iteration)_
 ### Phase J — Parallel execution
 - **Iter 16 — parallel fan-out.** `FanOutCoordinator.map(items)` distributes items across the roster through a **shared work queue** — each member processes one item at a time and pulls the next when free, so max parallelism equals roster size and faster members implicitly do more work. Results return in input order; `byAgent` reports load distribution; `continueOnError` collects `failures` while keeping successes (else the first error rejects). The "fraction of the time" primitive, over an injectable dispatch (RPC/local). 6 tests. Full suite green (995).
 - **Iter 17 — work-stealing load balancer.** `LoadBalancer.run(items)` adds fault tolerance: a failed item is **stolen** to a *different* healthy member (up to `maxRetries`), and a member that fails repeatedly is **quarantined** out of rotation so it stops dragging the team down. Scheduling runs in parallel waves (width = healthy roster) for high throughput; items exhausting retries land in `failures`, and if all agents quarantine the rest fail cleanly. Where fan-out assumes reliable members, the balancer assumes they aren't. 6 tests. Full suite green (1001).
+- **Iter 18 — map-reduce over A2A.** `mapReduce(agents, items, {map, reduce, initial})` runs the classic scatter → gather → reduce: the **map** fans across the roster in parallel (via `FanOutCoordinator`), the **gather** preserves input order regardless of completion order, and the **reduce** folds deterministically. The expensive map shrinks toward 1/N wall-clock on a team of N; verified with sum-of-squares and word-count reduces. 3 tests. Full suite green (1004).
 
 ### Phase I — Modular skills & plugins
 - **Iter 11 — module manifest + semver.** `modules/manifest`: `ModuleManifest` (name, semver version, kind skill/plugin/pack, dependencies as name→range, capabilities, provides, permissions) and a dependency-free semver matcher — `parseVersion`, `compareVersions`, and `satisfies` supporting `*`, exact, caret `^`, tilde `~`, and `>=/>/<=/<`. `validateManifest` checks name/version/kind shape and that every dependency range parses. The foundation for resolution + hot-load. 9 tests. Full suite green (966).
