@@ -6,3 +6,5 @@ export { LLMExecutor, createOpenAICompatibleChat, chatToPlannerComplete } from "
 export type { ChatFn, ChatMessage } from "./llm-executor";
 export { SubSwarmExecutor } from "./sub-swarm-executor";
 export type { SubManager, SubSwarmExecutorOptions } from "./sub-swarm-executor";
+export { HarnessExecutor } from "./harness-executor";
+export type { RunnableHarness, HarnessExecutorOptions } from "./harness-executor";

@@ -4,6 +4,8 @@ export interface ExecutionOutput {
   output: unknown;
   claims: Claim[];
   toolTrace: ToolCallRecord[];
+  /** Optional USD cost incurred (LLM tokens, tool fees) for budget accounting. */
+  costUsd?: number;
 }
 
 export interface WorkerContext {

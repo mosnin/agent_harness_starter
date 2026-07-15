@@ -83,6 +83,7 @@ export class WorkerRuntime {
         toolTrace: out.toolTrace,
         startedAt,
         finishedAt: Date.now(),
+        ...(out.costUsd != null ? { costUsd: out.costUsd } : {}),
       };
     } catch (e) {
       result = {
