@@ -107,8 +107,10 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   </section>
 
   <section class="panel">
-    <h2>Verification Gate · anti-hallucination</h2>
+    <h2>Verification Gate · anti-hallucination <span id="grounding" class="badge"></span></h2>
     <div class="body feed" id="verifs"><div class="empty">no verifications yet</div></div>
+    <h2>Evidence &amp; Provenance</h2>
+    <div class="body feed" id="prov"><div class="empty">no accepted evidence yet</div></div>
   </section>
 </main>
 <script>
@@ -155,6 +157,12 @@ function render() {
     tk.appendChild(el);
   }
 
+  // grounding rate + provenance/evidence viewer
+  if (typeof state.groundingRate === "number") {
+    $("grounding").textContent = "grounded " + Math.round(state.groundingRate*100) + "%";
+  }
+  renderProvenance(state.provenance || []);
+
   // verifications
   const vf = $("verifs");
   vf.innerHTML = vers.length ? "" : '<div class="empty">no verifications yet</div>';
@@ -189,6 +197,20 @@ function renderDag(tasks){
     }
     row.innerHTML=html; el.appendChild(row);
   });
+}
+function renderProvenance(records){
+  const el=$("prov");
+  el.innerHTML = records.length ? "" : '<div class="empty">no accepted evidence yet</div>';
+  for(const r of [...records].reverse()){
+    const div=document.createElement("div"); div.className="ver accept";
+    const claims=(r.claims||[]).map(c=>{
+      const ev=(c.tracedEvidence&&c.tracedEvidence.length? c.tracedEvidence : c.evidence||[]).map(e=>'<div class="chk">↳ '+esc(String(e))+'</div>').join("");
+      const mark = c.grounded? '<span class="ok">✓</span>' : '<span class="x">✗</span>';
+      return '<div class="chk">'+mark+' '+esc(c.statement)+'</div>'+ev;
+    }).join("");
+    div.innerHTML='<div class="h"><span>'+esc(r.workerId||"")+'</span><span class="score">'+Math.round((r.score||0)*100)+'%</span></div>'+claims;
+    el.appendChild(div);
+  }
 }
 async function showWorkerLogs(workerId){
   try {
