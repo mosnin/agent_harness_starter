@@ -62,7 +62,7 @@ Baseline: swarm-runtime (699) + Hades v1 complete, **909 tests green**.
 - [x] 20. Speedup benchmark: parallel-vs-serial wall-clock + efficiency metric.
 
 ## Phase K — Security Hardening (beat Hermes)
-- [ ] 21. Per-agent capability tokens (NHI) minted per team membership.
+- [x] 21. Per-agent capability tokens (NHI) minted per team membership.
 - [ ] 22. A2A message signing + verification (injectable signer; tamper-reject).
 - [ ] 23. Least-privilege team permission scopes (deny-by-default capability grants).
 - [ ] 24. A2A + team **audit trail** (who talked to whom, what was spawned).
@@ -93,6 +93,9 @@ _(newest last; one entry per completed iteration)_
 - **Iter 18 — map-reduce over A2A.** `mapReduce(agents, items, {map, reduce, initial})` runs the classic scatter → gather → reduce: the **map** fans across the roster in parallel (via `FanOutCoordinator`), the **gather** preserves input order regardless of completion order, and the **reduce** folds deterministically. The expensive map shrinks toward 1/N wall-clock on a team of N; verified with sum-of-squares and word-count reduces. 3 tests. Full suite green (1004).
 - **Iter 19 — role pipeline (assembly-line).** `pipeline(items, stages)` flows every item through role-owned stages (researcher → coder → reviewer) with **no barrier between stages** — item B can be in stage 1 while item A is in stage 3 — so wall-clock is the slowest single-item chain, not the sum of per-stage totals. Each stage carries a concurrency bound (its role's agent count) via a semaphore; results stay in input order; `continueOnError` collects instead of rejecting. Overlap + bound verified by timeline. 4 tests. Full suite green (1008).
 - **Iter 20 — speedup benchmark (Phase J complete).** `modelSpeedup(costs, agents)` predicts parallel makespan via greedy list-scheduling and returns `speedup` (serial/parallel) + `efficiency` (speedup/agents) deterministically — the metric a "fraction of the time" claim is measured against. `timed`/`benchmarkSpeedup` measure real serial-vs-parallel wall-clock with an injectable clock (deterministic in tests). 6 tests. **Phase J done.** Full suite green (1014).
+
+### Phase K — Security
+- **Iter 21 — capability tokens (NHI).** `security/tokens`: `CapabilityMinter` mints a per-agent `CapabilityToken` scoping exactly what a team member may do (capabilities, team, issued/expiry), one per membership (`mintForTeam` over the roster); `CapabilityChecker` validates (structure + expiry) and authorizes **deny-by-default** — a capability is granted only if the token holds it or `*`; `assert` throws for guard sites. The non-human-identity base for the A2A/spawn checks that follow. 6 tests. Full suite green (1020).
 
 ### Phase I — Modular skills & plugins
 - **Iter 11 — module manifest + semver.** `modules/manifest`: `ModuleManifest` (name, semver version, kind skill/plugin/pack, dependencies as name→range, capabilities, provides, permissions) and a dependency-free semver matcher — `parseVersion`, `compareVersions`, and `satisfies` supporting `*`, exact, caret `^`, tilde `~`, and `>=/>/<=/<`. `validateManifest` checks name/version/kind shape and that every dependency range parses. The foundation for resolution + hot-load. 9 tests. Full suite green (966).
