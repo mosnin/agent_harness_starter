@@ -20,3 +20,5 @@ export { CircuitBreaker, CircuitOpenError, TimeoutError, withTimeout } from "./c
 export type { BreakerState, CircuitBreakerOptions } from "./circuit-breaker";
 export { BreakerRegistry } from "./breaker-registry";
 export type { BreakerRegistryOptions } from "./breaker-registry";
+export { mulberry32, reduceRef, randomTreeSpec, runFuzzCase, fuzzMany } from "./fuzz";
+export type { ReductionName, FuzzTreeSpec, FuzzCase } from "./fuzz";
