@@ -1,0 +1,83 @@
+# Hades Agent — 40-Iteration Build Roadmap
+
+**What Hades is:** the fuller agent that wraps the Hermes-Swarm core
+(`src/swarm-runtime/`) and closes the gaps against Hermes — a **closed learning
+loop**, **real messaging-platform connectors**, **extra execution backends**,
+the **ACP protocol**, **research/training tooling**, an **interactive terminal
+REPL**, and a **plugin/skill ecosystem**. Hermes-Swarm executes and verifies;
+Hades remembers, learns, and lives where you do. Built as `src/hades/`.
+
+**North star:** everything the swarm can't hallucinate its way past, Hades makes
+*durable and personal* — memory that persists across sessions, skills it creates
+from experience, and channels it reaches you through — without losing the
+verification guarantees underneath.
+
+**Working agreement (every iteration):**
+1. Read this file → pick the next `[ ]` iteration.
+2. Write a 2–4 line plan for it (in the log at the bottom).
+3. Implement in a focused chunk under `src/hades/`.
+4. `tsc` clean + `vitest run` green (add tests; use **injectable transports /
+   STT / exec / clock** so connectors & backends test without real credentials).
+5. Commit to `claude/hermes-swarm-framework-vbhrot`. Update checkbox + log here.
+6. Never break a previously-green iteration (swarm-runtime stays green too).
+
+Baseline: swarm-runtime complete, 699 tests green.
+
+---
+
+## Phase A — The Closed Learning Loop (Hades's soul)
+- [ ] 1. Cross-session memory store: `MemoryStore` (memory + file backends) + `MemoryRecord` (fact, salience, tags, ts, embedding?).
+- [ ] 2. Session store + FTS-style search over past sessions (keyword rank + summarization hook).
+- [ ] 3. Agent-curated memory: extract & persist salient anchors from a finished session/goal.
+- [ ] 4. Memory nudges: periodic "persist this?" prompts + a nudge scheduler.
+- [ ] 5. Autonomous skill creation: synthesize a reusable `SwarmSkill` from a completed trajectory.
+- [ ] 6. Skill self-improvement: refine a skill from usage feedback (success/failure deltas).
+- [ ] 7. User modeling (Honcho-style dialectic): build a durable model of the user across sessions.
+- [ ] 8. Memory-augmented executor: inject relevant memories + user model + skills into worker prompts.
+
+## Phase B — Real Platform Connectors (lives-where-you-do)
+- [ ] 9. `PlatformConnector` interface + registry + delivery/mirroring + rate limiting.
+- [ ] 10. Telegram connector (send/receive via injectable transport).
+- [ ] 11. Slack connector (Events API + Web API via injectable transport).
+- [ ] 12. Discord connector.
+- [ ] 13. WhatsApp Cloud connector.
+- [ ] 14. Signal connector (signal-cli shape).
+- [ ] 15. Voice: injectable STT (transcribe inbound audio) + TTS reply hook.
+- [ ] 16. Cross-platform conversation continuity (one session across channels).
+
+## Phase C — Execution Backends
+- [ ] 17. `RemoteBackend` abstraction (beyond worker providers) + registry.
+- [ ] 18. SSH backend (run worker over ssh, injectable exec).
+- [ ] 19. Modal backend (serverless, injectable client).
+- [ ] 20. Daytona backend (serverless persistence, injectable client).
+- [ ] 21. Singularity/Apptainer backend.
+- [ ] 22. Serverless hibernate/wake + scale-to-zero lifecycle.
+
+## Phase D — Protocols, Models, Plugins
+- [ ] 23. ACP adapter: server + session model (injectable transport).
+- [ ] 24. ACP: edit-approval + permissions + provenance events.
+- [ ] 25. Model-switching UX: `hades model` + model registry + persisted selection.
+- [ ] 26. Plugin system: `HadesPlugin` interface + loader + lifecycle hooks.
+- [ ] 27. Example plugins (browser, kanban, achievements) + a local plugin registry.
+- [ ] 28. Skill packs: domain bundles (devops, research, finance…) + pack loader.
+
+## Phase E — Research/Training + Interactive REPL
+- [ ] 29. Trajectory recording: capture goal→task→tool→result trajectories.
+- [ ] 30. Batch trajectory generation runner (drive N goals → dataset).
+- [ ] 31. Trajectory compression for training data.
+- [ ] 32. Interactive terminal REPL: multiline input, history, streaming.
+- [ ] 33. REPL: slash-command registry + autocomplete + interrupt-and-redirect.
+- [ ] 34. REPL wired to memory + swarm (a real conversational agent loop).
+
+## Phase F — Packaging / Polish / Release
+- [ ] 35. `hades` unified CLI (chat, gateway, model, skills, plugins, memory, learn).
+- [ ] 36. Config + env + i18n scaffolding (locales).
+- [ ] 37. Installer script + packaging notes + Dockerfile for the Hades gateway.
+- [ ] 38. Docs: Hades guide + architecture + runnable examples.
+- [ ] 39. End-to-end suite across learning loop + gateway + backend + REPL.
+- [ ] 40. Final review, README, CHANGELOG, build verification; STOP the loop.
+
+---
+
+## Iteration log
+_(newest last; one entry per completed iteration)_
