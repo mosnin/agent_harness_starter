@@ -14,9 +14,60 @@
  * rest of the CLI, so it unit-tests without a shell.
  */
 
-import { runVtph } from "../bench/vtph";
+import { runVtph, compareVtph } from "../bench/vtph";
 import type { AgentRunner, VtphReport } from "../bench/vtph";
 import { EVAL_TASKS, decomposableTasks } from "../bench/eval-suite";
+import { HttpModelClient, MultiProviderClient } from "../models/client";
+import type { ModelClient, ProviderConfig } from "../models/client";
+import { verifiedSwarmRunner, singleAgentRunner } from "../agent/runner";
+
+/**
+ * Assemble a MultiProviderClient from environment keys (multi-provider fan-out).
+ * Returns null when no provider key is set — so the scoreboard falls back to the
+ * honest declining baseline instead of pretending. Reads ANTHROPIC_API_KEY and
+ * OPENAI_API_KEY (and OPENAI_BASE_URL / an OpenAI-dialect OPENROUTER_API_KEY).
+ */
+export function buildClientFromEnv(env: Record<string, string | undefined> = process.env): {
+  client: ModelClient;
+  workerModel: string;
+  verifierModel: string;
+} | null {
+  const providers: Array<{ client: ModelClient; models: string[] }> = [];
+  let workerModel = "";
+  let verifierModel = "";
+
+  if (env.ANTHROPIC_API_KEY) {
+    const cfg: ProviderConfig = {
+      name: "anthropic",
+      kind: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      apiKey: env.ANTHROPIC_API_KEY,
+      models: ["claude-haiku-4-5-20251001", "claude-sonnet-5", "claude-opus-4-8"],
+    };
+    providers.push({ client: new HttpModelClient(cfg), models: cfg.models });
+    workerModel = workerModel || "claude-haiku-4-5-20251001"; // cheap worker
+    verifierModel = "claude-sonnet-5"; // stronger verifier — cross-model gate
+  }
+  if (env.OPENAI_API_KEY) {
+    const cfg: ProviderConfig = {
+      name: "openai",
+      kind: "openai",
+      baseUrl: env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
+      apiKey: env.OPENAI_API_KEY,
+      models: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1"],
+    };
+    providers.push({ client: new HttpModelClient(cfg), models: cfg.models });
+    workerModel = workerModel || "gpt-4o-mini";
+    verifierModel = verifierModel || "gpt-4o";
+  }
+
+  if (!providers.length) return null;
+  return {
+    client: new MultiProviderClient(providers, { maxConcurrency: 8 }),
+    workerModel,
+    verifierModel: verifierModel || workerModel,
+  };
+}
 
 export interface BenchCommandResult {
   code: number;
@@ -57,21 +108,29 @@ const USAGE = [
   "Usage: hades bench <command>",
   "",
   "Commands:",
-  "  vtph [--decomposable]   Run the eval suite and print the V-TPH$ scoreboard",
-  "  help                    Show this help",
+  "  vtph [--swarm|--single] [--decomposable]  Run the eval suite, print the V-TPH$ scoreboard",
+  "  headtohead [--decomposable]               Verified swarm vs single-agent baseline (go/no-go)",
+  "  help                                      Show this help",
   "",
   "V-TPH$ = Verified Tasks per Hour per Dollar (see .plans/HADES_BEYOND_HERMES.md).",
-  "Note: with no LLM brain wired (Phase 0), the default runner declines every task,",
-  "so verified-correct is ~0 by design — the honest baseline Phase 1 must move.",
+  "--swarm/--single and headtohead need provider keys (ANTHROPIC_API_KEY / OPENAI_API_KEY);",
+  "without keys the scoreboard runs the honest declining baseline (verified ≈ 0).",
 ];
 
 /**
  * Terminal-free `hades bench <sub>` handler. `opts.runner` injects a real
  * agent runner (Phase 1+); absent it, the honest declining baseline is used.
  */
+export interface BenchCommandOptions {
+  runner?: AgentRunner;
+  concurrency?: number;
+  /** Injected client for tests; otherwise built from env keys. */
+  env?: { client: ModelClient; workerModel: string; verifierModel: string } | null;
+}
+
 export async function runBenchCommand(
   args: string[],
-  opts?: { runner?: AgentRunner; concurrency?: number }
+  opts?: BenchCommandOptions
 ): Promise<BenchCommandResult> {
   const [sub, ...rest] = args;
 
@@ -79,15 +138,34 @@ export async function runBenchCommand(
     return { code: 0, lines: USAGE };
   }
 
+  const env = opts?.env !== undefined ? opts.env : buildClientFromEnv();
+  const concurrency = opts?.concurrency ?? 8;
+
   if (sub === "vtph") {
     const onlyDecomposable = rest.includes("--decomposable");
     const tasks = onlyDecomposable ? decomposableTasks() : EVAL_TASKS;
-    const runner = opts?.runner ?? decliningRunner;
-    const label = opts?.runner ? "injected" : "declining-baseline (no brain — Phase 0)";
-    const report = await runVtph(runner, tasks, {
-      label,
-      concurrency: opts?.concurrency ?? 8,
-    });
+
+    let runner = opts?.runner;
+    let label = "injected";
+    if (!runner) {
+      if ((rest.includes("--swarm") || rest.includes("--single")) && env) {
+        if (rest.includes("--single")) {
+          runner = singleAgentRunner(env.client, { model: env.workerModel });
+          label = `single-agent (${env.workerModel})`;
+        } else {
+          runner = verifiedSwarmRunner(env.client, {
+            workerModel: env.workerModel,
+            verifierModel: env.verifierModel,
+          });
+          label = `verified-swarm (${env.workerModel} + verifier ${env.verifierModel})`;
+        }
+      } else {
+        runner = decliningRunner;
+        label = "declining-baseline (no keys — set ANTHROPIC_API_KEY/OPENAI_API_KEY)";
+      }
+    }
+
+    const report = await runVtph(runner, tasks, { label, concurrency });
     return {
       code: 0,
       lines: [
@@ -95,9 +173,52 @@ export async function runBenchCommand(
         "",
         ...formatReport(report),
         "",
-        report.verifiedCorrect === 0 && !opts?.runner
-          ? "This is the honest Phase-0 baseline: no brain wired yet, so nothing is verified."
-          : "Inject a real runner (Phase 1) to measure the swarm vs a single agent.",
+        runner === decliningRunner
+          ? "Honest baseline: no brain wired (no keys), so nothing is verified. Set a provider key and pass --swarm."
+          : "Real run. Compare against --single with `hades bench headtohead`.",
+      ],
+    };
+  }
+
+  if (sub === "headtohead") {
+    const onlyDecomposable = rest.includes("--decomposable");
+    const tasks = onlyDecomposable ? decomposableTasks() : EVAL_TASKS;
+    if (!env) {
+      return {
+        code: 1,
+        lines: [
+          "headtohead needs provider keys (ANTHROPIC_API_KEY and/or OPENAI_API_KEY) to run real inference.",
+          "Without keys there is no brain to measure. This is intentional — no simulated numbers.",
+        ],
+      };
+    }
+    const single = singleAgentRunner(env.client, { model: env.workerModel });
+    const swarm = verifiedSwarmRunner(env.client, {
+      workerModel: env.workerModel,
+      verifierModel: env.verifierModel,
+    });
+    const { reports, markdownTable, vtphPerDollarSpeedup } = await compareVtph(
+      [
+        { label: "single-agent (self-trust)", runner: single },
+        { label: "verified-swarm", runner: swarm },
+      ],
+      tasks,
+      { concurrency }
+    );
+    const swarmReport = reports.find((r) => r.label === "verified-swarm");
+    const singleReport = reports.find((r) => r.label === "single-agent (self-trust)");
+    const gate = vtphPerDollarSpeedup >= 3
+      ? `GO — verified swarm is ${vtphPerDollarSpeedup.toFixed(2)}x the single agent on V-TPH$ (≥3x gate cleared).`
+      : `NO-GO (yet) — ${vtphPerDollarSpeedup.toFixed(2)}x, below the 3x go/no-go gate. Re-plan or tune (cheaper workers / stronger gate).`;
+    return {
+      code: 0,
+      lines: [
+        `Head-to-head — ${tasks.length} tasks`,
+        "",
+        ...markdownTable.split("\n"),
+        "",
+        `Trust: single-agent silent-wrong = ${singleReport?.silentWrong ?? "?"}, verified-swarm silent-wrong = ${swarmReport?.silentWrong ?? "?"}.`,
+        gate,
       ],
     };
   }
