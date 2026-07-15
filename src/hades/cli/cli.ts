@@ -7,6 +7,7 @@ import type { InMemoryTrajectoryStore } from "../research/recorder";
 import type { RoleRegistry } from "../teams/role";
 import { TeamFormer } from "../teams/former";
 import { runHierarchyCommand } from "./hierarchy-command";
+import { runBenchCommand } from "./bench-command";
 
 export interface CliResult {
   code: number;
@@ -72,6 +73,8 @@ export class HadesCli {
         return this.team(rest);
       case "hierarchy":
         return runHierarchyCommand(rest);
+      case "bench":
+        return runBenchCommand(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -100,6 +103,7 @@ export class HadesCli {
         "  memory <search|add>  Search or add long-term memories",
         "  team <roles|plan>    List roles / preview a team for an objective",
         "  hierarchy <sub>      Swarm benchmarks: head-to-head/makespan/chaos/fuzz/stats",
+        "  bench vtph           Verified-tasks-per-hour-per-dollar scoreboard",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",

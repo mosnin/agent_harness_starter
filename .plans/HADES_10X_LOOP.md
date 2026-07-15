@@ -28,10 +28,10 @@ done (README/CHANGELOG/HADES_BENCHMARKS captions corrected).
 
 ## Phase 0 — Credibility reset & the real scoreboard
 - [x] 0.1 **Credibility reset**: correct false README/CHANGELOG/benchmark claims (signed-by-default, "beats Hermes", routing/makespan captions). *(done centrally)*
-- [ ] 0.2 **V-TPH$ harness** (`bench/vtph.ts`): runs a task suite through an injectable `AgentRunner`, records verifiedCorrect / silentWrong / wallClock / tokens / usd / provenance, computes `vtph` and `vtphPerDollar`; `compareVtph` for head-to-head + markdown table.
-- [ ] 0.3 **Eval suite** (`bench/eval-suite.ts`): 30–50 LLM-shaped but programmatically-gradable decomposable tasks (extraction / classification / transformation / structured reasoning), each with a pure `grade(output)`; categories + decomposition metadata.
-- [ ] 0.4 **Multi-provider model client** (`models/client.ts`): real `ModelClient` (OpenAI-dialect + Anthropic-native over injectable fetch) + `MultiProviderClient` fan-out with per-model **cost accounting** and rate-limit-aware concurrency; price table from the model catalog.
-- [ ] 0.5 **Scoreboard CLI** (`hades bench vtph`): wire a `bench` subcommand that runs the suite for a chosen runner and prints the V-TPH$ table. Integrate 0.2–0.4 exports centrally.
+- [x] 0.2 **V-TPH$ harness** (`bench/vtph.ts`): runs a task suite through an injectable `AgentRunner`, records verifiedCorrect / silentWrong / wallClock / tokens / usd / provenance, computes `vtph` and `vtphPerDollar`; `compareVtph` for head-to-head + markdown table. *(8 tests; adversary proved liar scores 0.)*
+- [x] 0.3 **Eval suite** (`bench/eval-suite.ts`): 48 LLM-shaped but programmatically-gradable tasks (extraction / classification / transformation / reasoning / arithmetic / multi-part; 14 decomposable), each with a pure `grade(output)`. *(55 tests; every grader rejects wrong + empty.)*
+- [x] 0.4 **Multi-provider model client** (`models/client.ts`): real `ModelClient` (OpenAI-dialect + Anthropic-native over injectable fetch) + `MultiProviderClient` fan-out with per-model **cost accounting** and rate-limit-aware concurrency. *(12 tests; cost accounting + concurrency ceiling proven.)*
+- [x] 0.5 **Scoreboard CLI** (`hades bench vtph`): `bench` subcommand runs the suite through an injectable runner and prints the V-TPH$ table. Honest Phase-0 default declines every task → verified-correct 0 (the true baseline). *(Runs end-to-end; wired into the CLI router.)*
 - [ ] 0.6 **`hades verify-claims`** *(salvaged idea)*: a command that maps each load-bearing README/docs claim to a runnable check and reports pass/fail, so the docs can never drift back into overselling. CI runs it.
 - [ ] 0.7 **CI "reality lane"** *(salvaged idea)*: a test tag/lane that exercises real sockets, real child processes, and (when Docker is present) a real container — so the green-test count reflects integration, not only in-memory fakes. Feeds Phase 2/3.
 
@@ -47,5 +47,7 @@ done (README/CHANGELOG/HADES_BENCHMARKS captions corrected).
 
 ## Iteration log
 _(newest last)_
+
+- **0.2–0.5 — the honest scoreboard is live.** Team: 3 builders + 1 external-validity adversary. `bench/vtph.ts` computes **V-TPH$** and classifies every task as verified-correct / silent-wrong / declined; `bench/eval-suite.ts` is 48 decomposable gradable tasks; `models/client.ts` is a real multi-provider client with exact cost accounting + a concurrency semaphore. The adversary (13 tests) proved the metric is **un-gameable**: a runner claiming "verified" on all 48 wrong answers scores `vtph=0`, `vtphPerDollar=0`, `silentWrong=48` — lying earns zero throughput and maxes the trust-failure counter; graders have teeth; cost accounting is real; concurrency ceilings bind. `hades bench vtph` runs end-to-end and prints the honest baseline (**48 tasks, 0 verified — no brain yet**), which is exactly what Phase 1 must move. Builders 8+55+12 + adversary 13 tests. Full suite green (1532 / 173 files).
 
 - **0.1 — credibility reset.** Corrected README (security "opt-in not default-wired", routing = count ratio, makespan = virtual-clock model with wall-clock favoring flat, connectors/backends real-status table, dropped "more capable than Hermes"), CHANGELOG + HADES_BENCHMARKS scope notes, all pointing at the honest V-TPH$ roadmap. No code claims left that the audit falsified.

@@ -38,3 +38,6 @@ export {
 export type { LinearFit } from "./invariants";
 export { runChaosSuite, makeInstantTimer } from "./chaos-suite";
 export type { ChaosScenarioResult, ChaosSuiteReport } from "./chaos-suite";
+export { runVtph, compareVtph } from "./vtph";
+export type { EvalTask, AgentRunResult, AgentRunner, VtphReport } from "./vtph";
+export { EVAL_TASKS, EVAL_CATEGORIES, tasksByCategory, decomposableTasks } from "./eval-suite";
