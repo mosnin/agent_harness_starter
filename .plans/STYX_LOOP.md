@@ -30,9 +30,13 @@ validity*; `tsc` clean; suite green; real numbers only.
   ground-truth tasks — the composition PRESERVES the S1 bound end-to-end; all
   emits certified+tamper-evident; garbage worker → 0% emit, good worker → 89%;
   tier routing alone flips emit/abstain.** Suite 1862.
-- [ ] **S5 — Verified-work-market settlement**. Certificate-gated acceptance in
-  the swarm manager; incentive-compatible bid/settle loop (bids settled against
-  the verifier; verification spend a decision variable).
+- [x] **S5 — Verified-work-market settlement**. `styx/market.ts`: Brier-scored
+  settlement against the verifier + certificate-gated payment + value-based bid
+  selection. **Adversary 21 tests: over 2000 tasks truthful bidding earns $1578.80
+  vs overclaimer $1408.86 vs underclaimer $1261.20 (gaps match Brier theory);
+  empirical argmax exactly at true p; gating unbypassable at any price;
+  conservation holds; the selection-stage bluster gap is documented as the
+  designed two-stage defense.** Suite 1896.
 
 ## Falsifiable targets (from the design doc)
 1. Styx V-TPH$ ≥ 3× single-agent (go/no-go), target 10× — **S4, keyed.**
@@ -42,6 +46,11 @@ validity*; `tsc` clean; suite green; real numbers only.
 5. Perturbation catches ≥ half of gaming attempts the raw ensemble misses — **S3 ✓ (measured 83.3%).**
 
 ## Log
+- **S5 complete — STYX complete (keyless scope).** The verified-work market makes
+  truthful confidence the unique expected-payment maximum and pays zero for
+  uncertified work. All five stages built by parallel agent teams, each proven by
+  a dedicated adversary. Remaining: the keyed real-model run (`hades bench styx`)
+  for falsifiable target #1. Full suite green (1896 / 192 files).
 - **S4 core complete.** Orchestrator + runner + CLI assembled; the e2e adversary
   (14 tests) proved the composed pipeline holds the silent-wrong bound end-to-end
   on 350 held-out tasks, with every emitted answer carrying a valid ed25519

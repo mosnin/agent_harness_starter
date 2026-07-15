@@ -46,3 +46,5 @@ export type {
 } from "./orchestrator";
 export { styxRunner } from "./runner";
 export type { StyxRunnerOptions } from "./runner";
+export { settlementPayment, VerifiedWorkMarket } from "./market";
+export type { WorkBid, SettlementRule, LedgerEntry, MarketStats, WorkResult, WorkExecutor } from "./market";
