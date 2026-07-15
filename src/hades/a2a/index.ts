@@ -16,3 +16,5 @@ export { InMemoryA2ATransport, Mailbox, AgentEndpoint } from "./bus";
 export type { A2ATransport, AgentEndpointOptions } from "./bus";
 export { PubSub, ALL_TOPICS } from "./pubsub";
 export type { TopicHandler } from "./pubsub";
+export { RpcPeer } from "./rpc";
+export type { RpcOptions, RpcHandler, RpcPeerOptions } from "./rpc";
