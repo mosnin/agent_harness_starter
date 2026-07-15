@@ -22,7 +22,7 @@ import { ProvenanceStore, buildProvenance } from "../verification/provenance";
 import type { ProvenanceRecord } from "../verification/provenance";
 import type { AdversarialVerifier } from "../verification/adversarial";
 import { DeterministicPlanner, materializeTasks, type Planner } from "./planner";
-import { computeDemand, desiredWorkers, isReady, scheduleReady } from "./scheduler";
+import { computeDemand, desiredWorkers, isReady, isStale, scheduleReady } from "./scheduler";
 
 interface ReplicaOutcome {
   result: WorkerResult;
@@ -81,6 +81,14 @@ export interface ManagerConfig {
   maxInFlight?: number;
   /** Autoscale the worker pool to demand within these bounds. */
   autoscale?: { min: number; max: number };
+  /** Mark a worker dead if it hasn't heartbeated within this window. Default 15s. */
+  heartbeatTimeoutMs?: number;
+  /** Requeue a task whose worker produced no result within this window. Default 90s. */
+  taskTimeoutMs?: number;
+  /** How often the health monitor runs. Default 5s. */
+  monitorIntervalMs?: number;
+  /** Max times a task may be requeued before it's failed. Default 3. */
+  maxRequeues?: number;
 }
 
 export interface ManagerEvents {
@@ -91,7 +99,9 @@ export interface ManagerEvents {
   "task:verified": (task: WorkerTask, report: VerificationReport) => void;
   "task:rejected": (task: WorkerTask, report: VerificationReport) => void;
   "task:failed": (task: WorkerTask, reason: string) => void;
+  "task:requeued": (task: WorkerTask, reason: string) => void;
   "task:escalated": (task: WorkerTask, revisions: RevisionEntry[]) => void;
+  "worker:dead": (rec: WorkerRecord, reason: string) => void;
   "goal:completed": (goal: Goal) => void;
   "goal:failed": (goal: Goal, reason: string) => void;
   "goal:contradiction": (goal: Goal, contradictions: Contradiction[]) => void;
@@ -131,6 +141,12 @@ export class SwarmManager extends EventEmitter {
   private readonly adversary?: AdversarialVerifier;
   private readonly maxInFlight: number;
   private readonly autoscale?: { min: number; max: number };
+  private readonly heartbeatTimeoutMs: number;
+  private readonly taskTimeoutMs: number;
+  private readonly monitorIntervalMs: number;
+  private readonly maxRequeues: number;
+  private monitorTimer?: ReturnType<typeof setInterval>;
+  private dispatchedAt = new Map<string, number>();
 
   constructor(private readonly config: ManagerConfig) {
     super();
@@ -148,6 +164,10 @@ export class SwarmManager extends EventEmitter {
     this.adversary = config.adversary;
     this.maxInFlight = config.maxInFlight ?? Number.POSITIVE_INFINITY;
     this.autoscale = config.autoscale;
+    this.heartbeatTimeoutMs = config.heartbeatTimeoutMs ?? 15_000;
+    this.taskTimeoutMs = config.taskTimeoutMs ?? 90_000;
+    this.monitorIntervalMs = config.monitorIntervalMs ?? 5_000;
+    this.maxRequeues = config.maxRequeues ?? 3;
     this.authToken = config.authToken ?? randomBytes(24).toString("hex");
 
     this.bus.onRegister((r) => this.handleRegister(r));
@@ -174,6 +194,59 @@ export class SwarmManager extends EventEmitter {
     const spawns: Promise<void>[] = [];
     for (let i = 0; i < missing; i++) spawns.push(this.spawnWorker());
     await Promise.all(spawns);
+    this.startMonitor();
+  }
+
+  private startMonitor(): void {
+    if (this.monitorTimer) return;
+    this.monitorTimer = setInterval(() => this.monitorTick(), this.monitorIntervalMs);
+    this.monitorTimer.unref?.();
+  }
+
+  /**
+   * Health loop: reap workers that stopped heartbeating (crashed containers) and
+   * requeue tasks whose worker hung or died without ever reporting. This is what
+   * keeps a swarm making progress when an isolation unit fails — a lost task is
+   * re-dispatched to a healthy worker rather than stalling the whole goal.
+   */
+  private monitorTick(): void {
+    const now = Date.now();
+
+    // 1) Reap dead workers (stale heartbeat) and replace them.
+    for (const rec of this.liveWorkers()) {
+      if (rec.status === "starting") continue; // give new workers time to register
+      if (isStale(rec.lastHeartbeat, now, this.heartbeatTimeoutMs)) {
+        rec.status = "dead";
+        this.emit("worker:dead", rec, `no heartbeat for >${this.heartbeatTimeoutMs}ms`);
+        void this.teardownWorker(rec.workerId);
+        void this.spawnWorker().catch(() => undefined); // keep the pool at strength
+      }
+    }
+
+    // 2) Requeue tasks that were dispatched but never produced a result.
+    for (const [taskId, at] of this.dispatchedAt) {
+      const task = this.tasks.get(taskId);
+      if (!task || task.status !== "dispatched") {
+        this.dispatchedAt.delete(taskId);
+        continue;
+      }
+      if (task.consensus && (task.consensus.replicas ?? 1) > 1) continue; // round timer handles these
+      if (isStale(at, now, this.taskTimeoutMs)) this.requeueTask(task, "worker produced no result in time");
+    }
+  }
+
+  private requeueTask(task: WorkerTask, reason: string): void {
+    this.dispatchedAt.delete(task.id);
+    task.requeues = (task.requeues ?? 0) + 1;
+    if (task.requeues > this.maxRequeues) {
+      task.status = "failed";
+      this.emit("task:failed", task, `${reason} (exceeded ${this.maxRequeues} requeues)`);
+      this.checkGoalFailure(task.goalId);
+      return;
+    }
+    task.status = "pending";
+    this.emit("task:requeued", task, reason);
+    this.dispatchReady(task.goalId);
   }
 
   private liveWorkers(): WorkerRecord[] {
@@ -263,6 +336,10 @@ export class SwarmManager extends EventEmitter {
   }
 
   async shutdown(): Promise<void> {
+    if (this.monitorTimer) {
+      clearInterval(this.monitorTimer);
+      this.monitorTimer = undefined;
+    }
     for (const round of this.consensusRounds.values()) {
       if (round.timer) clearTimeout(round.timer);
     }
@@ -373,6 +450,7 @@ export class SwarmManager extends EventEmitter {
         this.startConsensusRound(task);
         for (let i = 0; i < replicas; i++) this.bus.enqueueTask(task);
       } else {
+        this.dispatchedAt.set(task.id, Date.now());
         this.bus.enqueueTask(task);
       }
       this.emit("task:dispatched", task);
@@ -412,6 +490,10 @@ export class SwarmManager extends EventEmitter {
   private async handleResult(result: WorkerResult): Promise<void> {
     const task = this.tasks.get(result.taskId);
     if (!task) return;
+    // Ignore late/duplicate results for tasks that already reached a terminal
+    // state (e.g. a requeued task's original worker finally reporting).
+    if (task.status === "verified" || task.status === "failed") return;
+    this.dispatchedAt.delete(result.taskId);
 
     // Evaluate this single result against behaviour + grounding.
     const { report, accepted, killed, blocked, reason } = await this.evaluateResult(result);

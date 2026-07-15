@@ -38,6 +38,11 @@ export function desiredWorkers(demand: number, min: number, max: number): number
   return Math.max(min, Math.min(max, Math.max(demand, 0)));
 }
 
+/** A worker/task is stale if its last signal is older than `timeoutMs`. */
+export function isStale(lastSignalAt: number, now: number, timeoutMs: number): boolean {
+  return now - lastSignalAt > timeoutMs;
+}
+
 /**
  * Demand = worker-slots the goal's live tasks want right now. A consensus task
  * wants `replicas` slots; every other pending-or-in-flight task wants one.

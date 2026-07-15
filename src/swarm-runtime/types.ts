@@ -131,6 +131,8 @@ export interface WorkerTask {
   consensus?: ConsensusSpec;
   /** History of rejected attempts — why each prior try was sent back. */
   revisions?: RevisionEntry[];
+  /** Times this task was requeued after a worker hung/died. */
+  requeues?: number;
 }
 
 export interface RevisionEntry {

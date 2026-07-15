@@ -32,6 +32,10 @@ export interface InlineSwarmOptions {
   maxInFlight?: number;
   /** Autoscale the worker pool to demand within these bounds. */
   autoscale?: { min: number; max: number };
+  heartbeatTimeoutMs?: number;
+  taskTimeoutMs?: number;
+  monitorIntervalMs?: number;
+  maxRequeues?: number;
 }
 
 /**
@@ -81,6 +85,10 @@ export async function createInlineSwarm(opts: InlineSwarmOptions = {}): Promise<
     adversary: opts.adversary,
     maxInFlight: opts.maxInFlight,
     autoscale: opts.autoscale,
+    heartbeatTimeoutMs: opts.heartbeatTimeoutMs,
+    taskTimeoutMs: opts.taskTimeoutMs,
+    monitorIntervalMs: opts.monitorIntervalMs,
+    maxRequeues: opts.maxRequeues,
   });
 
   return manager;

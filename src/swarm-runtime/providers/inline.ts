@@ -56,11 +56,13 @@ export class InlineProvider implements ContainerProvider {
     };
   }
 
-  async stop(handle: ContainerHandle): Promise<void> {
+  async stop(handle: ContainerHandle, graceMs = 1000): Promise<void> {
     const r = this.running.get(handle.workerId);
     if (!r) return;
     r.abort.abort();
-    await r.done;
+    // A wedged executor may never return even after abort; don't let a hung
+    // worker block shutdown. Race the clean exit against a grace timeout.
+    await Promise.race([r.done, new Promise<void>((res) => setTimeout(res, graceMs))]);
     this.running.delete(handle.workerId);
   }
 
