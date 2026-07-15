@@ -24,3 +24,5 @@ export { MessagePool } from "./pool";
 export type { PoolStats } from "./pool";
 export { BatchedA2ATransport } from "./batched";
 export type { BatchedOptions } from "./batched";
+export { CreditController, BackpressuredChannel } from "./backpressure";
+export type { FlowStats } from "./backpressure";
