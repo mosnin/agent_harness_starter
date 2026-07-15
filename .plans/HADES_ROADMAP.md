@@ -36,7 +36,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 - [x] 8. Memory-augmented executor: inject relevant memories + user model + skills into worker prompts.
 
 ## Phase B — Real Platform Connectors (lives-where-you-do)
-- [ ] 9. `PlatformConnector` interface + registry + delivery/mirroring + rate limiting.
+- [x] 9. `PlatformConnector` interface + registry + delivery/mirroring + rate limiting.
 - [ ] 10. Telegram connector (send/receive via injectable transport).
 - [ ] 11. Slack connector (Events API + Web API via injectable transport).
 - [ ] 12. Discord connector.
@@ -90,3 +90,6 @@ _(newest last; one entry per completed iteration)_
 - **Iter 6 — skill self-improvement.** `learning/SkillTuner` records per-skill success/failure and, once there's enough signal, refines: annotates high performers with their track record, flags chronic under-performers for retirement, or hands off to an injectable LLM refiner. `report()` ranks worst-first. 6 tests. Full suite green.
 - **Iter 7 — user modeling (dialectic).** `learning/UserModel` (+ `FileUserModel`): durable traits (attribute→value, confidence, evidence) updated dialectically via pure `reconcile` — create / reinforce (asymptotic confidence) / revise-on-stronger-evidence / ignore-weaker. `ingest(memories)` builds it (offline `deriveTraitsFromMemories`), `describe()` renders prose. Durable across sessions. 7 tests. Full suite green.
 - **Iter 8 — memory-augmented executor (Phase A complete).** `MemoryAugmentedExecutor` wraps any swarm `TaskExecutor`, retrieves memories relevant to the task + the user model, and injects them into `task.input._memoryContext` so prompt-building executors surface learned context automatically — closing the loop into execution. Passes through when nothing's learned; verified inside a real swarm. 3 tests. **Phase A done.** Full suite green.
+
+### Phase B
+- **Iter 9 — connector abstraction (Phase B start).** `gateway/`: `PlatformConnector` interface (normalize inbound → handler → deliver reply), `ConnectorHub` (register many connectors; per-message rate-limit → mirror → route to one handler; proactive `deliver`), token-bucket `RateLimiter` (injectable clock), and `InMemoryConnector` test double / in-process channel. One handler, many channels. 5 tests. Full suite green.
