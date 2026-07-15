@@ -20,3 +20,7 @@ export { RpcPeer } from "./rpc";
 export type { RpcOptions, RpcHandler, RpcPeerOptions } from "./rpc";
 export { StreamPeer, AsyncQueue } from "./stream";
 export type { StreamHandler, StreamPeerOptions } from "./stream";
+export { MessagePool } from "./pool";
+export type { PoolStats } from "./pool";
+export { BatchedA2ATransport } from "./batched";
+export type { BatchedOptions } from "./batched";

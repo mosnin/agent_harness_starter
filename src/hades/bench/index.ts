@@ -10,3 +10,4 @@ export {
   runAllBenchmarks,
 } from "./live-bench";
 export type { BenchmarkReport } from "./live-bench";
+export { benchPooling, benchBatchedThroughput, runBatchBenchmarks } from "./a2a-batch-bench";

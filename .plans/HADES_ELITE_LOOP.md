@@ -33,7 +33,7 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 - [x] 4. **Streaming aggregation up the tree**: partial results stream to parents as children finish (no buffering the whole level) — lower latency + memory.
 
 ### A2A performance engineering
-- [ ] 5. **Batched delivery + message pooling**: coalesce bursts, reuse envelopes; benchmark messages/sec before/after with a real number.
+- [x] 5. **Batched delivery + message pooling**: coalesce bursts, reuse envelopes; benchmark messages/sec before/after with a real number.
 - [ ] 6. **Credit-based backpressure** (real flow control, not a flag): bounded in-flight per link, sender awaits credit; prove no unbounded buffering under a fast producer / slow consumer.
 - [ ] 7. **Cross-process transport parity**: an HTTP/WS `A2ATransport` with the SAME O(1) direct-routing semantics + a conformance test the in-memory transport also passes.
 - [ ] 8. **Ordered + at-least-once delivery guarantees** with dedupe; property test message ordering per link under concurrency.
@@ -56,6 +56,8 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 
 ## Iteration log
 _(newest last; one entry per completed iteration)_
+
+- **Iter 5 — batched delivery + message pool (with an honest benchmark).** Team: a builder + an adversarial verifier. `MessagePool<T>` (reuse envelopes, reset-on-release, hard `maxIdle` bound) and `BatchedA2ATransport` (coalesce publishes into fewer scheduler turns via an injectable `scheduleFlush`, force-flush at `maxBatch`) — plus a **runnable** `a2a-batch-bench.ts`. **Honest measured result:** on the *synchronous in-memory* transport both are neutral-to-slower (pooled 28M vs unpooled 106M ops/sec — V8's bump allocator beats pool bookkeeping for tiny objects; batched 2.77M vs direct 3.08M msgs/sec — no async turns to coalesce). Not oversold: these are correct, verified *primitives* whose payoff is async/cross-process delivery (iter 7), where batching amortizes real IO. What's load-bearing is **correctness**, and the adversarial verifier nailed it: **10 tests, no bugs** — per-link FIFO ordering under interleaving, zero loss/duplication across flush cycles, pool reset/no-aliasing/no-double-issue, hard `maxIdle`, exact sync-flush counts, and a proper double-schedule guard. Builder 8 + adversarial 10 tests. Full suite green (1152 / 141 files).
 
 - **Iter 4 — streaming aggregation up the tree.** Team: a builder + an adversarial verifier in parallel. `StreamingHierarchyAggregator` (`src/hades/hierarchy/streaming-aggregate.ts`): a coordinator folds each child's result into a running accumulator the moment that child resolves (`childPromise.then(fold)`, no `Promise.all` barrier), holding **O(1) results per level** instead of O(branching) — lower memory, partial results stream upward with lower latency. `onPartial` streams progress; `combine` must be commutative+associative. The adversarial verifier's decisive anti-cheat: **measured `peakBuffered == 1` at branching 2, 8, AND 16** (a buffer-then-aggregate impl would spike to 8/16), plus exactly-once folding via a powers-of-two bitmask (65535), out-of-order resolution, and associativity independence — **8 tests, all pass, no bugs**. Builder 5 + adversarial 8 tests. Full suite green (1134 / 139 files).
 
