@@ -93,6 +93,8 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
         <div class="stat"><div class="n" id="s-rejected">0</div><div class="l">Rejected</div></div>
       </div>
     </div>
+    <h2>Goal History</h2>
+    <div class="body"><div id="history"><div class="empty">no goals yet</div></div></div>
     <h2>Worker Agents (isolated)</h2>
     <div class="body"><div class="grid" id="agents"><div class="empty">no workers yet</div></div></div>
     <h2>Activity Log</h2>
@@ -157,6 +159,9 @@ function render() {
     tk.appendChild(el);
   }
 
+  // goal history with replay/cancel controls
+  renderHistory(state.goals || []);
+
   // grounding rate + provenance/evidence viewer
   if (typeof state.groundingRate === "number") {
     $("grounding").textContent = "grounded " + Math.round(state.groundingRate*100) + "%";
@@ -198,6 +203,23 @@ function renderDag(tasks){
     row.innerHTML=html; el.appendChild(row);
   });
 }
+function renderHistory(goals){
+  const el=$("history");
+  if(!goals.length){ el.innerHTML='<div class="empty">no goals yet</div>'; return; }
+  el.innerHTML="";
+  for(const g of goals){
+    const div=document.createElement("div"); div.className="task";
+    const running = g.status==="running";
+    const btn = running
+      ? '<button style="width:auto;margin:0;padding:4px 8px;font-size:11px" onclick="cancelGoal(\\''+g.id+'\\')">✗ cancel</button>'
+      : '<button style="width:auto;margin:0;padding:4px 8px;font-size:11px" onclick="replayGoal(\\''+g.id+'\\')">↻ replay</button>';
+    div.innerHTML='<div class="d">'+esc(g.objective)+'</div>'+
+      '<div class="meta"><span class="tag '+(g.status==="completed"?"verified":g.status==="running"?"dispatched":"failed")+'">'+g.status+'</span>'+btn+'</div>';
+    el.appendChild(div);
+  }
+}
+async function replayGoal(id){ try{ await fetch("/api/goals/"+id+"/replay",{method:"POST"}); logLine("↻ replayed "+id.slice(0,8)); refresh(); }catch{} }
+async function cancelGoal(id){ try{ await fetch("/api/goals/"+id+"/cancel",{method:"POST"}); logLine("✗ cancelled "+id.slice(0,8)); refresh(); }catch{} }
 function renderProvenance(records){
   const el=$("prov");
   el.innerHTML = records.length ? "" : '<div class="empty">no accepted evidence yet</div>';

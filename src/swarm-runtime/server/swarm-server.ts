@@ -127,6 +127,9 @@ export class SwarmServer {
       if (req.method === "GET" && path === "/api/workers") {
         return json(res, 200, this.swarm.manager.listWorkers());
       }
+      if (req.method === "GET" && path === "/api/goals") {
+        return json(res, 200, this.swarm.manager.listGoals());
+      }
       if (req.method === "GET" && path === "/api/logs") {
         return json(res, 200, this.swarm.manager.recentLogs());
       }
@@ -180,6 +183,10 @@ export class SwarmServer {
           const cancelled = this.swarm.manager.cancelGoal(id);
           return json(res, 200, { cancelled });
         }
+        if (req.method === "POST" && sub === "replay") {
+          const newGoalId = await this.swarm.manager.replayGoal(id);
+          return json(res, 202, { goalId: newGoalId });
+        }
       }
 
       json(res, 404, { error: "not found" });
@@ -223,9 +230,7 @@ export class SwarmServer {
   }
 
   private goalList(): unknown[] {
-    // getGoal-per-id isn't exposed as a list; derive from tasks' goalIds.
-    const ids = new Set(this.swarm.manager.listTasks().map((t) => t.goalId));
-    return [...ids].map((id) => this.swarm.manager.getGoal(id)).filter(Boolean);
+    return this.swarm.manager.listGoals();
   }
 }
 

@@ -492,6 +492,18 @@ export class SwarmManager extends EventEmitter {
   getGoal(id: string): Goal | undefined {
     return this.goals.get(id);
   }
+  /** All goals this manager has run, newest first. */
+  listGoals(): Goal[] {
+    return [...this.goals.values()].sort((a, b) => b.createdAt - a.createdAt);
+  }
+  /** Re-run a prior goal's objective as a fresh goal. Returns the new goalId. */
+  async replayGoal(id: string): Promise<string | undefined> {
+    const goal = this.goals.get(id);
+    if (!goal) return undefined;
+    const { goalId, done } = await this.startGoal(goal.objective);
+    void done.catch(() => undefined);
+    return goalId;
+  }
   listWorkers(): WorkerRecord[] {
     return [...this.workers.values()];
   }
