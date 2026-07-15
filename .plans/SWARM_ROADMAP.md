@@ -68,7 +68,7 @@ infra. 582 tests green.
 
 ## Phase F — Docs / polish / release
 - [x] 37. Comprehensive docs + runnable examples.
-- [ ] 38. End-to-end integration test suite.
+- [x] 38. End-to-end integration test suite.
 - [ ] 39. Benchmarks / load test + tuning.
 - [ ] 40. Final review, README polish, CHANGELOG, release prep.
 
@@ -114,3 +114,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 35 — graceful shutdown.** `lifecycle/installGracefulShutdown(cleanup, opts)`: run-once cleanup on SIGINT/SIGTERM with a hard-timeout force-exit (injectable `exit` for tests) so a wedged drain can't hang a container. Manager `shutdown()` made idempotent. CLI serve now uses it. 4 tests. Full suite green.
 - **Iter 36 — chaos tests (Phase E complete).** Resilience integration suite: worker killed mid-goal → requeue+replace recovers; flaky executor throwing on early attempts → retry loop recovers; jittery slow responses → still completes; all-ungrounded → fails cleanly without hanging. 4 tests. Phase E done. Full suite green.
 - **Iter 37 — docs + runnable example (Phase F start).** `examples/swarm/demo.ts` (+README, `npm run swarm:demo`): offline inline swarm with a mock research skill, prints plan/verification/synthesis/provenance/metrics — verified running end-to-end. Expanded `docs/24-swarm-runtime.md` with a full module/anti-hallucination-layer/config/REST-endpoint reference. Full suite green.
+- **Iter 38 — end-to-end integration suite.** One `e2e.test.ts` drives the whole stack together: REST goal start → DAG → poll to completion → provenance (all gate-cleared); a Slack-shaped gateway message launches + replies; the scheduler registers + fires a cron goal; /healthz + Prometheus /metrics; and structured logging captures lifecycle events. Full suite green.
