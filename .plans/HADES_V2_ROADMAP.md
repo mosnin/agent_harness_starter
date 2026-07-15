@@ -42,7 +42,7 @@ Baseline: swarm-runtime (699) + Hades v1 complete, **909 tests green**.
 
 ## Phase H — Teams & Dynamic Spawning
 - [x] 6. Role registry + `TeamBlueprint` (roles, capabilities, size bounds).
-- [ ] 7. `TeamFormer`: decompose a task → required roles → a concrete roster.
+- [x] 7. `TeamFormer`: decompose a task → required roles → a concrete roster.
 - [ ] 8. `Team` spawn over injectable spawner (isolation providers / RemoteBackend).
 - [ ] 9. Team lifecycle: form → work → disband (+ failure-aware teardown).
 - [ ] 10. Team coordinator wiring the A2A bus to the roster (addressed + broadcast).
@@ -89,3 +89,4 @@ _(newest last; one entry per completed iteration)_
 
 ### Phase H — Teams
 - **Iter 6 — role registry + team blueprint.** `teams/`: `AgentRole` (capabilities route tasks; skills + prompt fragment specialize) and `RoleRegistry` with a `defaultRoleRegistry` (planner/researcher/coder/reviewer/tester) + `withCapability` lookup. `TeamBlueprint` (role requirements with counts + min/max, `maxAgents` runaway ceiling); pure `blueprintSize`, `validateBlueprint` (unknown roles, bad counts, oversize teams), and `expandRoster` → concrete namespaced `{agentId, role}` slots. 6 tests. Full suite green (941).
+- **Iter 7 — TeamFormer.** Turns a `TaskSpec` into a concrete team: an injectable `decompose` (LLM) can design the blueprint, else the offline heuristic maps each required capability to a role, brackets the work with a planner + reviewer, falls back to a coder when nothing maps, applies per-role count overrides, validates, and expands to a namespaced roster — throwing when the design exceeds `maxAgents`. `slugify` derives a stable team id. This is "form the right team around a task, on demand." 6 tests. Full suite green (947).

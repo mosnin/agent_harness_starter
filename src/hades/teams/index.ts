@@ -11,3 +11,5 @@ export type {
   ValidationResult,
   RosterSlot,
 } from "./blueprint";
+export { TeamFormer, slugify } from "./former";
+export type { TaskSpec, Decomposer, TeamFormerOptions, FormedTeam } from "./former";
