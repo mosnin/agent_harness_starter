@@ -19,3 +19,5 @@ export { BackendAgentSpawner } from "./backend-spawner";
 export type { BackendSpawnerOptions } from "./backend-spawner";
 export { TeamRunner } from "./lifecycle";
 export type { TeamState, TeamRunnerDeps } from "./lifecycle";
+export { TeamCoordinator } from "./coordinator";
+export type { TeamCoordinatorOptions } from "./coordinator";
