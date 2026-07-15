@@ -126,6 +126,13 @@ export class SwarmServer {
       if (req.method === "GET" && path === "/api/workers") {
         return json(res, 200, this.swarm.manager.listWorkers());
       }
+      if (req.method === "GET" && path === "/api/logs") {
+        return json(res, 200, this.swarm.manager.recentLogs());
+      }
+      if (req.method === "GET" && path.startsWith("/api/workers/") && path.endsWith("/logs")) {
+        const workerId = path.slice("/api/workers/".length, -"/logs".length);
+        return json(res, 200, this.swarm.manager.getWorkerLogs(workerId));
+      }
       if (req.method === "POST" && path === "/api/goals") {
         const body = (await readJson(req)) as { objective?: string; timeoutMs?: number };
         const objective = (body.objective ?? "").trim();
@@ -198,6 +205,7 @@ export class SwarmServer {
     verifications: VerificationReport[];
     provenance: unknown[];
     groundingRate: number;
+    logs: Array<{ workerId: string; line: string; at: number }>;
   } {
     return {
       mode: this.swarm.mode,
@@ -207,6 +215,7 @@ export class SwarmServer {
       verifications: this.swarm.manager.listVerifications().slice(-50),
       provenance: this.swarm.manager.listProvenance().slice(-50),
       groundingRate: this.swarm.manager.groundingRate(),
+      logs: this.swarm.manager.recentLogs(100),
     };
   }
 

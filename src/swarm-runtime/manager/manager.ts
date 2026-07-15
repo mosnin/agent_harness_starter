@@ -163,6 +163,8 @@ export class SwarmManager extends EventEmitter {
   private readonly stateStore?: StateStore;
   private readonly persistDebounceMs: number;
   private persistTimer?: ReturnType<typeof setTimeout>;
+  private logs: Array<{ workerId: string; line: string; at: number }> = [];
+  private readonly maxLogs = 1000;
 
   constructor(private readonly config: ManagerConfig) {
     super();
@@ -192,7 +194,7 @@ export class SwarmManager extends EventEmitter {
     this.bus.onRegister((r) => this.handleRegister(r));
     this.bus.onHeartbeat((h) => this.handleHeartbeat(h));
     this.bus.onResult((r) => void this.handleResult(r));
-    this.bus.onLog((w, l) => this.emit("log", w, l));
+    this.bus.onLog((w, l) => this.recordLog(w, l));
     this.bus.onDeregister((w) => this.markDead(w));
   }
 
@@ -492,6 +494,22 @@ export class SwarmManager extends EventEmitter {
   }
   listWorkers(): WorkerRecord[] {
     return [...this.workers.values()];
+  }
+
+  private recordLog(workerId: string, line: string): void {
+    this.logs.push({ workerId, line, at: Date.now() });
+    if (this.logs.length > this.maxLogs) this.logs.splice(0, this.logs.length - this.maxLogs);
+    this.emit("log", workerId, line);
+  }
+
+  /** Recent activity log across all workers (newest last). */
+  recentLogs(limit = 200): Array<{ workerId: string; line: string; at: number }> {
+    return this.logs.slice(-limit);
+  }
+
+  /** Recent log lines for a single worker. */
+  getWorkerLogs(workerId: string, limit = 200): Array<{ line: string; at: number }> {
+    return this.logs.filter((l) => l.workerId === workerId).slice(-limit).map(({ line, at }) => ({ line, at }));
   }
   listTasks(goalId?: string): WorkerTask[] {
     const all = [...this.tasks.values()];
