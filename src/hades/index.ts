@@ -9,3 +9,4 @@
  * Hades remembers, learns, and lives where you do.
  */
 export * from "./memory/index";
+export * from "./learning/index";
