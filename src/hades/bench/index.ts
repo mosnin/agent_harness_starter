@@ -24,3 +24,7 @@ export {
 export type { SimNode, LatencyParams, MakespanRow, MakespanReport } from "./latency-makespan";
 export { benchMetricsOverhead, runMetricsBenchmarks } from "./metrics-overhead";
 export type { MetricsOverheadResult, MetricsBenchReport } from "./metrics-overhead";
+export { runSoak } from "./soak";
+export type { SoakWindow, SoakResult } from "./soak";
+export { probeLeaks } from "./leak-probe";
+export type { LeakSample, LeakReport } from "./leak-probe";
