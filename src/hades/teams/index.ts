@@ -13,3 +13,7 @@ export type {
 } from "./blueprint";
 export { TeamFormer, slugify } from "./former";
 export type { TaskSpec, Decomposer, TeamFormerOptions, FormedTeam } from "./former";
+export { Team, InProcessAgentSpawner } from "./team";
+export type { AgentContext, SpawnedAgent, AgentSpawner } from "./team";
+export { BackendAgentSpawner } from "./backend-spawner";
+export type { BackendSpawnerOptions } from "./backend-spawner";
