@@ -43,7 +43,7 @@ infra. 582 tests green.
 - [x] 16. REST API expansion + documented schema.
 - [x] 17. Harness-backed executor: wire the existing `@/agents` harness + tool registry into workers.
 - [x] 18. Worker tool access (web search / sandbox) with grounded traces.
-- [ ] 19. Provider abstraction: OpenAI / Anthropic / Nous / OpenRouter / local.
+- [x] 19. Provider abstraction: OpenAI / Anthropic / Nous / OpenRouter / local.
 - [ ] 20. Stream live worker token output to the dashboard.
 - [ ] 21. Gateway trigger stub: a message (Slack/Discord/Telegram-shaped) launches a swarm.
 - [ ] 22. Skills for workers (curated capability bundles).
@@ -95,3 +95,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 16 — REST API expansion.** SwarmServer now serves `/api/schema` (self-describing), `/api/workers`, `/api/goals/:id/{tasks,usage,provenance,cancel}`, and `/api/schedules` CRUD (when a SwarmScheduler is attached). POST /api/goals uses startGoal and returns the goalId. 2 HTTP tests. Full suite green.
 - **Iter 17 — harness-backed executor.** `HarnessExecutor` runs each task through the project's real agent harness (structural `RunnableHarness` — no @openai/agents hard-dep), mapping the harness's `toolCalls` into the swarm's grounded tool-trace + claims so the gate verifies the agent's answer against its actual tool outputs. Threads token cost into budget accounting (added `ExecutionOutput.costUsd`, wired through the runtime → WorkerResult). 3 tests. Full suite green.
 - **Iter 18 — worker tool access.** `worker/toolbox.ts`: `ToolBox` registry + `ToolRunner` that records every call into the trace (grounded-by-construction) and enforces a per-task capability allowlist (anti-rogue at the point of use). `createToolExecutor` auto-synthesizes grounded claims from tool outputs. Example `webSearchTool`/`httpGetTool`/`defineTool` (injectable/mockable). 4 tests. Full suite green.
+- **Iter 19 — provider abstraction.** `worker/providers.ts`: `createChat({provider,model,...})` returns a `ChatFn` for OpenAI/Nous/OpenRouter/Together/Groq/local (OpenAI-compatible) and Anthropic (native messages API), resolving base URLs + key envs from a `PROVIDERS` directory. Injectable fetch. 3 tests (directory, unknown-provider, Anthropic request/response shaping). Full suite green.

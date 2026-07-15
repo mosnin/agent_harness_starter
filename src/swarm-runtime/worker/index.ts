@@ -4,6 +4,8 @@ export { DemoExecutor } from "./executor";
 export type { TaskExecutor, ExecutionOutput, WorkerContext } from "./executor";
 export { LLMExecutor, createOpenAICompatibleChat, chatToPlannerComplete } from "./llm-executor";
 export type { ChatFn, ChatMessage } from "./llm-executor";
+export { createChat, PROVIDERS, providerKeyEnv } from "./providers";
+export type { ProviderName, ProviderStyle, ProviderConfig, CreateChatOptions } from "./providers";
 export { SubSwarmExecutor } from "./sub-swarm-executor";
 export type { SubManager, SubSwarmExecutorOptions } from "./sub-swarm-executor";
 export { HarnessExecutor } from "./harness-executor";
