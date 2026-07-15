@@ -27,7 +27,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 
 ## Phase A — The Closed Learning Loop (Hades's soul)
 - [x] 1. Cross-session memory store: `MemoryStore` (memory + file backends) + `MemoryRecord` (fact, salience, tags, ts, embedding?).
-- [ ] 2. Session store + FTS-style search over past sessions (keyword rank + summarization hook).
+- [x] 2. Session store + FTS-style search over past sessions (keyword rank + summarization hook).
 - [ ] 3. Agent-curated memory: extract & persist salient anchors from a finished session/goal.
 - [ ] 4. Memory nudges: periodic "persist this?" prompts + a nudge scheduler.
 - [ ] 5. Autonomous skill creation: synthesize a reusable `SwarmSkill` from a completed trajectory.
@@ -83,3 +83,4 @@ Baseline: swarm-runtime complete, 699 tests green.
 _(newest last; one entry per completed iteration)_
 
 - **Iter 1 — cross-session memory store.** `src/hades/memory/`: `MemoryRecord` (fact, salience, tags, access stats) + `MemoryStore` with `InMemoryMemoryStore` and atomic-write `FileMemoryStore`. Pure `scoreMemory` ranks retrieval by lexical overlap · salience · recency decay (2-week half-life); retrieval records access. 6 tests. Full suite green.
+- **Iter 2 — session store + FTS-style search.** `SessionStore` (memory + file) holding conversation sessions; pure `scoreSession` ranks by term-frequency over title/summary/messages and returns the best snippet. Injectable `Summarizer` hook generates a cheap, searchable summary for cross-session recall. 4 tests. Full suite green.
