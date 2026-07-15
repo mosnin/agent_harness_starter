@@ -18,3 +18,11 @@ export type {
   ModalSpawnInput,
   ModalBackendOptions,
 } from "./modal";
+export { DaytonaBackend } from "./daytona";
+export type {
+  DaytonaClient,
+  DaytonaWorkspace,
+  DaytonaState,
+  DaytonaCreateInput,
+  DaytonaBackendOptions,
+} from "./daytona";
