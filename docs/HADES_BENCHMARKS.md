@@ -213,10 +213,16 @@ adversarial suite (21 tests) hand-verifies the exact values, confirms both sides
 pay identical per-hop costs, and proves flat is O(N) (not rigged super-linear) and
 the tree O(log N) (not a faked separation).
 
-**Bottom line:** the swarm hierarchy beats the flat baseline on *routing* under
-any model and on *makespan* under the realistic latency model, with the one
-regime where flat wins (single-node pure-CPU aggregation) stated plainly rather
-than hidden.
+**Bottom line (honest scope):** these results prove **in-process complexity and
+correctness properties** — indexed routing beats linear scan (a count ratio, not
+wall-clock), and a reduction tree beats serialized fan-out *under a virtual-clock
+cost model*. They do **not** prove end-to-end agent throughput: in measured
+wall-clock the flat baseline is currently faster, and a flat orchestrator built on
+an indexed `Map` would match the hierarchy's routing. The real question — does an
+isolated, verification-gated swarm do more *verified work per dollar* than a single
+agent on real inference — is measured by the V-TPH$ harness on the
+[`.plans/HADES_BEYOND_HERMES.md`](../.plans/HADES_BEYOND_HERMES.md) roadmap, not
+here.
 
 ## Live metrics — observability at ~180 ns/op
 

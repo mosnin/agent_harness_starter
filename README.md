@@ -59,16 +59,20 @@ await swarm.shutdown();
 
 ## 🔱 Hades — the learning agent on top of the swarm
 
-Where the swarm *executes and verifies*, **Hades remembers, learns, and lives
-where you do** — without giving up the verification guarantees. It ships in
-[`src/hades/`](./src/hades/) as a second 40-iteration build on top of the swarm
-core, closing the gaps against Hermes:
+Where the swarm *executes and verifies*, Hades adds the surfaces of a personal
+agent — memory, a learning loop, connectors, an ACP editor bridge, a REPL and CLI.
+It ships in [`src/hades/`](./src/hades/) as a second 40-iteration build on top of
+the swarm core. **Honest status (see [`.plans/HADES_BEYOND_HERMES.md`](./.plans/HADES_BEYOND_HERMES.md)):**
+much of this is well-tested *scaffolding with injectable seams* — the plumbing and
+logic are real and unit-tested, but several subsystems (a default LLM brain, the
+inbound half of most connectors, real remote backends) are not yet wired
+end-to-end. Closing that gap to genuinely surpass Hermes is the active roadmap.
 
 | Capability | Where |
 |---|---|
 | Closed learning loop: cross-session memory, curation, skill forge/tuner, user model | `src/hades/memory/`, `src/hades/learning/` |
-| Real messaging connectors (Telegram/Slack/Discord/WhatsApp/Signal), voice, cross-channel continuity | `src/hades/gateway/` |
-| Remote execution backends (SSH/Modal/Daytona/Singularity) + serverless scale-to-zero | `src/hades/backends/` |
+| Messaging connectors — Telegram (in+out), Slack/WhatsApp/Discord/Signal (outbound + injectable; inbound webhook/WS is Phase 2) | `src/hades/gateway/` |
+| Remote backends — SSH + Docker/process (real); Modal/Daytona/Singularity (interface-only until Phase 2) | `src/hades/backends/` |
 | ACP adapter: editor sessions, streamed updates, edit-approval + provenance | `src/hades/acp/` |
 | Model switching · plugin system + examples · domain skill packs | `src/hades/models/`, `plugins/`, `skill-packs/` |
 | Trajectory recording · batch generation · training-data compression | `src/hades/research/` |
@@ -91,9 +95,11 @@ Full reference: [**docs/HADES.md**](./docs/HADES.md),
 
 A third 30-iteration build makes Hades **team-native**: a task forms the right
 team of role-specialized agents in isolated containers, they coordinate directly
-over an **authenticated agent-to-agent (A2A)** bus, work runs **in parallel in a
-fraction of the time**, and the team disbands — more capable, more secure, and
-lighter than Hermes.
+over an agent-to-agent (A2A) bus (HMAC-signing transport available, opt-in), work
+runs **in parallel** in-process, and the team disbands. The differentiated bet vs
+Hermes is **verification-first, isolated, auditable** swarm execution — a moat
+[`.plans/HADES_BEYOND_HERMES.md`](./.plans/HADES_BEYOND_HERMES.md) aims to turn
+into a measured order-of-magnitude win on *verified work per dollar*.
 
 | Capability | Where |
 |---|---|
@@ -127,21 +133,24 @@ endpoint + RPC peer, so any node can live in its own container). Scale-tested to
 | Hierarchy vs flat serial (64 workers) | **~28–42× speedup** |
 | Direct routing scan @ 100 **and** 10,000 agents | **1** (O(1), not O(N)) |
 
-Secure by default: every containerized member comes up with **no network,
-read-only root, all Linux capabilities dropped, resource ceilings**, and a
-**deny-by-default** capability token; every A2A message is **signed** and
-**audited**. Full reference: [**docs/HADES_TEAMS.md**](./docs/HADES_TEAMS.md),
+Security primitives (opt-in, not yet default-wired): containerized workers *can*
+be launched with **no network, read-only root, all Linux capabilities dropped,
+resource ceilings** (when spawn limits are set); a **capability-token** checker
+and an **HMAC-signing** A2A transport exist and are unit-tested. Honest status:
+these are built and tested but **not engaged by the default execution path** —
+wiring them on by default (and replacing shared-secret HMAC with real ed25519
+signatures) is Phase 3 of [`.plans/HADES_BEYOND_HERMES.md`](./.plans/HADES_BEYOND_HERMES.md).
+Full reference: [**docs/HADES_TEAMS.md**](./docs/HADES_TEAMS.md),
 [**docs/HADES_BENCHMARKS.md**](./docs/HADES_BENCHMARKS.md),
 [`.plans/HADES_V2_ROADMAP.md`](./.plans/HADES_V2_ROADMAP.md).
 
-#### ⚡ Elite performance loop — the swarm hierarchy beats a flat baseline, proven
+#### ⚡ Elite performance loop — the swarm hierarchy vs a flat baseline
 
 A 16-iteration performance-engineering pass (each iteration built by a **team of
 parallel agents with a dedicated adversarial verifier**; see
 [`.plans/HADES_ELITE_LOOP.md`](./.plans/HADES_ELITE_LOOP.md)) pits the signature
-swarm hierarchy head-to-head against a **naive flat manager→worker orchestrator**
-on an identical workload, and proves the win with **measured, adversarially-checked
-numbers** — run any of them yourself:
+swarm hierarchy against a **naive flat manager→worker orchestrator**. Run them
+yourself:
 
 ```bash
 hades hierarchy head-to-head   # routing + makespan: hierarchy vs flat baseline
@@ -153,19 +162,29 @@ hades hierarchy stats 4 3      # tree shape (workers/depth/nodes)
 
 | Metric (hierarchy vs flat) | 16 workers | 64 | 256 | 1024 |
 |---|---|---|---|---|
-| **Routing cost** O(N²)→O(N) (`routeScans`) | 6.8× | 24.8× | **96.8×** | — |
-| **Makespan** O(N)→O(log N) (latency model) | 1.33× | 4.1× | 13.5× | **45.5×** |
+| **Routing** — `routeScans` count ratio¹ | 6.8× | 24.8× | **96.8×** | — |
+| **Makespan** — discrete-event latency *model*² | 1.33× | 4.1× | 13.5× | **45.5×** |
 | Aggregate correctness (hier == flat reference) | ✓ | ✓ | ✓ | ✓ |
 
-Plus: **live metrics** at ~180 ns/op (`MetricsCollector.snapshot()`); **soak**
-holds ~1.1M msg/s with **zero leak** (endpoints return to baseline); **circuit
-breakers** short-circuit a dead subtree (≤threshold retries, never forever);
-**property-based** correctness (300 random trees/reductions all match a flat
-reducer); a **chaos** pass that returns a correct verified aggregate **or** a clean
-audited failure — **0 silent-wrong across 125 fault runs**; and **regression
-guardrails** that fail CI if O(1) routing or the depth-bounded critical path ever
-breaks. Every claim is backed by an adversarial test suite. **Swarm + Hades +
-Hades v2 + Elite: 1444 tests.**
+> ¹ An **operation-count ratio, not wall-clock**: the flat baseline routes by an
+> un-indexed linear scan (O(N²)); an indexed-`Map` flat orchestrator would also be
+> O(N) — so this measures *indexed vs linear lookup*, a real but narrow result.
+> ² A **virtual-clock simulation** of a serialized-sender cost model; no Hades
+> runtime executes in it. It illustrates the textbook reduction-tree property. In
+> the *measured wall-clock* head-to-head the flat baseline is currently **faster**
+> (the hierarchy does more aggregation work) — an honest finding this repo does
+> not hide. **These prove in-process correctness and complexity properties, not
+> end-to-end agent throughput** — that is what [`.plans/HADES_BEYOND_HERMES.md`](./.plans/HADES_BEYOND_HERMES.md)
+> sets out to measure on real inference.
+
+Genuinely solid, honest results from the same loop: **live metrics** at ~180 ns/op;
+**soak** holds ~1.1M in-process msg/s with **zero leak**; **circuit breakers**
+short-circuit a dead subtree; **property-based** correctness (300 random
+trees/reductions all match a flat reducer); a **chaos** pass returning a correct
+verified aggregate **or** a clean audited failure — **0 silent-wrong across 125
+fault runs**; and **regression guardrails** in CI. Every claim is backed by an
+adversarial test suite. **Swarm + Hades + Hades v2 + Elite: 1444 tests** (≈95%
+in-memory units — real-inference integration is the next frontier).
 
 ---
 

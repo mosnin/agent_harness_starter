@@ -154,7 +154,15 @@ benchmarks, scale tests), integrated and verified centrally.
 
 **Swarm + Hades + Hades v2: 1076 tests across 133 files.**
 
-## Hades Elite — high-performance hierarchy, proven against a flat baseline
+## Hades Elite — high-performance hierarchy vs a flat baseline (in-process)
+
+> Scope note: the routing/makespan headlines below are an operation-count ratio
+> and a virtual-clock model respectively — they prove in-process complexity and
+> correctness properties, not end-to-end agent throughput. The measured wall-clock
+> head-to-head currently favors the flat baseline. Real verified-throughput
+> measurement is the [`.plans/HADES_BEYOND_HERMES.md`](./.plans/HADES_BEYOND_HERMES.md)
+> roadmap.
+
 
 A 16-iteration performance-engineering loop
 ([`.plans/HADES_ELITE_LOOP.md`](./.plans/HADES_ELITE_LOOP.md)) run under a sustained
