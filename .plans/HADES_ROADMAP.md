@@ -71,7 +71,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 
 ## Phase F — Packaging / Polish / Release
 - [x] 35. `hades` unified CLI (chat, gateway, model, skills, plugins, memory, learn).
-- [ ] 36. Config + env + i18n scaffolding (locales).
+- [x] 36. Config + env + i18n scaffolding (locales).
 - [ ] 37. Installer script + packaging notes + Dockerfile for the Hades gateway.
 - [ ] 38. Docs: Hades guide + architecture + runnable examples.
 - [ ] 39. End-to-end suite across learning loop + gateway + backend + REPL.
@@ -127,3 +127,4 @@ _(newest last; one entry per completed iteration)_
 
 ### Phase F
 - **Iter 35 — unified `hades` CLI (Phase F start).** `cli/HadesCli` is a terminal-free command router: `run(argv)` dispatches the first token to a subcommand and returns `{ code, lines }` (a thin bin script prints + exits). Subcommands — `model` (→ ModelCommand), `skills`/`skills packs` (→ SkillRegistry / SkillPackCatalog), `plugins` (→ LocalPluginRegistry), `memory add|search` (→ MemoryStore), `learn stats` (→ trajectory store), `version`, `help`, and injectable `chat`/`gateway` launchers — all reuse the same pieces the REPL uses, so behavior is consistent across surfaces. Unknown commands and unconfigured features fail gracefully with a nonzero code. 7 tests. Full suite green (892).
+- **Iter 36 — config + env + i18n.** `config/`: `HadesConfig` + `loadConfig` layer sources with clear precedence (defaults < file < `HADES_*` env < programmatic overrides), shallow-merging the nested gateway object and deriving `memoryPath` under `dataDir` — without mutating `DEFAULT_CONFIG`. `configFromEnv` maps the env surface (model, locale, data dir, gateway trigger/allowed-users, plugins as comma lists). `I18n` is a dependency-free translator: active-locale lookup with default-locale fallback then the key itself, `{name}` interpolation, runtime `setLocale`, and en/es starter catalogs. 10 tests. Full suite green (902).
