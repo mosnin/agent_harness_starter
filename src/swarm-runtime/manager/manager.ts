@@ -598,16 +598,32 @@ export class SwarmManager extends EventEmitter {
     this.workers.delete(workerId);
   }
 
-  /** Kill a rogue worker's container immediately and replace it. */
-  private async killWorker(workerId: string, reason: string): Promise<void> {
+  /**
+   * Kill a worker's container immediately and replace it. Used both by the
+   * anti-rogue guardrail (on a `kill` finding) and by an operator via the
+   * dashboard/REST control. Returns false if the worker id is unknown.
+   */
+  async killWorker(workerId: string, reason: string): Promise<boolean> {
     const rec = this.workers.get(workerId);
-    if (!rec) return;
+    if (!rec) return false;
     rec.status = "killed";
     rec.killReason = reason;
     this.emit("worker:killed", rec, reason);
     await this.teardownWorker(workerId);
     // Keep the pool at strength so remaining work still progresses.
     await this.spawnWorker().catch(() => undefined);
+    return true;
+  }
+
+  /** Manually scale the worker pool to `target` (grows, or retires idle workers). */
+  async scalePool(target: number): Promise<number> {
+    await this.scaleTo(Math.max(0, Math.floor(target)));
+    return this.liveWorkers().length;
+  }
+
+  /** Current live worker count. */
+  workerCount(): number {
+    return this.liveWorkers().length;
   }
 
   private handleRegister(reg: WorkerRegistration): void {

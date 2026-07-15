@@ -53,7 +53,7 @@ infra. 582 tests green.
 - [x] 24. Dashboard: per-worker log drill-down.
 - [x] 25. Dashboard: verification detail + evidence viewer.
 - [x] 26. Dashboard: goal history + replay.
-- [ ] 27. Dashboard: live controls (pause / kill / scale).
+- [x] 27. Dashboard: live controls (pause / kill / scale).
 - [ ] 28. Dashboard: metrics & charts.
 - [ ] 29. TUI (terminal UI) for the swarm.
 
@@ -103,3 +103,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 24 — per-worker log drill-down.** Dashboard agent cards are now clickable → fetch `GET /api/workers/:id/logs` and render that worker's timestamped log stream. Added HTTP test for the per-worker logs endpoint. Full suite green.
 - **Iter 25 — verification detail + evidence viewer.** Dashboard shows overall grounding-rate badge and a per-record provenance panel: each accepted claim with its confirmed (traced) evidence and grounded ✓/✗ marks. New `dashboard.test.ts` asserts the served HTML is well-formed and includes the panels. Full suite green.
 - **Iter 26 — goal history + replay.** Manager `listGoals()` (newest-first) + `replayGoal(id)`; `GET /api/goals` list + `POST /api/goals/:id/replay`. Dashboard Goal History panel with per-goal replay (finished) / cancel (running) buttons. 4 tests (manager + REST). Full suite green.
+- **Iter 27 — live controls.** Public `killWorker` (kills + replaces, returns bool) and `scalePool(n)`/`workerCount()`. Endpoints `POST /api/workers/:id/kill` and `POST /api/pool/scale`. Dashboard: per-agent kill button + pool ＋/− scale controls. 3 tests (manager + REST). Full suite green.

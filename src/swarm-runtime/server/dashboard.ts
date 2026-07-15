@@ -95,7 +95,12 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     </div>
     <h2>Goal History</h2>
     <div class="body"><div id="history"><div class="empty">no goals yet</div></div></div>
-    <h2>Worker Agents (isolated)</h2>
+    <h2>Worker Agents (isolated)
+      <span style="float:right;font-weight:400">
+        <button style="width:auto;margin:0;padding:2px 8px;font-size:11px" onclick="scalePool(-1)">−</button>
+        <button style="width:auto;margin:0;padding:2px 8px;font-size:11px" onclick="scalePool(1)">＋</button>
+      </span>
+    </h2>
     <div class="body"><div class="grid" id="agents"><div class="empty">no workers yet</div></div></div>
     <h2>Activity Log</h2>
     <div class="body"><div class="log" id="log"></div></div>
@@ -136,9 +141,12 @@ function render() {
     el.style.cursor = "pointer";
     el.title = "click to view this worker's logs";
     el.onclick = () => showWorkerLogs(w.workerId);
+    const killBtn = (w.status==="killed"||w.status==="dead") ? "" :
+      '<button style="width:auto;margin:6px 0 0;padding:2px 7px;font-size:10px;background:#4a1220;color:#fb7185" '+
+      'onclick="event.stopPropagation();killWorker(\\''+w.workerId+'\\')">✗ kill</button>';
     el.innerHTML = '<div class="id">'+w.workerId+'</div>'+
       '<span class="st '+w.status+'">'+w.status+'</span>'+
-      '<div class="cap">['+(w.capabilities||[]).join(", ")+']'+(w.killReason?'<br>⚠ '+w.killReason:'')+'</div>';
+      '<div class="cap">['+(w.capabilities||[]).join(", ")+']'+(w.killReason?'<br>⚠ '+w.killReason:'')+'</div>'+killBtn;
     ag.appendChild(el);
   }
 
@@ -218,6 +226,12 @@ function renderHistory(goals){
     el.appendChild(div);
   }
 }
+async function killWorker(id){ try{ await fetch("/api/workers/"+id+"/kill",{method:"POST"}); logLine("✗ killed worker "+id); refresh(); }catch{} }
+async function scalePool(delta){
+  try{ const live=(state.workers||[]).filter(w=>w.status!=="killed"&&w.status!=="dead").length;
+    const r=await (await fetch("/api/pool/scale",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({size:Math.max(0,live+delta)})})).json();
+    logLine("⚖ scaled pool → "+r.size); refresh();
+  }catch{} }
 async function replayGoal(id){ try{ await fetch("/api/goals/"+id+"/replay",{method:"POST"}); logLine("↻ replayed "+id.slice(0,8)); refresh(); }catch{} }
 async function cancelGoal(id){ try{ await fetch("/api/goals/"+id+"/cancel",{method:"POST"}); logLine("✗ cancelled "+id.slice(0,8)); refresh(); }catch{} }
 function renderProvenance(records){

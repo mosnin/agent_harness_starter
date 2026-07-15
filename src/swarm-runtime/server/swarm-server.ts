@@ -137,6 +137,17 @@ export class SwarmServer {
         const workerId = path.slice("/api/workers/".length, -"/logs".length);
         return json(res, 200, this.swarm.manager.getWorkerLogs(workerId));
       }
+      if (req.method === "POST" && path.startsWith("/api/workers/") && path.endsWith("/kill")) {
+        const workerId = path.slice("/api/workers/".length, -"/kill".length);
+        const killed = await this.swarm.manager.killWorker(workerId, "operator kill via dashboard");
+        return json(res, killed ? 200 : 404, { killed });
+      }
+      if (req.method === "POST" && path === "/api/pool/scale") {
+        const body = (await readJson(req)) as { size?: number };
+        if (typeof body.size !== "number") return json(res, 400, { error: "size required" });
+        const size = await this.swarm.manager.scalePool(body.size);
+        return json(res, 200, { size });
+      }
       if (req.method === "POST" && path === "/api/goals") {
         const body = (await readJson(req)) as { objective?: string; timeoutMs?: number };
         const objective = (body.objective ?? "").trim();
