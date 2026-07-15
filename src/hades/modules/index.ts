@@ -16,3 +16,4 @@ export type {
   PluginPackageLoaderOptions,
   InstallResult,
 } from "./plugin-package";
+export { ModuleRegistry } from "./registry";
