@@ -34,7 +34,7 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 
 ### A2A performance engineering
 - [x] 5. **Batched delivery + message pooling**: coalesce bursts, reuse envelopes; benchmark messages/sec before/after with a real number.
-- [ ] 6. **Credit-based backpressure** (real flow control, not a flag): bounded in-flight per link, sender awaits credit; prove no unbounded buffering under a fast producer / slow consumer.
+- [x] 6. **Credit-based backpressure** (real flow control, not a flag): bounded in-flight per link, sender awaits credit; prove no unbounded buffering under a fast producer / slow consumer.
 - [ ] 7. **Cross-process transport parity**: an HTTP/WS `A2ATransport` with the SAME O(1) direct-routing semantics + a conformance test the in-memory transport also passes.
 - [ ] 8. **Ordered + at-least-once delivery guarantees** with dedupe; property test message ordering per link under concurrency.
 
@@ -56,6 +56,8 @@ hierarchy mode (in-process + distributed), live benchmarks already landed.
 
 ## Iteration log
 _(newest last; one entry per completed iteration)_
+
+- **Iter 6 — credit-based backpressure.** Team: a builder + an adversarial verifier. `CreditController` + `BackpressuredChannel` (`src/hades/a2a/backpressure.ts`): **real flow control, not a flag** — a sender must hold one of a bounded set of credits to send, so in-flight work can never exceed capacity; a fast producer **blocks on `send()`** instead of buffering unboundedly (the thing that OOMs naive pipelines). FIFO credit fairness; a rejecting consume still releases its credit (no deadlock/leak); event-driven `drain()` (no poll, no hang, no early resolve). The adversarial verifier hammered every failure mode — **14 tests, no bugs**: `maxInFlight === capacity` at 1/3/7 with an *independent* live concurrency counter (stats not trusted), never breached under a 2000-item varying-delay blast; exactly-once delivery; throwing-consume no-deadlock (timeout-guarded); over-release floored at 0; seeded-storm credit conservation (`available()===capacity`, `inFlight()===0` after drain). Builder 8 + adversarial 14 tests. Full suite green (1174 / 142 files).
 
 - **Iter 5 — batched delivery + message pool (with an honest benchmark).** Team: a builder + an adversarial verifier. `MessagePool<T>` (reuse envelopes, reset-on-release, hard `maxIdle` bound) and `BatchedA2ATransport` (coalesce publishes into fewer scheduler turns via an injectable `scheduleFlush`, force-flush at `maxBatch`) — plus a **runnable** `a2a-batch-bench.ts`. **Honest measured result:** on the *synchronous in-memory* transport both are neutral-to-slower (pooled 28M vs unpooled 106M ops/sec — V8's bump allocator beats pool bookkeeping for tiny objects; batched 2.77M vs direct 3.08M msgs/sec — no async turns to coalesce). Not oversold: these are correct, verified *primitives* whose payoff is async/cross-process delivery (iter 7), where batching amortizes real IO. What's load-bearing is **correctness**, and the adversarial verifier nailed it: **10 tests, no bugs** — per-link FIFO ordering under interleaving, zero loss/duplication across flush cycles, pool reset/no-aliasing/no-double-issue, hard `maxIdle`, exact sync-flush counts, and a proper double-schedule guard. Builder 8 + adversarial 10 tests. Full suite green (1152 / 141 files).
 
