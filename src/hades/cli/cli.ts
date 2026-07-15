@@ -8,6 +8,7 @@ import type { RoleRegistry } from "../teams/role";
 import { TeamFormer } from "../teams/former";
 import { runHierarchyCommand } from "./hierarchy-command";
 import { runBenchCommand } from "./bench-command";
+import { runSkillCommand } from "./skills-command";
 
 export interface CliResult {
   code: number;
@@ -75,6 +76,8 @@ export class HadesCli {
         return runHierarchyCommand(rest);
       case "bench":
         return runBenchCommand(rest);
+      case "skill":
+        return runSkillCommand(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -104,6 +107,7 @@ export class HadesCli {
         "  team <roles|plan>    List roles / preview a team for an objective",
         "  hierarchy <sub>      Swarm benchmarks: head-to-head/makespan/chaos/fuzz/stats",
         "  bench vtph           Verified-tasks-per-hour-per-dollar scoreboard",
+        "  skill <sub>          Create/list/validate SKILL.md skills (new/list/show/validate)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
