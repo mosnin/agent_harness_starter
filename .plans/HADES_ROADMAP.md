@@ -47,7 +47,7 @@ Baseline: swarm-runtime complete, 699 tests green.
 
 ## Phase C — Execution Backends
 - [x] 17. `RemoteBackend` abstraction (beyond worker providers) + registry.
-- [ ] 18. SSH backend (run worker over ssh, injectable exec).
+- [x] 18. SSH backend (run worker over ssh, injectable exec).
 - [ ] 19. Modal backend (serverless, injectable client).
 - [ ] 20. Daytona backend (serverless persistence, injectable client).
 - [ ] 21. Singularity/Apptainer backend.
@@ -103,3 +103,4 @@ _(newest last; one entry per completed iteration)_
 
 ### Phase C
 - **Iter 17 — RemoteBackend abstraction (Phase C start).** `backends/`: `RemoteBackend` seam for running a worker on *remote* compute (SSH/Modal/Daytona/Singularity) beyond the swarm core's local `ContainerProvider` — provision/terminate/status/logs plus a `RemoteState` lifecycle and optional `hibernate`/`wake` for serverless scale-to-zero. `RemoteBackendRegistry` registers backends, provisions on a named or first-available backend, tracks handles, and drives hibernate/wake/terminate; `RemoteHandle` carries endpoint + backend-private `meta`. `FakeBackend` (in-process, injectable clock, optional hibernate) tests it all without remote credentials. 6 tests. Full suite green (777).
+- **Iter 18 — SSH backend.** `SshBackend` runs each worker as a `nohup` background process on a remote host over an injectable `SshTransport`: `provision` launches with the worker env, captures the PID as the native id, and tees to a per-worker log; `status` probes with `kill -0`; `terminate` kills the PID; `logs` tails the file. No hibernate/wake (a plain host isn't serverless). `createSshCliTransport` builds a real `ssh` invocation (port/identity/BatchMode) with an injectable local spawner. Tested against a fake host simulating a process table. 7 tests. Full suite green (784).
