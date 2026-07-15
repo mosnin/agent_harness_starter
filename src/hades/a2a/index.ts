@@ -26,3 +26,7 @@ export { BatchedA2ATransport } from "./batched";
 export type { BatchedOptions } from "./batched";
 export { CreditController, BackpressuredChannel } from "./backpressure";
 export type { FlowStats } from "./backpressure";
+export { RemoteA2ATransport, jsonCodec, loopbackWire } from "./remote-transport";
+export type { Codec, Wire } from "./remote-transport";
+export { runA2AConformance } from "./conformance";
+export type { ConformanceResult } from "./conformance";
