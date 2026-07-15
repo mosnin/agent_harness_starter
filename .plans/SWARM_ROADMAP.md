@@ -62,7 +62,7 @@ infra. 582 tests green.
 - [x] 31. Structured logging + tracing + metrics export.
 - [x] 32. Resource-limit enforcement + tests (docker + process).
 - [x] 33. Docker: healthchecks, slimmer images, multi-arch notes.
-- [ ] 34. Config file support (swarm.config.yaml / env precedence).
+- [x] 34. Config file support (swarm.config.yaml / env precedence).
 - [ ] 35. Graceful shutdown & signal handling everywhere.
 - [ ] 36. Chaos tests: kill workers / drop network / slow responses.
 
@@ -110,3 +110,4 @@ _(newest last; one entry per completed iteration)_
 - **Iter 31 — observability.** `observability/`: `formatPrometheus(metrics)` (labelled + scalar gauges) served at `GET /metrics` for scrapers; `attachStructuredLogging(manager, sink)` emits ndjson records for worker/task/goal lifecycle events (default stdout sink). 3 tests. Full suite green.
 - **Iter 32 — resource-limit enforcement + tests.** Extracted pure `buildDockerRunArgs(spec, opts)` from DockerProvider so every hardening/limit flag (no-new-privileges, pids-limit, cpus/memory, --network none, --read-only, --cap-drop ALL, env) is unit-testable without a daemon. Tests also verify LocalProcessProvider kills a worker at its lifetime ceiling. 5 tests. Full suite green.
 - **Iter 33 — docker hardening.** Unauth `GET /healthz` liveness probe (works even when API is token-guarded); worker touches a health-heartbeat file each beat (`SWARM_HEALTH_FILE`, best-effort). Added `HEALTHCHECK` to worker (file-freshness) and manager (/healthz) Dockerfiles + multi-arch buildx notes. 2 tests. Full suite green.
+- **Iter 34 — config file support.** `config/`: pure `resolveConfig` merge with defaults < file < env precedence (undefined never clobbers), `configFromEnv` (SWARM_* vars), `loadConfigFile` (JSON), `loadSwarmConfig` convenience. `swarm.config.example.json`. 7 tests. Full suite green.

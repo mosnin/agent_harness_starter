@@ -29,6 +29,7 @@ export * from "./gateway/index";
 export * from "./skills/index";
 export * from "./tui/index";
 export * from "./observability/index";
+export * from "./config/index";
 export { createInlineSwarm } from "./factory";
 export type { InlineSwarmOptions } from "./factory";
 export { buildSwarm, SwarmServer, DASHBOARD_HTML } from "./server/index";
