@@ -21,23 +21,32 @@ validity*; `tsc` clean; suite green; real numbers only.
   held-out verifier rotation. **Red-team 18 tests: catch rate 83.3% of gamers the
   raw ensemble misses (bar 50%), 0% false-positives on robust solvers, layered
   defense non-redundant, one honest slip-through documented.** Suite 1828.
-- [ ] **S4 — Real-inference binding** (keyed). A Styx `AgentRunner` (speculate →
-  bandit-race cheap workers → tier-route + ensemble-verify → conformal gate →
-  certificate) over the multi-provider client; `hades bench styx` head-to-head vs
-  single-agent and vs the Phase-1 verified-swarm. Records real V-TPH$. Refuses to
-  print numbers without keys.
+- [x] **S4 — Assembly + real-inference binding** (core done; real numbers await keys).
+  `styx/orchestrator.ts` assembles all six primitives; `styx/runner.ts` binds the
+  multi-provider client (async prepare phase bridging the sync pipeline) and
+  exposes STYX as a V-TPH$ AgentRunner; `hades bench styx` runs STYX vs
+  verified-swarm vs single-agent (refuses without keys). **E2E adversary 14 tests:
+  emitted true-wrong 0.0083/0.0118/0.0354 vs ε 0.05/0.1/0.2 over 350 held-out
+  ground-truth tasks — the composition PRESERVES the S1 bound end-to-end; all
+  emits certified+tamper-evident; garbage worker → 0% emit, good worker → 89%;
+  tier routing alone flips emit/abstain.** Suite 1862.
 - [ ] **S5 — Verified-work-market settlement**. Certificate-gated acceptance in
   the swarm manager; incentive-compatible bid/settle loop (bids settled against
   the verifier; verification spend a decision variable).
 
 ## Falsifiable targets (from the design doc)
 1. Styx V-TPH$ ≥ 3× single-agent (go/no-go), target 10× — **S4, keyed.**
-2. Measured silent-wrong ≤ ε on held-out — **S1 ✓ (synthetic); S4 (real).**
+2. Measured silent-wrong ≤ ε on held-out — **S1 ✓; S4 ✓ end-to-end (0.0083/0.0118/0.0354 vs ε 0.05/0.1/0.2); real-inference rerun awaits keys.**
 3. Bandit beats uniform by ≥ 20% verified-work/$ — **S2 ✓ (measured 1.88×).**
 4. Certificate rejects 100% of tampered outputs — **S1 ✓.**
 5. Perturbation catches ≥ half of gaming attempts the raw ensemble misses — **S3 ✓ (measured 83.3%).**
 
 ## Log
+- **S4 core complete.** Orchestrator + runner + CLI assembled; the e2e adversary
+  (14 tests) proved the composed pipeline holds the silent-wrong bound end-to-end
+  on 350 held-out tasks, with every emitted answer carrying a valid ed25519
+  certificate and the tier floor binding conservatively below ε. Remaining: a
+  keyed run for the real-model V-TPH$ table (target #1).
 - **S3 complete.** Isomorphic-perturbation + verifier-rotation anti-gaming layer,
   built by a builder + a red-team adversary (18 tests). Catches 83.3% of gaming
   attempts the raw S1 ensemble accepts at score 1.0, with 0% false-positives on

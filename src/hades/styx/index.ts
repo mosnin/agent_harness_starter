@@ -35,3 +35,14 @@ export {
   verifierRotation,
 } from "./perturb";
 export type { Perturbation, Solver, RobustnessReport, RotationReport } from "./perturb";
+export { StyxOrchestrator } from "./orchestrator";
+export type {
+  StyxTask,
+  Speculator,
+  Worker,
+  VerifierPanel,
+  StyxConfig,
+  StyxOutcome,
+} from "./orchestrator";
+export { styxRunner } from "./runner";
+export type { StyxRunnerOptions } from "./runner";

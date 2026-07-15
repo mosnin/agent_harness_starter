@@ -20,6 +20,7 @@ import { EVAL_TASKS, decomposableTasks } from "../bench/eval-suite";
 import { HttpModelClient, MultiProviderClient } from "../models/client";
 import type { ModelClient, ProviderConfig } from "../models/client";
 import { verifiedSwarmRunner, singleAgentRunner } from "../agent/runner";
+import { styxRunner } from "../styx/runner";
 
 /**
  * Assemble a MultiProviderClient from environment keys (multi-provider fan-out).
@@ -110,6 +111,7 @@ const USAGE = [
   "Commands:",
   "  vtph [--swarm|--single] [--decomposable]  Run the eval suite, print the V-TPH$ scoreboard",
   "  headtohead [--decomposable]               Verified swarm vs single-agent baseline (go/no-go)",
+  "  styx [--decomposable]                     STYX (speculate/race/verify/gate/certify) vs both baselines",
   "  help                                      Show this help",
   "",
   "V-TPH$ = Verified Tasks per Hour per Dollar (see .plans/HADES_BEYOND_HERMES.md).",
@@ -219,6 +221,51 @@ export async function runBenchCommand(
         "",
         `Trust: single-agent silent-wrong = ${singleReport?.silentWrong ?? "?"}, verified-swarm silent-wrong = ${swarmReport?.silentWrong ?? "?"}.`,
         gate,
+      ],
+    };
+  }
+
+  if (sub === "styx") {
+    const onlyDecomposable = rest.includes("--decomposable");
+    const tasks = onlyDecomposable ? decomposableTasks() : EVAL_TASKS;
+    if (!env) {
+      return {
+        code: 1,
+        lines: [
+          "styx needs provider keys (ANTHROPIC_API_KEY and/or OPENAI_API_KEY) to run real inference.",
+          "Without keys there is no brain to measure. This is intentional — no simulated numbers.",
+        ],
+      };
+    }
+    const single = singleAgentRunner(env.client, { model: env.workerModel });
+    const swarm = verifiedSwarmRunner(env.client, {
+      workerModel: env.workerModel,
+      verifierModel: env.verifierModel,
+    });
+    const styx = styxRunner(env.client, {
+      workerModel: env.workerModel,
+      verifierModels: [env.verifierModel, env.workerModel],
+      issuedAt: Date.now(),
+    });
+    const { reports, markdownTable, vtphPerDollarSpeedup } = await compareVtph(
+      [
+        { label: "single-agent (self-trust)", runner: single },
+        { label: "verified-swarm", runner: swarm },
+        { label: "STYX", runner: styx },
+      ],
+      tasks,
+      { concurrency }
+    );
+    const styxReport = reports.find((r) => r.label === "STYX");
+    return {
+      code: 0,
+      lines: [
+        `STYX head-to-head — ${tasks.length} tasks`,
+        "",
+        ...markdownTable.split("\n"),
+        "",
+        `STYX silent-wrong: ${styxReport?.silentWrong ?? "?"} (the bound the conformal gate enforces).`,
+        `Best-vs-worst V-TPH$ spread: ${vtphPerDollarSpeedup.toFixed(2)}x.`,
       ],
     };
   }
