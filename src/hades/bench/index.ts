@@ -11,3 +11,7 @@ export {
 } from "./live-bench";
 export type { BenchmarkReport } from "./live-bench";
 export { benchPooling, benchBatchedThroughput, runBatchBenchmarks } from "./a2a-batch-bench";
+export { FlatOrchestrator } from "./flat-baseline";
+export type { FlatExec, FlatRunStats } from "./flat-baseline";
+export { runHeadToHead } from "./head-to-head";
+export type { HeadToHeadRow, HeadToHeadReport } from "./head-to-head";
