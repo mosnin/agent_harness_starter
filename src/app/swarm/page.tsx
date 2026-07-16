@@ -1,19 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import DecryptedText from "../components/DecryptedText";
 
 /**
- * In-app entry point for the Hermes-Swarm control dashboard.
- *
- * The dashboard itself is served by the standalone `SwarmServer`
- * (`npm run swarm:dashboard`, default http://127.0.0.1:8080), which owns the
- * long-lived manager process and streams live state over SSE. This Next.js page
- * embeds that dashboard so the swarm is reachable from within the app shell,
- * and probes it so the user gets a clear "start the server" hint when it's down.
+ * In-app entry point for the Hermes-Swarm control room. The dashboard is served
+ * by the standalone SwarmServer; this page embeds it and, when it is not yet
+ * reachable, shows a calm waiting state rather than exposing the plumbing.
  */
 export default function SwarmPage() {
-  const defaultUrl =
-    process.env.NEXT_PUBLIC_SWARM_DASHBOARD_URL ?? "http://127.0.0.1:8080";
+  const defaultUrl = process.env.NEXT_PUBLIC_SWARM_DASHBOARD_URL ?? "http://127.0.0.1:8080";
   const [url, setUrl] = useState(defaultUrl);
   const [online, setOnline] = useState<boolean | null>(null);
 
@@ -35,44 +31,117 @@ export default function SwarmPage() {
     };
   }, [url]);
 
+  const dot = online ? "var(--ok)" : online === false ? "var(--ink-faint)" : "var(--warn)";
+  const label = online == null ? "connecting" : online ? "live" : "waiting for the swarm";
+
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: 0, margin: 0, height: "100vh", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: "1px solid #e5e7eb" }}>
-        <strong style={{ letterSpacing: 0.5 }}>🐝 Hermes-Swarm</strong>
+    <main style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--s2)",
+          padding: "16px var(--s3)",
+          background: "var(--surface)",
+          boxShadow: "var(--shadow-sm)",
+          zIndex: 2,
+        }}
+      >
+        <strong style={{ fontSize: "var(--fs-sm)", letterSpacing: "-0.01em" }}>
+          <DecryptedText text="Hermes Swarm" animateOn="view" sequential speed={34} className="dt-on" encryptedClassName="dt-off" />
+        </strong>
         <span
           style={{
-            fontSize: 12,
-            padding: "2px 8px",
-            borderRadius: 6,
-            background: online ? "#dcfce7" : online === false ? "#fee2e2" : "#f3f4f6",
-            color: online ? "#166534" : online === false ? "#991b1b" : "#6b7280",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            fontSize: "var(--fs-xs)",
+            color: "var(--ink-soft)",
+            fontWeight: 500,
           }}
         >
-          {online == null ? "checking…" : online ? "dashboard online" : "dashboard offline"}
+          <span style={{ width: 8, height: 8, borderRadius: 999, background: dot, boxShadow: online ? "0 0 10px var(--ok)" : "none" }} />
+          {label}
         </span>
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          style={{ marginLeft: "auto", width: 320, padding: "4px 8px", border: "1px solid #d1d5db", borderRadius: 6, fontSize: 13 }}
+          spellCheck={false}
+          style={{
+            marginLeft: "auto",
+            width: 300,
+            padding: "8px 12px",
+            border: "none",
+            background: "var(--bg)",
+            borderRadius: 999,
+            fontSize: "var(--fs-xs)",
+            color: "var(--ink)",
+            outline: "none",
+          }}
         />
-        <a href={url} target="_blank" rel="noreferrer" style={{ fontSize: 13 }}>
-          open ↗
-        </a>
-      </div>
+      </header>
 
       {online ? (
-        <iframe title="Hermes-Swarm dashboard" src={url} style={{ flex: 1, border: 0, width: "100%" }} />
+        <iframe title="Hermes-Swarm control room" src={url} style={{ flex: 1, border: 0, width: "100%" }} />
       ) : (
-        <div style={{ padding: 32, color: "#374151", lineHeight: 1.6 }}>
-          <h2>Start the swarm dashboard</h2>
-          <p>The control server isn&apos;t reachable at <code>{url}</code>. Launch it with:</p>
-          <pre style={{ background: "#0b0e14", color: "#e6e9ef", padding: 16, borderRadius: 8, overflowX: "auto" }}>
-{`# from the repo root
-npm run swarm:dashboard            # inline mode (no Docker)
-# or a full container swarm:
-docker compose -f docker-compose.swarm.yml up --build`}
-          </pre>
-          <p>Then reload this page. See <code>ARCHITECTURE.md</code> for the full design.</p>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "var(--s3)",
+            padding: "var(--s4)",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ position: "relative", width: 72, height: 72 }}>
+            <span
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: 999,
+                background: "var(--accent-soft)",
+                animation: "pulse 2.2s var(--ease) infinite",
+              }}
+            />
+            <span
+              style={{
+                position: "absolute",
+                inset: 20,
+                borderRadius: 999,
+                background: "var(--accent)",
+              }}
+            />
+          </div>
+          <h2 className="rise" style={{ fontSize: "var(--fs-h1)", margin: 0 }}>
+            Waiting for the swarm
+          </h2>
+          <p className="rise rise-1" style={{ color: "var(--ink-soft)", maxWidth: 460, margin: 0, fontSize: "var(--fs-sm)" }}>
+            The control room connects the moment your swarm is up. This page will
+            come alive on its own. No need to refresh.
+          </p>
+          <a
+            className="rise rise-2"
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              marginTop: "var(--s1)",
+              background: "var(--ink)",
+              color: "#fff",
+              padding: "12px 22px",
+              borderRadius: 999,
+              textDecoration: "none",
+              fontWeight: 540,
+              fontSize: "var(--fs-sm)",
+              boxShadow: "var(--shadow-sm)",
+            }}
+          >
+            Open in a new tab
+          </a>
+          <style>{`@keyframes pulse { 0%,100% { transform: scale(1); opacity: 0.55 } 50% { transform: scale(1.35); opacity: 0.15 } }`}</style>
         </div>
       )}
     </main>
