@@ -1,0 +1,29 @@
+# Hades desktop native shell.
+#
+# This crate is intentionally dependency-free. The build environment this was
+# authored in is headless (no display, no webview system libs, no `cargo
+# tauri` CLI available), so the only thing that can be verified here is that
+# the supervisor logic compiles and runs as a plain Rust binary against the
+# standard library. It is NOT the Tauri application itself — see
+# `tauri.conf.json` and the comment at the top of `src/main.rs` for what a
+# real `cargo tauri build`/`cargo tauri dev` on a machine with a display adds
+# on top of this.
+[package]
+name = "hades-desktop"
+version = "0.1.0"
+edition = "2021"
+description = "Hades desktop native shell: process supervisor for the Node sidecar."
+publish = false
+
+[[bin]]
+name = "hades-desktop"
+path = "src/main.rs"
+
+[dependencies]
+# Deliberately empty. See module comment in src/main.rs. A real Tauri app
+# would add `tauri = { version = "2", features = [...] }` plus a build-time
+# `tauri-build` dependency; both require the Tauri CLI/system webview libs
+# that are not present in this headless environment.
+
+[profile.dev]
+opt-level = 0

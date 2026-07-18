@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Hades",
+  "version": "0.1.0",
+  "identifier": "ai.hades.desktop",
+
+  "//_sidecar": "NOT run in this headless environment. This file is config data consumed by the `cargo tauri` CLI on a machine with a display + webview libs; it is not executed by `cargo check`. The actual native shell logic (spawn/pipe/restart the Node sidecar) lives in src-tauri/src/main.rs, a plain std-only Rust binary you can `cargo run` directly. The Tauri build step wraps that behavior as this app's `beforeDevCommand`/`beforeBuildCommand`, or as an externalBin sidecar, depending on how the real build wires it up — that wiring was not attempted here.",
+
+  "build": {
+    "frontendDist": "../dist/desktop/renderer",
+    "beforeBuildCommand": "npm run build:desktop-renderer",
+    "beforeDevCommand": "npm run dev:desktop-renderer",
+    "devUrl": "http://localhost:5183"
+  },
+
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Hades",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "center": true,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "//titleBarStyle": "macOS: draw the traffic lights over a custom title bar (Overlay + hiddenTitle), matching the terminal/desktop-app aesthetic rather than a browser chrome look.",
+        "trafficLightPosition": { "x": 16, "y": 16 }
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost"
+    }
+  },
+
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "deb", "appimage", "msi", "nsis"],
+    "identifier": "ai.hades.desktop",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "//sidecar_binaries": "Real build: bundle the Node sidecar (built from src/desktop/sidecar-entry.ts to dist/desktop/sidecar-entry.js) as a resource or externalBin so src-tauri/src/main.rs can spawn it via the HADES_SIDECAR path without depending on a system Node install.",
+    "resources": ["../dist/desktop/sidecar-entry.js"]
+  }
+}
