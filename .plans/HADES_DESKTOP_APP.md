@@ -65,3 +65,32 @@ audit happens after all 10 return.
 ## After the teams: audit, then next plan
 Central audit for real-vs-mock, contract conformance, and "does it actually run".
 Then the next plan of action.
+
+---
+
+## Phase 2 — Make it launchable (10 teams)
+
+The parts exist and are tested; Phase 2 wires them into things that RUN. The
+renderer is the Tauri desktop-app frontend (webview inside the native shell),
+NOT a website. Highest-value deliverable that runs headless TODAY: `hades tui`.
+
+1. Renderer app/router      `src/desktop/ui/renderer.ts` — mount shell+views, bridge events → store → re-render, clicks → Command.
+2. Bridge abstraction       `src/desktop/ui/bridge.ts` — tauriBridge (invoke/listen) + devBridge (in-process Sidecar).
+3. Renderer entry + bundler `src/desktop/ui/index.html` + `scripts/build-desktop.mjs` (esbuild → dist/desktop).
+4. Tauri window (feature-gated) `src-tauri` gui feature — real window + sidecar bridge behind `--features gui`; default cargo check stays green.
+5. `hades tui` command       `src/hades/cli/tui-command.ts` — runs the live TUI over the real swarm, raw stdin, headless. RUNS NOW.
+6. Sidecar build + scripts   `scripts/build-sidecar.mjs` + npm `tui`/`desktop:dev`/`desktop:build`.
+7. Skills service            `src/desktop/core/skills-service.ts` — real skills.list/save via SkillLibrary + fs.
+8. Inference factory         `src/desktop/core/inference.ts` — keyed STYX/real executor; mock without keys.
+9. E2E headless proof        `src/desktop/__tests__/e2e-sidecar-swarm.test.ts` — real inline swarm through the Sidecar, full event stream.
+10. Docs + adversarial audit `docs/DESKTOP_APP.md` + integration-audit test — real-vs-fake wiring; how to run.
+
+Central integration wires cli.ts (tui), sidecar-entry (skills/inference), scripts.
+
+## Phase 3 — the "whatever after" (queued; dispatched after the Phase 2 audit)
+- Command palette + keyboard-first nav across the desktop app.
+- Certificate detail + verify-a-cert flow (drop a cert, check its ed25519 + trace).
+- Live V-TPH$ panel wired to `bench vtph` with a keyed run.
+- TUI: split-pane logs, worker drill-in, goal history replay.
+- Packaged installers (dmg/AppImage/msi) via `cargo tauri build`, documented + CI.
+- Real head-to-head run harness surfaced in-app once keys are present.
