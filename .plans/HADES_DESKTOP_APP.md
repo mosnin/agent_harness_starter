@@ -130,3 +130,25 @@ contract violations, unverified claims; write regression tests where they find g
 Central integration after: extend `contract.ts` for any new Command/AppEvent kinds,
 wire palette/cert/vtph/head-to-head into renderer + sidecar, panes/history into the
 TUI, add npm scripts. Then full suite + `cargo check` + smoke tests, then report.
+
+## Phase 3 — STATUS (audited)
+All 8 builder teams + 2 adversarial verifiers landed. Full suite **2341 pass**,
+`tsc -p tsconfig.lib.json` clean, `cargo test --offline` 9 pass.
+
+DONE + live-wired into the desktop app (shell + renderer controller):
+- Command palette overlay (Ctrl/Cmd+K, keyboard-first → real Commands).
+- Compare view → real in-memory head-to-head (peak routing speedup 96.75x @ 256).
+- Metrics view → async V-TPH$ panel (single source of truth via bench/vtph; honest
+  n/a on insufficient data — a +Infinity guard bug the audit found is fixed).
+- Trust view → paste-a-cert real ed25519 verify.
+- gui Cargo feature (real Tauri window; default build stays headless-green offline).
+- Packaging: scripts/package-desktop.mjs (--dry-run honest), CI workflow, INSTALL.md.
+
+Adversarial verdicts: every module REAL (no canned numbers, no fake verifies).
+Two real defects were found by the verifiers and fixed centrally (vtph +Infinity
+guard; panes.ts em-dash glyph → "(none)").
+
+REMAINING (built + adversarially verified + committed as composable renderers, not
+yet consumed by the interactive `hades tui` app.ts state machine):
+- tui/panes.ts (split-pane logs + worker drill-in) and tui/history.ts (goal-run
+  record + replay) — live-wiring into app.ts keybindings is the next focused step.
