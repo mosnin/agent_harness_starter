@@ -53,6 +53,14 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+// The real Tauri window shell lives in `gui.rs` and is only *active* under
+// `--features gui` (see the module header). It is declared unconditionally so
+// that its pure, std-only line-framing helpers and their `#[cfg(test)]` unit
+// tests compile and run under a plain, headless `cargo test`; everything that
+// touches the `tauri` crate inside it is itself `#[cfg(feature = "gui")]`, so
+// the default build pulls in no `tauri` and no webview code.
+mod gui;
+
 /// Default location of the built sidecar entry point, relative to the
 /// desktop app's working directory. Overridable via `HADES_SIDECAR`.
 const DEFAULT_SIDECAR_PATH: &str = "./dist/desktop/sidecar-entry.js";
@@ -73,6 +81,17 @@ const BACKOFF_STEP: Duration = Duration::from_millis(250);
 type StdinSlot = Arc<Mutex<Option<ChildStdin>>>;
 
 fn main() {
+    // With `--features gui`, hand off to the real Tauri window shell and never
+    // fall through to the headless stdio supervisor below. This branch is
+    // entirely cfg-gated: with the feature OFF (the default) it is removed at
+    // compile time and `main` is byte-for-byte the std-only supervisor it has
+    // always been.
+    #[cfg(feature = "gui")]
+    {
+        gui::run();
+        return;
+    }
+
     let sidecar_path =
         env::var("HADES_SIDECAR").unwrap_or_else(|_| DEFAULT_SIDECAR_PATH.to_string());
 
