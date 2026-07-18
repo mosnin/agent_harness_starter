@@ -87,10 +87,46 @@ NOT a website. Highest-value deliverable that runs headless TODAY: `hades tui`.
 
 Central integration wires cli.ts (tui), sidecar-entry (skills/inference), scripts.
 
-## Phase 3 — the "whatever after" (queued; dispatched after the Phase 2 audit)
-- Command palette + keyboard-first nav across the desktop app.
-- Certificate detail + verify-a-cert flow (drop a cert, check its ed25519 + trace).
-- Live V-TPH$ panel wired to `bench vtph` with a keyed run.
-- TUI: split-pane logs, worker drill-in, goal history replay.
-- Packaged installers (dmg/AppImage/msi) via `cargo tauri build`, documented + CI.
-- Real head-to-head run harness surfaced in-app once keys are present.
+## Phase 2 — COMPLETE ✅ (10/10 workstreams, audited)
+All landed, verified headless, pushed: renderer entry+bundler, `hades tui` (runs
+now — spawns a real inline worker, renders live frames), self-contained packaged
+sidecar, real SkillsService + honest inference-mode reporting, E2E sidecar→swarm
+proof, docs + adversarial integration-audit. Verify: full vitest **2165 pass**,
+`tsc -p tsconfig.lib.json` clean, `cargo check` clean, sidecar runs standalone.
+Audit caught + fixed one real mapper bug (empty-id phantom views → `idStr` drops
+them). Known gap: no `gui` Cargo feature yet → Phase 3 team 1.
+
+## Phase 3 — the "whatever after" (10 teams; distinct NEW files, locked contracts)
+
+Rule (same as Phase 2): each team builds ONLY its listed files, never edits
+`ipc/contract.ts`, index barrels, or another team's/existing files. Teams define
+their own local input types; any `contract.ts` extension is CENTRAL integration
+(mine). Each keeps `tsc -p tsconfig.lib.json` clean + its own vitest green.
+
+Builders:
+1. gui-window        `src-tauri/*` — optional `tauri` dep + `gui` cargo feature; a
+   `#[cfg(feature="gui")]` window module bridging IPC ↔ spawned sidecar. Default
+   `cargo check`/`cargo test` (no feature) STAY green. Only team touching src-tauri.
+2. command-palette   `src/desktop/ui/command-palette.ts` — palette state machine +
+   render; entries map to EXISTING `Command`s. Pure, testable.
+3. cert-verify       `src/desktop/core/cert-verify.ts` + `src/desktop/ui/cert-view.ts`
+   — verify a dropped certificate (real ed25519 via `src/*/styx/certificate`) + detail view.
+4. vtph-panel        `src/desktop/ui/vtph-panel.ts` — live V-TPH$ panel; pure render
+   over a self-defined typed input (no fabricated numbers).
+5. tui-panes         `src/swarm-runtime/tui/panes.ts` — split-pane logs + worker
+   drill-in pure renderers (must NOT touch tui/app.ts).
+6. tui-history       `src/swarm-runtime/tui/history.ts` — goal-run recorder + frame replay.
+7. head-to-head      `src/desktop/core/head-to-head.ts` — hades-vs-hermes head-to-head
+   result surfaced through the sidecar, reusing the real hierarchy harness.
+8. installers-ci     `docs/INSTALL.md` + `.github/workflows/desktop-build.yml` +
+   `scripts/package-desktop.mjs` — documented packaging + CI, honest about display need.
+
+Adversarial verifiers (try to BREAK the builders — fake wiring, hardcoded numbers,
+contract violations, unverified claims; write regression tests where they find gaps):
+9.  verify-A `src/desktop/__tests__/phase3-audit.test.ts` — audits teams 2,3,4,7.
+10. verify-B (report + assertions) — audits teams 5,6 (TUI) + 1 (gui) + 8; ensures
+    default `cargo check` stays green and no fabricated screenshots/metrics.
+
+Central integration after: extend `contract.ts` for any new Command/AppEvent kinds,
+wire palette/cert/vtph/head-to-head into renderer + sidecar, panes/history into the
+TUI, add npm scripts. Then full suite + `cargo check` + smoke tests, then report.
