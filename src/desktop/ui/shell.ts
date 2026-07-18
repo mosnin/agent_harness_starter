@@ -17,7 +17,14 @@ import type { Command } from "../ipc/contract";
 // Nav
 // ---------------------------------------------------------------------------
 
-export type NavKey = "run" | "trust" | "skills" | "workers" | "settings";
+export type NavKey =
+  | "run"
+  | "trust"
+  | "skills"
+  | "workers"
+  | "compare"
+  | "metrics"
+  | "settings";
 
 export interface ShellProps {
   state: AppState;
@@ -29,6 +36,8 @@ export const NAV: Array<{ key: NavKey; label: string; hint: string }> = [
   { key: "trust", label: "Trust", hint: "STYX verification gate and certificates" },
   { key: "skills", label: "Skills", hint: "SKILL.md library" },
   { key: "workers", label: "Workers", hint: "Pool status and capabilities" },
+  { key: "compare", label: "Compare", hint: "Head to head vs the flat baseline" },
+  { key: "metrics", label: "Metrics", hint: "Live V-TPH$ (verified tasks per hour per dollar)" },
   { key: "settings", label: "Settings", hint: "Runtime mode and pool size" },
 ];
 
@@ -49,6 +58,8 @@ const ICONS: Record<NavKey, string> = {
   trust: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2l7 3v5c0 4.5-3 7.5-7 8-4-.5-7-3.5-7-8V5l7-3z"/><path d="M7 10l2 2 4-4"/></svg>`,
   skills: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5A2.5 2.5 0 015.5 3H10v14H5.5A2.5 2.5 0 013 14.5v-9z"/><path d="M17 5.5A2.5 2.5 0 0014.5 3H10v14h4.5a2.5 2.5 0 002.5-2.5v-9z"/></svg>`,
   workers: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="2.6"/><circle cx="14" cy="8.5" r="2"/><path d="M2.5 16c.6-3 2.3-4.6 4.5-4.6s3.9 1.6 4.5 4.6"/><path d="M11.8 12.2c1.7.1 3 1.4 3.5 3.8"/></svg>`,
+  compare: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v14"/><path d="M4 7l3-3 3 3"/><path d="M16 13l-3 3-3-3"/></svg>`,
+  metrics: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17h14"/><path d="M6 17V9"/><path d="M10 17V4"/><path d="M14 17v-6"/></svg>`,
   settings: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.1 4.9l-1.4 1.4M6.3 13.7l-1.4 1.4M15.1 15.1l-1.4-1.4M6.3 6.3L4.9 4.9"/></svg>`,
 };
 
@@ -114,18 +125,23 @@ export function renderSidebar(state: AppState, active: NavKey): string {
 // Shell
 // ---------------------------------------------------------------------------
 
-export function renderShell(props: ShellProps, contentHtml: string): string {
+export function renderShell(props: ShellProps, contentHtml: string, overlayHtml = ""): string {
   const { state, active } = props;
   return `<div class="app-shell">
     <header class="titlebar" data-tauri-drag-region>
       <div class="titlebar__traffic-light-space"></div>
       <div class="titlebar__title">Hades</div>
-      <div class="titlebar__spacer"></div>
+      <div class="titlebar__spacer">
+        <button type="button" class="titlebar__palette-hint" data-palette="open" title="Command palette (Ctrl/Cmd+K)">
+          <span class="titlebar__palette-key">&#8984;K</span>
+        </button>
+      </div>
     </header>
     <div class="app-shell__body">
       ${renderSidebar(state, active)}
       <main class="app-shell__content" data-active="${esc(active)}">${contentHtml}</main>
     </div>
+    ${overlayHtml}
   </div>`;
 }
 

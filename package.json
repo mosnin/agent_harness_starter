@@ -134,7 +134,8 @@
     "desktop:build:sidecar": "node scripts/build-sidecar.mjs",
     "desktop:build:ui": "node scripts/build-desktop.mjs",
     "desktop:build": "npm run desktop:build:sidecar && npm run desktop:build:ui",
-    "desktop:dev": "npm run desktop:build && cargo tauri dev --features gui"
+    "desktop:dev": "npm run desktop:build && cargo tauri dev --features gui",
+    "package:desktop": "node scripts/package-desktop.mjs"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",

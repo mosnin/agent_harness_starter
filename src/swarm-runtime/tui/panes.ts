@@ -171,7 +171,7 @@ export function renderWorkerDetail(
   };
 
   field("status", worker.status);
-  field("capabilities", (worker.capabilities ?? []).join(", ") || "—");
+  field("capabilities", (worker.capabilities ?? []).join(", ") || "(none)");
 
   for (const [k, v] of Object.entries(worker as Record<string, unknown>)) {
     if (seen.has(k)) continue;
@@ -182,8 +182,8 @@ export function renderWorkerDetail(
 }
 
 function formatValue(v: unknown): string {
-  if (v === null || v === undefined) return "—";
-  if (Array.isArray(v)) return v.map((x) => String(x)).join(", ") || "—";
+  if (v === null || v === undefined) return "(none)";
+  if (Array.isArray(v)) return v.map((x) => String(x)).join(", ") || "(none)";
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);
 }

@@ -93,10 +93,10 @@ describe("renderWorkerDetail", () => {
     expect(cpWidths(out)).toEqual(new Set([34]));
   });
 
-  it("shows a dash for empty capabilities", () => {
+  it("shows a placeholder for empty capabilities", () => {
     const out = renderWorkerDetail(workers[2], { width: 34 });
     expect(out).toContain("w-3");
-    expect(out).toMatch(/capabilities\s+—/);
+    expect(out).toMatch(/capabilities\s+\(none\)/);
   });
 });
 

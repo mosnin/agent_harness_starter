@@ -155,13 +155,17 @@ npm run desktop:dev
 ```
 
 This runs `desktop:build` (below) and then `cargo tauri dev --features
-gui`. Honesty caveat: `src-tauri/Cargo.toml` in this snapshot is still the
-dependency-free, headless-only crate described above — it declares no `gui`
-feature and no `tauri` dependency yet, so this script does not yet succeed
-even on a machine with the Tauri CLI installed. Wiring an actual `gui`
-Cargo feature (real `tauri` dependency, window/webview bootstrap) is the
-remaining step to make `desktop:dev`/`desktop:build`'s Tauri half real; the
-sidecar + webview bundle halves below already work standalone.
+gui`. `src-tauri/Cargo.toml` now declares an OPTIONAL `tauri` dependency
+behind a `gui` cargo feature (`default = []` pulls none of it), and
+`src-tauri/src/gui.rs` (all `#[cfg(feature = "gui")]`) is the real window:
+it spawns the node sidecar, bridges the renderer's `invoke("hades_command")`
+to sidecar stdin and each sidecar stdout `AppEvent` line to a `hades_event`
+window event. The default (no-feature) `cargo check`/`cargo test` stay green
+and std-only, offline — no `tauri`/webview crates compiled. Honesty caveat:
+the `--features gui` build itself was NOT compiled or run here (it needs
+crates.io access plus WebKitGTK/WebView2/WKWebView and a display); the gui
+code is correct-by-inspection against the Tauri 2 API. No window was
+rendered and there is no screenshot.
 
 `tauri.conf.json`'s `beforeDevCommand` (`npm run dev:desktop-renderer`) and
 `devUrl` (`http://localhost:5183`) describe an intended live-reload loop
@@ -183,9 +187,11 @@ npm run desktop:build
   frontend into `dist/desktop/{main.js,main.css,index.html}` — also verified
   headless.
 - Producing the actual installer still requires `cd src-tauri && cargo tauri
-  build` on a local machine with a display, the platform webview libs, and
-  (per the caveat above) a `gui` Cargo feature that hasn't landed in
-  `Cargo.toml` yet. `cargo check` (no display needed) does pass today.
+  build --features gui` on a local machine with a display and the platform
+  webview libs. The `gui` Cargo feature now exists (optional `tauri` dep); the
+  default `cargo check`/`cargo test` (no display needed) pass today, and
+  `npm run package:desktop` orchestrates the bundle halves + prints the exact
+  installer command (see docs/INSTALL.md).
 
 ### Running the test suites (works everywhere, including here)
 

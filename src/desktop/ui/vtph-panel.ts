@@ -149,9 +149,13 @@ async function deriveReport(
 export async function computeVtph(input: VtphInput): Promise<VtphComputed> {
   const { verifiedTasks, elapsedMs, costUsd } = input;
 
-  if (!(costUsd > 0)) return insufficient(input, "no-cost");
-  if (!(elapsedMs > 0)) return insufficient(input, "no-elapsed");
-  if (!(verifiedTasks > 0)) return insufficient(input, "no-verified");
+  // Guards use Number.isFinite so +Infinity is rejected too — an infinite
+  // elapsed/cost would divide to a fabricated 0, and an infinite task count
+  // would throw in the harness. Insufficient/ill-formed data must never
+  // produce a made-up number.
+  if (!(Number.isFinite(costUsd) && costUsd > 0)) return insufficient(input, "no-cost");
+  if (!(Number.isFinite(elapsedMs) && elapsedMs > 0)) return insufficient(input, "no-elapsed");
+  if (!(Number.isFinite(verifiedTasks) && verifiedTasks > 0)) return insufficient(input, "no-verified");
 
   const report = await deriveReport(verifiedTasks, elapsedMs, costUsd);
 

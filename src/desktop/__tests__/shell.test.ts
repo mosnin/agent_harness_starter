@@ -55,9 +55,9 @@ describe("renderSidebar", () => {
 });
 
 describe("NAV", () => {
-  it("covers exactly the five nav keys", () => {
+  it("covers exactly the seven nav keys", () => {
     const keys = NAV.map((n) => n.key).sort();
-    const expected: NavKey[] = ["run", "settings", "skills", "trust", "workers"].sort() as NavKey[];
+    const expected: NavKey[] = ["compare", "metrics", "run", "settings", "skills", "trust", "workers"].sort() as NavKey[];
     expect(keys).toEqual(expected);
   });
 });
