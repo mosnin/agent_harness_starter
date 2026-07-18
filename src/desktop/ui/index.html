@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost"
+    />
+    <title>Hades</title>
+    <link rel="stylesheet" href="./main.css" />
+    <script>
+      // Bootstrap `data-theme` before first paint from the OS color scheme,
+      // so there is no light-flash on a dark system (or vice versa). The
+      // renderer/theme layer may update this later in response to an
+      // explicit in-app preference; this only sets the initial value.
+      (function () {
+        var prefersDark =
+          typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
