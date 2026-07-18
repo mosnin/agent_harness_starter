@@ -9,6 +9,7 @@ import { TeamFormer } from "../teams/former";
 import { runHierarchyCommand } from "./hierarchy-command";
 import { runBenchCommand } from "./bench-command";
 import { runSkillCommand } from "./skills-command";
+import { runTuiCommand } from "./tui-command";
 
 export interface CliResult {
   code: number;
@@ -31,7 +32,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "gateway", "team", "model", "skills", "plugins", "memory", "learn", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "learn", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -78,6 +79,8 @@ export class HadesCli {
         return runBenchCommand(rest);
       case "skill":
         return runSkillCommand(rest);
+      case "tui":
+        return runTuiCommand(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -99,6 +102,7 @@ export class HadesCli {
         "",
         "Commands:",
         "  chat                 Start the interactive REPL (memory + swarm)",
+        "  tui                  Live keyboard-driven terminal dashboard over the swarm",
         "  gateway              Start the messaging gateway (Slack/Telegram/…)",
         "  model [use <id>]     Show or switch the active model",
         "  skills [packs]       List skills / available skill packs",

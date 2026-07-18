@@ -54,11 +54,30 @@ export type SwarmFactory = (opts: {
   poolSize: number;
 }) => Promise<SwarmHandle> | SwarmHandle;
 
+/**
+ * Handles skills commands, returning the `AppEvent`s to emit. Structurally
+ * matches `SkillsService.handle` (`./skills-service.ts`) so central wiring can
+ * pass a real service; left undefined, skills commands stay a harmless no-op.
+ */
+export interface SkillsHandler {
+  handle(cmd: Command): Promise<AppEvent[]>;
+}
+
+/** Truthful description of what inference backs this run — surfaced as a startup log. */
+export interface InferenceInfo {
+  kind: "real" | "mock";
+  detail: string;
+}
+
 export interface SidecarOptions {
   /** Defaults to {@link realSwarmFactory}. */
   factory?: SwarmFactory;
   emit: (e: AppEvent) => void;
   now?: () => number;
+  /** Real skills backend; when set, `skills.list`/`skills.save` do real work instead of no-op. */
+  skills?: SkillsHandler;
+  /** When set, an honest inference-mode line is logged on `runtime.start`. */
+  inference?: InferenceInfo;
 }
 
 /**
@@ -90,6 +109,8 @@ export class Sidecar {
   private readonly factory: SwarmFactory;
   private readonly emitFn: (e: AppEvent) => void;
   private readonly now: () => number;
+  private readonly skills?: SkillsHandler;
+  private readonly inference?: InferenceInfo;
 
   private mode: "inline" | "process" | "docker" = "inline";
   private poolSize = 0;
@@ -105,6 +126,8 @@ export class Sidecar {
     this.factory = opts.factory ?? realSwarmFactory();
     this.emitFn = opts.emit;
     this.now = opts.now ?? Date.now;
+    this.skills = opts.skills;
+    this.inference = opts.inference;
   }
 
   /** Process one command. Never throws — a failure becomes a `log` event. */
@@ -131,9 +154,12 @@ export class Sidecar {
           return;
         case "skills.list":
         case "skills.save":
-          // Owned by a different workstream (the skills view / SKILL.md
-          // library) — not this sidecar's concern. Acknowledge harmlessly
-          // rather than error, so a caller waiting on a reply never hangs.
+          // When a real skills backend is wired (central integration), delegate
+          // to it; otherwise acknowledge harmlessly rather than error, so a
+          // caller waiting on a reply never hangs.
+          if (this.skills) {
+            for (const ev of await this.skills.handle(cmd)) this.safeEmit(ev);
+          }
           return;
         default: {
           const exhaustive: never = cmd;
@@ -174,6 +200,13 @@ export class Sidecar {
 
     this.subscribe(built);
     this.safeEmit({ kind: "runtime.status", running: true, mode: cmd.mode, poolSize: cmd.poolSize });
+    if (this.inference) {
+      this.safeEmit({
+        kind: "log",
+        line: `inference: ${this.inference.kind} (${this.inference.detail})`,
+        at: this.now(),
+      });
+    }
     this.poll();
   }
 
@@ -388,8 +421,10 @@ export function realSwarmFactory(): SwarmFactory {
 function toWorkerView(raw: unknown): WorkerView | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
+  const id = idStr(r.id, r.workerId);
+  if (id === null) return null;
   const candidate: WorkerView = {
-    id: str(r.id ?? r.workerId),
+    id,
     status: r.status as WorkerView["status"],
     capabilities: Array.isArray(r.capabilities)
       ? (r.capabilities as unknown[]).filter((c): c is string => typeof c === "string")
@@ -402,11 +437,13 @@ function toWorkerView(raw: unknown): WorkerView | null {
 function toTaskView(raw: unknown): TaskView | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
+  const id = idStr(r.id, r.taskId);
+  if (id === null) return null;
   const dependsOn = Array.isArray(r.dependsOn)
     ? (r.dependsOn as unknown[]).filter((c): c is string => typeof c === "string")
     : undefined;
   const candidate: TaskView = {
-    id: str(r.id ?? r.taskId),
+    id,
     description: str(r.description),
     status: r.status as TaskView["status"],
     requiredCapabilities: Array.isArray(r.requiredCapabilities)
@@ -446,8 +483,10 @@ function toRunView(raw: unknown): RunView | null {
   // calls the manager's "aborted" (budget breach / cancelGoal) "cancelled".
   const rawStatus = r.status;
   const status = rawStatus === "aborted" ? "cancelled" : rawStatus === "planning" ? "running" : rawStatus;
+  const goalId = idStr(r.goalId, r.id);
+  if (goalId === null) return null;
   const candidate: RunView = {
-    goalId: str(r.goalId ?? r.id),
+    goalId,
     objective: str(r.objective),
     status: status as RunView["status"],
   };
@@ -482,6 +521,17 @@ function toMetricsView(raw: unknown): MetricsView | null {
 
 function str(x: unknown): string {
   return typeof x === "string" ? x : "";
+}
+
+/**
+ * Identity-field coercion: unlike {@link str}, this returns `null` for anything
+ * that isn't a non-empty string. Mappers use it for id/description so a
+ * malformed engine entry (wrong-typed or missing id) is *dropped*, never
+ * silently coerced into a valid-looking view with an empty id.
+ */
+function idStr(...vals: unknown[]): string | null {
+  for (const v of vals) if (typeof v === "string" && v.length > 0) return v;
+  return null;
 }
 
 function num(x: unknown): number {

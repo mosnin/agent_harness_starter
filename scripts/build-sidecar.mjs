@@ -10,18 +10,39 @@
  * wrapper) means the desktop app's install doesn't need a TypeScript
  * toolchain at runtime, just `node dist/desktop/sidecar-entry.js`.
  *
- * Mirrors `scripts/build-swarm.mjs`'s esbuild setup: CJS output (this repo's
- * `package.json` has no `"type": "module"`, so plain `.js` files are loaded
- * as CommonJS by Node), `packages: "external"` so npm dependencies are
- * required at runtime instead of inlined (keeps the bundle small; the
- * sidecar always runs from within this repo's own `node_modules`), and a
- * shebang banner so the output is directly executable.
+ * CJS output (this repo's `package.json` has no `"type": "module"`, so plain
+ * `.js` files are loaded as CommonJS by Node), and a shebang banner so the
+ * output is directly executable.
+ *
+ * Bundling policy: a *shipped* desktop app (Tauri) spawns this sidecar with no
+ * access to this repo's `node_modules`, so the sidecar must be self-contained
+ * for its real runtime dependencies (`@noble/ed25519` for STYX certificates,
+ * `jose`, `ai`, `eventsource-parser`). Those get inlined. Only the genuinely
+ * OPTIONAL provider SDKs (the package's `peerDependencies` — `openai`,
+ * `@anthropic-ai/sdk`, etc.) stay external: they're `require`d lazily and only
+ * when API keys are present, and force-bundling ones that were never installed
+ * would break the build. With no keys the sidecar never touches them.
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chmod, readFile } from "node:fs/promises";
 
 const SHEBANG = "#!/usr/bin/env node";
+
+/**
+ * Optional provider SDKs (the package's `peerDependencies`) kept external —
+ * they are `require`d lazily only when API keys are present, may be absent in a
+ * dev/CI install, and must never be force-inlined. Everything else (the real
+ * `dependencies`) is bundled so the shipped sidecar is self-contained.
+ */
+const OPTIONAL_EXTERNALS = [
+  "openai",
+  "@openai/agents",
+  "@anthropic-ai/sdk",
+  "zod",
+  "@tavily/core",
+  "@pinecone-database/pinecone",
+];
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,7 +98,7 @@ export async function buildSidecar({ outfile = DEFAULT_OUTFILE, entryPoint = DEF
     platform: "node",
     format: "cjs",
     target: "node18",
-    packages: "external",
+    external: OPTIONAL_EXTERNALS,
     ...(needsBanner ? { banner: { js: SHEBANG } } : {}),
     sourcemap: false,
     logLevel: "info",

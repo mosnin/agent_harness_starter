@@ -23,13 +23,19 @@
 
 import { encodeEvent, decodeCommand } from "./ipc/contract";
 import type { AppEvent, Command } from "./ipc/contract";
-import { Sidecar, realSwarmFactory, type SwarmFactory } from "./core/sidecar";
+import { Sidecar, realSwarmFactory, type SwarmFactory, type SkillsHandler, type InferenceInfo } from "./core/sidecar";
+import { SkillsService } from "./core/skills-service";
+import { detectInference } from "./core/inference";
 
 export interface RunSidecarOptions {
   /** Defaults to a `Sidecar` backed by {@link realSwarmFactory}. Tests inject a scripted fake instead. */
   factory?: SwarmFactory;
   /** Clock override for `log` event timestamps, for deterministic tests. */
   now?: () => number;
+  /** Real skills backend; defaults to a {@link SkillsService} over the local skills dir. */
+  skills?: SkillsHandler;
+  /** Inference mode reported on start; defaults to {@link detectInference} over `process.env`. */
+  inference?: InferenceInfo;
 }
 
 /**
@@ -86,6 +92,8 @@ export async function runSidecar(
     factory: opts.factory,
     now,
     emit: (event: AppEvent) => output(encodeEvent(event)),
+    skills: opts.skills ?? new SkillsService(),
+    inference: opts.inference ?? detectInference(),
   });
 
   try {

@@ -128,7 +128,13 @@
     "swarm": "tsx src/swarm-runtime/cli.ts",
     "swarm:dashboard": "tsx src/swarm-runtime/cli.ts serve",
     "swarm:demo": "tsx examples/swarm/demo.ts",
-    "swarm:bench": "tsx examples/swarm/bench.ts"
+    "swarm:bench": "tsx examples/swarm/bench.ts",
+    "hades": "tsx src/hades/bin/hades.ts",
+    "tui": "tsx src/hades/bin/hades.ts tui",
+    "desktop:build:sidecar": "node scripts/build-sidecar.mjs",
+    "desktop:build:ui": "node scripts/build-desktop.mjs",
+    "desktop:build": "npm run desktop:build:sidecar && npm run desktop:build:ui",
+    "desktop:dev": "npm run desktop:build && cargo tauri dev --features gui"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",
