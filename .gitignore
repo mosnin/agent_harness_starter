@@ -39,3 +39,4 @@ coverage/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+dist/desktop/
