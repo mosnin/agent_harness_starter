@@ -117,7 +117,20 @@ Hermes parity: cloud browser (search, extract, browse, vision, act).
   browsing task can be replayed and verified, not just trusted.
 - Checkpoint: a real headless browse+extract task returns cited content under test.
 
-## Phase 4 — Deep memory: session search + summarization
+## Phase 4 — Deep memory: session search + summarization — DONE (cycle 4)
+Shipped: `src/hades/memory/fts.ts` (portable positional inverted index, BM25F,
+phrase/prefix, versioned serialization), `summarizer.ts` (extractive +
+hierarchical map-reduce with honest llm/extractive mode + fact extraction),
+`context-files.ts` (MEMORY.md/USER.md load/assemble/write-back, injection-fenced),
+`guard.ts` (STYX write-guard: deterministic contradiction detection, quarantine +
+resolution, calibrated T4 verdict), `recall-bench.ts` + `session-search.ts`, and
+`cli/memory-command.ts` — all centrally wired: `hades memory
+search|timeline|show|summarize|flags|add` (guard flags persist across processes at
+`<dataDir>/memory-flags.json`), `hades bench recall`, REPL context-file injection
+and guard-aware `/remember`. Checkpoint measured for real (cycle-4 run): FTS
+recall@1 1.0 / MRR 1.0 vs legacy scanner 0.75 / 0.864 on the seeded corpus;
+contradiction quarantine exercised end-to-end through the real CLI binary.
+Next up: **Phase 5 — Dialectic user modeling.**
 Hermes parity: FTS5 full-text search across sessions + LLM summarization, MEMORY.md /
 USER.md, context files that shape every conversation.
 - `src/hades/memory/session-store.ts` (SQLite FTS5 or a portable index),
