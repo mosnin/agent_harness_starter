@@ -14,6 +14,7 @@
  * rest of the CLI, so it unit-tests without a shell.
  */
 
+import { runRecallBench } from "../memory/recall-bench";
 import { runVtph, compareVtph } from "../bench/vtph";
 import type { AgentRunner, VtphReport } from "../bench/vtph";
 import { EVAL_TASKS, decomposableTasks } from "../bench/eval-suite";
@@ -112,6 +113,7 @@ const USAGE = [
   "  vtph [--swarm|--single] [--decomposable]  Run the eval suite, print the V-TPH$ scoreboard",
   "  headtohead [--decomposable]               Verified swarm vs single-agent baseline (go/no-go)",
   "  styx [--decomposable]                     STYX (speculate/race/verify/gate/certify) vs both baselines",
+  "  recall [--sessions N] [--seed N]          Session-recall: FTS index vs legacy scanner (seeded synthetic corpus, real runs)",
   "  help                                      Show this help",
   "",
   "V-TPH$ = Verified Tasks per Hour per Dollar (see .plans/HADES_BEYOND_HERMES.md).",
@@ -138,6 +140,47 @@ export async function runBenchCommand(
 
   if (sub === undefined || sub === "help" || sub === "--help" || sub === "-h") {
     return { code: 0, lines: USAGE };
+  }
+
+  if (sub === "recall") {
+    const readIntFlag = (flag: string, fallback: number): number | { error: string } => {
+      const idx = rest.indexOf(flag);
+      if (idx === -1) return fallback;
+      const raw = rest[idx + 1];
+      const n = Number(raw);
+      if (raw === undefined || !Number.isInteger(n) || n <= 0) {
+        return { error: `Invalid ${flag} value: ${raw ?? "(missing)"} — expected a positive integer.` };
+      }
+      return n;
+    };
+    const sessions = readIntFlag("--sessions", 60);
+    if (typeof sessions === "object") return { code: 1, lines: [sessions.error] };
+    const seed = readIntFlag("--seed", 42);
+    if (typeof seed === "object") return { code: 1, lines: [seed.error] };
+
+    let report;
+    try {
+      report = runRecallBench({ sessions, seed });
+    } catch (err) {
+      return { code: 1, lines: [err instanceof Error ? err.message : String(err)] };
+    }
+    const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+    return {
+      code: 0,
+      lines: [
+        `Session-recall benchmark — seeded synthetic corpus (seed ${seed}), really indexed + really queried`,
+        "",
+        `  corpus:   ${report.corpusSessions} sessions, ${report.corpusMessages} messages, ${report.queries} probe queries`,
+        `  index:    built in ${report.indexMs.toFixed(1)}ms, all queries searched in ${report.searchMs.toFixed(1)}ms (measured this run)`,
+        "",
+        "                 recall@1   recall@5   MRR",
+        `  FTS (BM25F)    ${pct(report.fts.recallAt1).padEnd(10)} ${pct(report.fts.recallAt5).padEnd(10)} ${report.fts.mrr.toFixed(4)}`,
+        `  legacy scan    ${pct(report.baseline.recallAt1).padEnd(10)} ${pct(report.baseline.recallAt5).padEnd(10)} ${report.baseline.mrr.toFixed(4)}`,
+        "",
+        "Corpus is synthetic (deterministic seed, labeled as such); every metric above is measured by",
+        "actually running both engines over it in this process — nothing is precomputed or fabricated.",
+      ],
+    };
   }
 
   const env = opts?.env !== undefined ? opts.env : buildClientFromEnv();

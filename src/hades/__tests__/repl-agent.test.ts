@@ -1,8 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, it, expect } from "vitest";
 import { ConversationalAgent } from "../repl/agent";
-import type { ConversationBrain } from "../repl/agent";
+import type { ConversationBrain, ConversationTurnContext } from "../repl/agent";
 import { InMemoryMemoryStore } from "../memory/store";
 import { InMemorySessionStore } from "../memory/session-store";
+import { GuardedMemoryStore } from "../memory/guard";
+import { appendMemoryFact } from "../memory/context-files";
 import { ModelRegistry } from "../models/registry";
 import { InMemoryModelSelection } from "../models/selection";
 import { ModelCommand } from "../models/command";
@@ -109,5 +114,109 @@ describe("ConversationalAgent", () => {
     const help = io.lines.join("\n");
     expect(help).toContain("/remember");
     expect(help).toContain("/recall");
+  });
+
+  it("/remember through the real STYX guard reports quarantine honestly", async () => {
+    const inner = new InMemoryMemoryStore();
+    inner.add({ fact: "the user prefers tabs", salience: 0.9 });
+    const memory = new GuardedMemoryStore(inner);
+    const agent = new ConversationalAgent({ brain: contextBrain, memory });
+    const io = fakeIO();
+    const repl = agent.repl(io);
+
+    await repl.feedLine("/remember the user does not prefer tabs");
+    const out = io.lines.join("\n");
+    expect(out).toContain("Quarantined");
+    expect(out).not.toContain("Remembered");
+    // The contradicting fact never landed in durable memory.
+    expect(inner.all().map((r) => r.fact)).toEqual(["the user prefers tabs"]);
+
+    io.lines.length = 0;
+    await repl.feedLine("/remember the user enjoys code review");
+    expect(io.lines.join("\n")).toContain("Remembered: the user enjoys code review");
+    expect(inner.all().map((r) => r.fact)).toContain("the user enjoys code review");
+  });
+});
+
+describe("ConversationalAgent context files (MEMORY.md / USER.md)", () => {
+  const tmpDirs: string[] = [];
+  function tempDir(): string {
+    const dir = mkdtempSync(join(tmpdir(), "hades-repl-ctx-"));
+    tmpDirs.push(dir);
+    return dir;
+  }
+  afterEach(() => {
+    for (const dir of tmpDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function capturingBrain(): { brain: ConversationBrain; turns: ConversationTurnContext[] } {
+    const turns: ConversationTurnContext[] = [];
+    const brain: ConversationBrain = async (ctx, stream) => {
+      turns.push(ctx);
+      stream("ok");
+      return "ok";
+    };
+    return { brain, turns };
+  }
+
+  it("loads MEMORY.md/USER.md from disk and passes the fenced prompt to the brain", async () => {
+    const dataDir = tempDir();
+    writeFileSync(join(dataDir, "MEMORY.md"), "## Facts\n\n- the deploy day is Friday\n");
+    writeFileSync(join(dataDir, "USER.md"), "# Profile\n\nPrefers terse answers.\n");
+
+    const { brain, turns } = capturingBrain();
+    const agent = new ConversationalAgent({ brain, contextFiles: { dataDir } });
+    await agent.handler("hello", () => {}, new AbortController().signal);
+
+    const prompt = turns[0].contextPrompt!;
+    expect(prompt).toContain('<context-file kind="user"');
+    expect(prompt).toContain('<context-file kind="memory"');
+    expect(prompt).toContain("the deploy day is Friday");
+    expect(prompt).toContain("Prefers terse answers.");
+    // USER.md renders before MEMORY.md (the contract's fixed order).
+    expect(prompt.indexOf('kind="user"')).toBeLessThan(prompt.indexOf('kind="memory"'));
+  });
+
+  it("projectDir wins over dataDir for the same file kind", async () => {
+    const dataDir = tempDir();
+    const projectDir = tempDir();
+    writeFileSync(join(dataDir, "MEMORY.md"), "- global fact\n");
+    writeFileSync(join(projectDir, "MEMORY.md"), "- project fact\n");
+
+    const { brain, turns } = capturingBrain();
+    const agent = new ConversationalAgent({ brain, contextFiles: { dataDir, projectDir } });
+    await agent.handler("hello", () => {}, new AbortController().signal);
+
+    expect(turns[0].contextPrompt).toContain("project fact");
+    expect(turns[0].contextPrompt).not.toContain("global fact");
+  });
+
+  it("no context files configured, or none on disk -> contextPrompt is undefined", async () => {
+    const { brain, turns } = capturingBrain();
+    const agent = new ConversationalAgent({ brain });
+    await agent.handler("hello", () => {}, new AbortController().signal);
+    expect(turns[0].contextPrompt).toBeUndefined();
+
+    const emptyDir = tempDir();
+    mkdirSync(join(emptyDir, "nested"), { recursive: true });
+    const agent2 = new ConversationalAgent({ brain, contextFiles: { dataDir: emptyDir } });
+    await agent2.handler("again", () => {}, new AbortController().signal);
+    expect(turns[1].contextPrompt).toBeUndefined();
+  });
+
+  it("re-reads per turn: an appendMemoryFact write-back shows up on the NEXT turn", async () => {
+    const dataDir = tempDir();
+    writeFileSync(join(dataDir, "MEMORY.md"), "## Facts\n\n- original fact\n");
+
+    const { brain, turns } = capturingBrain();
+    const agent = new ConversationalAgent({ brain, contextFiles: { dataDir } });
+    await agent.handler("turn one", () => {}, new AbortController().signal);
+    expect(turns[0].contextPrompt).not.toContain("freshly appended");
+
+    const res = appendMemoryFact({ dataDir, fact: "freshly appended fact", source: "test" });
+    expect(res.appended).toBe(true);
+
+    await agent.handler("turn two", () => {}, new AbortController().signal);
+    expect(turns[1].contextPrompt).toContain("freshly appended fact");
   });
 });

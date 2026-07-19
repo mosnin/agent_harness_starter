@@ -3,6 +3,9 @@ import type { LocalPluginRegistry } from "../plugins/registry";
 import type { SkillPackCatalog } from "../skill-packs/pack";
 import type { SkillRegistry } from "../../swarm-runtime/skills/skill";
 import type { MemoryStore } from "../memory/store";
+import type { SessionStore } from "../memory/session-store";
+import { InMemorySessionStore } from "../memory/session-store";
+import { searchSessionsFts } from "../memory/session-search";
 import type { InMemoryTrajectoryStore } from "../research/recorder";
 import type { RoleRegistry } from "../teams/role";
 import type { ToolsetManager } from "../tools/manager";
@@ -14,6 +17,8 @@ import { runSkillCommand } from "./skills-command";
 import { runTuiCommand } from "./tui-command";
 import { runExecCommand } from "./exec-command";
 import { runToolsCommand } from "./tools-command";
+import { runMemoryCommand } from "./memory-command";
+import type { MemoryGuardDeps } from "./memory-command";
 
 export interface CliResult {
   code: number;
@@ -27,6 +32,14 @@ export interface HadesCliDeps {
   skillPacks?: SkillPackCatalog;
   skills?: SkillRegistry;
   memory?: MemoryStore;
+  /** Session history for `hades memory search/timeline/show/summarize`.
+   *  Absent -> those subcommands honestly report an empty history. */
+  sessions?: SessionStore;
+  /** Session summarizer for `hades memory summarize`; always reports its
+   *  real mode (llm vs extractive) — extractive is never passed off as LLM. */
+  summarizeSession?: (sessionId: string) => Promise<{ summary: string; mode: "llm" | "extractive" }>;
+  /** STYX memory write-guard for `hades memory flags` + gate-aware `add`. */
+  memoryGuard?: MemoryGuardDeps;
   trajectories?: InMemoryTrajectoryStore;
   /** Role catalog for `hades team`. */
   roles?: RoleRegistry;
@@ -51,6 +64,8 @@ const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugi
  */
 export class HadesCli {
   private readonly version: string;
+  /** Lazily-created empty session store used when no real one is configured. */
+  private fallbackSessions?: InMemorySessionStore;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -120,7 +135,8 @@ export class HadesCli {
         "  model [use <id>]     Show or switch the active model",
         "  skills [packs]       List skills / available skill packs",
         "  plugins [list]       List available plugins",
-        "  memory <search|add>  Search or add long-term memories",
+        "  memory <sub>         Search facts + past sessions (FTS), timeline/show/summarize,",
+        "                       guard flags, add (search/timeline/show/summarize/flags/add)",
         "  team <roles|plan>    List roles / preview a team for an objective",
         "  hierarchy <sub>      Swarm benchmarks: head-to-head/makespan/chaos/fuzz/stats",
         "  bench vtph           Verified-tasks-per-hour-per-dollar scoreboard",
@@ -204,21 +220,26 @@ export class HadesCli {
     return { code: 0, lines: plugins.map((p) => `${p.name}${p.description ? ` — ${p.description}` : ""}`) };
   }
 
-  private memory(args: string[]): CliResult {
-    if (!this.deps.memory) return { code: 1, lines: ["Memory is not configured."] };
-    const [sub, ...rest] = args;
-    const arg = rest.join(" ");
-    if (sub === "add") {
-      if (!arg) return { code: 1, lines: ["Usage: hades memory add <fact>"] };
-      this.deps.memory.add({ fact: arg, source: "cli", salience: 0.8 });
-      return { code: 0, lines: [`Remembered: ${arg}`] };
-    }
-    if (sub === "search" || sub === undefined) {
-      const hits = this.deps.memory.search(arg || "", { limit: 10 });
-      if (!hits.length) return { code: 0, lines: ["No matching memories."] };
-      return { code: 0, lines: hits.map((h) => `• ${h.fact}`) };
-    }
-    return { code: 1, lines: [`Unknown memory command: ${sub}`] };
+  /** `hades memory <sub>` — the full memory surface (search over facts AND
+   *  past sessions via the BM25F FTS index, timeline/show/summarize, the STYX
+   *  write-guard's flags workflow, add). Delegates to `runMemoryCommand`; this
+   *  method only assembles the real deps. With no session store configured a
+   *  real empty in-memory one is used, so session subcommands honestly report
+   *  an empty history instead of erroring. */
+  private memory(args: string[]): Promise<CliResult> | CliResult {
+    const memory = this.deps.memory;
+    if (!memory) return { code: 1, lines: ["Memory is not configured."] };
+    const sessions = this.deps.sessions ?? (this.fallbackSessions ??= new InMemorySessionStore());
+    return runMemoryCommand(
+      {
+        memory,
+        sessions,
+        searchSessions: (query, opts) => searchSessionsFts(sessions, query, opts),
+        summarize: this.deps.summarizeSession,
+        guard: this.deps.memoryGuard,
+      },
+      args
+    );
   }
 
   private async team(args: string[]): Promise<CliResult> {

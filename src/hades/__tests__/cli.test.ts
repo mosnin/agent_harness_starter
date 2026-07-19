@@ -6,6 +6,7 @@ import { ModelCommand } from "../models/command";
 import { defaultPluginRegistry } from "../plugins/registry";
 import { builtinSkillPackCatalog } from "../skill-packs/builtin";
 import { InMemoryMemoryStore } from "../memory/store";
+import { InMemorySessionStore } from "../memory/session-store";
 import { InMemoryTrajectoryStore } from "../research/recorder";
 import type { GoalTrajectory } from "../research/recorder";
 
@@ -57,13 +58,43 @@ describe("HadesCli", () => {
     expect(packs.lines.join("\n")).toContain("devops");
   });
 
-  it("searches and adds memory", async () => {
+  it("searches and adds memory through the full memory command", async () => {
     const { cli, memory } = fullCli();
     const add = await cli.run(["memory", "add", "release is on Friday"]);
     expect(add.lines[0]).toContain("Remembered");
     expect(memory.search("release").length).toBe(1);
     const search = await cli.run(["memory", "search", "release"]);
-    expect(search.lines.join("\n")).toContain("• release is on Friday");
+    expect(search.code).toBe(0);
+    expect(search.lines.join("\n")).toContain("release is on Friday");
+  });
+
+  it("memory search reaches recorded sessions through the FTS index", async () => {
+    const sessions = new InMemorySessionStore();
+    const s = sessions.create({ title: "Zephyr rollout" });
+    sessions.append(s.id, { role: "user", content: "how is the zephyr migration going?" });
+    const cli = new HadesCli({ memory: new InMemoryMemoryStore(), sessions });
+
+    const search = await cli.run(["memory", "search", "zephyr", "migration"]);
+    expect(search.code).toBe(0);
+    const out = search.lines.join("\n");
+    expect(out).toContain(s.id);
+    expect(out).toContain("Zephyr rollout");
+
+    const timeline = await cli.run(["memory", "timeline"]);
+    expect(timeline.lines.join("\n")).toContain("Zephyr rollout");
+
+    const show = await cli.run(["memory", "show", s.id]);
+    expect(show.lines.join("\n")).toContain("how is the zephyr migration going?");
+  });
+
+  it("memory session subcommands degrade honestly with no session store wired", async () => {
+    const cli = new HadesCli({ memory: new InMemoryMemoryStore() });
+    const timeline = await cli.run(["memory", "timeline"]);
+    expect(timeline.code).toBe(0);
+    expect(timeline.lines[0]).toBe("No sessions recorded.");
+    const summarize = await cli.run(["memory", "summarize", "nope"]);
+    expect(summarize.code).toBe(1);
+    expect(summarize.lines[0]).toContain("not configured");
   });
 
   it("reports learn stats from the trajectory store", async () => {

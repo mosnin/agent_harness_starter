@@ -1,3 +1,5 @@
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { HadesCli } from "./cli";
 import type { CliResult } from "./cli";
 import type { HadesConfig } from "../config/config";
@@ -7,6 +9,9 @@ import { InMemoryModelSelection, FileModelSelection } from "../models/selection"
 import { defaultPluginRegistry } from "../plugins/registry";
 import { builtinSkillPackCatalog } from "../skill-packs/builtin";
 import { InMemoryMemoryStore, FileMemoryStore, type MemoryStore } from "../memory/store";
+import { InMemorySessionStore, FileSessionStore, type SessionStore } from "../memory/session-store";
+import { GuardedMemoryStore, type FlaggedWrite } from "../memory/guard";
+import { SessionSummarizer } from "../memory/summarizer";
 import { InMemoryTrajectoryStore } from "../research/recorder";
 import { defaultRoleRegistry } from "../teams/role";
 import { defaultToolsetManager } from "../tools/default-catalog";
@@ -14,9 +19,75 @@ import type { ToolsetManager } from "../tools/manager";
 
 export const HADES_VERSION = "0.1.0";
 
+/**
+ * A {@link GuardedMemoryStore} whose quarantine flags survive across
+ * processes: every raised flag and every resolution is written (atomically —
+ * temp file + rename, matching FileMemoryStore/FileSessionStore) to
+ * `<dataDir>/memory-flags.json` and rehydrated on construction. Without
+ * this, the CLI's "resolve with: hades memory flags resolve <id>" hint would
+ * be a lie — each `hades` invocation is a fresh process, so an in-memory
+ * flag raised by `memory add` would already be gone.
+ */
+class FileGuardedMemoryStore extends GuardedMemoryStore {
+  constructor(inner: MemoryStore, private readonly path: string) {
+    super(inner, { restoreFlags: FileGuardedMemoryStore.load(path) });
+  }
+
+  private static load(path: string): FlaggedWrite[] {
+    try {
+      const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
+      if (!Array.isArray(parsed)) return [];
+      // Shape-check each entry; a malformed file degrades to "no flags"
+      // rather than crashing the CLI (same leniency as FileMemoryStore).
+      return parsed.filter(
+        (f): f is FlaggedWrite =>
+          typeof f === "object" &&
+          f !== null &&
+          typeof (f as FlaggedWrite).id === "string" &&
+          typeof (f as FlaggedWrite).at === "number" &&
+          typeof (f as FlaggedWrite).candidate === "object" &&
+          typeof (f as FlaggedWrite).verdict === "object",
+      );
+    } catch {
+      return []; // absent or unreadable -> fresh
+    }
+  }
+
+  private persist(): void {
+    try {
+      mkdirSync(dirname(this.path), { recursive: true });
+    } catch {
+      /* exists */
+    }
+    const tmp = `${this.path}.tmp`;
+    writeFileSync(tmp, JSON.stringify(this.flags()));
+    renameSync(tmp, this.path);
+  }
+
+  override addChecked(input: Parameters<MemoryStore["add"]>[0]): ReturnType<GuardedMemoryStore["addChecked"]> {
+    const result = super.addChecked(input);
+    if (result.flagged) this.persist();
+    return result;
+  }
+
+  override resolve(flagId: string, resolution: "accept-new" | "keep-existing" | "supersede"): boolean {
+    const ok = super.resolve(flagId, resolution);
+    if (ok) this.persist();
+    return ok;
+  }
+}
+
 export interface BuildCliOptions {
-  /** Override the memory store (default: file-backed at config.memoryPath). */
+  /** Override the memory store (default: file-backed at config.memoryPath).
+   *  The store is always wrapped in the STYX {@link GuardedMemoryStore} so
+   *  every write passes the contradiction gate. */
   memory?: MemoryStore;
+  /** Override the session store (default: file-backed at `<dataDir>/sessions.json`). */
+  sessions?: SessionStore;
+  /** Optional LLM summarize hook for `hades memory summarize`. Absent, the
+   *  summarizer runs its real extractive algorithm and says so (`mode:
+   *  extractive`) — no LLM output is ever faked. */
+  llmSummarize?: (prompt: string) => Promise<string>;
   /** Persist model selection + memory + tool state to disk (default true).
    *  Off for tests. */
   persist?: boolean;
@@ -43,9 +114,23 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     : new InMemoryModelSelection();
   const models = new ModelCommand(registry, selection);
 
-  const memory =
+  const baseMemory =
     opts.memory ??
     (persist && config.memoryPath ? new FileMemoryStore(config.memoryPath) : new InMemoryMemoryStore());
+  // Every write goes through the STYX contradiction gate; contradicted facts
+  // are quarantined as flags (surfaced via `hades memory flags`), never
+  // silently overwriting existing memory. When persisting, flags survive
+  // across processes so a quarantine raised by one `hades` invocation can be
+  // resolved by a later one.
+  const memory = persist
+    ? new FileGuardedMemoryStore(baseMemory, `${config.dataDir}/memory-flags.json`)
+    : new GuardedMemoryStore(baseMemory);
+
+  const sessions =
+    opts.sessions ??
+    (persist ? new FileSessionStore(`${config.dataDir}/sessions.json`) : new InMemorySessionStore());
+
+  const summarizer = new SessionSummarizer({ llm: opts.llmSummarize });
 
   const toolset =
     opts.toolset ??
@@ -59,6 +144,14 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     plugins: defaultPluginRegistry(),
     skillPacks: builtinSkillPackCatalog(),
     memory,
+    sessions,
+    memoryGuard: memory,
+    summarizeSession: async (sessionId) => {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error(`No such session: ${sessionId}`);
+      const { summary, mode } = await summarizer.summarize(session);
+      return { summary, mode };
+    },
     trajectories: new InMemoryTrajectoryStore(),
     roles: defaultRoleRegistry(),
     toolset,

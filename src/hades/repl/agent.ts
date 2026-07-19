@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { MemoryStore, MemorySearchResult } from "../memory/store";
 import type { SessionStore, SessionMessage } from "../memory/session-store";
+import { loadContextFiles, assembleContextPrompt } from "../memory/context-files";
 import type { UserModel } from "../learning/user-model";
 import type { ModelCommand } from "../models/command";
 import { Repl } from "./core";
@@ -16,6 +17,9 @@ export interface ConversationTurnContext {
   userProfile?: string;
   /** Recent conversation messages for continuity. */
   history: SessionMessage[];
+  /** Injection-fenced MEMORY.md/USER.md context (see ../memory/context-files),
+   *  when context files are configured and at least one exists. */
+  contextPrompt?: string;
 }
 
 /**
@@ -40,6 +44,10 @@ export interface ConversationalAgentDeps {
   memoryLimit?: number;
   /** How many recent messages to pass as history. Default 10. */
   historyLimit?: number;
+  /** Load MEMORY.md/USER.md context files each turn (project dir wins over
+   *  data dir per file). Re-read every turn so on-disk edits — including
+   *  appendMemoryFact write-backs — are picked up immediately. */
+  contextFiles?: { dataDir: string; projectDir?: string; maxChars?: number };
   now?: () => number;
 }
 
@@ -70,9 +78,10 @@ export class ConversationalAgent {
     const userProfile = this.deps.userModel?.describe();
     const session = this.deps.sessions?.get(this.sessionId);
     const history = (session?.messages ?? []).slice(-this.historyLimit);
+    const contextPrompt = this.loadContextPrompt();
 
     this.deps.sessions?.append(this.sessionId, { role: "user", content: input });
-    const reply = await this.deps.brain({ input, memories, userProfile, history }, stream, signal);
+    const reply = await this.deps.brain({ input, memories, userProfile, history, contextPrompt }, stream, signal);
     if (reply) this.deps.sessions?.append(this.sessionId, { role: "assistant", content: reply });
     return reply;
   };
@@ -80,6 +89,18 @@ export class ConversationalAgent {
   /** Build a REPL wired to this agent. */
   repl(io: ReplIO, opts: Omit<ReplOptions, "commands"> = {}): Repl {
     return new Repl(io, this.handler, { ...opts, commands: this.commands });
+  }
+
+  /** Fresh-per-turn MEMORY.md/USER.md context (real fs reads through
+   *  ../memory/context-files — capped, injection-fenced, precedence-resolved).
+   *  Returns undefined when unconfigured or when neither file exists. */
+  private loadContextPrompt(): string | undefined {
+    const cf = this.deps.contextFiles;
+    if (!cf) return undefined;
+    const files = loadContextFiles({ dataDir: cf.dataDir, projectDir: cf.projectDir });
+    if (files.length === 0) return undefined;
+    const assembled = assembleContextPrompt(files, { maxChars: cf.maxChars });
+    return assembled.text.trim() ? assembled.text : undefined;
   }
 
   private buildCommands(): SlashCommandRegistry {
@@ -92,7 +113,25 @@ export class ConversationalAgent {
       run: (ctx) => {
         if (!this.deps.memory) return "Memory is not configured.";
         if (!ctx.argString) return "Usage: /remember <fact>";
-        this.deps.memory.add({ fact: ctx.argString, source: "user", salience: 0.8 });
+        // When the store is the STYX GuardedMemoryStore, use its gate-aware
+        // add so a quarantined (contradicting) fact is reported honestly
+        // instead of claiming "Remembered" for a write that never landed.
+        const store = this.deps.memory as MemoryStore & {
+          addChecked?: (input: { fact: string; source?: string; salience?: number }) => {
+            verdict: { passed: boolean; reasons: string[] };
+            flagged?: { id: string };
+          };
+        };
+        if (typeof store.addChecked === "function") {
+          const { verdict, flagged } = store.addChecked({ fact: ctx.argString, source: "user", salience: 0.8 });
+          if (!verdict.passed) {
+            const why = verdict.reasons.join(", ") || "contradiction";
+            const how = flagged ? ` Resolve with \`hades memory flags resolve ${flagged.id} <accept-new|keep-existing|supersede>\`.` : "";
+            return `Quarantined (contradicts existing memory: ${why}) — not written.${how}`;
+          }
+          return `Remembered: ${ctx.argString}`;
+        }
+        store.add({ fact: ctx.argString, source: "user", salience: 0.8 });
         return `Remembered: ${ctx.argString}`;
       },
     });
