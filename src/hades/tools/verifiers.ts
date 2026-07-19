@@ -75,6 +75,13 @@
 
 import type { ToolResult } from "../agent/tools";
 import type { TierId, VerifierVote } from "../styx/tiers";
+// Central-integration import (Phase 3): the `browser` tool's verifier lives
+// beside its tool in ../browser/verifier.ts (built decoupled, per the
+// no-cross-team-import rule) and is registered here so `toolVerifiers()` /
+// `calibrationTable()` remain the ONE registry the product consults.
+// browser/verifier.ts imports only *types* back from this file, so there is
+// no runtime cycle.
+import { browserToolVerifier, browserCalibration } from "../browser/verifier";
 
 // ---------------------------------------------------------------------------
 // Public contract (LOCKED)
@@ -545,11 +552,14 @@ function makeVerifier(toolName: string, verifierId: string, structuralChecks: St
 // ---------------------------------------------------------------------------
 
 /**
- * Exactly the eight verifiers, keyed by `verifierId`. Every entry's
- * `verifierId` matches its key and matches a `calibrationTable()` key.
+ * Exactly the nine verifiers (the Phase 2 eight defined in this file plus
+ * Phase 3's `verify.browser` from ../browser/verifier.ts), keyed by
+ * `verifierId`. Every entry's `verifierId` matches its key and matches a
+ * `calibrationTable()` key.
  */
 export function toolVerifiers(): Map<string, ToolOutputVerifier> {
   const verifiers: ToolOutputVerifier[] = [
+    browserToolVerifier(),
     makeVerifier("web_search", "verify.web_search", checkWebSearch),
     makeVerifier("fetch_extract", "verify.fetch_extract", checkFetchExtract),
     makeVerifier("file_ops", "verify.file_ops", (obj) => checkFileOps(obj)),
@@ -575,6 +585,7 @@ export function toolVerifiers(): Map<string, ToolOutputVerifier> {
  */
 export function calibrationTable(): Record<string, { tier: TierId; prior: number }> {
   return {
+    "verify.browser": browserCalibration(),
     "verify.web_search": { tier: "T4-consistency", prior: 0.55 },
     "verify.fetch_extract": { tier: "T4-consistency", prior: 0.55 },
     "verify.file_ops": { tier: "T4-consistency", prior: 0.65 },

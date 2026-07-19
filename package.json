@@ -132,6 +132,8 @@
     "hades": "tsx src/hades/bin/hades.ts",
     "tools": "tsx src/hades/bin/hades.ts tools",
     "exec:bench": "tsx src/hades/bin/hades.ts exec bench",
+    "browser": "tsx src/hades/bin/hades.ts browser",
+    "browser:bench": "tsx src/hades/bin/hades.ts browser bench",
     "tui": "tsx src/hades/bin/hades.ts tui",
     "desktop:build:sidecar": "node scripts/build-sidecar.mjs",
     "desktop:build:ui": "node scripts/build-desktop.mjs",

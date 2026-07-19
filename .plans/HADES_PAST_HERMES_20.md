@@ -76,7 +76,39 @@ Hermes parity: 40-60+ tools, enable/disable via `hermes tools`.
   scored by the STYX ensemble, not just returned.
 - Checkpoint: `hades tools` lists/toggles; each tool has a real + mock path under test.
 
-## Phase 3 — Browser automation backend
+## Phase 3 — Browser automation backend — DONE (cycle 3)
+Shipped: `src/hades/browser/` — `driver.ts` (real playwright-core Chromium
+sessions on the pre-installed /opt/pw-browsers cache: honest executable
+resolution + display probing, URL policy [scheme allow-list, blockHosts,
+http-status mapping, redirect-chain recording] evaluated before navigation,
+validated click/type/press/select/scroll/waitFor actions, IHDR-parsed PNG
+screenshots), `extract.ts` (pure hand-rolled tolerant HTML tokenizer ->
+hash-cited passages with nth-of-type selector paths, entity decoding, base-href
+link resolution, byte-honest truncation), `trace.ts` (hash-chained DOM-action
+ledger rooted at sha256("hades.browser.trace.v1") via the real STYX
+`sha256Hex`, canonicalization, full-chain re-verification, certificate
+fields), `tool.ts` (the `browser` CatalogEntry: strict JSON input protocol
+with locked error codes, mode decided once at construction from an fs
+Chromium probe + injected runner, deterministic "[mock]" fallback),
+`verifier.ts` (`verify.browser`, fixed 9-check T4-consistency checklist,
+prior 0.68, recomputes passage sha256s + the mock traceRoot), and
+`browse-bench.ts` (the real checkpoint: local fixture site, real Chromium,
+real anchor click, ground-truth-checked citations, verified hash chain —
+measured PASS: 4 pages, 6 passages, chain verified, ~250ms). Central
+integration (was forbidden to the teams): `runner.ts` composes
+driver+extract+trace into the real `BrowseRunner`; the browser tool is in
+`defaultToolCatalog` (lazy-loaded runner so CLI startup never pays for
+playwright-core; `offline` withholds it honestly); `verify.browser` is in
+`toolVerifiers()`/`calibrationTable()`; `hades browser open|bench|probe`
+wired through `HadesCli` (`browser-command.ts` + `browser-deps.ts`); the
+`hades/browser` barrel + root barrel; npm `browser`/`browser:bench`
+scripts. Checkpoint proven end-to-end under test: a real headless
+browse+extract returns citations whose sha256s recompute independently, a
+real click mutates the DOM before extraction, genuine real-mode AND
+mock-mode outputs each pass `verify.browser` at exactly its calibrated
+prior, and failures (refused connection, bad scheme) surface as honest
+ok:false — never fabricated content.
+Next up: **Phase 4 — Deep memory: session search + summarization.**
 Hermes parity: cloud browser (search, extract, browse, vision, act).
 - `src/hades/browser/driver.ts` on the pre-installed Playwright Chromium
   (`/opt/pw-browsers`); navigate/act/screenshot/extract/vision.

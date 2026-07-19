@@ -29,6 +29,7 @@ import {
   type ToolStateStore,
   type ToolsetManagerOptions,
 } from "./manager";
+import { createBrowserTool, type BrowseRunner } from "../browser/tool";
 import { createWebSearchTool } from "./web-search";
 import { createFetchExtractTool } from "./fetch-extract";
 import { createFileOpsTool } from "./file-ops";
@@ -38,8 +39,9 @@ import { createImageGenTool } from "./image-gen";
 import { createTtsTool } from "./tts";
 import { createVisionDescribeTool } from "./vision";
 
-/** The eight shipped catalog tool ids, in catalog (name-sorted) order. */
+/** The nine shipped catalog tool ids, in catalog (name-sorted) order. */
 export const DEFAULT_CATALOG_TOOL_IDS = [
+  "browser",
   "fetch_extract",
   "file_ops",
   "http_request",
@@ -112,10 +114,39 @@ export interface DefaultCatalogOptions {
   /** Optional strict host allowlist for `http_request` (applied after the
    *  built-in SSRF deny matrix, never instead of it). */
   httpAllowHosts?: string[];
+  /** Override the browse runner backing the `browser` tool (tests inject a
+   *  stub). Default: the real driver+extract+trace composition from
+   *  `../browser/runner`, loaded lazily on first browse so constructing a
+   *  catalog never pays for (or requires) `playwright-core`. When `offline`
+   *  is true the runner is withheld entirely — `browser` honestly mocks. */
+  browseRunner?: BrowseRunner;
+  /** Playwright browsers cache dir for the `browser` tool's Chromium probe
+   *  (default: PLAYWRIGHT_BROWSERS_PATH from `env`, else /opt/pw-browsers). */
+  browsersPath?: string;
+  /** Override the `browser` tool's Chromium-installed probe (tests). */
+  probeChromium?: (browsersPath: string) => boolean;
 }
 
 /**
- * Build the canonical `ToolCatalog` containing all eight shipped tools.
+ * The default `browser` runner: the real driver+extract+trace composition,
+ * imported lazily at first call. Laziness matters twice over: catalog
+ * construction stays instant (no `playwright-core` module load on every
+ * `hades` CLI startup), and an environment without `playwright-core`
+ * installed still builds a working catalog — the browse itself then fails
+ * honestly (`ok:false`, mapped to `browse-failed` by the tool) instead of
+ * crashing the whole product at import time.
+ */
+function lazyBrowseRunner(): BrowseRunner {
+  return async (req) => {
+    const { createBrowseRunner } = await import("../browser/runner");
+    return createBrowseRunner()(req);
+  };
+}
+
+/**
+ * Build the canonical `ToolCatalog` containing all nine shipped tools
+ * (the Phase 2 eight plus the Phase 3 `browser` tool, whose real mode
+ * additionally requires an installed Chromium found by its own fs probe).
  * Every entry passes `ToolCatalog.add`'s id/name/duplicate validation on the
  * way in, so a factory drifting from its declared id fails loudly here.
  */
@@ -127,6 +158,16 @@ export function defaultToolCatalog(opts: DefaultCatalogOptions = {}): ToolCatalo
     opts.shellPolicy ?? { allowedCommands: [...DEFAULT_SHELL_ALLOWED_COMMANDS] };
 
   const entries: CatalogEntry[] = [
+    createBrowserTool({
+      env,
+      ...(opts.browsersPath !== undefined ? { browsersPath: opts.browsersPath } : {}),
+      ...(opts.probeChromium !== undefined ? { probeChromium: opts.probeChromium } : {}),
+      // Offline withholds the runner entirely, forcing honest mock mode —
+      // the same switch that withholds the fetch transport from the
+      // network tools. The tool itself still requires a real on-disk
+      // Chromium (its own fs probe) before it will claim "real".
+      ...(opts.offline ? {} : { runner: opts.browseRunner ?? lazyBrowseRunner() }),
+    }),
     createWebSearchTool({ env, fetchFn }),
     createFetchExtractTool({ env, fetchFn }),
     createFileOpsTool({ env, root: fileRoot }),

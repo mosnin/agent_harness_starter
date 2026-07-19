@@ -39,7 +39,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "learn", "tools", "exec", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -92,6 +92,8 @@ export class HadesCli {
         return this.tools(rest);
       case "exec":
         return this.exec(rest);
+      case "browser":
+        return this.browser(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -125,6 +127,7 @@ export class HadesCli {
         "  skill <sub>          Create/list/validate SKILL.md skills (new/list/show/validate)",
         "  tools <sub>          List/enable/disable the tool catalog (list/enable/disable/info)",
         "  exec <run|bench>     Run one program that chains tools (JS/Python, STYX-traced)",
+        "  browser <sub>        Real Chromium browsing: open <url> / bench / probe (STYX-traced)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -147,6 +150,29 @@ export class HadesCli {
       return runExecCommand(args, { registry });
     } catch (err) {
       return { code: 1, lines: [err instanceof Error ? err.message : String(err)] };
+    }
+  }
+
+  /** `hades browser open|bench|probe` — the Phase 3 browsing surface.
+   *  The command module and its real deps (which statically pull
+   *  `playwright-core`) are loaded lazily so CLI startup never pays for
+   *  the browser stack, and an install without playwright-core degrades
+   *  to an honest one-line error instead of a crashed CLI. */
+  private async browser(args: string[]): Promise<CliResult> {
+    const lines: string[] = [];
+    try {
+      const [{ buildBrowserCommand }, { defaultBrowserCliDeps }] = await Promise.all([
+        import("./browser-command"),
+        import("./browser-deps"),
+      ]);
+      const command = buildBrowserCommand(
+        defaultBrowserCliDeps({ stdout: (l) => lines.push(l), stderr: (l) => lines.push(l) })
+      );
+      const code = await command.run(args);
+      return { code, lines };
+    } catch (err) {
+      lines.push(`browser support unavailable: ${err instanceof Error ? err.message : String(err)}`);
+      return { code: 1, lines };
     }
   }
 

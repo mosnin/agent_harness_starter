@@ -32,7 +32,7 @@ function offlineManagerIn(dir?: string) {
 }
 
 describe("defaultToolCatalog", () => {
-  it("contains exactly the eight shipped tools, name-sorted", () => {
+  it("contains exactly the nine shipped tools, name-sorted", () => {
     const catalog = defaultToolCatalog({ env: {}, offline: true, fileRoot: tmpdir() });
     expect(catalog.list().map((e) => e.id)).toEqual([...DEFAULT_CATALOG_TOOL_IDS]);
   });
@@ -53,6 +53,7 @@ describe("defaultToolCatalog", () => {
     const catalog = defaultToolCatalog({ env: {}, offline: true, fileRoot: tmpdir() });
     const modes = Object.fromEntries(catalog.list().map((e) => [e.id, e.mode]));
     expect(modes).toEqual({
+      browser: "mock",
       fetch_extract: "mock",
       file_ops: "real",
       http_request: "mock",
@@ -75,6 +76,11 @@ describe("defaultToolCatalog", () => {
       },
       fetchFn: fakeFetch,
       fileRoot: tmpdir(),
+      // browser's gate is an on-disk Chromium, not an env key; force the
+      // probe true here so this mode-matrix test is deterministic on any
+      // machine (the REAL probe + REAL browse are exercised end-to-end in
+      // src/hades/browser/__tests__/integration.test.ts).
+      probeChromium: () => true,
     });
     for (const entry of catalog.list()) {
       expect(entry.mode, entry.id).toBe("real");
@@ -95,6 +101,7 @@ describe("tool <-> verifier contract agreement (genuine runs, no fixtures)", () 
     const verifiers = toolVerifiers();
 
     const inputs: Record<string, string[]> = {
+      browser: [JSON.stringify({ op: "browse", url: "https://example.com/docs" })],
       web_search: ["styx verification"],
       fetch_extract: ["https://example.com/docs"],
       http_request: [JSON.stringify({ method: "GET", url: "https://example.com" })],
