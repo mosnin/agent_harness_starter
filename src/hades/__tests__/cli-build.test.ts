@@ -5,7 +5,7 @@ import { main } from "../bin/hades";
 
 describe("buildHadesCli", () => {
   it("wires a working CLI from config (in-memory for tests)", async () => {
-    const config = loadConfig({ overrides: { model: "claude-opus-4-8" } });
+    const config = loadConfig({ overrides: { model: "claude-opus-4-1" } });
     const cli = buildHadesCli(config, { persist: false });
 
     const version = await cli.run(["version"]);
@@ -13,7 +13,7 @@ describe("buildHadesCli", () => {
 
     // Default model reflects config.
     const current = await cli.run(["model", "current"]);
-    expect(current.lines.join("\n")).toContain("claude-opus-4-8");
+    expect(current.lines.join("\n")).toContain("claude-opus-4-1");
 
     // Built-in catalogs are present.
     expect((await cli.run(["plugins"])).lines.join("\n")).toContain("kanban");

@@ -27,7 +27,15 @@ verify), packaging scaffolding. Suite: 2341 tests green.
 
 # ARC I — Parity on the agent core (the loop, tools, memory)
 
-## Phase 1 — Programmatic Tool Calling (`execute_code`)
+## Phase 1 — Programmatic Tool Calling (`execute_code`) — DONE (cycle 1)
+Shipped: `src/hades/exec/` (tool-rpc bridge, worker_threads JS sandbox, real
+`python3 -I` subprocess sandbox, hash-chained provenance ledger, `execute_code`
+tool, pipeline-bench checkpoint), wired into the product via `hades exec
+run|bench`, `execEnabledRegistry()`, and the `hades/exec` barrel. Checkpoint
+measured for real: 8 ReAct model turns -> 1 `execute_code` call (87.5% step
+reduction), identical tool work, agreeing answers, programmatic trace
+hash-chain verified (ReAct transcript has nothing to verify — the moat).
+Next up: **Phase 2 — Tool suite expansion + toolset manager.**
 Hermes parity: collapse multi-step tool pipelines into a single inference by letting
 the model write code that calls tools over an RPC bridge.
 - `src/hades/exec/tool-rpc.ts` — typed RPC bridge exposing every registered tool to a

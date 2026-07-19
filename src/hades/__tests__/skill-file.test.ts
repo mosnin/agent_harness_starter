@@ -17,7 +17,7 @@ tools:
   - web_search
   - http_get
 whenToUse: When the task needs fresh facts from the open web.
-model: claude-opus-4-8
+model: claude-opus-4-1
 version: 1.2.0
 ---
 # Researcher
@@ -33,7 +33,7 @@ describe("parseSkillFile", () => {
     expect(manifest.capabilities).toEqual(["research", "web_search"]);
     expect(manifest.tools).toEqual(["web_search", "http_get"]);
     expect(manifest.whenToUse).toBe("When the task needs fresh facts from the open web.");
-    expect(manifest.model).toBe("claude-opus-4-8");
+    expect(manifest.model).toBe("claude-opus-4-1");
     expect(manifest.version).toBe("1.2.0");
     expect(manifest.instructions).toBe(
       "# Researcher\n\nSearch before answering and cite what you found.\n"
@@ -91,7 +91,7 @@ describe("serializeSkillFile round-trip", () => {
       capabilities: ["research", "web_search"],
       tools: ["web_search", "http_get"],
       whenToUse: "  needs leading space  ",
-      model: "claude-opus-4-8",
+      model: "claude-opus-4-1",
       version: "1.2.0",
       instructions: "# Body\n\nLine with --- inside\n",
     };

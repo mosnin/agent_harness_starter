@@ -208,3 +208,43 @@ crash) rather than rubber-stamping.
   the above from the terminal.
 
 **Swarm + Hades + Hades v2 + Elite: 1444 tests across 169 files.**
+
+## Hades > Hermes, Phase 1 — Programmatic Tool Calling (`src/hades/exec/`)
+
+Hermes-parity `execute_code` with the STYX twist ([roadmap](./.plans/HADES_PAST_HERMES_20.md)):
+a model writes ONE program that chains every allowed tool through a typed RPC
+bridge, instead of spending one conversational turn per tool call — and every
+in-sandbox tool dispatch still lands in a hash-chained, tamper-evident
+provenance ledger, so the single-inference pipeline stays fully auditable.
+
+- **Tool-RPC bridge** (`exec/tool-rpc.ts`): locked request/response protocol over
+  the real `ToolRegistry` with allow/deny capability policy (deny wins), a call
+  budget, per-call timeouts, a UTF-8-byte-safe output cap (via `string_decoder`,
+  never splitting a code point), and one sha256-hashed `ProvenanceEvent` per
+  dispatched call.
+- **JS sandbox** (`exec/sandbox-js.ts`): user code runs only inside a
+  `worker_threads` Worker (`tools.call` + captured console as the ambient
+  surface); hard `terminate()` kill on timeout; never rejects. Honest about
+  being crash/hang isolation, not an adversarial security boundary.
+- **Python sandbox** (`exec/sandbox-py.ts`): a real `python3 -I` subprocess
+  (`shell: false`, base64-embedded source), line-framed RPC over stdio with
+  per-run frame auth so output that merely *looks* like a protocol frame is
+  provably inert; SIGTERM→SIGKILL hard kill; honest `python_unavailable`.
+- **Provenance ledger** (`exec/provenance.ts`): canonical serialization +
+  hash-chained records; `verify()`/`fromJSON`/`verifyJSON` agree via one shared
+  chain walker; any edit/reorder/deletion/splice is detected with a structured
+  reason; `traceSha256()` drops straight into `CertificatePayload.traceSha256`.
+- **`execute_code` tool** (`exec/code-tool.ts`): `#lang: python|js` directive,
+  fresh bridge + fresh ledger per invocation, structural self-recursion denial,
+  always returns a JSON `ExecuteCodeReport` with the trace hash.
+- **Phase 1 checkpoint** (`exec/pipeline-bench.ts`, `hades exec bench`): the same
+  real search→extract→summarize pipeline run as a multi-turn ReAct loop vs one
+  `execute_code` call — every number counted from real execution (the only mock
+  is the clearly-labelled scripted LLM driving the ReAct side): 8 model turns
+  collapse to 1 (87.5% step reduction), identical tool work, agreeing answers,
+  and only the programmatic side carries a verifiable trace.
+- **CLI**: `hades exec run [--lang js|python] [--file <path>] [code]` runs a
+  program against the builtin tools and prints the report plus a from-genesis
+  ledger re-verification; `hades exec bench` prints the checkpoint;
+  `execEnabledRegistry()` wires `execute_code` into any registry for the agent
+  loop / MCP server.

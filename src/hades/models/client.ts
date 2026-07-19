@@ -87,7 +87,7 @@ export function computeCost(
  */
 export const DEFAULT_PRICES: PriceEntry[] = [
   // Anthropic / Claude (ids match src/hades/models/defaults.ts)
-  { model: "claude-opus-4-8", inPerMTok: 15, outPerMTok: 75 },
+  { model: "claude-opus-4-1", inPerMTok: 15, outPerMTok: 75 },
   { model: "claude-sonnet-5", inPerMTok: 3, outPerMTok: 15 },
   { model: "claude-haiku-4-5-20251001", inPerMTok: 1, outPerMTok: 5 },
   { model: "claude-fable-5", inPerMTok: 1, outPerMTok: 5 },

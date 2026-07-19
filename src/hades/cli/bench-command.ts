@@ -43,7 +43,7 @@ export function buildClientFromEnv(env: Record<string, string | undefined> = pro
       kind: "anthropic",
       baseUrl: "https://api.anthropic.com",
       apiKey: env.ANTHROPIC_API_KEY,
-      models: ["claude-haiku-4-5-20251001", "claude-sonnet-5", "claude-opus-4-8"],
+      models: ["claude-haiku-4-5-20251001", "claude-sonnet-5", "claude-opus-4-1"],
     };
     providers.push({ client: new HttpModelClient(cfg), models: cfg.models });
     workerModel = workerModel || "claude-haiku-4-5-20251001"; // cheap worker

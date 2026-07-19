@@ -1,7 +1,7 @@
 # Hades gateway image — the learning agent + messaging gateway on top of the swarm.
 #
 # Build:  docker build -f Dockerfile.hades -t hades-gateway .
-# Run:    docker run --rm -e HADES_MODEL=claude-opus-4-8 \
+# Run:    docker run --rm -e HADES_MODEL=claude-opus-4-1 \
 #                 -e HADES_DATA_DIR=/data -v hades-data:/data hades-gateway hades help
 #
 # The container ships the compiled library + the `hades` CLI. Messaging

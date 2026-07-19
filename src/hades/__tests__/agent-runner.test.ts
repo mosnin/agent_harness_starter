@@ -204,7 +204,7 @@ describe("verifiedSwarmRunner", () => {
     });
     const runner = verifiedSwarmRunner(client, {
       workerModel: "claude-fable-5",
-      verifierModel: "claude-opus-4-8",
+      verifierModel: "claude-opus-4-1",
     });
 
     await runner(task("add", "2+2", "4"));
@@ -212,7 +212,7 @@ describe("verifiedSwarmRunner", () => {
     const worker = client.modelsSeen.find((m) => m.kind === "worker");
     const verifier = client.modelsSeen.find((m) => m.kind === "verifier");
     expect(worker?.model).toBe("claude-fable-5");
-    expect(verifier?.model).toBe("claude-opus-4-8"); // separate, stronger model
+    expect(verifier?.model).toBe("claude-opus-4-1"); // separate, stronger model
   });
 
   it("never throws when the verifier call throws: returns a zero-cost declined error result", async () => {

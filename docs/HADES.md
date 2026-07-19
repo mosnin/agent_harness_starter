@@ -21,7 +21,7 @@ Or run the gateway in Docker:
 
 ```bash
 docker build -f Dockerfile.hades -t hades-gateway .
-docker run --rm -e HADES_MODEL=claude-opus-4-8 -v hades-data:/data hades-gateway hades help
+docker run --rm -e HADES_MODEL=claude-opus-4-1 -v hades-data:/data hades-gateway hades help
 ```
 
 ## The `hades` CLI

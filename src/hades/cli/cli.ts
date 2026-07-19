@@ -10,6 +10,7 @@ import { runHierarchyCommand } from "./hierarchy-command";
 import { runBenchCommand } from "./bench-command";
 import { runSkillCommand } from "./skills-command";
 import { runTuiCommand } from "./tui-command";
+import { runExecCommand } from "./exec-command";
 
 export interface CliResult {
   code: number;
@@ -32,7 +33,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "learn", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "learn", "exec", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -81,6 +82,8 @@ export class HadesCli {
         return runSkillCommand(rest);
       case "tui":
         return runTuiCommand(rest);
+      case "exec":
+        return runExecCommand(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -112,6 +115,7 @@ export class HadesCli {
         "  hierarchy <sub>      Swarm benchmarks: head-to-head/makespan/chaos/fuzz/stats",
         "  bench vtph           Verified-tasks-per-hour-per-dollar scoreboard",
         "  skill <sub>          Create/list/validate SKILL.md skills (new/list/show/validate)",
+        "  exec <run|bench>     Run one program that chains tools (JS/Python, STYX-traced)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
