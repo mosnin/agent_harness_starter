@@ -130,6 +130,7 @@
     "swarm:demo": "tsx examples/swarm/demo.ts",
     "swarm:bench": "tsx examples/swarm/bench.ts",
     "hades": "tsx src/hades/bin/hades.ts",
+    "tools": "tsx src/hades/bin/hades.ts tools",
     "exec:bench": "tsx src/hades/bin/hades.ts exec bench",
     "tui": "tsx src/hades/bin/hades.ts tui",
     "desktop:build:sidecar": "node scripts/build-sidecar.mjs",

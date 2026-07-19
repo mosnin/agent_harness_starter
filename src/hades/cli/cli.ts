@@ -5,12 +5,15 @@ import type { SkillRegistry } from "../../swarm-runtime/skills/skill";
 import type { MemoryStore } from "../memory/store";
 import type { InMemoryTrajectoryStore } from "../research/recorder";
 import type { RoleRegistry } from "../teams/role";
+import type { ToolsetManager } from "../tools/manager";
 import { TeamFormer } from "../teams/former";
+import { execEnabledRegistry } from "../exec/index";
 import { runHierarchyCommand } from "./hierarchy-command";
 import { runBenchCommand } from "./bench-command";
 import { runSkillCommand } from "./skills-command";
 import { runTuiCommand } from "./tui-command";
 import { runExecCommand } from "./exec-command";
+import { runToolsCommand } from "./tools-command";
 
 export interface CliResult {
   code: number;
@@ -27,13 +30,16 @@ export interface HadesCliDeps {
   trajectories?: InMemoryTrajectoryStore;
   /** Role catalog for `hades team`. */
   roles?: RoleRegistry;
+  /** Tool catalog manager for `hades tools`; when present, `hades exec` also
+   *  runs programs against the enabled catalog tools (+ builtins). */
+  toolset?: ToolsetManager;
   /** Launch the interactive chat REPL (long-running). */
   onChat?: (args: string[]) => Promise<CliResult> | CliResult;
   /** Launch the messaging gateway (long-running). */
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "learn", "exec", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "learn", "tools", "exec", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -82,8 +88,10 @@ export class HadesCli {
         return runSkillCommand(rest);
       case "tui":
         return runTuiCommand(rest);
+      case "tools":
+        return this.tools(rest);
       case "exec":
-        return runExecCommand(rest);
+        return this.exec(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -115,12 +123,31 @@ export class HadesCli {
         "  hierarchy <sub>      Swarm benchmarks: head-to-head/makespan/chaos/fuzz/stats",
         "  bench vtph           Verified-tasks-per-hour-per-dollar scoreboard",
         "  skill <sub>          Create/list/validate SKILL.md skills (new/list/show/validate)",
+        "  tools <sub>          List/enable/disable the tool catalog (list/enable/disable/info)",
         "  exec <run|bench>     Run one program that chains tools (JS/Python, STYX-traced)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
       ],
     };
+  }
+
+  private tools(args: string[]): CliResult {
+    if (!this.deps.toolset) return { code: 1, lines: ["The tool catalog is not configured in this build."] };
+    return runToolsCommand(args, { manager: this.deps.toolset });
+  }
+
+  /** `hades exec` over the enabled catalog tools (+ builtins) when a toolset
+   *  is configured; the plain builtin registry otherwise. A catalog/builtin
+   *  name collision is a configuration bug — surfaced, never papered over. */
+  private exec(args: string[]): Promise<CliResult> | CliResult {
+    if (!this.deps.toolset) return runExecCommand(args);
+    try {
+      const registry = execEnabledRegistry(this.deps.toolset.buildRegistry());
+      return runExecCommand(args, { registry });
+    } catch (err) {
+      return { code: 1, lines: [err instanceof Error ? err.message : String(err)] };
+    }
   }
 
   private model(args: string[]): CliResult {

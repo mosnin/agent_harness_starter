@@ -30,6 +30,7 @@ export * from "./hierarchy/index";
 export * from "./metrics/index";
 export * from "./agent/index";
 export * from "./exec/index";
+export * from "./tools/index";
 export * from "./styx/index";
 export * from "./skills/index";
 export * from "./mcp/index";

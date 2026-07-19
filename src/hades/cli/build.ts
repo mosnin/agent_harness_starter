@@ -9,14 +9,20 @@ import { builtinSkillPackCatalog } from "../skill-packs/builtin";
 import { InMemoryMemoryStore, FileMemoryStore, type MemoryStore } from "../memory/store";
 import { InMemoryTrajectoryStore } from "../research/recorder";
 import { defaultRoleRegistry } from "../teams/role";
+import { defaultToolsetManager } from "../tools/default-catalog";
+import type { ToolsetManager } from "../tools/manager";
 
 export const HADES_VERSION = "0.1.0";
 
 export interface BuildCliOptions {
   /** Override the memory store (default: file-backed at config.memoryPath). */
   memory?: MemoryStore;
-  /** Persist model selection + memory to disk (default true). Off for tests. */
+  /** Persist model selection + memory + tool state to disk (default true).
+   *  Off for tests. */
   persist?: boolean;
+  /** Override the toolset manager (default: the full shipped catalog with
+   *  enable/disable state at `<dataDir>/tools.json` when persisting). */
+  toolset?: ToolsetManager;
   onChat?: (args: string[]) => Promise<CliResult> | CliResult;
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
@@ -41,6 +47,12 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     opts.memory ??
     (persist && config.memoryPath ? new FileMemoryStore(config.memoryPath) : new InMemoryMemoryStore());
 
+  const toolset =
+    opts.toolset ??
+    defaultToolsetManager({
+      statePath: persist ? `${config.dataDir}/tools.json` : undefined,
+    });
+
   return new HadesCli({
     version: HADES_VERSION,
     models,
@@ -49,6 +61,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     memory,
     trajectories: new InMemoryTrajectoryStore(),
     roles: defaultRoleRegistry(),
+    toolset,
     onChat: opts.onChat,
     onGateway: opts.onGateway,
   });

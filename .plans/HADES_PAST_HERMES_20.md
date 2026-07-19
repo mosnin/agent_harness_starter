@@ -47,7 +47,26 @@ the model write code that calls tools over an RPC bridge.
 - Checkpoint: real pipeline (search -> extract -> summarize) runs in one turn; measured
   tool-call count drops vs. the ReAct baseline on the eval suite.
 
-## Phase 2 — Tool suite expansion + toolset manager
+## Phase 2 — Tool suite expansion + toolset manager — DONE (cycle 2)
+Shipped: `src/hades/tools/` — canonical catalog shapes (`catalog.ts`), durable
+enable/disable `ToolsetManager` with atomic JSON persistence (`manager.ts`),
+eight tool factories (web_search, fetch_extract, file_ops [root-jailed],
+shell [allowlist-gated, real spawn], http_request [full SSRF deny matrix],
+image_gen, tts, vision_describe — each real when its key + transport are
+present, an honest deterministic "[mock]"-labelled fallback otherwise), eight
+calibrated T4-consistency STYX verifiers (`verifiers.ts`, reconciled during
+integration to the tools' actual shipped output shapes incl. real/mock format
+coupling), and the chain-bench checkpoint (`chain-bench.ts`). Centrally wired:
+`defaultToolCatalog`/`defaultToolsetManager` (`default-catalog.ts`), the
+`hades/tools` barrel, `hades tools list|enable|disable|info` (persisted at
+`<dataDir>/tools.json`), and `hades exec` now runs programs against the
+enabled catalog tools + builtins. Checkpoint measured for real: chain bench
+passes through the PRODUCT registry (execute_code -> web_search ->
+fetch_extract -> word_count, 1 program turn, provenance-verified), and every
+tool's genuine output passes its own registered verifier under test.
+Desktop/TUI panes for the toolset were deliberately not added this cycle —
+the Phase 2 surface is the CLI; the desktop IPC contract stays swarm-scoped.
+Next up: **Phase 3 — Browser automation backend.**
 Hermes parity: 40-60+ tools, enable/disable via `hermes tools`.
 - `src/hades/tools/` new tools: web-search, fetch/extract, file ops, shell (gated),
   http, image-gen, tts, vision-describe. `src/hades/cli/tools-command.ts` (`hades tools`).
