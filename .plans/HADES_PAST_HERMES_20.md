@@ -140,7 +140,27 @@ USER.md, context files that shape every conversation.
   an existing high-salience fact is flagged, not silently overwritten.
 - Checkpoint: search recall measured on a seeded corpus; contradiction test passes.
 
-## Phase 5 — Dialectic user modeling
+## Phase 5 — Dialectic user modeling — DONE (cycle 5)
+Shipped: `src/hades/memory/user-model.ts` (DialecticUserModel: noisy-OR evidence
+combination with tier caps + salience decay, 6+1 dialectic decision rules,
+confidence always re-derived from the evidence ledger — never free-set),
+`belief-evidence.ts` (provenance layer: real ed25519 certificate verification +
+hash binding, tier-capped weights, hash-chained tamper-evident EvidenceLedger),
+`belief-extraction.ts` (deterministic no-LLM extraction over user turns only,
+injection-fenced: code fences / quote lines / <context>-spans excluded),
+`user-model-store.ts` (atomic versioned persistence, legacy migration,
+ProfileMemoryBridge through the STYX memory gate), `user-model-verifier.ts`
+(verify.user-model: independent re-audit incl. the ledger weight cross-check),
+`user-model-bench.ts` (convergence bench) — all centrally wired: `hades profile
+show|why|learn|sync|audit|bench` (profile persists at `<dataDir>/user-model.json`),
+REPL userProfile seam widened so the dialectic model plugs in, memory barrel
+exports. Checkpoint measured for real (cycle-5 run, `hades profile bench` through
+the real bin): converged=true on the scripted 9-session/65-day fixture, 17
+assertions, 1 quarantine, injection session contributed 0 assertions, independent
+audit passed with 0 findings, certified belief 0.713 > uncertified T4 cap 0.600;
+on-disk weight tampering is caught by the audit via the hash-chained ledger
+(proven in tests through the real CLI path). Next up: **Phase 6 — Execution
+backends to full parity.**
 Hermes parity: Honcho-style evolving model of the user across sessions.
 - `src/hades/memory/user-model.ts` — a structured, evolving user profile derived from
   verified interactions; salience decay; explicit provenance per belief.

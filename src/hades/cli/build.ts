@@ -12,6 +12,11 @@ import { InMemoryMemoryStore, FileMemoryStore, type MemoryStore } from "../memor
 import { InMemorySessionStore, FileSessionStore, type SessionStore } from "../memory/session-store";
 import { GuardedMemoryStore, type FlaggedWrite } from "../memory/guard";
 import { SessionSummarizer } from "../memory/summarizer";
+import { UserModelStore, ProfileMemoryBridge } from "../memory/user-model-store";
+import type { ProfileCommandDeps } from "./profile-command";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { InMemoryTrajectoryStore } from "../research/recorder";
 import { defaultRoleRegistry } from "../teams/role";
 import { defaultToolsetManager } from "../tools/default-catalog";
@@ -138,6 +143,25 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
       statePath: persist ? `${config.dataDir}/tools.json` : undefined,
     });
 
+  // Phase-5 dialectic user model (`hades profile`). Lazy: the store (and its
+  // on-disk profile at <dataDir>/user-model.json) is only opened when a
+  // profile subcommand actually runs. Without persistence the profile lives
+  // in a fresh temp dir for the life of the process — real files, real
+  // atomic saves, but nothing written into the user's data dir.
+  const profile = (): ProfileCommandDeps => {
+    const profilePath = persist
+      ? `${config.dataDir}/user-model.json`
+      : join(mkdtempSync(join(tmpdir(), "hades-profile-")), "user-model.json");
+    const store = new UserModelStore({ path: profilePath });
+    const bridge = new ProfileMemoryBridge({
+      store,
+      memory,
+      // MEMORY.md write-back only when persisting into a real data dir.
+      ...(persist ? { dataDir: config.dataDir } : {}),
+    });
+    return { store, bridge, sessions };
+  };
+
   return new HadesCli({
     version: HADES_VERSION,
     models,
@@ -146,6 +170,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     memory,
     sessions,
     memoryGuard: memory,
+    profile,
     summarizeSession: async (sessionId) => {
       const session = sessions.get(sessionId);
       if (!session) throw new Error(`No such session: ${sessionId}`);

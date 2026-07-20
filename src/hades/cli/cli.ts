@@ -19,6 +19,8 @@ import { runExecCommand } from "./exec-command";
 import { runToolsCommand } from "./tools-command";
 import { runMemoryCommand } from "./memory-command";
 import type { MemoryGuardDeps } from "./memory-command";
+import { runProfileCommand } from "./profile-command";
+import type { ProfileCommandDeps } from "./profile-command";
 
 export interface CliResult {
   code: number;
@@ -40,6 +42,11 @@ export interface HadesCliDeps {
   summarizeSession?: (sessionId: string) => Promise<{ summary: string; mode: "llm" | "extractive" }>;
   /** STYX memory write-guard for `hades memory flags` + gate-aware `add`. */
   memoryGuard?: MemoryGuardDeps;
+  /** Phase-5 dialectic user model for `hades profile`. A lazy factory so
+   *  building the CLI never touches the profile's persistence path unless
+   *  the profile command is actually run; the result is cached after the
+   *  first call so repeated subcommands share one store instance. */
+  profile?: () => ProfileCommandDeps;
   trajectories?: InMemoryTrajectoryStore;
   /** Role catalog for `hades team`. */
   roles?: RoleRegistry;
@@ -52,7 +59,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "profile", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -66,6 +73,8 @@ export class HadesCli {
   private readonly version: string;
   /** Lazily-created empty session store used when no real one is configured. */
   private fallbackSessions?: InMemorySessionStore;
+  /** Cached result of the lazy `deps.profile` factory (see HadesCliDeps). */
+  private profileDeps?: ProfileCommandDeps;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -91,6 +100,8 @@ export class HadesCli {
         return this.plugins(rest);
       case "memory":
         return this.memory(rest);
+      case "profile":
+        return this.profile(rest);
       case "learn":
         return this.learn(rest);
       case "team":
@@ -137,6 +148,8 @@ export class HadesCli {
         "  plugins [list]       List available plugins",
         "  memory <sub>         Search facts + past sessions (FTS), timeline/show/summarize,",
         "                       guard flags, add (search/timeline/show/summarize/flags/add)",
+        "  profile <sub>        Dialectic user model: show/why/learn/sync/audit/bench",
+        "                       (evidence-backed beliefs, STYX-audited, tamper-evident ledger)",
         "  team <roles|plan>    List roles / preview a team for an objective",
         "  hierarchy <sub>      Swarm benchmarks: head-to-head/makespan/chaos/fuzz/stats",
         "  bench vtph           Verified-tasks-per-hour-per-dollar scoreboard",
@@ -240,6 +253,19 @@ export class HadesCli {
       },
       args
     );
+  }
+
+  /** `hades profile <sub>` — the Phase-5 dialectic user model surface
+   *  (show/why/learn/sync/audit/bench). Deps are built lazily on first use
+   *  and cached, so a `hades help` never touches the profile store. */
+  private profile(args: string[]): Promise<CliResult> | CliResult {
+    if (!this.deps.profile) return { code: 1, lines: ["The user profile is not configured in this build."] };
+    try {
+      this.profileDeps ??= this.deps.profile();
+    } catch (err) {
+      return { code: 1, lines: [err instanceof Error ? err.message : String(err)] };
+    }
+    return runProfileCommand(this.profileDeps, args);
   }
 
   private async team(args: string[]): Promise<CliResult> {

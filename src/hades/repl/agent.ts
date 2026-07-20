@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import type { MemoryStore, MemorySearchResult } from "../memory/store";
 import type { SessionStore, SessionMessage } from "../memory/session-store";
 import { loadContextFiles, assembleContextPrompt } from "../memory/context-files";
-import type { UserModel } from "../learning/user-model";
 import type { ModelCommand } from "../models/command";
 import { Repl } from "./core";
 import type { ReplHandler, ReplIO, ReplOptions } from "./core";
@@ -37,7 +36,12 @@ export interface ConversationalAgentDeps {
   brain: ConversationBrain;
   memory?: MemoryStore;
   sessions?: SessionStore;
-  userModel?: UserModel;
+  /** Anything that can render a prose profile of the user — the legacy
+   *  `learning/user-model.ts` UserModel and the Phase-5
+   *  `memory/user-model.ts` DialecticUserModel both satisfy this
+   *  structurally (deliberately widened so the dialectic model plugs into
+   *  the REPL without a hard dependency in either direction). */
+  userModel?: { describe(): string };
   /** For the `/model` command. */
   models?: ModelCommand;
   /** How many memories to inject per turn. Default 5. */
