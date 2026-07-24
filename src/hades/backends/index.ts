@@ -55,6 +55,16 @@ export {
 export type { LifecycleState, LifecycleEvent, LifecycleMachineOptions } from "./lifecycle";
 export { HANDLE_STORE_VERSION, HandleStore } from "./handle-store";
 export type { HandleStoreFs, PersistedFleet, HandleStoreOptions, ReconcileReport } from "./handle-store";
+export { FleetSupervisor } from "./fleet-supervisor";
+export type { FleetSupervisorOptions, FleetSupervisorEvent } from "./fleet-supervisor";
+export { CostAwareRouteBandit, ROUTE_BANDIT_STATE_VERSION } from "./route-bandit";
+export type {
+  RouteOutcome,
+  BanditArm,
+  RouteDecision,
+  RouteBanditState,
+  RouteBanditOptions,
+} from "./route-bandit";
 export {
   BACKEND_TRACE_ROOT_PREIMAGE,
   canonicalRecordBytes,

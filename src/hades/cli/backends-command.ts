@@ -34,9 +34,20 @@
 import type { CliResult } from "./cli";
 import type { BackendManager } from "../backends/manager";
 import type { RemoteSpec } from "../backends/backend";
+import type { BackendRequirements } from "../backends/descriptor";
 import type { HandleStore } from "../backends/handle-store";
 import type { LifecycleState } from "../backends/lifecycle";
 import type { BackendProvenanceLedger } from "../backends/provenance";
+import { CostAwareRouteBandit, type RouteBanditState } from "../backends/route-bandit";
+
+/** Persistence seam for the routing bandit's learned history (`hades backends
+ *  route ...`). `load()` returns whatever was last saved (or `undefined`);
+ *  the bandit's own `fromState` validates it defensively, so a corrupt file
+ *  degrades to a fresh bandit, never a crash. */
+export interface BanditStateStore {
+  load(): unknown;
+  save(state: RouteBanditState): void;
+}
 
 export interface BackendsCommandDeps {
   manager: BackendManager;
@@ -51,6 +62,10 @@ export interface BackendsCommandDeps {
    *  `hades backends reconcile` loads the persisted fleet and probes every
    *  stored handle against runtime truth. */
   store?: HandleStore;
+  /** Learned-history persistence for `hades backends route`. Absent, the
+   *  route commands still work but the bandit's history lives only for this
+   *  invocation — the output says so honestly. */
+  banditStore?: BanditStateStore;
   now?: () => number;
 }
 
@@ -70,6 +85,12 @@ const USAGE = [
   "  logs <workerId> [--tail N]               Recent logs for a worker",
   "  verify                                   Verify the provenance chain",
   "  reconcile                                Probe the persisted fleet against runtime truth",
+  "  route choose [--cap a,b] [--max-usd N]",
+  "               [--require-hibernate]",
+  "               [--exclude a,b]             Pick a backend via the cost-aware UCB1 bandit",
+  "  route record <backend> --verified|--unverified",
+  "               --elapsed-ms N --usd N      Record a measured routing outcome",
+  "  route arms                               Show the bandit's learned per-backend history",
   "  help                                     Show this help",
 ];
 
@@ -531,6 +552,190 @@ async function cmdReconcile(deps: BackendsCommandDeps): Promise<CliResult> {
 }
 
 // ---------------------------------------------------------------------------
+// route — cost-aware UCB1 routing bandit (see ../backends/route-bandit.ts)
+// ---------------------------------------------------------------------------
+
+const ROUTE_USAGE = [
+  "Usage: hades backends route <choose|record|arms>",
+  "  route choose [--cap a,b] [--max-usd N] [--require-hibernate] [--exclude a,b]",
+  "  route record <backend> --verified|--unverified --elapsed-ms N --usd N",
+  "  route arms",
+];
+
+/** Rebuild the bandit from persisted state (defensively validated by
+ *  `CostAwareRouteBandit.fromState` — a corrupt file degrades to a fresh
+ *  bandit, never a crash). No store configured -> fresh bandit + an honest
+ *  note that nothing persists across invocations. */
+function loadBandit(deps: BackendsCommandDeps, lines: string[]): CostAwareRouteBandit {
+  const opts = { manager: deps.manager };
+  if (!deps.banditStore) {
+    lines.push("(not persisted) no bandit store configured; routing history lives only for this invocation.");
+    return new CostAwareRouteBandit(opts);
+  }
+  try {
+    return CostAwareRouteBandit.fromState(opts, deps.banditStore.load());
+  } catch (err) {
+    lines.push(`(warning) bandit state load failed (${errMsg(err)}); starting from an empty history.`);
+    return new CostAwareRouteBandit(opts);
+  }
+}
+
+function saveBandit(deps: BackendsCommandDeps, bandit: CostAwareRouteBandit, lines: string[]): void {
+  if (!deps.banditStore) return;
+  try {
+    deps.banditStore.save(bandit.snapshot());
+  } catch (err) {
+    lines.push(`(warning) bandit state persistence failed: ${errMsg(err)}`);
+  }
+}
+
+function fmtUcb(ucb: number | null): string {
+  return ucb === null ? "-" : ucb.toFixed(4);
+}
+
+async function cmdRouteChoose(deps: BackendsCommandDeps, args: string[]): Promise<CliResult> {
+  let rest = args;
+  const capFlag = extractValueFlag(rest, "--cap");
+  rest = capFlag.rest;
+  const maxUsdFlag = extractValueFlag(rest, "--max-usd");
+  rest = maxUsdFlag.rest;
+  const hibernateFlag = extractBoolFlag(rest, "--require-hibernate");
+  rest = hibernateFlag.rest;
+  const excludeFlag = extractValueFlag(rest, "--exclude");
+  rest = excludeFlag.rest;
+
+  if (capFlag.present && capFlag.value === undefined) return { code: 1, lines: ["--cap requires a value", ...ROUTE_USAGE] };
+  if (excludeFlag.present && excludeFlag.value === undefined) return { code: 1, lines: ["--exclude requires a value", ...ROUTE_USAGE] };
+  if (rest.length > 0) return { code: 1, lines: [`Unexpected argument: ${sanitize(rest[0])}`, ...ROUTE_USAGE] };
+
+  const requirements: BackendRequirements = {};
+  const caps = splitCaps(capFlag.value);
+  if (caps.length > 0) requirements.capabilities = caps;
+  const excludes = splitCaps(excludeFlag.value);
+  if (excludes.length > 0) requirements.exclude = excludes;
+  if (hibernateFlag.present) requirements.requireHibernate = true;
+  if (maxUsdFlag.present) {
+    if (maxUsdFlag.value === undefined) return { code: 1, lines: ["--max-usd requires a value", ...ROUTE_USAGE] };
+    const n = Number(maxUsdFlag.value);
+    if (!Number.isFinite(n) || n < 0) {
+      return { code: 1, lines: [`Invalid --max-usd value: ${sanitize(maxUsdFlag.value)}`] };
+    }
+    requirements.maxRunningHourUsd = n;
+  }
+
+  const lines: string[] = [];
+  const bandit = loadBandit(deps, lines);
+
+  try {
+    const decision = await bandit.choose(requirements);
+    if (!decision) {
+      lines.push("No backend survives the requirements (or none is currently available).");
+      return { code: 1, lines };
+    }
+    lines.push(
+      `Route: ${sanitize(decision.name)} (${decision.reason}${decision.ucb === null ? "" : `, ucb=${decision.ucb.toFixed(4)}`})`,
+    );
+    const table = renderTable(
+      ["CANDIDATE", "PULLS", "UCB"],
+      decision.candidates.map((c) => [sanitize(c.name), String(c.pulls), fmtUcb(c.ucb)]),
+    );
+    lines.push(...table);
+    return { code: 0, lines };
+  } catch (err) {
+    lines.push(`route choose failed: ${errMsg(err)}`);
+    return { code: 1, lines };
+  }
+}
+
+async function cmdRouteRecord(deps: BackendsCommandDeps, args: string[]): Promise<CliResult> {
+  let rest = args;
+  const verifiedFlag = extractBoolFlag(rest, "--verified");
+  rest = verifiedFlag.rest;
+  const unverifiedFlag = extractBoolFlag(rest, "--unverified");
+  rest = unverifiedFlag.rest;
+  const elapsedFlag = extractValueFlag(rest, "--elapsed-ms");
+  rest = elapsedFlag.rest;
+  const usdFlag = extractValueFlag(rest, "--usd");
+  rest = usdFlag.rest;
+
+  const backendName = rest[0];
+  if (!backendName) return { code: 1, lines: ROUTE_USAGE };
+  if (rest.length > 1) return { code: 1, lines: [`Unexpected argument: ${sanitize(rest[1])}`, ...ROUTE_USAGE] };
+  if (verifiedFlag.present === unverifiedFlag.present) {
+    return { code: 1, lines: ["Exactly one of --verified or --unverified is required.", ...ROUTE_USAGE] };
+  }
+  if (!elapsedFlag.present || elapsedFlag.value === undefined) {
+    return { code: 1, lines: ["--elapsed-ms <N> is required (the real measured wall-clock duration).", ...ROUTE_USAGE] };
+  }
+  if (!usdFlag.present || usdFlag.value === undefined) {
+    return { code: 1, lines: ["--usd <N> is required (the real measured cost; 0 for your own machine).", ...ROUTE_USAGE] };
+  }
+  const elapsedMs = Number(elapsedFlag.value);
+  const usd = Number(usdFlag.value);
+
+  const lines: string[] = [];
+  const bandit = loadBandit(deps, lines);
+
+  try {
+    bandit.recordOutcome(backendName, { verified: verifiedFlag.present, elapsedMs, usd });
+  } catch (err) {
+    lines.push(`route record failed: ${errMsg(err)}`);
+    return { code: 1, lines };
+  }
+
+  saveBandit(deps, bandit, lines);
+  const arm = bandit.arm(backendName);
+  lines.push(
+    `Recorded ${verifiedFlag.present ? "verified" : "unverified"} outcome for ${sanitize(backendName)} ` +
+      `(elapsedMs=${elapsedMs}, usd=${usd} — caller-measured).`,
+    `${sanitize(backendName)}: pulls=${arm.pulls} verified=${arm.verified} meanReward=${arm.meanReward.toFixed(4)} ucb=${fmtUcb(arm.ucb)} (derived from measured outcomes)`,
+  );
+  return { code: 0, lines };
+}
+
+async function cmdRouteArms(deps: BackendsCommandDeps): Promise<CliResult> {
+  const lines: string[] = [];
+  const bandit = loadBandit(deps, lines);
+  const arms = bandit.arms();
+  const names = Object.keys(arms);
+  if (names.length === 0) {
+    lines.push("No routing outcomes recorded yet. Use `hades backends route record` after measuring one.");
+    return { code: 0, lines };
+  }
+  const table = renderTable(
+    ["BACKEND", "PULLS", "VERIFIED", "ELAPSED-MS", "USD", "MEAN-REWARD", "UCB"],
+    names.map((name) => {
+      const a = arms[name];
+      return [
+        sanitize(name),
+        String(a.pulls),
+        String(a.verified),
+        String(a.totalElapsedMs),
+        a.totalUsd.toFixed(4),
+        a.meanReward.toFixed(4),
+        fmtUcb(a.ucb),
+      ];
+    }),
+  );
+  lines.push(...table, "(pulls/verified/elapsed/usd are caller-measured; mean-reward/ucb are derived)");
+  return { code: 0, lines };
+}
+
+async function cmdRoute(deps: BackendsCommandDeps, args: string[]): Promise<CliResult> {
+  const [sub, ...rest] = args;
+  switch (sub) {
+    case "choose":
+      return cmdRouteChoose(deps, rest);
+    case "record":
+      return cmdRouteRecord(deps, rest);
+    case "arms":
+      return cmdRouteArms(deps);
+    default:
+      return { code: 1, lines: ROUTE_USAGE };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // dispatcher
 // ---------------------------------------------------------------------------
 
@@ -565,6 +770,8 @@ export async function runBackendsCommand(args: string[], deps: BackendsCommandDe
         return cmdVerify(deps);
       case "reconcile":
         return await cmdReconcile(deps);
+      case "route":
+        return await cmdRoute(deps, rest);
       default:
         return { code: 1, lines: [`Unknown backends command: ${sanitize(sub)}`, "Run `hades backends help` for usage."] };
     }

@@ -19,6 +19,8 @@ import { EventEmitter } from "node:events";
 import type {
   AppEvent,
   Command,
+  FleetCommand,
+  FleetEvent,
   MetricsView,
   RunView,
   TaskView,
@@ -63,6 +65,17 @@ export interface SkillsHandler {
   handle(cmd: Command): Promise<AppEvent[]>;
 }
 
+/**
+ * Handles fleet commands, returning the `FleetEvent`s to emit. Structurally
+ * matches `FleetService.handle` (`./fleet-service.ts`) so central wiring can
+ * pass a real service backed by a real `BackendManager`/`FleetSupervisor`
+ * (see `./fleet-wiring.ts`); left undefined, fleet commands report an honest
+ * `fleet.error` instead of hanging the caller.
+ */
+export interface FleetHandler {
+  handle(cmd: FleetCommand): Promise<FleetEvent[]>;
+}
+
 /** Truthful description of what inference backs this run — surfaced as a startup log. */
 export interface InferenceInfo {
   kind: "real" | "mock";
@@ -76,6 +89,8 @@ export interface SidecarOptions {
   now?: () => number;
   /** Real skills backend; when set, `skills.list`/`skills.save` do real work instead of no-op. */
   skills?: SkillsHandler;
+  /** Real fleet backend; when set, `fleet.*` commands do real work. */
+  fleet?: FleetHandler;
   /** When set, an honest inference-mode line is logged on `runtime.start`. */
   inference?: InferenceInfo;
 }
@@ -110,6 +125,7 @@ export class Sidecar {
   private readonly emitFn: (e: AppEvent) => void;
   private readonly now: () => number;
   private readonly skills?: SkillsHandler;
+  private readonly fleet?: FleetHandler;
   private readonly inference?: InferenceInfo;
 
   private mode: "inline" | "process" | "docker" = "inline";
@@ -127,6 +143,7 @@ export class Sidecar {
     this.emitFn = opts.emit;
     this.now = opts.now ?? Date.now;
     this.skills = opts.skills;
+    this.fleet = opts.fleet;
     this.inference = opts.inference;
   }
 
@@ -159,6 +176,24 @@ export class Sidecar {
           // caller waiting on a reply never hangs.
           if (this.skills) {
             for (const ev of await this.skills.handle(cmd)) this.safeEmit(ev);
+          }
+          return;
+        case "fleet.list":
+        case "fleet.probe":
+        case "fleet.hibernate":
+        case "fleet.wake":
+        case "fleet.terminate":
+          // Central wiring hands us a real FleetService (fleet-wiring.ts).
+          // Without one, reply with an honest fleet.error rather than
+          // silence, so a renderer waiting on a snapshot never hangs.
+          if (this.fleet) {
+            for (const ev of await this.fleet.handle(cmd)) this.safeEmit(ev);
+          } else {
+            this.safeEmit({
+              kind: "fleet.error",
+              message: "fleet is not configured in this build",
+              at: this.now(),
+            });
           }
           return;
         default: {

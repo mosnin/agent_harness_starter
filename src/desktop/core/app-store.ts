@@ -131,6 +131,14 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
       return { ...state, log };
     }
 
+    // Fleet events are owned by the fleet view's own pure reducer
+    // (`../ui/fleet-view.ts`'s `applyFleetEvent`) — the renderer feeds them
+    // there. They deliberately do not touch the swarm app state.
+    case "fleet.snapshot":
+    case "fleet.worker.upsert":
+    case "fleet.error":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.

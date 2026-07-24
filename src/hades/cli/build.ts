@@ -21,7 +21,8 @@ import { InMemoryTrajectoryStore } from "../research/recorder";
 import { defaultRoleRegistry } from "../teams/role";
 import { defaultToolsetManager } from "../tools/default-catalog";
 import type { ToolsetManager } from "../tools/manager";
-import type { BackendsCommandDeps } from "./backends-command";
+import type { BackendsCommandDeps, BanditStateStore } from "./backends-command";
+import type { RouteBanditState } from "../backends/route-bandit";
 import { BackendManager } from "../backends/manager";
 import type { BackendDescriptor } from "../backends/descriptor";
 import { LocalProcessBackend } from "../backends/local";
@@ -87,6 +88,35 @@ class FileGuardedMemoryStore extends GuardedMemoryStore {
     if (ok) this.persist();
     return ok;
   }
+}
+
+/**
+ * File-backed persistence for the routing bandit's learned history
+ * (`hades backends route`). Atomic write (temp file + rename, same
+ * convention as every other store in this file); an absent or unreadable
+ * file loads as `undefined`, which `CostAwareRouteBandit.fromState`
+ * treats as a fresh, empty history.
+ */
+function fileBanditStore(path: string): BanditStateStore {
+  return {
+    load(): unknown {
+      try {
+        return JSON.parse(readFileSync(path, "utf8")) as unknown;
+      } catch {
+        return undefined; // absent or unreadable -> fresh history
+      }
+    },
+    save(state: RouteBanditState): void {
+      try {
+        mkdirSync(dirname(path), { recursive: true });
+      } catch {
+        /* exists */
+      }
+      const tmp = `${path}.tmp`;
+      writeFileSync(tmp, JSON.stringify(state));
+      renameSync(tmp, path);
+    },
+  };
 }
 
 export interface BuildCliOptions {
@@ -209,6 +239,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
       manager,
       ledger,
       ...(persist ? { store: new HandleStore({ path: `${config.dataDir}/fleet.json` }) } : {}),
+      ...(persist ? { banditStore: fileBanditStore(`${config.dataDir}/route-bandit.json`) } : {}),
     };
   };
 

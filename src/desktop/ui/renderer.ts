@@ -31,6 +31,9 @@ import type { CertVerifyResult } from "../core/cert-verify";
 import { renderCertVerify } from "./cert-view";
 import { renderVtphPanel } from "./vtph-panel";
 import type { VtphInput } from "./vtph-panel";
+import { initialFleetState, applyFleetEvent, renderFleetView } from "./fleet-view";
+import type { FleetViewState } from "./fleet-view";
+import type { FleetEvent } from "../ipc/contract";
 import {
   initialPaletteState,
   paletteReduce,
@@ -71,6 +74,15 @@ interface ViewExt {
   cert: CertVerifyResult | null;
   /** Pre-rendered V-TPH$ panel HTML (renderVtphPanel is async, so it is cached). */
   vtphHtml: string | null;
+  /** Remote-compute fleet state, reduced from `fleet.*` events by the fleet view's own pure reducer. */
+  fleet: FleetViewState;
+}
+
+/** Narrow an AppEvent to the fleet slice of the union. */
+function asFleetEvent(ev: { kind: string }): FleetEvent | null {
+  return ev.kind === "fleet.snapshot" || ev.kind === "fleet.worker.upsert" || ev.kind === "fleet.error"
+    ? (ev as FleetEvent)
+    : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -152,6 +164,8 @@ function contentFor(nav: NavKey, state: AppState, ext: ViewExt): string {
       return renderSkillsView(state);
     case "workers":
       return renderWorkersView(state);
+    case "fleet":
+      return renderFleetView(ext.fleet);
     case "compare":
       return renderCompareView(ext);
     case "metrics":
@@ -187,6 +201,7 @@ export function createApp(
     compare: { running: false, result: null },
     cert: null,
     vtphHtml: null,
+    fleet: initialFleetState(),
   };
   // Renderer-owned clock/history for the honest V-TPH$ input (the pure engine
   // store carries no wall clock). runStartedAt is stamped when the runtime
@@ -238,6 +253,17 @@ export function createApp(
   try {
     unsubscribe =
       bridge.onEvent((ev) => {
+        // Fleet events feed the fleet view's own pure reducer; they are
+        // handled before (and independently of) the app-store reduce so a
+        // reducer failure on either side never starves the other.
+        const fleetEv = asFleetEvent(ev);
+        if (fleetEv) {
+          try {
+            ext.fleet = applyFleetEvent(ext.fleet, fleetEv);
+          } catch {
+            // Malformed fleet event: leave fleet state untouched.
+          }
+        }
         try {
           state = reduce(state, ev);
         } catch {
@@ -279,6 +305,9 @@ export function createApp(
       nav = key;
       // Entering the metrics surface kicks an async compute of the panel.
       if (key === "metrics") refreshVtph();
+      // Entering the fleet surface refreshes the (probe-free) snapshot so
+      // the view is never stale; the reply streams back as a fleet.snapshot.
+      if (key === "fleet") send({ kind: "fleet.list" });
       emit();
     },
     dispatchIntent(intent: { cmd: string; value?: string }) {
@@ -346,6 +375,11 @@ export function createApp(
 function readIntentValue(root: ParentNode, el: Element): string | undefined {
   const explicit = el.getAttribute("data-value");
   if (explicit !== null) return explicit;
+
+  // Fleet worker actions (`fleet-view.ts`) carry their target as
+  // `data-worker-id`; surface it as the intent value.
+  const workerId = el.getAttribute("data-worker-id");
+  if (workerId !== null) return workerId;
 
   const inputId = el.getAttribute("data-input") ?? el.getAttribute("data-source");
   if (!inputId) return undefined;

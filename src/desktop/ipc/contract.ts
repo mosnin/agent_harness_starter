@@ -6,8 +6,35 @@
  * of truth for that wire format: the `Command` union flows renderer -> sidecar,
  * the `AppEvent` union flows sidecar -> renderer.
  *
- * Pure, deterministic, dependency-free.
+ * The remote-compute fleet surface (`fleet.*` commands/events) is defined in
+ * `./fleet-contract.ts` and merged into the `Command`/`AppEvent` unions here,
+ * so the whole pipe (sidecar entry, bridge, renderer) carries fleet traffic
+ * with full typing. `fleet-contract.ts` stays standalone/dependency-free;
+ * this module is the one that composes.
+ *
+ * Pure, deterministic — depends only on `./fleet-contract`.
  */
+
+import {
+  FLEET_COMMAND_KINDS,
+  FLEET_EVENT_KINDS,
+  isFleetCommand,
+  isFleetEvent,
+} from "./fleet-contract";
+import type { FleetCommand, FleetEvent } from "./fleet-contract";
+
+// Re-exported so consumers can treat this module as the single import point
+// for the whole desktop wire format.
+export type {
+  FleetCommand,
+  FleetEvent,
+  FleetLifecycleState,
+  BackendCostView,
+  BackendTelemetryView,
+  BackendView,
+  FleetWorkerView,
+} from "./fleet-contract";
+export { isFleetCommand, isFleetEvent, FLEET_COMMAND_KINDS, FLEET_EVENT_KINDS } from "./fleet-contract";
 
 // ---------------------------------------------------------------------------
 // View models
@@ -80,7 +107,8 @@ export type Command =
   | { kind: "pool.scale"; size: number }
   | { kind: "worker.kill"; workerId: string }
   | { kind: "skills.list" }
-  | { kind: "skills.save"; name: string; content: string };
+  | { kind: "skills.save"; name: string; content: string }
+  | FleetCommand;
 
 export type AppEvent =
   | { kind: "runtime.status"; running: boolean; mode: string; poolSize: number }
@@ -91,7 +119,8 @@ export type AppEvent =
   | { kind: "certificate"; cert: CertificateView }
   | { kind: "metrics"; metrics: MetricsView }
   | { kind: "skills.list"; skills: Array<{ name: string; description: string }> }
-  | { kind: "log"; line: string; at: number };
+  | { kind: "log"; line: string; at: number }
+  | FleetEvent;
 
 const COMMAND_KINDS = [
   "runtime.start",
@@ -102,6 +131,7 @@ const COMMAND_KINDS = [
   "worker.kill",
   "skills.list",
   "skills.save",
+  ...FLEET_COMMAND_KINDS,
 ] as const;
 
 const EVENT_KINDS = [
@@ -114,6 +144,7 @@ const EVENT_KINDS = [
   "metrics",
   "skills.list",
   "log",
+  ...FLEET_EVENT_KINDS,
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -267,7 +298,9 @@ export function isCommand(x: unknown): x is Command {
     case "skills.save":
       return isString(x.name) && isString(x.content);
     default:
-      return false;
+      // Fleet commands are validated by the fleet contract's own guard;
+      // anything it doesn't recognize is not a Command.
+      return isFleetCommand(x);
   }
 }
 
@@ -294,7 +327,9 @@ export function isAppEvent(x: unknown): x is AppEvent {
     case "log":
       return isString(x.line) && isNumber(x.at);
     default:
-      return false;
+      // Fleet events are validated by the fleet contract's own guard;
+      // anything it doesn't recognize is not an AppEvent.
+      return isFleetEvent(x);
   }
 }
 

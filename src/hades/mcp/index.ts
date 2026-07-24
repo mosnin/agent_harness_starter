@@ -17,3 +17,11 @@ export type {
 } from "./client";
 export { McpServer, loopbackTransportPair } from "./server";
 export type { McpServerTool, McpServerOptions } from "./server";
+export { createSwarmTaskTool, SWARM_TASK_INPUT_SCHEMA } from "./swarm-task-tool";
+export type {
+  SwarmTaskRequest,
+  SwarmSessionPort,
+  SwarmSessionFactory,
+  VerifiedSwarmResult,
+} from "./swarm-task-tool";
+export { realSwarmSessionFactory, adaptSwarmManager, registerSwarmTaskTool } from "./swarm-session";

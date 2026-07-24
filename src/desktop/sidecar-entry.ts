@@ -23,9 +23,17 @@
 
 import { encodeEvent, decodeCommand } from "./ipc/contract";
 import type { AppEvent, Command } from "./ipc/contract";
-import { Sidecar, realSwarmFactory, type SwarmFactory, type SkillsHandler, type InferenceInfo } from "./core/sidecar";
+import {
+  Sidecar,
+  realSwarmFactory,
+  type SwarmFactory,
+  type SkillsHandler,
+  type FleetHandler,
+  type InferenceInfo,
+} from "./core/sidecar";
 import { SkillsService } from "./core/skills-service";
 import { detectInference } from "./core/inference";
+import { createRealFleet } from "./core/fleet-wiring";
 
 export interface RunSidecarOptions {
   /** Defaults to a `Sidecar` backed by {@link realSwarmFactory}. Tests inject a scripted fake instead. */
@@ -34,6 +42,10 @@ export interface RunSidecarOptions {
   now?: () => number;
   /** Real skills backend; defaults to a {@link SkillsService} over the local skills dir. */
   skills?: SkillsHandler;
+  /** Real fleet backend; defaults to {@link createRealFleet}'s `FleetService`
+   *  over the real `BackendManager` + `FleetSupervisor` (local + docker
+   *  backends, crash-consistent persistence at `<dataDir>/fleet.json`). */
+  fleet?: FleetHandler;
   /** Inference mode reported on start; defaults to {@link detectInference} over `process.env`. */
   inference?: InferenceInfo;
 }
@@ -88,11 +100,22 @@ export async function runSidecar(
 ): Promise<void> {
   const now = opts.now ?? Date.now;
 
+  let fleet = opts.fleet;
+  if (!fleet) {
+    // Real fleet stack (BackendManager + FleetSupervisor + HandleStore).
+    // Construction is side-effect free; restore() is a best-effort async
+    // crash-recovery pass that never throws and never blocks startup.
+    const realFleet = createRealFleet({ now });
+    void realFleet.restore();
+    fleet = realFleet.service;
+  }
+
   const sidecar = new Sidecar({
     factory: opts.factory,
     now,
     emit: (event: AppEvent) => output(encodeEvent(event)),
     skills: opts.skills ?? new SkillsService(),
+    fleet,
     inference: opts.inference ?? detectInference(),
   });
 

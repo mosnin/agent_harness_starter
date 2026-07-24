@@ -22,6 +22,7 @@ export type NavKey =
   | "trust"
   | "skills"
   | "workers"
+  | "fleet"
   | "compare"
   | "metrics"
   | "settings";
@@ -36,6 +37,7 @@ export const NAV: Array<{ key: NavKey; label: string; hint: string }> = [
   { key: "trust", label: "Trust", hint: "STYX verification gate and certificates" },
   { key: "skills", label: "Skills", hint: "SKILL.md library" },
   { key: "workers", label: "Workers", hint: "Pool status and capabilities" },
+  { key: "fleet", label: "Fleet", hint: "Remote-compute backends: inventory, telemetry, lifecycle" },
   { key: "compare", label: "Compare", hint: "Head to head vs the flat baseline" },
   { key: "metrics", label: "Metrics", hint: "Live V-TPH$ (verified tasks per hour per dollar)" },
   { key: "settings", label: "Settings", hint: "Runtime mode and pool size" },
@@ -58,6 +60,7 @@ const ICONS: Record<NavKey, string> = {
   trust: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2l7 3v5c0 4.5-3 7.5-7 8-4-.5-7-3.5-7-8V5l7-3z"/><path d="M7 10l2 2 4-4"/></svg>`,
   skills: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5A2.5 2.5 0 015.5 3H10v14H5.5A2.5 2.5 0 013 14.5v-9z"/><path d="M17 5.5A2.5 2.5 0 0014.5 3H10v14h4.5a2.5 2.5 0 002.5-2.5v-9z"/></svg>`,
   workers: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="2.6"/><circle cx="14" cy="8.5" r="2"/><path d="M2.5 16c.6-3 2.3-4.6 4.5-4.6s3.9 1.6 4.5 4.6"/><path d="M11.8 12.2c1.7.1 3 1.4 3.5 3.8"/></svg>`,
+  fleet: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3" width="15" height="5.5" rx="1.2"/><rect x="2.5" y="11.5" width="15" height="5.5" rx="1.2"/><path d="M5.5 5.75h.01M5.5 14.25h.01"/><path d="M9 5.75h5.5M9 14.25h5.5"/></svg>`,
   compare: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v14"/><path d="M4 7l3-3 3 3"/><path d="M16 13l-3 3-3-3"/></svg>`,
   metrics: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17h14"/><path d="M6 17V9"/><path d="M10 17V4"/><path d="M14 17v-6"/></svg>`,
   settings: `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.1 4.9l-1.4 1.4M6.3 13.7l-1.4 1.4M15.1 15.1l-1.4-1.4M6.3 6.3L4.9 4.9"/></svg>`,
@@ -174,6 +177,22 @@ export function intentToCommand(intent: { cmd: string; value?: string }): Comman
     case "goal.dispatch":
       if (!intent.value) return null;
       return { kind: "goal.dispatch", objective: intent.value };
+    // Fleet surface (`fleet-view.ts`): refresh/probe are top-level; the
+    // per-worker actions carry the workerId via `data-worker-id`, which the
+    // renderer's delegated click handler passes through as `value`.
+    case "fleet.refresh":
+      return { kind: "fleet.list" };
+    case "fleet.probe":
+      return { kind: "fleet.probe" };
+    case "fleet.hibernate":
+      if (!intent.value) return null;
+      return { kind: "fleet.hibernate", workerId: intent.value };
+    case "fleet.wake":
+      if (!intent.value) return null;
+      return { kind: "fleet.wake", workerId: intent.value };
+    case "fleet.terminate":
+      if (!intent.value) return null;
+      return { kind: "fleet.terminate", workerId: intent.value };
     default:
       return null;
   }
