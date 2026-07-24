@@ -10,7 +10,7 @@ import { createInlineSwarm } from "../factory";
 import { LLMPlanner } from "../manager/planner";
 import { createOpenAICompatibleChat, chatToPlannerComplete } from "../worker/llm-executor";
 import type { GuardrailPolicy } from "../verification/guardrails";
-import type { ResourceLimits } from "../types";
+import type { ContainerProvider, ResourceLimits } from "../types";
 
 /**
  * Build a model-backed planner from the environment when an API key + model are
@@ -50,6 +50,17 @@ export interface BuildSwarmOptions {
   dockerNetwork?: string;
   /** Path to the built worker entrypoint (process mode). */
   workerEntry?: string;
+  /**
+   * Decoration seam for the REAL container provider (process/docker modes
+   * only — inline mode has no `ContainerProvider`). The default
+   * `LocalProcessProvider`/`DockerProvider` is built exactly as always, then
+   * passed through this hook before the manager sees it. Central wiring uses
+   * it to wrap the provider with worker->backend attribution
+   * (`src/hades/backends/fleet-provider.ts`'s `AttributedContainerProvider`)
+   * without this module ever depending on `src/hades/**`. The decorated
+   * provider must delegate the actual spawn/stop to the inner one.
+   */
+  decorateProvider?: (provider: ContainerProvider, mode: "process" | "docker") => ContainerProvider;
 }
 
 export interface BuiltSwarm {
@@ -120,7 +131,7 @@ export async function buildSwarm(opts: BuildSwarmOptions): Promise<BuiltSwarm> {
   const managerUrl = opts.managerUrl ?? `http://${host === "0.0.0.0" ? "127.0.0.1" : host}:${port}`;
   const controlPlane = new HttpControlPlane({ port, host, authToken });
 
-  const provider =
+  const baseProvider =
     opts.mode === "docker"
       ? new DockerProvider({
           image: opts.workerImage ?? "hermes-swarm-worker:latest",
@@ -131,6 +142,7 @@ export async function buildSwarm(opts: BuildSwarmOptions): Promise<BuiltSwarm> {
           const { command, commandArgs, entry } = resolveWorkerEntry(opts.workerEntry);
           return new LocalProcessProvider({ command, commandArgs, workerEntry: entry });
         })();
+  const provider = opts.decorateProvider ? opts.decorateProvider(baseProvider, opts.mode) : baseProvider;
 
   const manager = new SwarmManager({
     provider,

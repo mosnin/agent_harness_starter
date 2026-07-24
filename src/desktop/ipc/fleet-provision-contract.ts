@@ -91,6 +91,13 @@ export type FleetProvisionEvent =
       workers: FleetWorkerView[];
       adoptedIds: string[];
       dropped: FleetRestoredDrop[];
+      /** Already-live workerId collisions the adoption pass skipped — a
+       *  subset of `dropped` (which keeps carrying them for back-compat),
+       *  surfaced separately so the renderer's conflicts lane can offer the
+       *  rename-and-provision remediation. Optional on the wire: an older
+       *  sidecar that doesn't send it simply yields a lane with no
+       *  actionable conflict rows, never a parse failure. */
+      conflicts?: FleetRestoredDrop[];
       at: number;
     };
 
@@ -284,6 +291,8 @@ export function isFleetProvisionEvent(x: unknown): x is FleetProvisionEvent {
         isBoundedArray(x.workers, isFleetWorkerView, MAX_RESTORED_LIST_LENGTH) &&
         isBoundedArray(x.adoptedIds, isString, MAX_RESTORED_LIST_LENGTH) &&
         isBoundedArray(x.dropped, isFleetRestoredDrop, MAX_RESTORED_LIST_LENGTH) &&
+        (x.conflicts === undefined ||
+          isBoundedArray(x.conflicts, isFleetRestoredDrop, MAX_RESTORED_LIST_LENGTH)) &&
         isNumber(x.at)
       );
     default:

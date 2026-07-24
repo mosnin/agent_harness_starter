@@ -113,6 +113,34 @@ file claims about itself. It catches a truncated log (a crash mid-write, or
 a malformed line), a reordered log, and a log with even one tampered field
 in one record, and reports the exact record index where verification broke.
 
+## Live runs — the keyed, budgeted, manifested exit lane
+
+```
+hades showdown live --out <dir> [--tasks N] [--seed S] [--max-wall-ms MS]
+hades showdown live-verify <dir>
+```
+
+`live` runs `mode: "real"` through the same engine, with extra discipline
+because real money is spent:
+
+- **No key, no run**: without `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` it
+  refuses and says so. There is no modeled fallback — live numbers exist
+  only when a real, keyed run actually happened.
+- **Spending guards**: `--tasks` defaults to 12 and is hard-capped at 50;
+  `--max-wall-ms` (default 15 min) refuses to publish a run that overran.
+- **Refusal to publish**: a result whose mode isn't `"real"`, or whose audit
+  hash chain fails an independent re-check, is thrown away — no artifacts.
+- **`manifest.json`**: written atomically after the artifacts, carrying the
+  provider/model/seed/task-count/wall-clock plus a sha256 over the exact
+  on-disk bytes of `report.md` / `audit.jsonl` / `result.json`.
+
+`live-verify` re-reads all four files and re-derives every claim: JSON
+validity, the audit hash chain, audit-vs-result cross-checks (catches
+truncation), per-file sha256 vs the manifest, and a fresh `compareVtph`
+recomputation of the V-TPH$ multiple — a hand-edited multiple is caught even
+when it "looks" internally consistent. It collects every finding instead of
+stopping at the first.
+
 ## Example output shape (not real numbers — run it yourself)
 
 ```

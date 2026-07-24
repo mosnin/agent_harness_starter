@@ -109,6 +109,8 @@ export async function runSidecar(
 
   let fleet = opts.fleet;
   let provision = opts.provision;
+  let learning: ConstructorParameters<typeof Sidecar>[0]["learning"];
+  let factory = opts.factory;
   if (!fleet) {
     // Real fleet stack (BackendManager + FleetSupervisor + HandleStore +
     // bandit-routed provisioning + registry adoption). Construction is
@@ -118,16 +120,31 @@ export async function runSidecar(
     void realFleet.restore();
     fleet = realFleet.service;
     provision ??= realFleet.provision;
+    // Self-improving routing loop: the sidecar attaches this to every started
+    // swarm's raw event stream. Outcomes feed the SAME route bandit the
+    // fleet.provision path routes with (one shared learned history at
+    // <dataDir>/route-bandit.json).
+    learning = async (swarm) => {
+      const loop = await realFleet.attachLearning(swarm);
+      return { detach: () => loop.detach() };
+    };
+    // Real spawn-path attribution: process/docker workers spawned by the
+    // engine are recorded in the fleet's worker->backend attribution map and
+    // adopted into the live registry, so the learning loop's resolveBackend
+    // answers with measured facts instead of "unknown". Only wired when the
+    // factory is also defaulted — an injected factory keeps full control.
+    factory ??= realSwarmFactory({ decorateProvider: (p, mode) => realFleet.decorateProvider(p, mode) });
   }
 
   const sidecar = new Sidecar({
-    factory: opts.factory,
+    factory,
     now,
     emit: (event: AppEvent) => output(encodeEvent(event)),
     skills: opts.skills ?? new SkillsService(),
     fleet,
     provision,
     inference: opts.inference ?? detectInference(),
+    learning,
   });
 
   try {
@@ -166,7 +183,9 @@ export async function main(): Promise<void> {
   };
 
   try {
-    await runSidecar(process.stdin, output, { factory: realSwarmFactory() });
+    // No explicit factory: runSidecar wires the real engine factory itself,
+    // decorated with the real fleet's worker->backend attribution.
+    await runSidecar(process.stdin, output, {});
   } catch (err) {
     // Last-resort guard: a bug in runSidecar's own plumbing (not in a
     // command handler, which Sidecar already isolates) should still surface

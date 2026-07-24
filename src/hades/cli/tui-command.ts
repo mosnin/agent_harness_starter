@@ -33,6 +33,16 @@
 import { TuiApp } from "../../swarm-runtime/tui/app";
 import type { TuiController } from "../../swarm-runtime/tui/app";
 import type { TuiState } from "../../swarm-runtime/tui/render";
+import type {
+  FleetPaneBackendRow,
+  FleetPaneBanditRow,
+  FleetPaneWorkerRow,
+} from "../../swarm-runtime/tui/fleet-pane";
+import type { ShowdownPaneResult } from "../../swarm-runtime/tui/showdown-pane";
+import { runShowdown, verifyAuditChain } from "../bench/showdown";
+import type { ShowdownResult } from "../bench/showdown";
+import type { BackendManager } from "../backends/manager";
+import type { BanditArm } from "../backends/route-bandit";
 import { realSwarmFactory } from "../../desktop/core/sidecar";
 import type { SwarmFactory, SwarmHandle } from "../../desktop/core/sidecar";
 
@@ -55,6 +65,10 @@ export interface TuiDeps {
   poolSize?: number;
   /** Snapshot poll interval in ms. Default 500. */
   pollIntervalMs?: number;
+  /** Task count for the SHOWDOWN pane's `r` (modeled) run. Default 24. */
+  showdownTasks?: number;
+  /** Showdown engine override for tests; defaults to the real `runShowdown`. */
+  runShowdownFn?: typeof runShowdown;
 }
 
 const HELP_LINES = [
@@ -67,8 +81,13 @@ const HELP_LINES = [
   "  +/-     scale worker pool up/down",
   "  c       cancel the active goal",
   "  ↑/↓     navigate the task list",
+  "  f       toggle the FLEET pane (real BackendManager telemetry + route bandit)",
+  "  s       toggle the SHOWDOWN pane (r runs a real modeled showdown in-place)",
   "  ?       toggle the help overlay",
   "  q       quit  (also Ctrl-C)",
+  "  (fleet pane) ↑/↓ or j/k select worker, r refresh, esc/q back",
+  "  (showdown pane) r run, esc/q back — every figure of a modeled run is",
+  "                  labeled (modeled); nothing live is simulated",
   "  (compose mode) type to build the objective, Enter to submit, Esc to cancel",
 ];
 
@@ -179,6 +198,133 @@ function normalizeLogPayload(payload: unknown): LogRow {
 }
 
 // ---------------------------------------------------------------------------
+// FLEET pane wiring — real BackendManager rows, no adapter fabrication
+// ---------------------------------------------------------------------------
+
+/**
+ * Map the REAL fleet substrate to the TUI FLEET pane's plain row shapes:
+ * BACKENDS from `manager.descriptors()` + `manager.telemetry(name)` (with
+ * `availability` from a real `manager.probeAll()` pass — `undefined` renders
+ * the honest "unprobed", never a guessed "ready"), WORKERS from
+ * `manager.list()` (the live registry, including crash-recovery-adopted
+ * handles), and ROUTING from a real `CostAwareRouteBandit.arms()` snapshot.
+ * Every figure is copied straight through; nothing is computed here.
+ */
+export function fleetPaneDataFromManager(
+  manager: BackendManager,
+  availability: Record<string, boolean>,
+  arms: Record<string, BanditArm>
+): { backends: FleetPaneBackendRow[]; workers: FleetPaneWorkerRow[]; bandit: FleetPaneBanditRow[] } {
+  const backends: FleetPaneBackendRow[] = manager.descriptors().map((d) => {
+    const t = manager.telemetry(d.name);
+    const probed = availability[d.name];
+    return {
+      name: d.name,
+      kind: d.kind,
+      state: probed === true ? "available" : probed === false ? "unavailable" : "unprobed",
+      provisions: t.provisions,
+      accruedUsd: t.accruedUsd,
+      provisionLatencyEmaMs: t.provisionLatencyEmaMs,
+    };
+  });
+
+  const workers: FleetPaneWorkerRow[] = manager
+    .list()
+    .map((w) => ({
+      workerId: w.handle.workerId,
+      backend: w.handle.backend,
+      lifecycle: w.handle.state,
+      idleMs: w.idleMs,
+    }))
+    .sort((a, b) => (a.workerId < b.workerId ? -1 : a.workerId > b.workerId ? 1 : 0));
+
+  const bandit: FleetPaneBanditRow[] = Object.keys(arms)
+    .sort()
+    .map((name) => ({
+      name,
+      pulls: arms[name].pulls,
+      verified: arms[name].verified,
+      meanReward: arms[name].meanReward,
+      ucb: arms[name].ucb,
+    }));
+
+  return { backends, workers, bandit };
+}
+
+// ---------------------------------------------------------------------------
+// SHOWDOWN pane wiring — a real modeled run through the real engine
+// ---------------------------------------------------------------------------
+
+/** Copy the REAL `ShowdownResult` figures into the pane's row shape, with
+ *  `auditOk` from a genuine `verifyAuditChain` re-check (never assumed). */
+export function showdownPaneResultFrom(result: ShowdownResult): ShowdownPaneResult {
+  return {
+    swarmVtph: result.swarmReport.vtphPerDollar,
+    baselineVtph: result.baselineReport.vtphPerDollar,
+    multiple: result.comparison.vtphPerDollarSpeedup,
+    swarmVerified: result.swarmReport.verifiedCorrect,
+    baselineVerified: result.baselineReport.verifiedCorrect,
+    swarmSilentWrong: result.swarmReport.silentWrong,
+    baselineSilentWrong: result.baselineReport.silentWrong,
+    auditOk: verifyAuditChain(result.audit).ok,
+  };
+}
+
+/**
+ * Build the SHOWDOWN pane's `r` handler: kicks off ONE real
+ * `runShowdown({ mode: "modeled" })` (deterministic, no keys, no network —
+ * and every rendered figure carries the pane's own `(modeled)` label) and
+ * streams its progress into `app.applyShowdownEvent`. The pane's `start`
+ * event is only emitted once the engine reports its own real task-run total
+ * via `onProgress` — the total is never precomputed here. A second `r` while
+ * a run is in flight is a no-op (the pane reducer also guards this).
+ */
+export function createTuiShowdownRunner(
+  app: TuiApp,
+  opts: { taskCount?: number; seed?: number; render?: () => void; runShowdownFn?: typeof runShowdown } = {}
+): () => void {
+  const runFn = opts.runShowdownFn ?? runShowdown;
+  const taskCount = opts.taskCount ?? 24;
+  const seed = opts.seed ?? 42;
+  const render = opts.render ?? ((): void => {});
+  let running = false;
+
+  return (): void => {
+    if (running) return;
+    running = true;
+    let started = false;
+    const ensureStarted = (total: number): void => {
+      if (started) return;
+      started = true;
+      app.applyShowdownEvent({ type: "start", mode: "modeled", total });
+    };
+
+    void runFn({
+      mode: "modeled",
+      seed,
+      taskCount,
+      onProgress: (done, total) => {
+        ensureStarted(total);
+        app.applyShowdownEvent({ type: "progress", done });
+        render();
+      },
+    })
+      .then((result) => {
+        ensureStarted(result.audit.length);
+        app.applyShowdownEvent({ type: "done", result: showdownPaneResultFrom(result) });
+      })
+      .catch((err: unknown) => {
+        ensureStarted(0);
+        app.applyShowdownEvent({ type: "fail", error: err instanceof Error ? err.message : String(err) });
+      })
+      .finally(() => {
+        running = false;
+        render();
+      });
+  };
+}
+
+// ---------------------------------------------------------------------------
 // TuiController wiring
 // ---------------------------------------------------------------------------
 
@@ -252,7 +398,18 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
     if (logs.length > 50) logs.splice(0, logs.length - 50);
   });
 
-  const controller = createSwarmController(handle, { poolSize });
+  // Pane hooks are late-bound: the fleet refresh and showdown runner need the
+  // app (and the interactive loop's `render`) to exist first, so the
+  // controller closes over mutable slots that the loop fills in below. In
+  // `once` mode they stay honest no-ops — a single non-interactive frame
+  // never probes backends or starts a showdown.
+  let fleetRefresh: () => void = () => {};
+  let showdownRun: () => void = () => {};
+  const controller: TuiController = {
+    ...createSwarmController(handle, { poolSize }),
+    refreshFleet: () => fleetRefresh(),
+    runShowdown: () => showdownRun(),
+  };
   const app = new TuiApp({ controller });
 
   const readState = (): TuiState => snapshotToTuiState(handle.snapshot(), mode, logs.slice(-5));
@@ -285,6 +442,43 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
         lastFrame = frame;
         stdout.write(`\x1b[2J\x1b[H${frame}\n`);
       }
+    };
+
+    // SHOWDOWN pane: `r` runs a real modeled showdown through the real
+    // engine, progress streaming straight into the pane reducer.
+    showdownRun = createTuiShowdownRunner(app, {
+      taskCount: deps.showdownTasks,
+      render,
+      runShowdownFn: deps.runShowdownFn,
+    });
+
+    // FLEET pane: the real fleet substrate (BackendManager + FleetSupervisor
+    // + the shared route-bandit history at <dataDir>/route-bandit.json — the
+    // SAME files `hades backends` and the desktop app use), built lazily on
+    // the first refresh so opening the TUI never probes docker unasked.
+    let fleetRigPromise:
+      | Promise<{ manager: BackendManager; arms: () => Promise<Record<string, BanditArm>> }>
+      | undefined;
+    const getFleetRig = (): NonNullable<typeof fleetRigPromise> => {
+      fleetRigPromise ??= (async () => {
+        const { createRealFleet } = await import("../../desktop/core/fleet-wiring");
+        const fleet = createRealFleet({});
+        await fleet.restore();
+        return { manager: fleet.manager, arms: () => fleet.routeBanditArms() };
+      })();
+      return fleetRigPromise;
+    };
+    fleetRefresh = (): void => {
+      void (async () => {
+        const rig = await getFleetRig();
+        const availability = await rig.manager.probeAll();
+        const arms = await rig.arms();
+        app.setFleetData(fleetPaneDataFromManager(rig.manager, availability, arms));
+        render();
+      })().catch((err: unknown) => {
+        logs.push({ workerId: "fleet", line: `refresh failed: ${err instanceof Error ? err.message : String(err)}` });
+        render();
+      });
     };
 
     const onData = (chunk: string | Buffer): void => {

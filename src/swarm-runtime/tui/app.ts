@@ -1,5 +1,22 @@
 import { renderTui, type TuiState } from "./render";
 import { keyToAction } from "./keymap";
+import {
+  emptyFleetPaneState,
+  renderFleetPane,
+  moveFleetSelection,
+  fleetKeyToAction,
+  type FleetPaneState,
+  type FleetPaneBackendRow,
+  type FleetPaneWorkerRow,
+  type FleetPaneBanditRow,
+} from "./fleet-pane";
+import {
+  initialShowdownPaneState,
+  showdownReducer,
+  renderShowdownPane,
+  type ShowdownPaneState,
+  type ShowdownPaneEvent,
+} from "./showdown-pane";
 
 /**
  * The subset of swarm control the interactive TUI needs. A thin adapter over
@@ -10,6 +27,16 @@ export interface TuiController {
   dispatchGoal(objective: string): void;
   scalePool(delta: number): void;
   cancel(): void;
+  /** FLEET pane refresh request (`r` while the pane is open, and on open).
+   *  Central wiring reads the real BackendManager/route-bandit state and
+   *  feeds it back via {@link TuiApp.setFleetData}; absent, the pane keeps
+   *  its honest "no fleet attached" empty state. */
+  refreshFleet?(): void;
+  /** SHOWDOWN pane run request (`r` while the pane is open). Central wiring
+   *  starts a real `runShowdown` and streams progress back via
+   *  {@link TuiApp.applyShowdownEvent}; absent, `r` is a no-op and the pane
+   *  stays honestly idle. */
+  runShowdown?(): void;
 }
 
 export interface TuiAppOptions {
@@ -17,13 +44,20 @@ export interface TuiAppOptions {
   controller?: TuiController;
 }
 
+/** Which full-screen surface the TUI is currently showing. */
+export type TuiPane = "dashboard" | "fleet" | "showdown";
+
 const HELP_LINES = [
   "  g       start a new goal (compose mode)",
   "  +/-     scale worker pool up/down",
   "  c       cancel the active goal",
   "  ↑/↓     navigate the task list",
+  "  f       toggle the FLEET pane (backends / workers / routing bandit)",
+  "  s       toggle the SHOWDOWN pane (swarm vs baseline V-TPH$)",
   "  ?       toggle this help overlay",
   "  q       quit  (also Ctrl-C)",
+  "  (fleet pane) ↑/↓ or j/k select worker, r refresh, esc/q back",
+  "  (showdown pane) r run a modeled showdown, esc/q back",
   "  (compose mode) type to build the objective, Enter to submit, Esc to cancel",
 ];
 
@@ -34,6 +68,13 @@ const HELP_LINES = [
  * class — a thin main-loop elsewhere is responsible for piping stdin keys in
  * and `frame()` output to stdout. That separation is what makes this fully
  * unit-testable without a real TTY.
+ *
+ * Beyond the main dashboard, two secondary full-screen panes are wired in:
+ * the FLEET pane (`./fleet-pane.ts` — backends/workers/routing-bandit, fed
+ * via {@link setFleetData}) on `f`, and the SHOWDOWN pane
+ * (`./showdown-pane.ts` — live progress + the honest V-TPH$ table, fed via
+ * {@link applyShowdownEvent}) on `s`. Both render honest empty/idle states
+ * until real data actually arrives — nothing is fabricated to fill a box.
  */
 export class TuiApp {
   private readonly width: number;
@@ -44,6 +85,9 @@ export class TuiApp {
   private composeBuffer = "";
   private helpVisible = false;
   private selectedIndex = 0;
+  private pane: TuiPane = "dashboard";
+  private fleetPane: FleetPaneState = emptyFleetPaneState();
+  private showdownPane: ShowdownPaneState = initialShowdownPaneState();
 
   constructor(opts: TuiAppOptions = {}) {
     this.width = opts.width ?? 72;
@@ -65,17 +109,94 @@ export class TuiApp {
     return this.currentMode;
   }
 
+  /** Which full-screen surface is currently shown. */
+  activePane(): TuiPane {
+    return this.pane;
+  }
+
+  /**
+   * Feed real fleet rows (typically from `BackendManager.descriptors()` /
+   * `.telemetry()` / `.list()` and a route-bandit `arms()` snapshot — see
+   * `src/hades/cli/tui-command.ts`'s central wiring). Selection/scroll are
+   * preserved (clamped to the new list) so a refresh never yanks the cursor.
+   */
+  setFleetData(data: {
+    backends: FleetPaneBackendRow[];
+    workers: FleetPaneWorkerRow[];
+    bandit: FleetPaneBanditRow[];
+  }): void {
+    this.fleetPane = moveFleetSelection(
+      { ...this.fleetPane, backends: data.backends, workers: data.workers, bandit: data.bandit },
+      0
+    );
+  }
+
+  /** Advance the SHOWDOWN pane's pure reducer (start/progress/done/fail). */
+  applyShowdownEvent(ev: ShowdownPaneEvent): void {
+    this.showdownPane = showdownReducer(this.showdownPane, ev);
+  }
+
+  /** Read-only view of the SHOWDOWN pane's current state (for the main loop / tests). */
+  showdownState(): ShowdownPaneState {
+    return this.showdownPane;
+  }
+
   /** Advance the state machine one keypress. May invoke the controller. */
   handleKey(key: string): { quit?: boolean } {
+    // Secondary panes get first claim on keys while open (view mode only) —
+    // anything their keymaps don't handle falls through to the main keymap.
+    if (this.currentMode === "view" && this.pane === "fleet") {
+      const paneAction = fleetKeyToAction(key);
+      if (paneAction === "up") {
+        this.fleetPane = moveFleetSelection(this.fleetPane, -1);
+        return {};
+      }
+      if (paneAction === "down") {
+        this.fleetPane = moveFleetSelection(this.fleetPane, 1);
+        return {};
+      }
+      if (paneAction === "refresh") {
+        this.controller?.refreshFleet?.();
+        return {};
+      }
+      if (paneAction === "back") {
+        this.pane = "dashboard";
+        return {};
+      }
+    }
+    if (this.currentMode === "view" && this.pane === "showdown") {
+      if (key === "r") {
+        this.controller?.runShowdown?.();
+        return {};
+      }
+      if (key === "\x1b" || key === "escape" || key === "q") {
+        this.pane = "dashboard";
+        return {};
+      }
+    }
+
     const action = keyToAction(key, this.currentMode);
 
     switch (action.kind) {
       case "quit":
         return { quit: true };
 
+      case "pane":
+        // Toggle: pressing the pane's own key again returns to the dashboard.
+        if (this.pane === action.pane) {
+          this.pane = "dashboard";
+        } else {
+          this.pane = action.pane;
+          // Opening the fleet pane asks central wiring for fresh data so the
+          // first frame is never stale.
+          if (action.pane === "fleet") this.controller?.refreshFleet?.();
+        }
+        return {};
+
       case "dispatch":
         // Only produced for "g" in view mode (with an empty objective) —
         // start composing. A real dispatch call is issued on "submit".
+        this.pane = "dashboard";
         this.currentMode = "compose";
         this.composeBuffer = action.objective ?? "";
         return {};
@@ -132,14 +253,22 @@ export class TuiApp {
     }
   }
 
-  /** Render the full screen: dashboard + compose bar + footer/help. */
+  /** Render the full screen: active pane + compose bar + footer/help. */
   frame(): string {
-    const dashboard = renderTui(this.state, this.width);
-    const lines = dashboard.split("\n");
-    this.applySelectionHighlight(lines);
+    const out: string[] = [];
 
-    const out = [...lines];
-    out.push(this.renderComposeBar());
+    if (this.currentMode === "view" && this.pane === "fleet") {
+      out.push(...renderFleetPane(this.fleetPane, this.width).split("\n"));
+    } else if (this.currentMode === "view" && this.pane === "showdown") {
+      out.push(...renderShowdownPane(this.showdownPane, this.width).split("\n"));
+    } else {
+      const dashboard = renderTui(this.state, this.width);
+      const lines = dashboard.split("\n");
+      this.applySelectionHighlight(lines);
+      out.push(...lines);
+      out.push(this.renderComposeBar());
+    }
+
     out.push(this.renderFooter());
     if (this.helpVisible) {
       out.push(...this.renderHelp());
@@ -172,7 +301,13 @@ export class TuiApp {
   }
 
   private renderFooter(): string {
-    return "  [g] new goal  [+/-] scale pool  [c] cancel  [↑/↓] nav  [?] help  [q] quit";
+    if (this.currentMode === "view" && this.pane === "fleet") {
+      return "  [↑/↓ j/k] select  [r] refresh  [esc/q] back  [?] help";
+    }
+    if (this.currentMode === "view" && this.pane === "showdown") {
+      return "  [r] run modeled showdown  [esc/q] back  [?] help";
+    }
+    return "  [g] new goal  [+/-] scale pool  [c] cancel  [↑/↓] nav  [f] fleet  [s] showdown  [?] help  [q] quit";
   }
 
   private renderHelp(): string[] {

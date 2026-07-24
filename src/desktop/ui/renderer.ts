@@ -35,6 +35,9 @@ import { initialFleetState, applyFleetEvent, renderFleetView } from "./fleet-vie
 import type { FleetViewState } from "./fleet-view";
 import { createFleetProvisionView } from "./fleet-provision-view";
 import type { FleetProvisionViewHandle, FleetProvisionWire } from "./fleet-provision-view";
+import { mountFleetConflictsView } from "./fleet-conflicts-view";
+import type { FleetConflictsViewHandle } from "./fleet-conflicts-view";
+import { deriveConflictsLaneFromRestored, extractPlaceholderNotice } from "../core/fleet-conflicts";
 import type { FleetEvent, FleetProvisionEvent } from "../ipc/contract";
 import {
   initialPaletteState,
@@ -179,7 +182,8 @@ function contentFor(nav: NavKey, state: AppState, ext: ViewExt): string {
       // form state), so the string renderer only emits a stable host node;
       // mountApp re-parents the panel's real DOM into it after each render.
       return `${renderFleetView(ext.fleet)}
-      <div id="fleet-provision-host" class="fleet-provision-host" data-testid="fleet-provision-host"></div>`;
+      <div id="fleet-provision-host" class="fleet-provision-host" data-testid="fleet-provision-host"></div>
+      <div id="fleet-conflicts-host" class="fleet-conflicts-host" data-testid="fleet-conflicts-host"></div>`;
     case "compare":
       return renderCompareView(ext);
     case "metrics":
@@ -470,11 +474,95 @@ export function mountApp(root: HTMLElement, bridge: Bridge): AppController {
     }
   }
 
+  // The conflicts lane (`./fleet-conflicts-view.ts`) is the same kind of
+  // persistent live-DOM view: built once, fed from the real `fleet.restored`
+  // / `fleet.provisioned` event stream, and re-parented into the fleet view's
+  // `#fleet-conflicts-host` after every render. Its two actions send REAL
+  // wire commands: rename-and-provision issues a `fleet.provision` for the
+  // suggested free id, terminate-live-first issues a `fleet.terminate`.
+  let conflictsPanel: HTMLElement | null = null;
+  let conflictsHandle: FleetConflictsViewHandle | null = null;
+  let conflictsUnsub: (() => void) | null = null;
+  let lastRestored: Extract<FleetProvisionEvent, { kind: "fleet.restored" }> | null = null;
+  let credentialNotice: string | undefined;
+  let renameSeq = 0;
+
+  function updateConflictsPanel(): void {
+    if (!conflictsHandle) return;
+    try {
+      const model = deriveConflictsLaneFromRestored(
+        lastRestored ?? { workers: [], dropped: [] },
+        app.getState().workers.map((w) => w.id)
+      );
+      conflictsHandle.update(model, credentialNotice);
+    } catch {
+      // A malformed event must never crash the fleet surface.
+    }
+  }
+
+  function ensureConflictsPanel(): HTMLElement | null {
+    if (conflictsPanel) return conflictsPanel;
+    try {
+      const panel = document.createElement("div");
+      conflictsHandle = mountFleetConflictsView(panel, {
+        onRename(_workerId, suggested) {
+          if (!suggested) return;
+          renameSeq += 1;
+          try {
+            bridge.send({
+              kind: "fleet.provision",
+              requestId: `conflict-rename-${renameSeq}-${suggested}`,
+              spec: { workerId: suggested, capabilities: [] },
+            });
+          } catch {
+            // A throwing bridge must never crash the conflicts panel.
+          }
+        },
+        onTerminate(workerId) {
+          try {
+            bridge.send({ kind: "fleet.terminate", workerId });
+          } catch {
+            // A throwing bridge must never crash the conflicts panel.
+          }
+        },
+      });
+      conflictsUnsub =
+        bridge.onEvent((ev) => {
+          if (ev.kind === "fleet.restored") {
+            lastRestored = ev;
+            updateConflictsPanel();
+          } else if (ev.kind === "fleet.provisioned") {
+            credentialNotice = extractPlaceholderNotice(ev.routing).notice;
+            updateConflictsPanel();
+          }
+        }) ?? null;
+      conflictsPanel = panel;
+      updateConflictsPanel();
+    } catch {
+      // A non-DOM environment (or a view bug) must never break the shell.
+      conflictsPanel = null;
+      conflictsHandle = null;
+    }
+    return conflictsPanel;
+  }
+
+  function reparentConflictsPanel(): void {
+    try {
+      const host = root.querySelector("#fleet-conflicts-host");
+      if (!host) return;
+      const panel = ensureConflictsPanel();
+      if (panel) host.appendChild(panel);
+    } catch {
+      // no-op if root isn't a real DOM node
+    }
+  }
+
   const app = createApp(bridge, {
     onRender(nextHtml) {
       try {
         root.innerHTML = nextHtml;
         reparentProvisionPanel();
+        reparentConflictsPanel();
         if (restorePaletteFocus) {
           const field = root.querySelector('[data-palette-field="query"]') as
             | HTMLInputElement
@@ -633,6 +721,19 @@ export function mountApp(root: HTMLElement, bridge: Bridge): AppController {
       }
       provisionHandle = null;
       provisionPanel = null;
+      try {
+        conflictsUnsub?.();
+      } catch {
+        // no-op
+      }
+      try {
+        conflictsHandle?.destroy();
+      } catch {
+        // no-op
+      }
+      conflictsUnsub = null;
+      conflictsHandle = null;
+      conflictsPanel = null;
       app.destroy();
     },
   };

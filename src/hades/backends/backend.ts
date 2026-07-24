@@ -131,6 +131,18 @@ export class RemoteBackendRegistry {
     this.handles.set(handle.workerId, handle);
   }
 
+  /**
+   * Drop `workerId` from tracking WITHOUT touching the remote resource —
+   * the counterpart to {@link adopt} for workers whose real lifecycle is
+   * owned elsewhere (e.g. a swarm `ContainerProvider` that already stopped
+   * the unit — see `./fleet-provider.ts`'s `FleetTrackingPort`). Returns
+   * whether anything was actually removed. Contrast `terminate()`, which
+   * stops the remote unit AND untracks it.
+   */
+  release(workerId: string): boolean {
+    return this.handles.delete(workerId);
+  }
+
   private backendFor(handle: RemoteHandle): RemoteBackend {
     const b = this.backends.get(handle.backend);
     if (!b) throw new Error(`Backend gone: ${handle.backend}`);

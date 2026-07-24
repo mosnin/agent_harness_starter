@@ -45,4 +45,18 @@ export { generateShowdownSuite, verifyAuditChain, runShowdown } from "./showdown
 export type { ShowdownFamily, ShowdownMode, ShowdownOptions, AuditRecord, ShowdownResult } from "./showdown";
 export { renderShowdownText, renderShowdownMarkdown, writeShowdownArtifacts } from "./showdown-report";
 export type { ShowdownFsDeps } from "./showdown-report";
+// `hades showdown live` — the keyed, budgeted, sha256-manifested exit lane.
+export {
+  LIVE_MANIFEST_VERSION,
+  preflightLiveShowdown,
+  runLiveShowdown,
+  verifyLiveArtifacts,
+} from "./showdown-live";
+export type {
+  LivePreflight,
+  LiveRunManifest,
+  LiveShowdownDeps,
+  LiveShowdownFsDeps,
+  LiveShowdownOptions,
+} from "./showdown-live";
 export { EVAL_TASKS, EVAL_CATEGORIES, tasksByCategory, decomposableTasks } from "./eval-suite";

@@ -12,6 +12,8 @@ export { runReconcileAdoptCommand } from "./backends-adopt-command";
 export type { AdoptCommandDeps } from "./backends-adopt-command";
 export { runShowdownCommand } from "./showdown-command";
 export type { ShowdownCommandDeps, ShowdownCommandResult, ShowdownCommandFsDeps } from "./showdown-command";
+export { runShowdownLiveCommand } from "./showdown-live-command";
+export type { ShowdownLiveCommandDeps } from "./showdown-live-command";
 export { runSkillsHubCommand } from "./skills-hub-command";
 export type { SkillsHubDeps, SkillsHubCommandResult } from "./skills-hub-command";
 export { buildBrowserCommand } from "./browser-command";

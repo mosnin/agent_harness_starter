@@ -63,6 +63,8 @@ const USAGE = [
   "                       --out writes report.md + audit.jsonl + result.json.",
   "  verify <dir>         Re-read <dir>/audit.jsonl and independently re-verify",
   "                       its hash chain (catches truncation, tampering, reordering).",
+  "  live / live-verify   The LIVE (keyed, billed, wall-clock-budgeted) exit lane",
+  "                       with a sha256 manifest.json — run `hades showdown live help`.",
   "  help                 Show this help",
   "",
   "mode=modeled uses deterministic scripted providers (no network, no API key);",

@@ -97,3 +97,17 @@ export type {
   ParityBenchReport,
   ParityBenchDetailedResult,
 } from "./parity-bench";
+export {
+  ATTRIBUTION_STATE_VERSION,
+  WorkerAttributionRegistry,
+  resolveBackendForTask,
+} from "./worker-attribution";
+export type { AttributionEntry, AttributionState, AttributionStore } from "./worker-attribution";
+export { AttributedContainerProvider } from "./fleet-provider";
+export type {
+  FleetTrackingPort,
+  AttributedProviderOptions,
+  AttributedProviderEvent,
+} from "./fleet-provider";
+export { SwarmLearningLoop, renderLearningReport } from "./swarm-learning";
+export type { SwarmLearningEvent, SwarmLearningOptions, SwarmLearningStatus } from "./swarm-learning";

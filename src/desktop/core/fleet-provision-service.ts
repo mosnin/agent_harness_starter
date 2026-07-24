@@ -62,7 +62,15 @@ export interface FleetProvisionPort {
    * all.
    */
   restoredView(): Promise<
-    | { workers: FleetWorkerView[]; adoptedIds: string[]; dropped: Array<{ workerId: string; reason: string }> }
+    | {
+        workers: FleetWorkerView[];
+        adoptedIds: string[];
+        dropped: Array<{ workerId: string; reason: string }>;
+        /** Already-live workerId conflicts, surfaced separately from `dropped`
+         *  for the renderer's conflicts lane. Optional: a port that predates
+         *  the lane simply omits it. */
+        conflicts?: Array<{ workerId: string; reason: string }>;
+      }
     | undefined
   >;
 
@@ -165,6 +173,7 @@ export class FleetProvisionService {
       workers: restored.workers.slice(),
       adoptedIds: restored.adoptedIds.slice(),
       dropped: restored.dropped.slice(),
+      ...(restored.conflicts !== undefined ? { conflicts: restored.conflicts.slice() } : {}),
       at: this.now(),
     };
   }

@@ -24,6 +24,8 @@ import type { ProfileCommandDeps } from "./profile-command";
 import { runBackendsCommand } from "./backends-command";
 import type { BackendsCommandDeps } from "./backends-command";
 import { runShowdownCommand } from "./showdown-command";
+import { runShowdownLiveCommand } from "./showdown-live-command";
+import { runLiveShowdown, verifyLiveArtifacts } from "../bench/showdown-live";
 import { runSkillsHubCommand } from "./skills-hub-command";
 import { join } from "node:path";
 
@@ -121,7 +123,7 @@ export class HadesCli {
       case "backends":
         return this.backends(rest);
       case "showdown":
-        return runShowdownCommand(rest);
+        return this.showdown(rest);
       case "learn":
         return this.learn(rest);
       case "team":
@@ -179,7 +181,8 @@ export class HadesCli {
         "  hierarchy <sub>      Swarm benchmarks: head-to-head/makespan/chaos/fuzz/stats",
         "  bench vtph           Verified-tasks-per-hour-per-dollar scoreboard",
         "  showdown <sub>       Swarm vs self-trusting baseline (run/verify) — the honest,",
-        "                       hash-chain-audited V-TPH$ scoreboard demo",
+        "                       hash-chain-audited V-TPH$ scoreboard demo. `live`/`live-verify`",
+        "                       run the REAL keyed exit lane (budgeted, sha256 manifested)",
         "  skill <sub>          Create/list/validate SKILL.md skills (new/list/show/validate)",
         "  tools <sub>          List/enable/disable the tool catalog (list/enable/disable/info)",
         "  exec <run|bench>     Run one program that chains tools (JS/Python, STYX-traced)",
@@ -189,6 +192,33 @@ export class HadesCli {
         "  help                 Show this help",
       ],
     };
+  }
+
+  /** `hades showdown <sub>` — the honest V-TPH$ scoreboard demo. `run`/`verify`
+   *  (modeled or real) go to `runShowdownCommand`; the LIVE exit lane
+   *  (`live` / `live-verify` — keyed, billed, wall-clock-budgeted, sha256
+   *  manifested) goes to `runShowdownLiveCommand` wired to the real
+   *  `runLiveShowdown`/`verifyLiveArtifacts` engine and the real process env
+   *  (key NAMES only are ever printed, never key material). */
+  private async showdown(args: string[]): Promise<CliResult> {
+    const [sub, ...rest] = args;
+    if (sub === "live" || sub === "live-verify") {
+      // `hades showdown live help` (or --help/-h) is a help request for the
+      // live lane, not a run missing its flags.
+      const argv =
+        sub === "live" && (rest[0] === "help" || rest[0] === "--help" || rest[0] === "-h")
+          ? ["help"]
+          : [sub, ...rest];
+      const lines: string[] = [];
+      const code = await runShowdownLiveCommand(argv, {
+        run: runLiveShowdown,
+        verify: verifyLiveArtifacts,
+        env: process.env,
+        write: (line) => lines.push(line),
+      });
+      return { code, lines };
+    }
+    return runShowdownCommand(args);
   }
 
   private tools(args: string[]): CliResult {

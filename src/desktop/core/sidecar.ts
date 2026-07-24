@@ -37,6 +37,7 @@ import {
   isWorkerView,
 } from "../ipc/contract";
 import { buildSwarm } from "../../swarm-runtime/server/build-swarm";
+import type { ContainerProvider } from "../../swarm-runtime/types";
 
 // ---------------------------------------------------------------------------
 // The minimal surface the sidecar needs from a swarm.
@@ -50,6 +51,19 @@ export interface SwarmHandle {
   snapshot(): { workers: unknown[]; tasks: unknown[]; goals?: unknown[]; verifications?: unknown[]; metrics?: unknown };
   /** If the underlying engine emits progress events, subscribe here. */
   on?(event: string, cb: (payload: unknown) => void): void;
+  /**
+   * The engine's RAW event emitter (the `SwarmManager` itself for
+   * `realSwarmFactory`), preserving multi-argument event payloads — unlike
+   * {@link SwarmHandle.on}, which collapses `(task, report)` into a single
+   * array payload. The swarm learning loop
+   * (`src/hades/backends/swarm-learning.ts`) needs the raw arity to read
+   * `task:verified`'s `(task, report)` pair, so it attaches here. Optional:
+   * a fake handle without it simply gets no learning loop attached.
+   */
+  swarm?: {
+    on(event: string, listener: (...args: unknown[]) => void): unknown;
+    off?(event: string, listener: (...args: unknown[]) => void): unknown;
+  };
   close?(): Promise<void> | void;
 }
 
@@ -114,6 +128,15 @@ export interface SidecarOptions {
   provision?: FleetProvisionHandler;
   /** When set, an honest inference-mode line is logged on `runtime.start`. */
   inference?: InferenceInfo;
+  /**
+   * Self-improving routing loop hook. When set AND the started handle
+   * exposes its raw engine emitter ({@link SwarmHandle.swarm}), the sidecar
+   * attaches it after every `runtime.start` and detaches it on stop/close.
+   * Central wiring passes `RealFleet.attachLearning` (`./fleet-wiring.ts`),
+   * which wires the REAL `SwarmOutcomeFeed` -> shared route bandit. A
+   * throwing attach degrades to an honest log line, never a dead runtime.
+   */
+  learning?: (swarm: NonNullable<SwarmHandle["swarm"]>) => Promise<{ detach(): Promise<void> }>;
 }
 
 /**
@@ -149,6 +172,8 @@ export class Sidecar {
   private readonly fleet?: FleetHandler;
   private readonly provision?: FleetProvisionHandler;
   private readonly inference?: InferenceInfo;
+  private readonly learning?: SidecarOptions["learning"];
+  private learningLoop?: { detach(): Promise<void> };
 
   private mode: "inline" | "process" | "docker" = "inline";
   private poolSize = 0;
@@ -168,6 +193,7 @@ export class Sidecar {
     this.fleet = opts.fleet;
     this.provision = opts.provision;
     this.inference = opts.inference;
+    this.learning = opts.learning;
   }
 
   /** Process one command. Never throws — a failure becomes a `log` event. */
@@ -249,6 +275,17 @@ export class Sidecar {
   async close(): Promise<void> {
     const h = this.handleRef;
     this.handleRef = undefined;
+    const loop = this.learningLoop;
+    this.learningLoop = undefined;
+    if (loop) {
+      try {
+        // Detach FIRST so the loop's final best-effort bandit snapshot save
+        // happens before the engine (and its event stream) is torn down.
+        await loop.detach();
+      } catch {
+        /* best-effort teardown */
+      }
+    }
     if (!h) return;
     try {
       await h.close?.();
@@ -273,6 +310,25 @@ export class Sidecar {
     this.seenVerifications = 0;
 
     this.subscribe(built);
+
+    // Attach the self-improving routing loop against the engine's RAW
+    // emitter (multi-arg task events), when both sides are wired. Honest
+    // failure mode: a log line, never a dead runtime. When the handle has no
+    // raw emitter (a minimal fake), nothing attaches and nothing pretends to.
+    if (this.learning && built.swarm) {
+      try {
+        this.learningLoop = await this.learning(built.swarm);
+        this.safeEmit({
+          kind: "log",
+          line: "learning: swarm outcome feed attached to the shared route bandit",
+          at: this.now(),
+        });
+      } catch (err) {
+        this.learningLoop = undefined;
+        this.safeEmit({ kind: "log", line: `learning attach failed: ${errMsg(err)}`, at: this.now() });
+      }
+    }
+
     this.safeEmit({ kind: "runtime.status", running: true, mode: cmd.mode, poolSize: cmd.poolSize });
     if (this.inference) {
       this.safeEmit({
@@ -445,9 +501,14 @@ export class Sidecar {
  *   sidecar's `PROGRESS_EVENTS` subscription drives real-time re-polling.
  * - `close` -> `built.stop()`, which calls `manager.shutdown()`.
  */
-export function realSwarmFactory(): SwarmFactory {
+export function realSwarmFactory(opts: {
+  /** Threaded through to `buildSwarm`'s provider-decoration seam (process/
+   *  docker modes): central wiring passes `RealFleet.decorateProvider` so
+   *  every actually-spawned worker gets real backend attribution. */
+  decorateProvider?: (provider: ContainerProvider, mode: "process" | "docker") => ContainerProvider;
+} = {}): SwarmFactory {
   return async ({ mode, poolSize }) => {
-    const built = await buildSwarm({ mode, poolSize });
+    const built = await buildSwarm({ mode, poolSize, decorateProvider: opts.decorateProvider });
     await built.start();
     const manager = built.manager;
     const emitter = manager as unknown as EventEmitter;
@@ -477,6 +538,12 @@ export function realSwarmFactory(): SwarmFactory {
       },
       on(event: string, cb: (payload: unknown) => void) {
         emitter.on(event, (...args: unknown[]) => cb(args.length <= 1 ? args[0] : args));
+      },
+      // The RAW emitter, arity-preserving — what the learning loop attaches
+      // to (its `task:verified` handler needs the `(task, report)` pair).
+      swarm: {
+        on: (event: string, listener: (...args: unknown[]) => void) => emitter.on(event, listener),
+        off: (event: string, listener: (...args: unknown[]) => void) => emitter.off(event, listener),
       },
       async close() {
         await built.stop();

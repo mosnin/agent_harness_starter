@@ -51,12 +51,17 @@ import { DockerBackend } from "../../hades/backends/docker";
 import { BackendProvenanceLedger, ledgerEventSink } from "../../hades/backends/provenance";
 import { HandleStore } from "../../hades/backends/handle-store";
 import { FleetSupervisor, type ProvisionDriver } from "../../hades/backends/fleet-supervisor";
-import { CostAwareRouteBandit, type RouteBanditState } from "../../hades/backends/route-bandit";
+import { CostAwareRouteBandit, type RouteBanditState, type BanditArm } from "../../hades/backends/route-bandit";
 import {
   BanditRoutedProvisioner,
   type BanditSnapshotStore,
   type ProvisionDecision,
 } from "../../hades/backends/bandit-provisioner";
+import { WorkerAttributionRegistry, resolveBackendForTask } from "../../hades/backends/worker-attribution";
+import { AttributedContainerProvider } from "../../hades/backends/fleet-provider";
+import { SwarmLearningLoop, type SwarmLearningEvent } from "../../hades/backends/swarm-learning";
+import type { SwarmManagerLike } from "../../hades/backends/outcome-feed";
+import type { ContainerProvider } from "../../swarm-runtime/types";
 import { loadConfig } from "../../hades/config/config";
 import { FleetService } from "./fleet-service";
 import type { FleetPort } from "./fleet-service";
@@ -93,6 +98,33 @@ export interface RealFleet {
   manager: BackendManager;
   supervisor: FleetSupervisor;
   ledger: BackendProvenanceLedger;
+  /** Durable workerId -> backend attribution, populated by
+   *  {@link RealFleet.decorateProvider}'s real spawn-path decoration and
+   *  consumed by {@link RealFleet.attachLearning}'s `resolveBackend`. */
+  attribution: WorkerAttributionRegistry;
+  /**
+   * Decorate a REAL swarm `ContainerProvider` (LocalProcessProvider /
+   * DockerProvider — see `src/swarm-runtime/server/build-swarm.ts`'s
+   * `decorateProvider` seam) with `AttributedContainerProvider`, so every
+   * worker the swarm actually spawns is (a) attributed to its backend in
+   * {@link RealFleet.attribution} and (b) adopted into the manager's live
+   * registry alongside remotely-provisioned workers. The inner provider's
+   * spawn/stop/liveness behavior is unchanged.
+   */
+  decorateProvider(inner: ContainerProvider, mode: "process" | "docker"): ContainerProvider;
+  /**
+   * Attach the self-improving routing loop to a real swarm: the SAME
+   * `CostAwareRouteBandit` instance the bandit-routed provisioner uses (one
+   * shared learned history — outcomes recorded here immediately influence
+   * the next `fleet.provision` routing decision, and persist to the shared
+   * `<dataDir>/route-bandit.json`). Task -> backend attribution comes from
+   * {@link RealFleet.attribution} via `resolveBackendForTask` — an
+   * unattributed task is honestly skipped, never guessed.
+   */
+  attachLearning(swarm: SwarmManagerLike, onEvent?: (e: SwarmLearningEvent) => void): Promise<SwarmLearningLoop>;
+  /** The route bandit's live `arms()` snapshot (hydrates the shared bandit
+   *  lazily, exactly like the first provision would). */
+  routeBanditArms(): Promise<Record<string, BanditArm>>;
   /** Best-effort crash recovery: load + probe the persisted fleet and ADOPT
    *  every trustworthy handle back into the live registry (see
    *  `src/hades/backends/adoption.ts`). Never throws (a failed restore
@@ -177,29 +209,40 @@ export function createRealFleet(opts: RealFleetOptions = {}): RealFleet {
   manager.register(new LocalProcessBackend({ name: "local" }), localDescriptor);
   manager.register(new DockerBackend({ name: "docker" }), dockerDescriptor);
 
-  // Lazy bandit-routed provision driver: the bandit (and its persisted
+  // Lazy shared bandit rig: ONE `CostAwareRouteBandit` (and its persisted
   // learned history at <dataDir>/route-bandit.json — the SAME file
-  // `hades backends route` uses) is only constructed on the first provision.
-  let provisionerPromise: Promise<BanditRoutedProvisioner> | undefined;
-  const getProvisioner = (): Promise<BanditRoutedProvisioner> => {
-    provisionerPromise ??= (async () => {
-      const banditStore = persist ? fileBanditSnapshotStore(`${dataDir}/route-bandit.json`) : undefined;
-      const persisted = banditStore ? await banditStore.load() : undefined;
+  // `hades backends route` uses) shared between the bandit-routed provision
+  // driver and the swarm learning loop, only constructed on first use so
+  // building the fleet never reads a file unasked. Sharing the instance is
+  // what actually closes the loop: an outcome the learning feed records is
+  // visible to the very next provision's routing decision.
+  let banditRigPromise:
+    | Promise<{ bandit: CostAwareRouteBandit; store?: BanditSnapshotStore; provisioner: BanditRoutedProvisioner }>
+    | undefined;
+  const getBanditRig = (): NonNullable<typeof banditRigPromise> => {
+    banditRigPromise ??= (async () => {
+      const store = persist ? fileBanditSnapshotStore(`${dataDir}/route-bandit.json`) : undefined;
+      const persisted = store ? await store.load() : undefined;
       // fromState validates defensively: a corrupt file degrades to a fresh
       // (empty-history) bandit, never a crash.
       const bandit = CostAwareRouteBandit.fromState({ manager }, persisted);
-      return new BanditRoutedProvisioner({
+      const provisioner = new BanditRoutedProvisioner({
         manager,
         bandit,
-        ...(banditStore ? { store: banditStore } : {}),
+        ...(store ? { store } : {}),
         now,
       });
+      return { bandit, store, provisioner };
     })();
-    return provisionerPromise;
+    return banditRigPromise;
   };
   const provisionDriver: ProvisionDriver = {
-    provision: async (spec, r) => (await getProvisioner()).provision(spec, r),
+    provision: async (spec, r) => (await getBanditRig()).provisioner.provision(spec, r),
   };
+
+  // Real worker attribution (workerId -> backend), fed by decorateProvider's
+  // spawn-path decoration and read by attachLearning's resolveBackend.
+  const attribution = new WorkerAttributionRegistry({ now });
 
   const supervisor = new FleetSupervisor({
     manager,
@@ -227,7 +270,12 @@ export function createRealFleet(opts: RealFleetOptions = {}): RealFleet {
   // runs, never fabricated as an empty restore (see FleetProvisionPort's
   // restoredView contract).
   let restoredView:
-    | { workers: FleetWorkerView[]; adoptedIds: string[]; dropped: Array<{ workerId: string; reason: string }> }
+    | {
+        workers: FleetWorkerView[];
+        adoptedIds: string[];
+        dropped: Array<{ workerId: string; reason: string }>;
+        conflicts: Array<{ workerId: string; reason: string }>;
+      }
     | undefined;
 
   const provisionPort: FleetProvisionPort = {
@@ -287,6 +335,34 @@ export function createRealFleet(opts: RealFleetOptions = {}): RealFleet {
     manager,
     supervisor,
     ledger,
+    attribution,
+    decorateProvider(inner: ContainerProvider, mode: "process" | "docker"): ContainerProvider {
+      return new AttributedContainerProvider({
+        inner,
+        // The swarm's process mode runs on the same "local" backend the
+        // manager registers above; docker mode on "docker" — real names of
+        // real registered backends, never invented labels.
+        backendName: mode === "docker" ? "docker" : "local",
+        registry: attribution,
+        tracking: manager.registry,
+        now,
+      });
+    },
+    async attachLearning(swarm: SwarmManagerLike, onEvent?: (e: SwarmLearningEvent) => void): Promise<SwarmLearningLoop> {
+      const rig = await getBanditRig();
+      return SwarmLearningLoop.attach({
+        manager,
+        swarm,
+        resolveBackend: resolveBackendForTask(attribution),
+        bandit: rig.bandit,
+        ...(rig.store ? { store: rig.store } : {}),
+        now,
+        ...(onEvent ? { onEvent } : {}),
+      });
+    },
+    async routeBanditArms(): Promise<Record<string, BanditArm>> {
+      return (await getBanditRig()).bandit.arms();
+    },
     async restore() {
       try {
         const report = await supervisor.restore();
@@ -305,11 +381,16 @@ export function createRealFleet(opts: RealFleetOptions = {}): RealFleet {
             ),
             adoptedIds: report.adoption.adopted.map((h) => h.workerId),
             // Everything probed-but-not-adopted, with its verbatim reason:
-            // genuinely dropped handles plus already-live conflicts.
+            // genuinely dropped handles plus already-live conflicts (kept in
+            // `dropped` for wire back-compat with older provision panels).
             dropped: [
               ...report.adoption.dropped.map((d) => ({ workerId: d.workerId, reason: d.reason })),
               ...report.adoption.conflicts.map((c) => ({ workerId: c.workerId, reason: c.reason })),
             ],
+            // Conflicts ALSO surfaced as their own lane so the desktop's
+            // conflicts view can offer the real rename-and-provision
+            // remediation (see `./fleet-conflicts.ts`).
+            conflicts: report.adoption.conflicts.map((c) => ({ workerId: c.workerId, reason: c.reason })),
           };
         }
       } catch {
