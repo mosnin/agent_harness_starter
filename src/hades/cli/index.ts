@@ -6,6 +6,14 @@ export { runExecCommand } from "./exec-command";
 export type { ExecCommandResult, ExecCommandOptions } from "./exec-command";
 export { runToolsCommand } from "./tools-command";
 export type { ToolsCommandDeps } from "./tools-command";
+export { runBackendsCommand } from "./backends-command";
+export type { BackendsCommandDeps, BanditStateStore } from "./backends-command";
+export { runReconcileAdoptCommand } from "./backends-adopt-command";
+export type { AdoptCommandDeps } from "./backends-adopt-command";
+export { runShowdownCommand } from "./showdown-command";
+export type { ShowdownCommandDeps, ShowdownCommandResult, ShowdownCommandFsDeps } from "./showdown-command";
+export { runSkillsHubCommand } from "./skills-hub-command";
+export type { SkillsHubDeps, SkillsHubCommandResult } from "./skills-hub-command";
 export { buildBrowserCommand } from "./browser-command";
 export type {
   BrowserCliDeps,

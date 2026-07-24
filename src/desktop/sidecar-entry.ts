@@ -29,6 +29,7 @@ import {
   type SwarmFactory,
   type SkillsHandler,
   type FleetHandler,
+  type FleetProvisionHandler,
   type InferenceInfo,
 } from "./core/sidecar";
 import { SkillsService } from "./core/skills-service";
@@ -46,6 +47,12 @@ export interface RunSidecarOptions {
    *  over the real `BackendManager` + `FleetSupervisor` (local + docker
    *  backends, crash-consistent persistence at `<dataDir>/fleet.json`). */
   fleet?: FleetHandler;
+  /** Real fleet-provision backend (`fleet.provision` + `fleet.restored`);
+   *  defaults to {@link createRealFleet}'s `FleetProvisionService` (bandit-
+   *  routed backend selection + registry adoption on restore) whenever
+   *  `fleet` is also defaulted. Injecting `fleet` without `provision` leaves
+   *  provisioning honestly unconfigured (the sidecar reports it as such). */
+  provision?: FleetProvisionHandler;
   /** Inference mode reported on start; defaults to {@link detectInference} over `process.env`. */
   inference?: InferenceInfo;
 }
@@ -101,13 +108,16 @@ export async function runSidecar(
   const now = opts.now ?? Date.now;
 
   let fleet = opts.fleet;
+  let provision = opts.provision;
   if (!fleet) {
-    // Real fleet stack (BackendManager + FleetSupervisor + HandleStore).
-    // Construction is side-effect free; restore() is a best-effort async
-    // crash-recovery pass that never throws and never blocks startup.
+    // Real fleet stack (BackendManager + FleetSupervisor + HandleStore +
+    // bandit-routed provisioning + registry adoption). Construction is
+    // side-effect free; restore() is a best-effort async crash-recovery pass
+    // (probe + adopt) that never throws and never blocks startup.
     const realFleet = createRealFleet({ now });
     void realFleet.restore();
     fleet = realFleet.service;
+    provision ??= realFleet.provision;
   }
 
   const sidecar = new Sidecar({
@@ -116,6 +126,7 @@ export async function runSidecar(
     emit: (event: AppEvent) => output(encodeEvent(event)),
     skills: opts.skills ?? new SkillsService(),
     fleet,
+    provision,
     inference: opts.inference ?? detectInference(),
   });
 

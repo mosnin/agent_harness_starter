@@ -253,6 +253,9 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     memoryGuard: memory,
     profile,
     backends,
+    // `hades skills hub` reads/writes the same on-disk skill library
+    // `hades skill` manages ($HADES_SKILLS_DIR wins, matching skills-command).
+    skillsDir: process.env.HADES_SKILLS_DIR ?? `${config.dataDir}/skills`,
     summarizeSession: async (sessionId) => {
       const session = sessions.get(sessionId);
       if (!session) throw new Error(`No such session: ${sessionId}`);

@@ -112,6 +112,25 @@ export class RemoteBackendRegistry {
     return [...this.handles.values()];
   }
 
+  /**
+   * Re-attach a handle that was provisioned by a PREVIOUS process (crash
+   * recovery — see `./adoption.ts`, whose `RegistryAdoptionPort` documents
+   * these exact locked semantics): inserts `handle` into the live handle map
+   * keyed by `handle.workerId`, exactly as if `provision()` had just produced
+   * it, so `status`/`hibernate`/`wake`/`terminate` work again for it. A
+   * `workerId` that is ALREADY live is a programmer error, never a silent
+   * overwrite: this throws instead of replacing the existing entry.
+   * Synchronous and side-effect-free beyond the one insertion — no probing,
+   * no lifecycle interaction, no persistence (those are the adoption
+   * service's job, layered on top).
+   */
+  adopt(handle: RemoteHandle): void {
+    if (this.handles.has(handle.workerId)) {
+      throw new Error(`adopt: workerId already live in the registry: ${handle.workerId}`);
+    }
+    this.handles.set(handle.workerId, handle);
+  }
+
   private backendFor(handle: RemoteHandle): RemoteBackend {
     const b = this.backends.get(handle.backend);
     if (!b) throw new Error(`Backend gone: ${handle.backend}`);

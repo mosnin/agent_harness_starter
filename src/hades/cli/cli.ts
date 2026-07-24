@@ -23,6 +23,9 @@ import { runProfileCommand } from "./profile-command";
 import type { ProfileCommandDeps } from "./profile-command";
 import { runBackendsCommand } from "./backends-command";
 import type { BackendsCommandDeps } from "./backends-command";
+import { runShowdownCommand } from "./showdown-command";
+import { runSkillsHubCommand } from "./skills-hub-command";
+import { join } from "node:path";
 
 export interface CliResult {
   code: number;
@@ -54,6 +57,10 @@ export interface HadesCliDeps {
    *  docker) unless a backends subcommand is actually run; the result is
    *  cached after the first call so repeated subcommands share one fleet. */
   backends?: () => BackendsCommandDeps;
+  /** Skill-library directory for `hades skills hub` (agentskills.io interop).
+   *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
+   *  the same convention `hades skill` uses. */
+  skillsDir?: string;
   trajectories?: InMemoryTrajectoryStore;
   /** Role catalog for `hades team`. */
   roles?: RoleRegistry;
@@ -66,7 +73,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "profile", "backends", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -113,6 +120,8 @@ export class HadesCli {
         return this.profile(rest);
       case "backends":
         return this.backends(rest);
+      case "showdown":
+        return runShowdownCommand(rest);
       case "learn":
         return this.learn(rest);
       case "team":
@@ -156,6 +165,8 @@ export class HadesCli {
         "  gateway              Start the messaging gateway (Slack/Telegram/…)",
         "  model [use <id>]     Show or switch the active model",
         "  skills [packs]       List skills / available skill packs",
+        "  skills hub <sub>     agentskills.io interop: import/export/check skill",
+        "                       packages (injection-scanned, path-traversal-safe)",
         "  plugins [list]       List available plugins",
         "  memory <sub>         Search facts + past sessions (FTS), timeline/show/summarize,",
         "                       guard flags, add (search/timeline/show/summarize/flags/add)",
@@ -167,6 +178,8 @@ export class HadesCli {
         "  team <roles|plan>    List roles / preview a team for an objective",
         "  hierarchy <sub>      Swarm benchmarks: head-to-head/makespan/chaos/fuzz/stats",
         "  bench vtph           Verified-tasks-per-hour-per-dollar scoreboard",
+        "  showdown <sub>       Swarm vs self-trusting baseline (run/verify) — the honest,",
+        "                       hash-chain-audited V-TPH$ scoreboard demo",
         "  skill <sub>          Create/list/validate SKILL.md skills (new/list/show/validate)",
         "  tools <sub>          List/enable/disable the tool catalog (list/enable/disable/info)",
         "  exec <run|bench>     Run one program that chains tools (JS/Python, STYX-traced)",
@@ -225,8 +238,17 @@ export class HadesCli {
     return { code: res.ok ? 0 : 1, lines: res.lines };
   }
 
-  private skills(args: string[]): CliResult {
+  private skills(args: string[]): Promise<CliResult> | CliResult {
     const [sub] = args;
+    if (sub === "hub") {
+      // agentskills.io / open-skill-format interop: import/export/check skill
+      // packages against the on-disk skill library (`hades skill`'s dir).
+      const libraryDir =
+        this.deps.skillsDir ??
+        process.env.HADES_SKILLS_DIR ??
+        join(process.env.HADES_DATA_DIR ?? ".hades", "skills");
+      return runSkillsHubCommand(args.slice(1), { libraryDir });
+    }
     if (sub === "packs") {
       if (!this.deps.skillPacks) return { code: 1, lines: ["No skill-pack catalog configured."] };
       const packs = this.deps.skillPacks.list();

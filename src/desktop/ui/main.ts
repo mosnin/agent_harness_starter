@@ -22,6 +22,7 @@ import "./run-view.css";
 import "./trust-view.css";
 import "./skills-view.css";
 import "./fleet-view.css";
+import "./fleet-provision-view.css";
 
 import { mountApp } from "./renderer";
 import { tauriBridge, devBridge } from "./bridge";

@@ -33,7 +33,9 @@ import { renderVtphPanel } from "./vtph-panel";
 import type { VtphInput } from "./vtph-panel";
 import { initialFleetState, applyFleetEvent, renderFleetView } from "./fleet-view";
 import type { FleetViewState } from "./fleet-view";
-import type { FleetEvent } from "../ipc/contract";
+import { createFleetProvisionView } from "./fleet-provision-view";
+import type { FleetProvisionViewHandle, FleetProvisionWire } from "./fleet-provision-view";
+import type { FleetEvent, FleetProvisionEvent } from "../ipc/contract";
 import {
   initialPaletteState,
   paletteReduce,
@@ -82,6 +84,14 @@ interface ViewExt {
 function asFleetEvent(ev: { kind: string }): FleetEvent | null {
   return ev.kind === "fleet.snapshot" || ev.kind === "fleet.worker.upsert" || ev.kind === "fleet.error"
     ? (ev as FleetEvent)
+    : null;
+}
+
+/** Narrow an AppEvent to the fleet-provision slice of the union (consumed by
+ *  the provision panel's own live-DOM view, not by the app-store reducer). */
+function asFleetProvisionEvent(ev: { kind: string }): FleetProvisionEvent | null {
+  return ev.kind === "fleet.provisioned" || ev.kind === "fleet.provision.error" || ev.kind === "fleet.restored"
+    ? (ev as FleetProvisionEvent)
     : null;
 }
 
@@ -165,7 +175,11 @@ function contentFor(nav: NavKey, state: AppState, ext: ViewExt): string {
     case "workers":
       return renderWorkersView(state);
     case "fleet":
-      return renderFleetView(ext.fleet);
+      // The provision panel is a persistent live-DOM view (it owns typed
+      // form state), so the string renderer only emits a stable host node;
+      // mountApp re-parents the panel's real DOM into it after each render.
+      return `${renderFleetView(ext.fleet)}
+      <div id="fleet-provision-host" class="fleet-provision-host" data-testid="fleet-provision-host"></div>`;
     case "compare":
       return renderCompareView(ext);
     case "metrics":
@@ -407,10 +421,60 @@ export function mountApp(root: HTMLElement, bridge: Bridge): AppController {
   // so focus + caret can be restored across the full-innerHTML re-render.
   let restorePaletteFocus = false;
 
+  // The fleet-provision panel is a persistent live-DOM view
+  // (`./fleet-provision-view.ts`): it owns typed form state (worker id,
+  // capability chips, ...) that a full-innerHTML re-render would destroy, so
+  // it is built ONCE into a detached element and re-parented into the fleet
+  // view's `#fleet-provision-host` after every render — moving an existing
+  // DOM node preserves its input state.
+  let provisionPanel: HTMLElement | null = null;
+  let provisionHandle: FleetProvisionViewHandle | null = null;
+  function ensureProvisionPanel(): HTMLElement | null {
+    if (provisionPanel) return provisionPanel;
+    try {
+      const panel = document.createElement("div");
+      const wire: FleetProvisionWire = {
+        send(cmd) {
+          try {
+            bridge.send(cmd);
+          } catch {
+            // A throwing bridge must never crash the provision panel.
+          }
+        },
+        onEvent(cb) {
+          return bridge.onEvent((ev) => {
+            const provisionEv = asFleetProvisionEvent(ev);
+            if (provisionEv) cb(provisionEv);
+          });
+        },
+      };
+      provisionHandle = createFleetProvisionView(panel, wire);
+      provisionPanel = panel;
+    } catch {
+      // A non-DOM environment (or a view bug) must never break the shell;
+      // the fleet view simply renders without the provision panel.
+      provisionPanel = null;
+      provisionHandle = null;
+    }
+    return provisionPanel;
+  }
+
+  function reparentProvisionPanel(): void {
+    try {
+      const host = root.querySelector("#fleet-provision-host");
+      if (!host) return;
+      const panel = ensureProvisionPanel();
+      if (panel) host.appendChild(panel);
+    } catch {
+      // no-op if root isn't a real DOM node
+    }
+  }
+
   const app = createApp(bridge, {
     onRender(nextHtml) {
       try {
         root.innerHTML = nextHtml;
+        reparentProvisionPanel();
         if (restorePaletteFocus) {
           const field = root.querySelector('[data-palette-field="query"]') as
             | HTMLInputElement
@@ -562,6 +626,13 @@ export function mountApp(root: HTMLElement, bridge: Bridge): AppController {
       } catch {
         // no-op
       }
+      try {
+        provisionHandle?.destroy();
+      } catch {
+        // no-op
+      }
+      provisionHandle = null;
+      provisionPanel = null;
       app.destroy();
     },
   };

@@ -139,6 +139,14 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
     case "fleet.error":
       return state;
 
+    // Fleet-provision events are owned by the provision view's own live-DOM
+    // panel (`../ui/fleet-provision-view.ts`), which subscribes to the wire
+    // directly — they deliberately do not touch the swarm app state either.
+    case "fleet.provisioned":
+    case "fleet.provision.error":
+    case "fleet.restored":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.

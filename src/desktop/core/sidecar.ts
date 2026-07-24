@@ -21,6 +21,8 @@ import type {
   Command,
   FleetCommand,
   FleetEvent,
+  FleetProvisionCommand,
+  FleetProvisionEvent,
   MetricsView,
   RunView,
   TaskView,
@@ -76,6 +78,21 @@ export interface FleetHandler {
   handle(cmd: FleetCommand): Promise<FleetEvent[]>;
 }
 
+/**
+ * Handles `fleet.provision` commands, returning the `FleetProvisionEvent`s to
+ * emit. Structurally matches `FleetProvisionService` (`./fleet-provision-service.ts`)
+ * so central wiring can pass a real service backed by the bandit-routed
+ * provisioner + `FleetSupervisor` + registry adoption (see `./fleet-wiring.ts`);
+ * left undefined, a provision command reports an honest `fleet.provision.error`
+ * instead of hanging the caller. `restoredSnapshot()` is emitted once per
+ * `runtime.start` when a crash-recovery restore actually ran (`undefined`
+ * means none did — nothing is emitted, never an empty fabricated restore).
+ */
+export interface FleetProvisionHandler {
+  handle(cmd: FleetProvisionCommand): Promise<FleetProvisionEvent[]>;
+  restoredSnapshot(): Promise<FleetProvisionEvent | undefined>;
+}
+
 /** Truthful description of what inference backs this run — surfaced as a startup log. */
 export interface InferenceInfo {
   kind: "real" | "mock";
@@ -91,6 +108,10 @@ export interface SidecarOptions {
   skills?: SkillsHandler;
   /** Real fleet backend; when set, `fleet.*` commands do real work. */
   fleet?: FleetHandler;
+  /** Real fleet-provision backend; when set, `fleet.provision` does real work
+   *  and a real crash-recovery restore (if one ran) is reported once per
+   *  `runtime.start` as a `fleet.restored` event. */
+  provision?: FleetProvisionHandler;
   /** When set, an honest inference-mode line is logged on `runtime.start`. */
   inference?: InferenceInfo;
 }
@@ -126,6 +147,7 @@ export class Sidecar {
   private readonly now: () => number;
   private readonly skills?: SkillsHandler;
   private readonly fleet?: FleetHandler;
+  private readonly provision?: FleetProvisionHandler;
   private readonly inference?: InferenceInfo;
 
   private mode: "inline" | "process" | "docker" = "inline";
@@ -144,6 +166,7 @@ export class Sidecar {
     this.now = opts.now ?? Date.now;
     this.skills = opts.skills;
     this.fleet = opts.fleet;
+    this.provision = opts.provision;
     this.inference = opts.inference;
   }
 
@@ -196,6 +219,22 @@ export class Sidecar {
             });
           }
           return;
+        case "fleet.provision":
+          // Central wiring hands us a real FleetProvisionService
+          // (fleet-wiring.ts). Without one, reply with an honest
+          // fleet.provision.error carrying the request's own id, so the
+          // provision panel's pending row resolves instead of spinning.
+          if (this.provision) {
+            for (const ev of await this.provision.handle(cmd)) this.safeEmit(ev);
+          } else {
+            this.safeEmit({
+              kind: "fleet.provision.error",
+              requestId: cmd.requestId,
+              message: "fleet provisioning is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
         default: {
           const exhaustive: never = cmd;
           return exhaustive;
@@ -241,6 +280,18 @@ export class Sidecar {
         line: `inference: ${this.inference.kind} (${this.inference.detail})`,
         at: this.now(),
       });
+    }
+    // Report whatever crash-recovery restore actually ran against the real
+    // fleet (fleet-wiring.ts's restoreWithAdoption pass). `undefined` means
+    // no restore happened — nothing is emitted, never an empty fabricated
+    // "restored nothing" claim. A throwing handler degrades to a log line.
+    if (this.provision) {
+      try {
+        const restored = await this.provision.restoredSnapshot();
+        if (restored) this.safeEmit(restored);
+      } catch (err) {
+        this.safeEmit({ kind: "log", line: `fleet restore snapshot failed: ${errMsg(err)}`, at: this.now() });
+      }
     }
     this.poll();
   }

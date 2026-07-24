@@ -39,6 +39,7 @@ import type { HandleStore } from "../backends/handle-store";
 import type { LifecycleState } from "../backends/lifecycle";
 import type { BackendProvenanceLedger } from "../backends/provenance";
 import { CostAwareRouteBandit, type RouteBanditState } from "../backends/route-bandit";
+import { runReconcileAdoptCommand } from "./backends-adopt-command";
 
 /** Persistence seam for the routing bandit's learned history (`hades backends
  *  route ...`). `load()` returns whatever was last saved (or `undefined`);
@@ -84,7 +85,9 @@ const USAGE = [
   "  sweep                                    Hibernate every idle-too-long worker",
   "  logs <workerId> [--tail N]               Recent logs for a worker",
   "  verify                                   Verify the provenance chain",
-  "  reconcile                                Probe the persisted fleet against runtime truth",
+  "  reconcile [--adopt|--dry-run] [--json]   Probe the persisted fleet against runtime truth;",
+  "                                           --adopt re-attaches every trustworthy handle to",
+  "                                           the live registry (default is a dry run)",
   "  route choose [--cap a,b] [--max-usd N]",
   "               [--require-hibernate]",
   "               [--exclude a,b]             Pick a backend via the cost-aware UCB1 bandit",
@@ -769,7 +772,18 @@ export async function runBackendsCommand(args: string[], deps: BackendsCommandDe
       case "verify":
         return cmdVerify(deps);
       case "reconcile":
-        return await cmdReconcile(deps);
+        // Bare `reconcile` keeps its original read-only probe report;
+        // any flag (`--adopt`/`--dry-run`/`--json`) routes to the
+        // adoption-capable sibling command (./backends-adopt-command.ts),
+        // whose registry seam is satisfied by the real
+        // `RemoteBackendRegistry.adopt` (../backends/backend.ts).
+        return rest.length === 0
+          ? await cmdReconcile(deps)
+          : await runReconcileAdoptCommand(rest, {
+              ...(deps.store ? { store: deps.store } : {}),
+              registry: deps.manager.registry,
+              ...(deps.now ? { now: deps.now } : {}),
+            });
       case "route":
         return await cmdRoute(deps, rest);
       default:

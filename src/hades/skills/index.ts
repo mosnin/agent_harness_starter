@@ -18,3 +18,15 @@ export {
 export type { SkillManifest, ParseResult } from "./skill-file";
 export { SkillLibrary } from "./library";
 export type { LoadedSkill, LoadReport } from "./library";
+// agentskills.io / open-skill-format interop (`hades skills hub`).
+export { parseAgentSkill, toHadesManifest, fromHadesManifest } from "./agentskills-compat";
+export type { AgentSkillsManifest, AgentSkillParseResult } from "./agentskills-compat";
+export {
+  defaultHubFs,
+  scanSkillInstructions,
+  importSkillPackage,
+  exportSkillPackage,
+  DEFAULT_MAX_FILE_BYTES,
+  DEFAULT_MAX_TOTAL_BYTES,
+} from "./hub-package";
+export type { HubFs, HubDirEntry, HubStat, ImportReport, ImportSkillPackageOptions } from "./hub-package";

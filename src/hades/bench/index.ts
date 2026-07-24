@@ -40,4 +40,9 @@ export { runChaosSuite, makeInstantTimer } from "./chaos-suite";
 export type { ChaosScenarioResult, ChaosSuiteReport } from "./chaos-suite";
 export { runVtph, compareVtph } from "./vtph";
 export type { EvalTask, AgentRunResult, AgentRunner, VtphReport } from "./vtph";
+// `hades showdown` — swarm vs self-trusting baseline, hash-chain audited.
+export { generateShowdownSuite, verifyAuditChain, runShowdown } from "./showdown";
+export type { ShowdownFamily, ShowdownMode, ShowdownOptions, AuditRecord, ShowdownResult } from "./showdown";
+export { renderShowdownText, renderShowdownMarkdown, writeShowdownArtifacts } from "./showdown-report";
+export type { ShowdownFsDeps } from "./showdown-report";
 export { EVAL_TASKS, EVAL_CATEGORIES, tasksByCategory, decomposableTasks } from "./eval-suite";

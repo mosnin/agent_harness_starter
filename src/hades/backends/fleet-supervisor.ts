@@ -45,12 +45,30 @@ import {
 import { HandleStore, type ReconcileReport } from "./handle-store";
 import type { ProvisionResult, RemoteHandle, RemoteSpec } from "./backend";
 import type { BackendRequirements } from "./descriptor";
+import { restoreWithAdoption, type AdoptionReport } from "./adoption";
+
+/**
+ * How `provision()` actually drives a backend. Defaults to the supervisor's
+ * own `BackendManager` (which satisfies this shape directly); central wiring
+ * can inject a `BanditRoutedProvisioner` (`./bandit-provisioner.ts`) here so
+ * backend selection is learned (cost-aware UCB1) instead of statically
+ * scored — the supervisor's tracking/persistence discipline is identical
+ * either way, and the returned object is passed through unchanged (so a
+ * driver that decorates `ProvisionResult` with routing metadata keeps it).
+ */
+export interface ProvisionDriver {
+  provision(spec: RemoteSpec, r?: BackendRequirements): Promise<ProvisionResult>;
+}
 
 export interface FleetSupervisorOptions {
   /** The real backend substrate. Required — FleetSupervisor never
    *  constructs its own BackendManager, since the caller owns backend
    *  registration/descriptors. */
   manager: BackendManager;
+  /** Optional provision driver (see {@link ProvisionDriver}); defaults to
+   *  `manager` itself. Only `provision()` goes through it — hibernate/wake/
+   *  terminate/status always talk to `manager` directly. */
+  provisioner?: ProvisionDriver;
   /** Injectable so callers/tests can supply a machine with a fake clock and
    *  instant sleep. Defaults to `new LifecycleMachine({ now })`. */
   machine?: LifecycleMachine;
@@ -91,6 +109,7 @@ function errMsg(err: unknown): string {
 
 export class FleetSupervisor {
   private readonly manager: BackendManager;
+  private readonly provisioner: ProvisionDriver;
   private readonly machine: LifecycleMachine;
   private readonly store?: HandleStore;
   private readonly now: () => number;
@@ -106,6 +125,7 @@ export class FleetSupervisor {
       throw new TypeError("FleetSupervisor: opts.manager is required");
     }
     this.manager = opts.manager;
+    this.provisioner = opts.provisioner ?? opts.manager;
     this.now = opts.now ?? (() => Date.now());
     this.machine = opts.machine ?? new LifecycleMachine({ now: this.now });
     this.store = opts.store;
@@ -141,7 +161,7 @@ export class FleetSupervisor {
    * id works exactly like a first provision), then persisted.
    */
   async provision(spec: RemoteSpec, r?: BackendRequirements): Promise<ProvisionResult> {
-    const result = await this.manager.provision(spec, r);
+    const result = await this.provisioner.provision(spec, r);
     const workerId = result.handle.workerId;
     this.trackWorker(workerId, "provisioning");
     this.machine.transition(workerId, "running", "provisioned");
@@ -300,27 +320,50 @@ export class FleetSupervisor {
   }
 
   /**
-   * Restore the fleet after a process restart: `store.load()` the last
-   * saved envelope, `store.reconcile()` it against the REAL backend
-   * registry (probed truth wins over whatever was stored), then re-track
-   * every successfully-probed handle in `machine` mapping its probed
+   * Restore the fleet after a process restart, via the single shared
+   * restart path {@link restoreWithAdoption} (`./adoption.ts`): load the
+   * last persisted envelope, probe every stored handle against the REAL
+   * backend behind it (probed truth wins over whatever was stored — every
+   * handle is probed exactly once), ADOPT every trustworthy one back into
+   * the live `manager.registry` (so `status`/`hibernate`/`wake`/`terminate`
+   * work again for workers provisioned by the previous process — restored
+   * workers are resurrected, not just reported), and re-track every
+   * successfully-probed handle in `machine` mapping its probed
    * `RemoteState` 1:1 into `LifecycleState` — EXCEPT that a handle whose
    * *persisted* lifecycle entry was the transient `"hibernating"` or
    * `"waking"` is downgraded to `"failed"` regardless of what the probe
    * reports (a crash mid-transition is a failure, not a state to trust —
    * see {@link TRANSIENT_LIFECYCLE_STATES}).
    *
-   * Handles `store.reconcile` dropped (unknown backend, a throwing probe, a
+   * Tracking policy (unchanged from before adoption existed): every
+   * successfully-probed handle is tracked, INCLUDING ones whose probed
+   * state is terminal (`"stopped"`/`"failed"`) — those are real, observed
+   * states worth surfacing in `lifecycleMap()` even though the adoption
+   * pass deliberately never re-attaches a terminal worker to the registry
+   * (see `adoption.ts`'s decision table; they land in
+   * `report.adoption.dropped` with an explicit reason).
+   *
+   * Handles the probe pass dropped (unknown backend, a throwing probe, a
    * malformed entry) are never tracked. Returns `undefined` (doing nothing
    * else) when no store is configured, or when there is nothing persisted
-   * yet (`store.load()` returns `undefined` — e.g. first run).
+   * yet (`store.load()` returns `undefined` — e.g. first run). Otherwise
+   * returns the familiar `ReconcileReport` shape, decorated with the
+   * `adoption` partition describing what was actually re-attached.
    */
-  async restore(): Promise<ReconcileReport | undefined> {
+  async restore(): Promise<(ReconcileReport & { adoption: AdoptionReport }) | undefined> {
     if (!this.store) return undefined;
     const fleet = await this.store.load();
     if (!fleet) return undefined;
 
-    const report = await this.store.reconcile(fleet, this.manager.registry);
+    const result = await restoreWithAdoption({
+      store: this.store,
+      registry: this.manager.registry,
+      now: this.now,
+    });
+    // The file vanished/was quarantined between the two loads — treat it
+    // exactly like "nothing persisted".
+    if (!result) return undefined;
+    const report = result.reconcile;
 
     for (const handle of report.restored) {
       const persisted = fleet.lifecycle[handle.workerId];
@@ -334,8 +377,10 @@ export class FleetSupervisor {
         restored: report.restored.length,
         corrected: report.corrected.length,
         dropped: report.dropped.length,
+        adopted: result.adoption.adopted.length,
+        conflicts: result.adoption.conflicts.length,
       },
     });
-    return report;
+    return { ...report, adoption: result.adoption };
   }
 }

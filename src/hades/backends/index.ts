@@ -56,7 +56,18 @@ export type { LifecycleState, LifecycleEvent, LifecycleMachineOptions } from "./
 export { HANDLE_STORE_VERSION, HandleStore } from "./handle-store";
 export type { HandleStoreFs, PersistedFleet, HandleStoreOptions, ReconcileReport } from "./handle-store";
 export { FleetSupervisor } from "./fleet-supervisor";
-export type { FleetSupervisorOptions, FleetSupervisorEvent } from "./fleet-supervisor";
+export type { FleetSupervisorOptions, FleetSupervisorEvent, ProvisionDriver } from "./fleet-supervisor";
+export { HandleAdoptionService, restoreWithAdoption } from "./adoption";
+export type { RegistryAdoptionPort, AdoptionEvent, AdoptionReport } from "./adoption";
+export { BanditRoutedProvisioner } from "./bandit-provisioner";
+export type {
+  BanditSnapshotStore,
+  ProvisionDecision,
+  BanditProvisionerEvent,
+  BanditRoutedProvisionerOptions,
+} from "./bandit-provisioner";
+export { SwarmOutcomeFeed } from "./outcome-feed";
+export type { SwarmManagerLike, OutcomeFeedEvent, OutcomeFeedOptions } from "./outcome-feed";
 export { CostAwareRouteBandit, ROUTE_BANDIT_STATE_VERSION } from "./route-bandit";
 export type {
   RouteOutcome,
