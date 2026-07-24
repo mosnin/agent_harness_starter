@@ -23,6 +23,8 @@ import type {
   FleetEvent,
   FleetProvisionCommand,
   FleetProvisionEvent,
+  LearningCommand,
+  LearningEvent,
   MetricsView,
   RunView,
   TaskView,
@@ -107,6 +109,17 @@ export interface FleetProvisionHandler {
   restoredSnapshot(): Promise<FleetProvisionEvent | undefined>;
 }
 
+/**
+ * Handles `learning.get`, calling `emit` for every resulting `LearningEvent`.
+ * Structurally matches `LearningService.handle` (`./learning-service.ts`) so
+ * central wiring can pass a real service (live loop preferred, durable
+ * snapshot fallback); left undefined, a learning command reports an honest
+ * `learning.error` instead of hanging the caller.
+ */
+export interface LearningStatusHandler {
+  handle(cmd: LearningCommand, emit: (e: LearningEvent) => void): Promise<void>;
+}
+
 /** Truthful description of what inference backs this run — surfaced as a startup log. */
 export interface InferenceInfo {
   kind: "real" | "mock";
@@ -137,6 +150,12 @@ export interface SidecarOptions {
    * throwing attach degrades to an honest log line, never a dead runtime.
    */
   learning?: (swarm: NonNullable<SwarmHandle["swarm"]>) => Promise<{ detach(): Promise<void> }>;
+  /**
+   * Real learning-status backend for `learning.get`; when set, the desktop's
+   * learning card gets a real live-or-snapshot status. Left undefined, the
+   * command reports an honest `learning.error` rather than silence.
+   */
+  learningStatus?: LearningStatusHandler;
 }
 
 /**
@@ -173,6 +192,7 @@ export class Sidecar {
   private readonly provision?: FleetProvisionHandler;
   private readonly inference?: InferenceInfo;
   private readonly learning?: SidecarOptions["learning"];
+  private readonly learningStatus?: LearningStatusHandler;
   private learningLoop?: { detach(): Promise<void> };
 
   private mode: "inline" | "process" | "docker" = "inline";
@@ -194,6 +214,7 @@ export class Sidecar {
     this.provision = opts.provision;
     this.inference = opts.inference;
     this.learning = opts.learning;
+    this.learningStatus = opts.learningStatus;
   }
 
   /** Process one command. Never throws — a failure becomes a `log` event. */
@@ -257,6 +278,21 @@ export class Sidecar {
               kind: "fleet.provision.error",
               requestId: cmd.requestId,
               message: "fleet provisioning is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "learning.get":
+          // Central wiring hands us a real LearningStatusHandler
+          // (LearningService over the live loop / durable snapshot store).
+          // Without one, reply with an honest learning.error rather than
+          // silence, so the learning card never spins forever.
+          if (this.learningStatus) {
+            await this.learningStatus.handle(cmd, (ev) => this.safeEmit(ev));
+          } else {
+            this.safeEmit({
+              kind: "learning.error",
+              message: "learning status is not configured in this build",
               at: this.now(),
             });
           }

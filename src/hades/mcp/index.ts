@@ -24,4 +24,21 @@ export type {
   SwarmSessionFactory,
   VerifiedSwarmResult,
 } from "./swarm-task-tool";
-export { realSwarmSessionFactory, adaptSwarmManager, registerSwarmTaskTool } from "./swarm-session";
+export {
+  realSwarmSessionFactory,
+  adaptSwarmManager,
+  registerSwarmTaskTool,
+  registerCertifiedSwarmTool,
+} from "./swarm-session";
+// Phase 6 ecosystem exit: the ed25519 STYX certificate handoff across the MCP
+// boundary, plus the certified wrapper tool + end-to-end demo that proves it.
+export {
+  HANDOFF_VERSION,
+  issueHandoffCertificate,
+  encodeHandoff,
+  decodeHandoff,
+  verifyHandoffAtBoundary,
+} from "./cert-handoff";
+export type { CertifiedHandoff, HandoffIssueInput, HandoffVerdict } from "./cert-handoff";
+export { certifiedSwarmTool, runEcosystemDemo } from "./ecosystem-demo";
+export type { EcosystemDemoReport, EcosystemDemoOptions } from "./ecosystem-demo";

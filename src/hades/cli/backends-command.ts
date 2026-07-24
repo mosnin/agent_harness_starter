@@ -40,6 +40,7 @@ import type { LifecycleState } from "../backends/lifecycle";
 import type { BackendProvenanceLedger } from "../backends/provenance";
 import { CostAwareRouteBandit, type RouteBanditState } from "../backends/route-bandit";
 import { runReconcileAdoptCommand } from "./backends-adopt-command";
+import { runBackendsLearnCommand, type BackendsLearnCommandDeps } from "./backends-learn-command";
 
 /** Persistence seam for the routing bandit's learned history (`hades backends
  *  route ...`). `load()` returns whatever was last saved (or `undefined`);
@@ -67,6 +68,10 @@ export interface BackendsCommandDeps {
    *  route commands still work but the bandit's history lives only for this
    *  invocation — the output says so honestly. */
   banditStore?: BanditStateStore;
+  /** `hades backends learn` deps (`./backends-learn-command.ts`): the durable
+   *  learning-status store (and, when a swarm is running in-process, the live
+   *  loop). Absent -> `learn` honestly reports it is not configured. */
+  learn?: BackendsLearnCommandDeps;
   now?: () => number;
 }
 
@@ -94,6 +99,9 @@ const USAGE = [
   "  route record <backend> --verified|--unverified",
   "               --elapsed-ms N --usd N      Record a measured routing outcome",
   "  route arms                               Show the bandit's learned per-backend history",
+  "  learn [show|json]                        Show the swarm learning loop's status (live",
+  "                                           when attached in-process, else the durable",
+  "                                           snapshot — labelled honestly either way)",
   "  help                                     Show this help",
 ];
 
@@ -786,6 +794,14 @@ export async function runBackendsCommand(args: string[], deps: BackendsCommandDe
             });
       case "route":
         return await cmdRoute(deps, rest);
+      case "learn":
+        // The learning-status surface (./backends-learn-command.ts). Without
+        // a configured store there is nothing real to read — say so honestly
+        // rather than fabricating an empty status.
+        if (!deps.learn) {
+          return { code: 1, lines: ["The learning status store is not configured in this build."] };
+        }
+        return await runBackendsLearnCommand(rest, deps.learn);
       default:
         return { code: 1, lines: [`Unknown backends command: ${sanitize(sub)}`, "Run `hades backends help` for usage."] };
     }

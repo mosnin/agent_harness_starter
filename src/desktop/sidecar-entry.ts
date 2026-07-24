@@ -30,11 +30,20 @@ import {
   type SkillsHandler,
   type FleetHandler,
   type FleetProvisionHandler,
+  type LearningStatusHandler,
   type InferenceInfo,
 } from "./core/sidecar";
 import { SkillsService } from "./core/skills-service";
 import { detectInference } from "./core/inference";
 import { createRealFleet } from "./core/fleet-wiring";
+import { LearningService } from "./core/learning-service";
+import {
+  FileLearningStatusStore,
+  persistingOnEvent,
+  type PersistingOnEventHandle,
+} from "../hades/backends/learning-status-store";
+import type { SwarmLearningLoop } from "../hades/backends/swarm-learning";
+import { loadConfig } from "../hades/config/config";
 
 export interface RunSidecarOptions {
   /** Defaults to a `Sidecar` backed by {@link realSwarmFactory}. Tests inject a scripted fake instead. */
@@ -55,6 +64,12 @@ export interface RunSidecarOptions {
   provision?: FleetProvisionHandler;
   /** Inference mode reported on start; defaults to {@link detectInference} over `process.env`. */
   inference?: InferenceInfo;
+  /** Real learning-status backend for `learning.get`; defaults (when `fleet`
+   *  is also defaulted) to a {@link LearningService} preferring the live
+   *  attached loop and falling back to the durable snapshot at
+   *  `<dataDir>/learning-status.json` — the SAME file `hades backends learn`
+   *  reads, so the desktop and the terminal see one learning history. */
+  learningStatus?: LearningStatusHandler;
 }
 
 /**
@@ -110,23 +125,65 @@ export async function runSidecar(
   let fleet = opts.fleet;
   let provision = opts.provision;
   let learning: ConstructorParameters<typeof Sidecar>[0]["learning"];
+  let learningStatus = opts.learningStatus;
   let factory = opts.factory;
   if (!fleet) {
     // Real fleet stack (BackendManager + FleetSupervisor + HandleStore +
     // bandit-routed provisioning + registry adoption). Construction is
     // side-effect free; restore() is a best-effort async crash-recovery pass
     // (probe + adopt) that never throws and never blocks startup.
-    const realFleet = createRealFleet({ now });
+    const dataDir = loadConfig({ env: process.env }).dataDir;
+    const realFleet = createRealFleet({ now, dataDir });
     void realFleet.restore();
     fleet = realFleet.service;
     provision ??= realFleet.provision;
+    // Durable learning-status snapshots at <dataDir>/learning-status.json —
+    // the SAME file `hades backends learn` reads, so the desktop and the
+    // terminal report one learning history. Saves are debounced off the
+    // loop's own "feed" events and forced on "detached"; every save is
+    // atomic (tmp + rename) and never throws (see learning-status-store.ts).
+    const learningStore = new FileLearningStatusStore({ path: `${dataDir}/learning-status.json`, now });
+    // The currently-attached live loop, if any — `learning.get` prefers it
+    // over the on-disk snapshot and labels the answer honestly either way.
+    let liveLoop: SwarmLearningLoop | undefined;
     // Self-improving routing loop: the sidecar attaches this to every started
     // swarm's raw event stream. Outcomes feed the SAME route bandit the
     // fleet.provision path routes with (one shared learned history at
     // <dataDir>/route-bandit.json).
     learning = async (swarm) => {
-      const loop = await realFleet.attachLearning(swarm);
-      return { detach: () => loop.detach() };
+      let persisting: PersistingOnEventHandle | undefined;
+      const loop = await realFleet.attachLearning(swarm, (e) => persisting?.onEvent(e));
+      persisting = persistingOnEvent(learningStore, () => loop.status(), { now });
+      liveLoop = loop;
+      return {
+        detach: async () => {
+          if (liveLoop === loop) liveLoop = undefined;
+          try {
+            // loop.detach() emits a final "detached" event, which persisting
+            // turns into an immediate (non-debounced) snapshot save.
+            await loop.detach();
+          } finally {
+            await persisting?.flush();
+            persisting?.dispose();
+          }
+        },
+      };
+    };
+    // `learning.get` answers from the live loop when one is attached (source:
+    // "live"), else from the durable snapshot (source: "snapshot"), else with
+    // the honest "no learning status available" error — never a fabricated
+    // empty status. The service is rebuilt per command so it always sees the
+    // CURRENT liveLoop, not the one captured at startup.
+    learningStatus ??= {
+      handle: (cmd, emit) =>
+        new LearningService({
+          ...(liveLoop ? { source: liveLoop } : {}),
+          loadPersisted: async () => {
+            const persisted = await learningStore.load();
+            return persisted ? { at: persisted.at, status: persisted.status } : undefined;
+          },
+          now,
+        }).handle(cmd, emit),
     };
     // Real spawn-path attribution: process/docker workers spawned by the
     // engine are recorded in the fleet's worker->backend attribution map and
@@ -145,6 +202,7 @@ export async function runSidecar(
     provision,
     inference: opts.inference ?? detectInference(),
     learning,
+    learningStatus,
   });
 
   try {

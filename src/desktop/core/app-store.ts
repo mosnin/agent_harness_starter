@@ -147,6 +147,13 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
     case "fleet.restored":
       return state;
 
+    // Learning events are owned by the learning card's own pure reducer
+    // (`../ui/learning-card.ts`'s `applyLearningEvent`) — the renderer feeds
+    // them there. They deliberately do not touch the swarm app state.
+    case "learning.status":
+    case "learning.error":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.

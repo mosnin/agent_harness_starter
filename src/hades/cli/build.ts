@@ -29,6 +29,7 @@ import { LocalProcessBackend } from "../backends/local";
 import { DockerBackend } from "../backends/docker";
 import { BackendProvenanceLedger, ledgerEventSink } from "../backends/provenance";
 import { HandleStore } from "../backends/handle-store";
+import { FileLearningStatusStore } from "../backends/learning-status-store";
 
 export const HADES_VERSION = "0.1.0";
 
@@ -240,6 +241,15 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
       ledger,
       ...(persist ? { store: new HandleStore({ path: `${config.dataDir}/fleet.json` }) } : {}),
       ...(persist ? { banditStore: fileBanditStore(`${config.dataDir}/route-bandit.json`) } : {}),
+      // `hades backends learn` reads the SAME durable snapshot the desktop
+      // sidecar's learning loop persists (<dataDir>/learning-status.json) —
+      // one learning history, two surfaces. A `hades` invocation has no live
+      // in-process loop, so `learn` reports the snapshot (or, honestly,
+      // nothing). Without persistence there is no store to read; the command
+      // reports it as unconfigured rather than fabricating an empty status.
+      ...(persist
+        ? { learn: { store: new FileLearningStatusStore({ path: `${config.dataDir}/learning-status.json` }) } }
+        : {}),
     };
   };
 

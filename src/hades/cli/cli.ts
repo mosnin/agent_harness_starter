@@ -25,6 +25,7 @@ import { runBackendsCommand } from "./backends-command";
 import type { BackendsCommandDeps } from "./backends-command";
 import { runShowdownCommand } from "./showdown-command";
 import { runShowdownLiveCommand } from "./showdown-live-command";
+import { runShowdownVerifyCommand, runShowdownReadyCommand } from "./showdown-verify-command";
 import { runLiveShowdown, verifyLiveArtifacts } from "../bench/showdown-live";
 import { runSkillsHubCommand } from "./skills-hub-command";
 import { join } from "node:path";
@@ -182,7 +183,10 @@ export class HadesCli {
         "  bench vtph           Verified-tasks-per-hour-per-dollar scoreboard",
         "  showdown <sub>       Swarm vs self-trusting baseline (run/verify) — the honest,",
         "                       hash-chain-audited V-TPH$ scoreboard demo. `live`/`live-verify`",
-        "                       run the REAL keyed exit lane (budgeted, sha256 manifested)",
+        "                       run the REAL keyed exit lane (budgeted, sha256 manifested);",
+        "                       `verify --dir <path>` byte-audits a published live run dir,",
+        "                       `ready` reports keyed-live readiness (exit 0 iff ready)",
+        "  backends learn       Swarm learning-loop status (live or durable snapshot)",
         "  skill <sub>          Create/list/validate SKILL.md skills (new/list/show/validate)",
         "  tools <sub>          List/enable/disable the tool catalog (list/enable/disable/info)",
         "  exec <run|bench>     Run one program that chains tools (JS/Python, STYX-traced)",
@@ -202,6 +206,20 @@ export class HadesCli {
    *  (key NAMES only are ever printed, never key material). */
   private async showdown(args: string[]): Promise<CliResult> {
     const [sub, ...rest] = args;
+    // `hades showdown ready` — honest keyed-live-run readiness report for
+    // THIS environment (thin wrapper over the real preflightLiveShowdown);
+    // exit 0 iff ready, so CI can gate on it.
+    if (sub === "ready") {
+      return runShowdownReadyCommand({ env: process.env, cwd: process.cwd() });
+    }
+    // `hades showdown verify --dir <path>` (flag form) — the INDEPENDENT
+    // byte-level manifest auditor for a published `runs/live-*` directory
+    // (../bench/live-manifest-verify.ts). The positional form
+    // `hades showdown verify <dir>` keeps its original meaning below:
+    // re-verify a run dir's audit.jsonl hash chain (runShowdownCommand).
+    if (sub === "verify" && rest.includes("--dir")) {
+      return runShowdownVerifyCommand(rest, { env: process.env, cwd: process.cwd() });
+    }
     if (sub === "live" || sub === "live-verify") {
       // `hades showdown live help` (or --help/-h) is a help request for the
       // live lane, not a run missing its flags.

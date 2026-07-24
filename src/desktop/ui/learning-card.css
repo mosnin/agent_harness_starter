@@ -1,0 +1,255 @@
+/**
+ * Hades desktop — Learning card styles.
+ *
+ * Consumes the design tokens flattened by `theme.ts` (`--color-*`,
+ * `--space-*`, `--radius-*`, `--type-*`, `--shadow-*`, `--motion-*`) —
+ * native Tauri webview surface, not a web page. No hardcoded hex values;
+ * every color comes from a `tokens.css` custom property, so light/dark just
+ * falls out of which token set is mounted at `:root`, exactly like
+ * `fleet-view.css`.
+ */
+
+.learning-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-ink);
+  font-family: var(--type-family-sans);
+}
+
+.learning-card--empty {
+  align-items: center;
+}
+
+.learning-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.learning-card__title {
+  margin: 0;
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-md);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.learning-card__saved-at,
+.learning-card__at {
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.learning-card__at {
+  margin-left: auto;
+}
+
+.learning-card__empty-message,
+.learning-empty-message {
+  margin: 0;
+  padding: var(--space-xl);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-ink-tertiary);
+  font-size: var(--type-size-sm);
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------------
+ * Source / attached badges — the honest-numbers rule, made visible
+ * ---------------------------------------------------------------------- */
+
+.learning-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-size-2xs);
+  font-weight: var(--type-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.learning-badge--live {
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}
+
+.learning-badge--snapshot {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.learning-badge--attached {
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+}
+
+.learning-badge--detached {
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
+}
+
+/* ------------------------------------------------------------------------
+ * Error banner
+ * ---------------------------------------------------------------------- */
+
+.learning-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-bad-soft);
+  border: 1px solid var(--color-bad);
+  border-radius: var(--radius-lg);
+  color: var(--color-bad);
+  font-size: var(--type-size-sm);
+}
+
+.learning-error__message {
+  font-weight: var(--type-weight-medium);
+}
+
+/* ------------------------------------------------------------------------
+ * Counts summary
+ * ---------------------------------------------------------------------- */
+
+.learning-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.learning-counts__stat {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------------
+ * Arms table
+ * ---------------------------------------------------------------------- */
+
+.learning-arms {
+  display: flex;
+  flex-direction: column;
+}
+
+.learning-table,
+.learning-arms-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  font-size: var(--type-size-sm);
+}
+
+.learning-table thead th {
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-2xs);
+  font-weight: var(--type-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.learning-table tbody td {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-divider);
+  vertical-align: top;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.learning-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.learning-table tbody tr:hover {
+  background: var(--color-surface-hover);
+}
+
+.learning-arm-row {
+  vertical-align: top;
+}
+
+.learning-arm-row__name {
+  font-weight: var(--type-weight-medium);
+  font-variant-numeric: normal;
+}
+
+.learning-arm-row__never {
+  color: var(--color-ink-tertiary);
+  font-style: italic;
+}
+
+.learning-arms--empty {
+  padding: 0;
+}
+
+/* ------------------------------------------------------------------------
+ * Recent notes
+ * ---------------------------------------------------------------------- */
+
+.learning-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.learning-notes__title {
+  margin: 0;
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-semibold);
+  color: var(--color-ink-secondary);
+}
+
+.learning-notes__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.learning-notes__item {
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-xs);
+  font-family: var(--type-family-mono);
+  word-break: break-word;
+}
+
+.learning-notes--empty {
+  padding: 0;
+}

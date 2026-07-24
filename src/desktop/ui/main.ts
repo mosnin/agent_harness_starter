@@ -24,6 +24,7 @@ import "./skills-view.css";
 import "./fleet-view.css";
 import "./fleet-provision-view.css";
 import "./fleet-conflicts-view.css";
+import "./learning-card.css";
 
 import { mountApp } from "./renderer";
 import { tauriBridge, devBridge } from "./bridge";

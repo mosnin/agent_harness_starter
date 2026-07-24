@@ -29,6 +29,13 @@ import {
   isFleetProvisionEvent,
 } from "./fleet-provision-contract";
 import type { FleetProvisionCommand, FleetProvisionEvent } from "./fleet-provision-contract";
+import {
+  LEARNING_COMMAND_KINDS,
+  LEARNING_EVENT_KINDS,
+  isLearningCommand,
+  isLearningEvent,
+} from "./learning-contract";
+import type { LearningCommand, LearningEvent } from "./learning-contract";
 
 // Re-exported so consumers can treat this module as the single import point
 // for the whole desktop wire format.
@@ -56,6 +63,21 @@ export {
   FLEET_PROVISION_COMMAND_KINDS,
   FLEET_PROVISION_EVENT_KINDS,
 } from "./fleet-provision-contract";
+export type {
+  LearningCommand,
+  LearningEvent,
+  LearningArmView,
+  LearningCountsView,
+  LearningStatusView,
+} from "./learning-contract";
+export {
+  isLearningCommand,
+  isLearningEvent,
+  isLearningArmView,
+  isLearningStatusView,
+  LEARNING_COMMAND_KINDS,
+  LEARNING_EVENT_KINDS,
+} from "./learning-contract";
 
 // ---------------------------------------------------------------------------
 // View models
@@ -130,7 +152,8 @@ export type Command =
   | { kind: "skills.list" }
   | { kind: "skills.save"; name: string; content: string }
   | FleetCommand
-  | FleetProvisionCommand;
+  | FleetProvisionCommand
+  | LearningCommand;
 
 export type AppEvent =
   | { kind: "runtime.status"; running: boolean; mode: string; poolSize: number }
@@ -143,7 +166,8 @@ export type AppEvent =
   | { kind: "skills.list"; skills: Array<{ name: string; description: string }> }
   | { kind: "log"; line: string; at: number }
   | FleetEvent
-  | FleetProvisionEvent;
+  | FleetProvisionEvent
+  | LearningEvent;
 
 const COMMAND_KINDS = [
   "runtime.start",
@@ -156,6 +180,7 @@ const COMMAND_KINDS = [
   "skills.save",
   ...FLEET_COMMAND_KINDS,
   ...FLEET_PROVISION_COMMAND_KINDS,
+  ...LEARNING_COMMAND_KINDS,
 ] as const;
 
 const EVENT_KINDS = [
@@ -170,6 +195,7 @@ const EVENT_KINDS = [
   "log",
   ...FLEET_EVENT_KINDS,
   ...FLEET_PROVISION_EVENT_KINDS,
+  ...LEARNING_EVENT_KINDS,
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -323,10 +349,10 @@ export function isCommand(x: unknown): x is Command {
     case "skills.save":
       return isString(x.name) && isString(x.content);
     default:
-      // Fleet + fleet-provision commands are validated by their own
-      // contract modules' guards; anything neither recognizes is not a
-      // Command.
-      return isFleetCommand(x) || isFleetProvisionCommand(x);
+      // Fleet + fleet-provision + learning commands are validated by their
+      // own contract modules' guards; anything none of them recognizes is
+      // not a Command.
+      return isFleetCommand(x) || isFleetProvisionCommand(x) || isLearningCommand(x);
   }
 }
 
@@ -353,9 +379,10 @@ export function isAppEvent(x: unknown): x is AppEvent {
     case "log":
       return isString(x.line) && isNumber(x.at);
     default:
-      // Fleet + fleet-provision events are validated by their own contract
-      // modules' guards; anything neither recognizes is not an AppEvent.
-      return isFleetEvent(x) || isFleetProvisionEvent(x);
+      // Fleet + fleet-provision + learning events are validated by their own
+      // contract modules' guards; anything none of them recognizes is not an
+      // AppEvent.
+      return isFleetEvent(x) || isFleetProvisionEvent(x) || isLearningEvent(x);
   }
 }
 

@@ -111,3 +111,26 @@ export type {
 } from "./fleet-provider";
 export { SwarmLearningLoop, renderLearningReport } from "./swarm-learning";
 export type { SwarmLearningEvent, SwarmLearningOptions, SwarmLearningStatus } from "./swarm-learning";
+export {
+  INLINE_BACKEND_NAME,
+  attachInlineAttribution,
+  attachInlineLearning,
+} from "./inline-attribution";
+export type {
+  SwarmWorkerEventSource,
+  InlineAttributionEvent,
+  InlineAttributionOptions,
+  InlineAttributionHandle,
+  InlineLearningOptions,
+  InlineLearningHandle,
+} from "./inline-attribution";
+export {
+  LEARNING_STATUS_VERSION,
+  FileLearningStatusStore,
+  persistingOnEvent,
+} from "./learning-status-store";
+export type {
+  PersistedLearningStatus,
+  LearningStatusFs,
+  PersistingOnEventHandle,
+} from "./learning-status-store";

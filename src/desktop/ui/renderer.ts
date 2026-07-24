@@ -33,12 +33,14 @@ import { renderVtphPanel } from "./vtph-panel";
 import type { VtphInput } from "./vtph-panel";
 import { initialFleetState, applyFleetEvent, renderFleetView } from "./fleet-view";
 import type { FleetViewState } from "./fleet-view";
+import { initialLearningState, applyLearningEvent, renderLearningCard } from "./learning-card";
+import type { LearningCardState } from "./learning-card";
 import { createFleetProvisionView } from "./fleet-provision-view";
 import type { FleetProvisionViewHandle, FleetProvisionWire } from "./fleet-provision-view";
 import { mountFleetConflictsView } from "./fleet-conflicts-view";
 import type { FleetConflictsViewHandle } from "./fleet-conflicts-view";
 import { deriveConflictsLaneFromRestored, extractPlaceholderNotice } from "../core/fleet-conflicts";
-import type { FleetEvent, FleetProvisionEvent } from "../ipc/contract";
+import type { FleetEvent, FleetProvisionEvent, LearningEvent } from "../ipc/contract";
 import {
   initialPaletteState,
   paletteReduce,
@@ -81,6 +83,8 @@ interface ViewExt {
   vtphHtml: string | null;
   /** Remote-compute fleet state, reduced from `fleet.*` events by the fleet view's own pure reducer. */
   fleet: FleetViewState;
+  /** Swarm learning-loop state, reduced from `learning.*` events by the learning card's own pure reducer. */
+  learning: LearningCardState;
 }
 
 /** Narrow an AppEvent to the fleet slice of the union. */
@@ -96,6 +100,12 @@ function asFleetProvisionEvent(ev: { kind: string }): FleetProvisionEvent | null
   return ev.kind === "fleet.provisioned" || ev.kind === "fleet.provision.error" || ev.kind === "fleet.restored"
     ? (ev as FleetProvisionEvent)
     : null;
+}
+
+/** Narrow an AppEvent to the learning slice of the union (consumed by the
+ *  learning card's own pure reducer, not by the app-store reducer). */
+function asLearningEvent(ev: { kind: string }): LearningEvent | null {
+  return ev.kind === "learning.status" || ev.kind === "learning.error" ? (ev as LearningEvent) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -182,6 +192,7 @@ function contentFor(nav: NavKey, state: AppState, ext: ViewExt): string {
       // form state), so the string renderer only emits a stable host node;
       // mountApp re-parents the panel's real DOM into it after each render.
       return `${renderFleetView(ext.fleet)}
+      ${renderLearningCard(ext.learning)}
       <div id="fleet-provision-host" class="fleet-provision-host" data-testid="fleet-provision-host"></div>
       <div id="fleet-conflicts-host" class="fleet-conflicts-host" data-testid="fleet-conflicts-host"></div>`;
     case "compare":
@@ -220,6 +231,7 @@ export function createApp(
     cert: null,
     vtphHtml: null,
     fleet: initialFleetState(),
+    learning: initialLearningState(),
   };
   // Renderer-owned clock/history for the honest V-TPH$ input (the pure engine
   // store carries no wall clock). runStartedAt is stamped when the runtime
@@ -282,6 +294,16 @@ export function createApp(
             // Malformed fleet event: leave fleet state untouched.
           }
         }
+        // Learning events feed the learning card's own pure reducer, same
+        // isolation contract as the fleet slice above.
+        const learningEv = asLearningEvent(ev);
+        if (learningEv) {
+          try {
+            ext.learning = applyLearningEvent(ext.learning, learningEv);
+          } catch {
+            // Malformed learning event: leave learning state untouched.
+          }
+        }
         try {
           state = reduce(state, ev);
         } catch {
@@ -325,7 +347,12 @@ export function createApp(
       if (key === "metrics") refreshVtph();
       // Entering the fleet surface refreshes the (probe-free) snapshot so
       // the view is never stale; the reply streams back as a fleet.snapshot.
-      if (key === "fleet") send({ kind: "fleet.list" });
+      // The learning card refreshes alongside it — the reply streams back as
+      // a learning.status (or an honest learning.error).
+      if (key === "fleet") {
+        send({ kind: "fleet.list" });
+        send({ kind: "learning.get" });
+      }
       emit();
     },
     dispatchIntent(intent: { cmd: string; value?: string }) {

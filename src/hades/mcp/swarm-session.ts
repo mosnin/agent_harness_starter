@@ -17,6 +17,8 @@ import { createInlineSwarm, type InlineSwarmOptions } from "../../swarm-runtime/
 import type { SwarmManager } from "../../swarm-runtime/manager/manager";
 import type { McpServer, McpServerTool } from "./server";
 import { createSwarmTaskTool, type SwarmSessionFactory, type SwarmSessionPort } from "./swarm-task-tool";
+import { certifiedSwarmTool } from "./ecosystem-demo";
+import type { CertificateAuthority } from "../styx/certificate";
 
 /** Adapt a live {@link SwarmManager} to the tool's {@link SwarmSessionPort}. */
 export function adaptSwarmManager(manager: SwarmManager): SwarmSessionPort {
@@ -73,6 +75,29 @@ export function registerSwarmTaskTool(
   opts: Parameters<typeof createSwarmTaskTool>[1] = {},
 ): McpServerTool {
   const tool = createSwarmTaskTool(factory, opts);
+  server.register(tool);
+  return tool;
+}
+
+/**
+ * Register `swarm_run_certified` on an MCP server: the real
+ * `swarm_run_verified` tool wrapped by {@link certifiedSwarmTool} so every
+ * non-error run carries a signed ed25519 STYX handoff certificate an external
+ * client can independently re-verify with `verifyHandoffAtBoundary`
+ * (`./cert-handoff.ts`). The verdict/score inside the certificate come
+ * straight from the gate's own ledger — "accept" only for a fully-verified
+ * run, "abstain" for anything less; an inner tool error passes through
+ * completely uncertified. Requires a real {@link CertificateAuthority} (the
+ * caller owns the signing key); nothing here fabricates one silently.
+ * Returns the registered wrapper tool definition.
+ */
+export function registerCertifiedSwarmTool(
+  server: McpServer,
+  authority: CertificateAuthority,
+  factory: SwarmSessionFactory = realSwarmSessionFactory(),
+  opts: Parameters<typeof createSwarmTaskTool>[1] = {},
+): McpServerTool {
+  const tool = certifiedSwarmTool(createSwarmTaskTool(factory, opts), authority, opts.now);
   server.register(tool);
   return tool;
 }

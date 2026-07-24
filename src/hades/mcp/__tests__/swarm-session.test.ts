@@ -12,9 +12,12 @@ import { McpClient } from "../client";
 import {
   realSwarmSessionFactory,
   registerSwarmTaskTool,
+  registerCertifiedSwarmTool,
   adaptSwarmManager,
 } from "../swarm-session";
 import type { VerifiedSwarmResult } from "../swarm-task-tool";
+import { verifyHandoffAtBoundary, type CertifiedHandoff } from "../cert-handoff";
+import { CertificateAuthority, generatePrivateKeyHex } from "../../styx/certificate";
 import { createInlineSwarm } from "../../../swarm-runtime/factory";
 
 function firstText(result: { content: Array<{ type: string; text?: string }> }): string {
@@ -69,6 +72,42 @@ describe("registerSwarmTaskTool + realSwarmSessionFactory (real engine)", () => 
     expect(result.isError).toBe(true);
     expect(firstText(result)).toContain("invalid input");
   });
+
+  it("registerCertifiedSwarmTool advertises swarm_run_certified and a real run's handoff re-verifies at the boundary", async () => {
+    const pair = loopbackTransportPair();
+    const server = new McpServer(pair.server);
+    const authority = new CertificateAuthority(generatePrivateKeyHex());
+    const registered = registerCertifiedSwarmTool(server, authority, realSwarmSessionFactory(), {
+      defaultTimeoutMs: 30_000,
+    });
+    expect(registered.name).toBe("swarm_run_certified");
+    server.serve();
+
+    const client = new McpClient(pair.client);
+    await client.initialize();
+    const tools = await client.listTools();
+    expect(tools.map((t) => t.name)).toContain("swarm_run_certified");
+
+    const result = await client.callTool("swarm_run_certified", {
+      objective: "summarize the release notes",
+      poolSize: 2,
+    });
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(firstText(result)) as VerifiedSwarmResult & { handoff: CertifiedHandoff };
+    expect(parsed.status).toBe("verified");
+    expect(parsed.handoff).toBeDefined();
+    // The gate's own outcome, honestly encoded: accept, only because the run
+    // really was fully verified.
+    expect(parsed.handoff.certificate.payload.verifierTier).toBe("mcp-handoff:accept");
+    // Independent boundary re-verification with the REAL ed25519 check.
+    const verdict = await verifyHandoffAtBoundary(parsed.handoff);
+    expect(verdict).toEqual({ ok: true, reasons: [] });
+    // And a tampered copy fails it.
+    const tampered = JSON.parse(JSON.stringify(parsed.handoff)) as CertifiedHandoff;
+    tampered.resultText += " (tampered)";
+    const tamperedVerdict = await verifyHandoffAtBoundary(tampered);
+    expect(tamperedVerdict.ok).toBe(false);
+  }, 30_000);
 
   it("adaptSwarmManager drives a live manager through the port surface", async () => {
     const manager = await createInlineSwarm({ poolSize: 1 });

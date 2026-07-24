@@ -59,4 +59,8 @@ export type {
   LiveShowdownFsDeps,
   LiveShowdownOptions,
 } from "./showdown-live";
+// Independent byte-level auditor for a published `runs/live-*` directory +
+// the honest keyed-live readiness lane (`hades showdown verify --dir`/`ready`).
+export { verifyLiveRunDir, renderManifestAudit, livePreflightSummary } from "./live-manifest-verify";
+export type { AuditCheck, ManifestAudit, AuditFsDeps, ReadinessReport } from "./live-manifest-verify";
 export { EVAL_TASKS, EVAL_CATEGORIES, tasksByCategory, decomposableTasks } from "./eval-suite";
