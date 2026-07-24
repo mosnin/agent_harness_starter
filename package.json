@@ -137,6 +137,8 @@
     "tui": "tsx src/hades/bin/hades.ts tui",
     "profile": "tsx src/hades/bin/hades.ts profile",
     "profile:bench": "tsx src/hades/bin/hades.ts profile bench",
+    "backends": "tsx src/hades/bin/hades.ts backends",
+    "bench:parity": "tsx src/hades/bin/hades.ts bench parity",
     "desktop:build:sidecar": "node scripts/build-sidecar.mjs",
     "desktop:build:ui": "node scripts/build-desktop.mjs",
     "desktop:build": "npm run desktop:build:sidecar && npm run desktop:build:ui",

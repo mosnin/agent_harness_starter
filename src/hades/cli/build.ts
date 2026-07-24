@@ -21,6 +21,13 @@ import { InMemoryTrajectoryStore } from "../research/recorder";
 import { defaultRoleRegistry } from "../teams/role";
 import { defaultToolsetManager } from "../tools/default-catalog";
 import type { ToolsetManager } from "../tools/manager";
+import type { BackendsCommandDeps } from "./backends-command";
+import { BackendManager } from "../backends/manager";
+import type { BackendDescriptor } from "../backends/descriptor";
+import { LocalProcessBackend } from "../backends/local";
+import { DockerBackend } from "../backends/docker";
+import { BackendProvenanceLedger, ledgerEventSink } from "../backends/provenance";
+import { HandleStore } from "../backends/handle-store";
 
 export const HADES_VERSION = "0.1.0";
 
@@ -162,6 +169,49 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     return { store, bridge, sessions };
   };
 
+  // Phase-6 remote-compute fleet (`hades backends`). Lazy: the BackendManager,
+  // the STYX provenance ledger, and both real backend classes are only
+  // constructed when a backends subcommand actually runs (`hades help` never
+  // touches them). Both backends are REAL adapters — local spawns genuine OS
+  // child processes; docker shells out to the real `docker` CLI, and its live
+  // availability is decided by `probe`'s real `docker version` call, never
+  // assumed. Cost rates are all-zero and tagged `source: "configured"` (your
+  // own machine — no fabricated prices). Every manager lifecycle event is
+  // appended to the hash-chained ledger `hades backends verify` re-walks.
+  const backends = (): BackendsCommandDeps => {
+    const ledger = new BackendProvenanceLedger();
+    const manager = new BackendManager({ onEvent: ledgerEventSink(ledger) });
+    const zeroCost = {
+      perRunningHourUsd: 0,
+      perHibernatedHourUsd: 0,
+      perProvisionUsd: 0,
+      source: "configured" as const,
+    };
+    const localDescriptor: BackendDescriptor = {
+      name: "local",
+      kind: "local",
+      capabilities: ["shell", "local", "node"],
+      cost: zeroCost,
+      supportsHibernate: true,
+      locality: "local",
+    };
+    const dockerDescriptor: BackendDescriptor = {
+      name: "docker",
+      kind: "container",
+      capabilities: ["docker", "container"],
+      cost: zeroCost,
+      supportsHibernate: true,
+      locality: "local",
+    };
+    manager.register(new LocalProcessBackend({ name: "local" }), localDescriptor);
+    manager.register(new DockerBackend({ name: "docker" }), dockerDescriptor);
+    return {
+      manager,
+      ledger,
+      ...(persist ? { store: new HandleStore({ path: `${config.dataDir}/fleet.json` }) } : {}),
+    };
+  };
+
   return new HadesCli({
     version: HADES_VERSION,
     models,
@@ -171,6 +221,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     sessions,
     memoryGuard: memory,
     profile,
+    backends,
     summarizeSession: async (sessionId) => {
       const session = sessions.get(sessionId);
       if (!session) throw new Error(`No such session: ${sessionId}`);

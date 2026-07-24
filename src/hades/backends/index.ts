@@ -30,3 +30,49 @@ export { SingularityBackend } from "./singularity";
 export type { CommandRunner, SingularityBackendOptions } from "./singularity";
 export { ScaleToZeroManager } from "./scale-to-zero";
 export type { ScaleToZeroOptions, ScaleEvent } from "./scale-to-zero";
+export { LocalProcessBackend } from "./local";
+export type { LocalChild, SpawnFn, LocalBackendOptions } from "./local";
+export { DockerBackend } from "./docker";
+export type { DockerBackendOptions } from "./docker";
+export { ZERO_TELEMETRY, matchesRequirements, scoreBackend, compareCandidates } from "./descriptor";
+export type {
+  BackendKind,
+  BackendCostModel,
+  BackendDescriptor,
+  BackendRequirements,
+  BackendTelemetrySnapshot,
+} from "./descriptor";
+export { BackendManager } from "./manager";
+export type { BackendManagerOptions, BackendManagerEvent } from "./manager";
+export {
+  LIFECYCLE_TRANSITIONS,
+  ALL_LIFECYCLE_STATES,
+  canTransition,
+  TransitionError,
+  WakeExhaustedError,
+  LifecycleMachine,
+} from "./lifecycle";
+export type { LifecycleState, LifecycleEvent, LifecycleMachineOptions } from "./lifecycle";
+export { HANDLE_STORE_VERSION, HandleStore } from "./handle-store";
+export type { HandleStoreFs, PersistedFleet, HandleStoreOptions, ReconcileReport } from "./handle-store";
+export {
+  BACKEND_TRACE_ROOT_PREIMAGE,
+  canonicalRecordBytes,
+  BackendProvenanceLedger,
+  ledgerEventSink,
+} from "./provenance";
+export type {
+  BackendEventType,
+  BackendLifecycleRecord,
+  BackendChainVerifyResult,
+  BackendCertificateFields,
+} from "./provenance";
+export { backendsFleetVerifier, backendsFleetCalibration } from "./verifier";
+export type { BackendFleetReport } from "./verifier";
+export { runParityBench, runParityBenchDetailed } from "./parity-bench";
+export type {
+  ParityBenchOptions,
+  ParityBenchBackendResult,
+  ParityBenchReport,
+  ParityBenchDetailedResult,
+} from "./parity-bench";

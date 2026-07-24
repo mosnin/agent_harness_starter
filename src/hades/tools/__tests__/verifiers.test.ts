@@ -77,6 +77,7 @@ function verdictFor(verifierId: string, input: string, result: ToolResult): Tool
 
 const EXPECTED_VERIFIER_IDS = [
   "verify.browser",
+  "verify.backends",
   "verify.web_search",
   "verify.fetch_extract",
   "verify.file_ops",
@@ -88,7 +89,7 @@ const EXPECTED_VERIFIER_IDS = [
 ].sort();
 
 describe("toolVerifiers()", () => {
-  it("registers exactly the nine locked verifierIds (Phase 2 eight + verify.browser)", () => {
+  it("registers exactly the ten locked verifierIds (Phase 2 eight + verify.browser + verify.backends)", () => {
     const ids = [...toolVerifiers().keys()].sort();
     expect(ids).toEqual(EXPECTED_VERIFIER_IDS);
   });

@@ -15,6 +15,7 @@
  */
 
 import { runRecallBench } from "../memory/recall-bench";
+import { runParityBench } from "../backends/parity-bench";
 import { runVtph, compareVtph } from "../bench/vtph";
 import type { AgentRunner, VtphReport } from "../bench/vtph";
 import { EVAL_TASKS, decomposableTasks } from "../bench/eval-suite";
@@ -114,6 +115,8 @@ const USAGE = [
   "  headtohead [--decomposable]               Verified swarm vs single-agent baseline (go/no-go)",
   "  styx [--decomposable]                     STYX (speculate/race/verify/gate/certify) vs both baselines",
   "  recall [--sessions N] [--seed N]          Session-recall: FTS index vs legacy scanner (seeded synthetic corpus, real runs)",
+  "  parity [--docker]                         Backend-fleet lifecycle parity (real local process; real docker when",
+  "                                            available and --docker set; fake-transport serverless/remote, labeled)",
   "  help                                      Show this help",
   "",
   "V-TPH$ = Verified Tasks per Hour per Dollar (see .plans/HADES_BEYOND_HERMES.md).",
@@ -181,6 +184,32 @@ export async function runBenchCommand(
         "actually running both engines over it in this process — nothing is precomputed or fabricated.",
       ],
     };
+  }
+
+  if (sub === "parity") {
+    const lines: string[] = [];
+    let report;
+    try {
+      report = await runParityBench({
+        includeDocker: rest.includes("--docker"),
+        log: (line) => lines.push(line),
+      });
+    } catch (err) {
+      return { code: 1, lines: [...lines, err instanceof Error ? err.message : String(err)] };
+    }
+    lines.push("");
+    lines.push("BACKEND      KIND        TRANSPORT  PROV   HIB    WAKE   TERM   PROVISION-MS  WAKE-MS");
+    for (const r of report.results) {
+      const ms = (v: number | null) => (v == null ? "-" : v.toFixed(1));
+      lines.push(
+        `${r.backend.padEnd(12)} ${r.kind.padEnd(11)} ${r.transport.padEnd(10)} ${String(r.provisioned).padEnd(6)} ${String(r.hibernated).padEnd(6)} ${String(r.woken).padEnd(6)} ${String(r.terminated).padEnd(6)} ${ms(r.provisionMs).padEnd(13)} ${ms(r.wakeMs)}${r.error ? `  ERROR: ${r.error}` : ""}`,
+      );
+    }
+    lines.push("");
+    lines.push(`provenance chain: length=${report.certificate.length} head=${report.certificate.head.slice(0, 16)}… verified=${report.chainVerified}`);
+    lines.push(`total: ${report.totalMs.toFixed(1)}ms, all lifecycles complete: ${report.allLifecyclesComplete}`);
+    lines.push("Every timing above is measured from this run; transport=fake rows use in-file fake transports (labeled), never presented as real infrastructure.");
+    return { code: report.chainVerified && report.allLifecyclesComplete ? 0 : 1, lines };
   }
 
   const env = opts?.env !== undefined ? opts.env : buildClientFromEnv();

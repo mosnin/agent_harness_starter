@@ -21,6 +21,8 @@ import { runMemoryCommand } from "./memory-command";
 import type { MemoryGuardDeps } from "./memory-command";
 import { runProfileCommand } from "./profile-command";
 import type { ProfileCommandDeps } from "./profile-command";
+import { runBackendsCommand } from "./backends-command";
+import type { BackendsCommandDeps } from "./backends-command";
 
 export interface CliResult {
   code: number;
@@ -47,6 +49,11 @@ export interface HadesCliDeps {
    *  the profile command is actually run; the result is cached after the
    *  first call so repeated subcommands share one store instance. */
   profile?: () => ProfileCommandDeps;
+  /** Phase-6 remote-compute fleet for `hades backends`. A lazy factory so
+   *  building the CLI never constructs the BackendManager/ledger (or probes
+   *  docker) unless a backends subcommand is actually run; the result is
+   *  cached after the first call so repeated subcommands share one fleet. */
+  backends?: () => BackendsCommandDeps;
   trajectories?: InMemoryTrajectoryStore;
   /** Role catalog for `hades team`. */
   roles?: RoleRegistry;
@@ -59,7 +66,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "profile", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "profile", "backends", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -75,6 +82,8 @@ export class HadesCli {
   private fallbackSessions?: InMemorySessionStore;
   /** Cached result of the lazy `deps.profile` factory (see HadesCliDeps). */
   private profileDeps?: ProfileCommandDeps;
+  /** Cached result of the lazy `deps.backends` factory (see HadesCliDeps). */
+  private backendsDeps?: BackendsCommandDeps;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -102,6 +111,8 @@ export class HadesCli {
         return this.memory(rest);
       case "profile":
         return this.profile(rest);
+      case "backends":
+        return this.backends(rest);
       case "learn":
         return this.learn(rest);
       case "team":
@@ -150,6 +161,8 @@ export class HadesCli {
         "                       guard flags, add (search/timeline/show/summarize/flags/add)",
         "  profile <sub>        Dialectic user model: show/why/learn/sync/audit/bench",
         "                       (evidence-backed beliefs, STYX-audited, tamper-evident ledger)",
+        "  backends <sub>       Remote-compute fleet: list/probe/provision/status/hibernate/",
+        "                       wake/terminate/sweep/logs/verify/reconcile (STYX hash-chained ledger)",
         "  team <roles|plan>    List roles / preview a team for an objective",
         "  hierarchy <sub>      Swarm benchmarks: head-to-head/makespan/chaos/fuzz/stats",
         "  bench vtph           Verified-tasks-per-hour-per-dollar scoreboard",
@@ -266,6 +279,20 @@ export class HadesCli {
       return { code: 1, lines: [err instanceof Error ? err.message : String(err)] };
     }
     return runProfileCommand(this.profileDeps, args);
+  }
+
+  /** `hades backends <sub>` — the Phase-6 remote-compute fleet surface
+   *  (list/probe/provision/status/hibernate/wake/terminate/sweep/logs/verify).
+   *  Deps are built lazily on first use and cached, so a `hades help` never
+   *  constructs the BackendManager, the provenance ledger, or a docker probe. */
+  private backends(args: string[]): Promise<CliResult> | CliResult {
+    if (!this.deps.backends) return { code: 1, lines: ["The backend fleet is not configured in this build."] };
+    try {
+      this.backendsDeps ??= this.deps.backends();
+    } catch (err) {
+      return { code: 1, lines: [err instanceof Error ? err.message : String(err)] };
+    }
+    return runBackendsCommand(args, this.backendsDeps);
   }
 
   private async team(args: string[]): Promise<CliResult> {
