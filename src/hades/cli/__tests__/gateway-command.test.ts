@@ -4,8 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runGatewayCommand } from "../gateway-command";
 import type { GatewayCommandIo } from "../gateway-command";
-import { buildGatewayDeps } from "../gateway-deps";
+import { buildGatewayDeps, buildGatewayDepsFromEnv } from "../gateway-deps";
 import type { GatewayCliDeps, GatewayAgentEngine } from "../gateway-deps";
+import { JsonFileJobStore } from "../../schedule/store";
+import { systemClock } from "../../schedule/clock";
+import { ScheduledGatewayRuntime } from "../../schedule/gateway-runtime";
 import type { HadesConfig } from "../../config/config";
 import { InMemoryConnector } from "../../gateway/in-memory-connector";
 import type { PlatformProbe } from "../../gateway/process";
@@ -129,6 +132,60 @@ describe("runGatewayCommand: start", () => {
     expect(deps.process.status().running).toBe(false);
     expect(io.lines.some((l) => l.includes("started"))).toBe(true);
     expect(io.lines.some((l) => l.includes("stopped"))).toBe(true);
+  });
+
+  it("--schedule against deps built WITHOUT a schedule factory fails honestly (never a silent fallback)", async () => {
+    const deps = buildDeps(); // buildGatewayDeps: no schedule runtime factory wired
+    const io = captureIo();
+
+    const res = await runGatewayCommand(["start", "--schedule"], deps, io);
+
+    expect(res.code).toBe(1);
+    expect(res.lines.join("\n")).toContain("--schedule requires deps built by buildGatewayDepsFromEnv");
+    expect(deps.process.status().running).toBe(false);
+  });
+
+  it("--schedule runs the REAL co-runtime over the durable job store and prints the honest zero outcome tally", async () => {
+    const config = tmpConfig();
+    // Seed the SAME durable file `hades schedule add` writes, via the REAL store.
+    const seedStore = new JsonFileJobStore(join(config.dataDir, "schedule.json"), systemClock);
+    seedStore.add({ name: "seeded job", cron: "0 3 * * *", timeZone: "UTC", task: { kind: "note", input: "x" } });
+
+    // Empty env: mock echo engine (honest probe), zero env connectors.
+    const deps = await buildGatewayDepsFromEnv(config, {}, { forStart: true });
+    expect(deps.schedule).toBeDefined();
+    // The factory composes a real ScheduledGatewayRuntime over the real paths.
+    const probeBuild = deps.schedule!();
+    expect(probeBuild.runtime).toBeInstanceOf(ScheduledGatewayRuntime);
+    expect(probeBuild.storePath).toBe(join(config.dataDir, "schedule.json"));
+    expect(probeBuild.receiptsPath).toBe(join(config.dataDir, "schedule-receipts.json"));
+    expect(probeBuild.store.list().map((j) => j.name)).toEqual(["seeded job"]);
+
+    const io = captureIo();
+    io.wait = async () => {}; // resolves immediately — start, then clean shutdown
+
+    const res = await runGatewayCommand(["start", "--schedule"], deps, io);
+
+    expect(res.code).toBe(0);
+    const joined = res.lines.join("\n");
+    expect(joined).toContain(`schedule: 1 job(s) in ${join(config.dataDir, "schedule.json")}`);
+    expect(joined).toContain(`schedule: delivery receipts ledger at ${join(config.dataDir, "schedule-receipts.json")}`);
+    expect(joined).toContain("gateway+scheduler: started — waiting for messages and due jobs (Ctrl+C to stop).");
+    expect(joined).toContain("gateway+scheduler: stopped.");
+    // Nothing was due in the instant between start and stop — the tally is a
+    // real zero count, printed verbatim, never a fabricated activity claim.
+    expect(joined).toContain("schedule outcomes this run: delivered=0 abstained=0 withheld=0 failed=0 skipped=0");
+    expect(deps.process.status().running).toBe(false);
+  });
+});
+
+describe("buildGatewayDeps: connectors exposed for the scheduler seam", () => {
+  it("deps.connectors carries the EXACT connector instances the process registered (by reference)", () => {
+    const conn = new InMemoryConnector("slack");
+    const report: PlatformProbe[] = [{ platform: "slack", mode: "real", detail: "via TEST" }];
+    const deps = buildGatewayDeps(tmpConfig(), {}, { connectors: [conn], report });
+    expect(deps.connectors).toHaveLength(1);
+    expect(deps.connectors[0]).toBe(conn);
   });
 });
 

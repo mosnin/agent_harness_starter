@@ -84,6 +84,7 @@ const HELP_LINES = [
   "  f       toggle the FLEET pane (real BackendManager telemetry + route bandit)",
   "  s       toggle the SHOWDOWN pane (r runs a real modeled showdown in-place)",
   "  w       toggle the GATEWAY pane (real env connector probes + engine probe)",
+  "  d       toggle the SCHEDULE pane (real cron job store + run history + tally)",
   "  ?       toggle the help overlay",
   "  q       quit  (also Ctrl-C)",
   "  (fleet pane) ↑/↓ or j/k select worker, r refresh, esc/q back",
@@ -91,6 +92,9 @@ const HELP_LINES = [
   "                  labeled (modeled); nothing live is simulated",
   "  (gateway pane) ↑/↓ scroll traffic, r refresh, esc/q back — probes name env",
   "                 VARIABLE NAMES only; live traffic belongs to `hades gateway start`",
+  "  (schedule pane) ↑/↓ or j/k select job, r refresh, esc/q back — reads the SAME",
+  "                  <dataDir>/schedule.json `hades schedule` writes; the runner",
+  "                  itself belongs to `hades gateway start --schedule`",
   "  (compose mode) type to build the objective, Enter to submit, Esc to cancel",
 ];
 
@@ -409,11 +413,13 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
   let fleetRefresh: () => void = () => {};
   let showdownRun: () => void = () => {};
   let gatewayRefresh: () => void = () => {};
+  let scheduleRefresh: () => void = () => {};
   const controller: TuiController = {
     ...createSwarmController(handle, { poolSize }),
     refreshFleet: () => fleetRefresh(),
     runShowdown: () => showdownRun(),
     refreshGateway: () => gatewayRefresh(),
+    refreshSchedule: () => scheduleRefresh(),
   };
   const app = new TuiApp({ controller });
 
@@ -518,6 +524,37 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
         render();
       })().catch((err: unknown) => {
         logs.push({ workerId: "gateway", line: `refresh failed: ${err instanceof Error ? err.message : String(err)}` });
+        render();
+      });
+    };
+
+    // SCHEDULE pane: the real durable job store — the SAME
+    // <dataDir>/schedule.json file `hades schedule add/run` writes — read
+    // through the real cron engine via buildSchedulePaneSnapshot. Built
+    // lazily on the first refresh so opening the TUI never touches the
+    // schedule file unasked. `runnerRunning` is honestly `null`: this
+    // process never runs a SchedulerRunner (that belongs to
+    // `hades gateway start --schedule`), so nothing is attached here.
+    scheduleRefresh = (): void => {
+      void (async () => {
+        const [{ JsonFileJobStore }, { systemClock }, { buildSchedulePaneSnapshot }, { loadConfig }, { join }] =
+          await Promise.all([
+            import("../schedule/store"),
+            import("../schedule/clock"),
+            import("../schedule/pane-snapshot"),
+            import("../config/config"),
+            import("node:path"),
+          ]);
+        const dataDir = loadConfig({ env: process.env }).dataDir;
+        // A fresh store per refresh: JsonFileJobStore reads its file at
+        // construction, and `r` must reflect what `hades schedule` wrote
+        // from another terminal since the last look — never a stale cache.
+        const store = new JsonFileJobStore(join(dataDir, "schedule.json"), systemClock);
+        const snapshot = buildSchedulePaneSnapshot(store, systemClock);
+        app.setScheduleData({ ...snapshot, runnerRunning: null });
+        render();
+      })().catch((err: unknown) => {
+        logs.push({ workerId: "schedule", line: `refresh failed: ${err instanceof Error ? err.message : String(err)}` });
         render();
       });
     };

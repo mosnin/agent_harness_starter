@@ -52,6 +52,7 @@ import {
   type JobExecutor,
 } from "../schedule/runner";
 import { VerifiedDeliveryRouter, type DeliveryReceipt, type JobDeliverer } from "../schedule/delivery";
+import { DeliveryReceiptLedger, LedgeredDeliverer, type ReceiptRecord } from "../schedule/receipt-ledger";
 
 // ===========================================================================
 // Locked public types
@@ -63,6 +64,13 @@ export interface ScheduleCommandDeps {
   executor: JobExecutor;
   deliverer: JobDeliverer;
   env?: NodeJS.ProcessEnv;
+  /** Path of the hash-chained delivery-receipt ledger
+   *  (`../schedule/receipt-ledger`). When set, `run` appends every delivery
+   *  receipt to it (through `LedgeredDeliverer` — the delivery outcome is
+   *  never altered by ledger success/failure) and `receipts` reads/verifies
+   *  it. Absent, `run` records nothing extra and `receipts` reports honestly
+   *  that no ledger is configured. */
+  receiptsPath?: string;
 }
 
 // ===========================================================================
@@ -135,7 +143,8 @@ export function defaultScheduleDeps(env: NodeJS.ProcessEnv = process.env): Sched
   const executor: JobExecutor = new BuiltinNoteExecutor();
   const deliverer = new VerifiedDeliveryRouter({ senders: [], clock });
   ZERO_SENDER_ROUTERS.add(deliverer);
-  return { store, clock, executor, deliverer, env };
+  const receiptsPath = join(dataDir, "schedule-receipts.json");
+  return { store, clock, executor, deliverer, env, receiptsPath };
 }
 
 // ===========================================================================
@@ -207,6 +216,7 @@ const USAGE: string[] = [
   "  remove <id>           Remove a job by full id or unambiguous id prefix",
   "  run <id>              Fire a job immediately through the real runner + deliverer",
   "  status                Show store path, per-job counters, and executor/sender wiring",
+  "  receipts [--job <id>] [--limit <n>]   Show + independently re-verify the hash-chained delivery receipt ledger",
 ];
 
 // ===========================================================================
@@ -397,6 +407,22 @@ async function handleRun(args: readonly string[], deps: ScheduleCommandDeps): Pr
     return { code: 1, lines: [`No scheduled job with id "${id}".`] };
   }
 
+  // When a receipts ledger is configured, interpose the REAL
+  // `LedgeredDeliverer` around the real deliverer: the receipt is appended
+  // to the hash-chained ledger and returned untouched (by reference); a
+  // ledger failure never alters the delivery outcome — it is reported as a
+  // warning line instead.
+  let ledgerWarning: string | undefined;
+  const innerDeliverer: JobDeliverer = deps.receiptsPath
+    ? new LedgeredDeliverer(
+        deps.deliverer,
+        new DeliveryReceiptLedger({ path: deps.receiptsPath, clock: deps.clock }),
+        (message) => {
+          ledgerWarning = `warning: receipt ledger append failed (delivery outcome unaffected): ${message}`;
+        },
+      )
+    : deps.deliverer;
+
   // A thin observer, not a reimplementation: every delivery decision (badge
   // derivation, retries, formatting) still happens inside the REAL
   // `deps.deliverer`. This wrapper only captures the receipt it already
@@ -406,7 +432,7 @@ async function handleRun(args: readonly string[], deps: ScheduleCommandDeps): Pr
   let lastReceipt: DeliveryReceipt | undefined;
   const observingDeliverer: JobDeliverer = {
     deliver: async (j, result, ctx) => {
-      const receipt = await deps.deliverer.deliver(j, result, ctx);
+      const receipt = await innerDeliverer.deliver(j, result, ctx);
       lastReceipt = receipt;
       return receipt;
     },
@@ -432,8 +458,91 @@ async function handleRun(args: readonly string[], deps: ScheduleCommandDeps): Pr
       `  detail:       ${record.detail}`,
       `  badge:        ${lastReceipt ? lastReceipt.badge : "(no delivery target configured)"}`,
       `  reason:       ${lastReceipt ? lastReceipt.reason : "(no delivery target configured)"}`,
+      ...(ledgerWarning ? [`  ${ledgerWarning}`] : []),
     ],
   };
+}
+
+// ===========================================================================
+// receipts
+// ===========================================================================
+
+const KNOWN_RECEIPTS_FLAGS: ReadonlySet<string> = new Set(["--job", "--limit"]);
+
+function formatReceiptLine(r: ReceiptRecord): string {
+  const target = r.platform !== null ? `${r.platform}:${r.user ?? "?"}` : "(no target)";
+  const cert = r.certFingerprint !== null ? ` cert=${r.certFingerprint.slice(0, 16)}…` : "";
+  return `  #${r.seq}  ${new Date(r.at).toISOString()}  ${r.jobName}  ${r.outcome}  badge=${r.badge}  ${target}  attempts=${r.attempts}${cert}`;
+}
+
+/**
+ * `hades schedule receipts [--job <id>] [--limit <n>]` — read the
+ * hash-chained delivery-receipt ledger and INDEPENDENTLY re-verify the whole
+ * chain (every hash recomputed from the persisted bytes — never trusting the
+ * stored values). A file that failed to load/verify at construction was
+ * quarantined by the ledger itself and is reported honestly via its load
+ * report; it is never silently accepted or discarded.
+ */
+function handleReceipts(args: readonly string[], deps: ScheduleCommandDeps): CliResult {
+  if (!deps.receiptsPath) {
+    return {
+      code: 1,
+      lines: ["No receipt ledger configured (deps.receiptsPath is not set)."],
+    };
+  }
+
+  const { flags, error } = parseFlags(args, KNOWN_RECEIPTS_FLAGS);
+  if (error) {
+    return { code: 1, lines: [error, "", "Usage: hades schedule receipts [--job <id>] [--limit <n>]"] };
+  }
+
+  let limit = 20;
+  if (flags["--limit"] !== undefined) {
+    limit = Number(flags["--limit"]);
+    if (!Number.isInteger(limit) || limit < 0) {
+      return { code: 1, lines: [`Invalid --limit value ${JSON.stringify(flags["--limit"])}: expected a non-negative integer.`] };
+    }
+  }
+
+  let ledger: DeliveryReceiptLedger;
+  try {
+    ledger = new DeliveryReceiptLedger({ path: deps.receiptsPath, clock: deps.clock });
+  } catch (err) {
+    return { code: 1, lines: [`Failed to open receipt ledger at ${deps.receiptsPath}: ${errorMessage(err)}`] };
+  }
+
+  const report = ledger.loadReport();
+  const verification = ledger.verifyChain();
+  const tally = ledger.tally();
+  const jobId = flags["--job"];
+  const records = ledger.records({ ...(jobId !== undefined ? { jobId } : {}), limit });
+  const total = ledger.records().length;
+
+  const lines: string[] = [`Receipt ledger: ${deps.receiptsPath}`];
+  if (report.recovered) {
+    lines.push(`  warning: ${report.warning ?? "ledger recovered from a corrupt file"}`);
+  }
+  lines.push(
+    verification.ok
+      ? `Chain: verified OK (${verification.length} record(s), every hash recomputed independently)`
+      : `Chain: BROKEN at seq ${String(verification.brokenAtSeq)}: ${verification.reason}`,
+  );
+  lines.push(`Tally: delivered=${tally.delivered} abstained=${tally.abstained} withheld=${tally.withheld} failed=${tally.failed}`);
+
+  if (total === 0) {
+    lines.push("No receipts recorded yet.");
+  } else if (records.length === 0) {
+    lines.push(jobId !== undefined ? `No receipts match job id "${jobId}".` : "No receipts within the requested limit.");
+  } else {
+    lines.push(
+      jobId !== undefined
+        ? `Last ${records.length} receipt(s) for job ${jobId} (of ${total} total):`
+        : `Last ${records.length} receipt(s) (of ${total} total):`,
+    );
+    for (const r of records) lines.push(formatReceiptLine(r));
+  }
+
+  return { code: verification.ok ? 0 : 1, lines };
 }
 
 // ===========================================================================
@@ -501,6 +610,8 @@ export async function runScheduleCommand(args: string[], deps: ScheduleCommandDe
       return handleRun(rest, deps);
     case "status":
       return handleStatus(deps);
+    case "receipts":
+      return handleReceipts(rest, deps);
     default:
       return { code: 1, lines: USAGE };
   }

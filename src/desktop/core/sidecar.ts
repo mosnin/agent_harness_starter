@@ -27,6 +27,8 @@ import type {
   GatewayEvent,
   LearningCommand,
   LearningEvent,
+  ScheduleCommand,
+  ScheduleEvent,
   MetricsView,
   RunView,
   TaskView,
@@ -133,6 +135,17 @@ export interface GatewayHandler {
   handle(cmd: GatewayCommand, emit: (e: GatewayEvent) => void): Promise<void>;
 }
 
+/**
+ * Handles `schedule.*` commands, resolving to the single `ScheduleEvent`
+ * reply. Structurally matches `ScheduleService.handle`
+ * (`./schedule-service.ts`) so central wiring can pass a real service over
+ * the real `JsonFileJobStore` + `SchedulerRunner`; left undefined, a schedule
+ * command reports an honest `schedule.error` instead of hanging the caller.
+ */
+export interface ScheduleHandler {
+  handle(cmd: ScheduleCommand): Promise<ScheduleEvent>;
+}
+
 /** Truthful description of what inference backs this run — surfaced as a startup log. */
 export interface InferenceInfo {
   kind: "real" | "mock";
@@ -177,6 +190,15 @@ export interface SidecarOptions {
    * than silence.
    */
   gateway?: GatewayHandler;
+  /**
+   * Real scheduler backend for `schedule.*` commands; when set (central
+   * wiring passes a `ScheduleService` over the real `JsonFileJobStore` +
+   * `SchedulerRunner`), those commands do real work against the SAME
+   * `<dataDir>/schedule.json` the `hades schedule` CLI uses. Left undefined,
+   * a schedule command reports an honest `schedule.error` rather than
+   * silence.
+   */
+  schedule?: ScheduleHandler;
 }
 
 /**
@@ -215,6 +237,7 @@ export class Sidecar {
   private readonly learning?: SidecarOptions["learning"];
   private readonly learningStatus?: LearningStatusHandler;
   private readonly gateway?: GatewayHandler;
+  private readonly schedule?: ScheduleHandler;
   private learningLoop?: { detach(): Promise<void> };
 
   private mode: "inline" | "process" | "docker" = "inline";
@@ -238,6 +261,7 @@ export class Sidecar {
     this.learning = opts.learning;
     this.learningStatus = opts.learningStatus;
     this.gateway = opts.gateway;
+    this.schedule = opts.schedule;
   }
 
   /** Process one command. Never throws — a failure becomes a `log` event. */
@@ -332,6 +356,24 @@ export class Sidecar {
             this.safeEmit({
               kind: "gateway.error",
               message: "gateway is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "schedule.status.get":
+        case "schedule.job.get":
+        case "schedule.job.toggle":
+        case "schedule.job.run":
+          // Central wiring hands us a real ScheduleService (schedule-service.ts
+          // over the real JsonFileJobStore + SchedulerRunner). Without one,
+          // reply with an honest schedule.error rather than silence, so a
+          // renderer waiting on a status/receipt never hangs.
+          if (this.schedule) {
+            this.safeEmit(await this.schedule.handle(cmd));
+          } else {
+            this.safeEmit({
+              kind: "schedule.error",
+              message: "schedule is not configured in this build",
               at: this.now(),
             });
           }

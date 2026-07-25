@@ -662,3 +662,139 @@ describe("defaultScheduleDeps", () => {
     }
   });
 });
+
+// ===========================================================================
+// receipts — the hash-chained delivery receipt ledger surface
+// ===========================================================================
+
+describe("runScheduleCommand — receipts", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "schedule-cmd-receipts-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("without a configured receiptsPath: honest error, code 1", async () => {
+    const { deps } = makeDeps(); // makeDeps never sets receiptsPath
+    const result = await runScheduleCommand(["receipts"], deps);
+    expect(result.code).toBe(1);
+    expect(result.lines).toEqual(["No receipt ledger configured (deps.receiptsPath is not set)."]);
+  });
+
+  it("empty ledger: chain verifies OK over 0 records, honest 'no receipts' line", async () => {
+    const receiptsPath = join(dir, "receipts.json");
+    const { deps } = makeDeps({ receiptsPath });
+    const result = await runScheduleCommand(["receipts"], deps);
+    expect(result.code).toBe(0);
+    expect(result.lines[0]).toBe(`Receipt ledger: ${receiptsPath}`);
+    expect(result.lines).toContain("Chain: verified OK (0 record(s), every hash recomputed independently)");
+    expect(result.lines).toContain("Tally: delivered=0 abstained=0 withheld=0 failed=0");
+    expect(result.lines).toContain("No receipts recorded yet.");
+  });
+
+  it("a REAL verified `run` is ledgered end-to-end: chain re-verifies, record carries badge=verified + the real cert fingerprint, delivered text stays off disk", async () => {
+    const receiptsPath = join(dir, "receipts.json");
+    const sender = new RecordingSender("telegram");
+    const ca = new CertificateAuthority(generatePrivateKeyHex(fixedRng(11)));
+    const outputText = "the verified secret answer is 42";
+    const { deps, clock } = makeDeps({ receiptsPath, executor: new VerifiedEvidenceExecutor(ca, outputText) });
+    deps.deliverer = new VerifiedDeliveryRouter({ senders: [sender], clock });
+
+    await runScheduleCommand(
+      ["add", "--name", "verified-job", "--cron", "0 3 * * *", "--task", "goal:answer", "--deliver", "telegram:U1"],
+      deps,
+    );
+    const runResult = await runScheduleCommand(["run", "job-1"], deps);
+    expect(runResult.code).toBe(0);
+    expect(runResult.lines).toContain("  outcome:      delivered");
+    expect(runResult.lines).toContain("  badge:        verified");
+    expect(runResult.lines.some((l) => l.includes("receipt ledger append failed"))).toBe(false);
+    expect(sender.calls).toHaveLength(1);
+
+    const receiptsResult = await runScheduleCommand(["receipts"], deps);
+    expect(receiptsResult.code).toBe(0);
+    expect(receiptsResult.lines).toContain("Chain: verified OK (1 record(s), every hash recomputed independently)");
+    expect(receiptsResult.lines).toContain("Tally: delivered=1 abstained=0 withheld=0 failed=0");
+    const recordLine = receiptsResult.lines.find((l) => l.trimStart().startsWith("#0"));
+    expect(recordLine).toBeDefined();
+    expect(recordLine).toContain("verified-job");
+    expect(recordLine).toContain("delivered");
+    expect(recordLine).toContain("badge=verified");
+    expect(recordLine).toContain("telegram:U1");
+    // The fingerprint printed is lifted from the REAL delivered text's badge
+    // line (never fabricated) — cross-check against what actually went out.
+    const sentText = sender.calls[0].text;
+    const fp = /certFingerprint:\s*([^\s|]+)/.exec(sentText)?.[1];
+    expect(fp).toBeDefined();
+    expect(recordLine).toContain(`cert=${fp!.slice(0, 16)}`);
+    // Privacy: the delivered output text never lands in the ledger file.
+    const { readFileSync } = await import("node:fs");
+    expect(readFileSync(receiptsPath, "utf8")).not.toContain(outputText);
+  });
+
+  it("an abstained note run is ledgered with certFingerprint null and --job filtering works", async () => {
+    const receiptsPath = join(dir, "receipts.json");
+    const sender = new RecordingSender("telegram");
+    const { deps, clock } = makeDeps({ receiptsPath });
+    deps.deliverer = new VerifiedDeliveryRouter({ senders: [sender], clock });
+
+    await runScheduleCommand(
+      ["add", "--name", "note-job", "--cron", "0 3 * * *", "--deliver", "telegram:U2"],
+      deps,
+    );
+    await runScheduleCommand(["run", "job-1"], deps);
+
+    const filtered = await runScheduleCommand(["receipts", "--job", "job-1", "--limit", "5"], deps);
+    expect(filtered.code).toBe(0);
+    expect(filtered.lines).toContain("Tally: delivered=0 abstained=1 withheld=0 failed=0");
+    expect(filtered.lines).toContain("Last 1 receipt(s) for job job-1 (of 1 total):");
+    const recordLine = filtered.lines.find((l) => l.trimStart().startsWith("#0"));
+    expect(recordLine).toContain("abstained");
+    expect(recordLine).not.toContain("cert="); // no fingerprint was ever lifted
+
+    const noMatch = await runScheduleCommand(["receipts", "--job", "nope"], deps);
+    expect(noMatch.lines).toContain('No receipts match job id "nope".');
+
+    const badLimit = await runScheduleCommand(["receipts", "--limit", "-3"], deps);
+    expect(badLimit.code).toBe(1);
+    expect(badLimit.lines[0]).toContain("Invalid --limit value");
+  });
+
+  it("a tampered ledger file is quarantined at open and reported honestly — never silently accepted", async () => {
+    const receiptsPath = join(dir, "receipts.json");
+    const sender = new RecordingSender("telegram");
+    const { deps, clock } = makeDeps({ receiptsPath });
+    deps.deliverer = new VerifiedDeliveryRouter({ senders: [sender], clock });
+    await runScheduleCommand(["add", "--name", "tamper-job", "--cron", "0 3 * * *", "--deliver", "telegram:U3"], deps);
+    await runScheduleCommand(["run", "job-1"], deps);
+
+    // Tamper: flip the recorded outcome on disk without recomputing hashes.
+    const { readFileSync: rf, writeFileSync: wf } = await import("node:fs");
+    const raw = JSON.parse(rf(receiptsPath, "utf8")) as { records: Array<{ outcome: string }> };
+    raw.records[0].outcome = "delivered";
+    wf(receiptsPath, JSON.stringify(raw), "utf8");
+
+    const result = await runScheduleCommand(["receipts"], deps);
+    expect(result.code).toBe(0); // the surviving (fresh, empty) chain verifies
+    expect(result.lines.some((l) => l.includes("warning:") && l.includes("chain verification failed"))).toBe(true);
+    expect(result.lines).toContain("Chain: verified OK (0 record(s), every hash recomputed independently)");
+    expect(result.lines).toContain("No receipts recorded yet.");
+    // The tampered bytes were preserved for forensics, not deleted.
+    const { readdirSync } = await import("node:fs");
+    expect(readdirSync(dir).some((f) => f.includes("receipts.json.corrupt-"))).toBe(true);
+  });
+
+  it("usage line advertises receipts and unknown receipts flags fail honestly", async () => {
+    const { deps } = makeDeps();
+    const usage = await runScheduleCommand([], deps);
+    expect(usage.lines.some((l) => l.includes("receipts [--job <id>] [--limit <n>]"))).toBe(true);
+
+    const bad = await runScheduleCommand(["receipts", "--bogus", "x"], { ...deps, receiptsPath: join(dir, "r.json") });
+    expect(bad.code).toBe(1);
+    expect(bad.lines[0]).toBe('Unknown flag "--bogus".');
+  });
+});

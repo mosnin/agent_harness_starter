@@ -32,6 +32,7 @@ import {
   type FleetProvisionHandler,
   type LearningStatusHandler,
   type GatewayHandler,
+  type ScheduleHandler,
   type InferenceInfo,
 } from "./core/sidecar";
 import { SkillsService } from "./core/skills-service";
@@ -82,6 +83,15 @@ export interface RunSidecarOptions {
    *  gateway enforces. Built lazily on the first gateway command so sidecar
    *  startup never touches the gateway stack unasked. */
   gateway?: GatewayHandler;
+  /** Real scheduler backend for `schedule.*`; defaults to a `ScheduleService`
+   *  over the SAME `<dataDir>/schedule.json` job store `hades schedule`
+   *  writes, with a real `SchedulerRunner` attached for `schedule.job.run`
+   *  (note + swarm.goal executors; the swarm executor runs the honestly-
+   *  labeled mock echo engine — the REAL engine belongs to
+   *  `hades gateway start --schedule`), and every delivery receipt appended
+   *  to the hash-chained ledger at `<dataDir>/schedule-receipts.json`. Built
+   *  fresh per command so the desktop always sees what the CLI just wrote. */
+  schedule?: ScheduleHandler;
 }
 
 /**
@@ -232,6 +242,74 @@ export async function runSidecar(
     };
   }
 
+  // Real schedule lane: ScheduleService over the SAME <dataDir>/schedule.json
+  // job store the `hades schedule` CLI writes. The stack is rebuilt on every
+  // command — JsonFileJobStore reads its file at construction, and the
+  // desktop must see jobs added from a terminal since the last look, never a
+  // stale cache. `schedule.job.run` fires through a real SchedulerRunner
+  // whose executor registry routes "note" to the honest no-evidence builtin
+  // and "swarm.goal" to a SwarmJobExecutor over the honestly-labeled mock
+  // echo engine (probe mode "mock" — the sidecar never spins up the real
+  // swarm engine unasked; that belongs to `hades gateway start --schedule`).
+  // Zero outbound senders are registered, so a delivery-bearing run resolves
+  // honestly (abstained/failed), and every receipt lands in the hash-chained
+  // ledger at <dataDir>/schedule-receipts.json — the SAME file
+  // `hades schedule receipts` verifies.
+  let schedule = opts.schedule;
+  if (!schedule) {
+    schedule = {
+      handle: async (cmd) => {
+        const [{ join }, { JsonFileJobStore }, { systemClock }, cron, { SchedulerRunner }, { VerifiedDeliveryRouter }, { ExecutorRegistry }, { SwarmJobExecutor, SWARM_TASK_KIND }, { DeliveryReceiptLedger, LedgeredDeliverer }, { BuiltinNoteExecutor }, { ScheduleService }, { echoEngine }] =
+          await Promise.all([
+            import("node:path"),
+            import("../hades/schedule/store"),
+            import("../hades/schedule/clock"),
+            import("../hades/schedule/cron"),
+            import("../hades/schedule/runner"),
+            import("../hades/schedule/delivery"),
+            import("../hades/schedule/executor-registry"),
+            import("../hades/schedule/swarm-executor"),
+            import("../hades/schedule/receipt-ledger"),
+            import("../hades/cli/schedule-command"),
+            import("./core/schedule-service"),
+            import("../hades/gateway/agent-handler"),
+          ]);
+        const dataDir = loadConfig({ env: process.env }).dataDir;
+        const store = new JsonFileJobStore(join(dataDir, "schedule.json"), systemClock);
+        const registry = new ExecutorRegistry();
+        registry.register("note", new BuiltinNoteExecutor());
+        registry.register(
+          SWARM_TASK_KIND,
+          new SwarmJobExecutor({
+            engine: echoEngine(),
+            // Honest probe for the engine actually constructed above: the
+            // sidecar always runs the mock echo engine for scheduled swarm
+            // goals — never a fabricated "real" label.
+            probe: {
+              requested: "swarm",
+              mode: "mock",
+              detail:
+                "desktop sidecar schedule lane runs the mock echo engine; run swarm.goal jobs through `hades gateway start --schedule` for the real engine",
+            },
+          }),
+        );
+        const ledger = new DeliveryReceiptLedger({ path: join(dataDir, "schedule-receipts.json"), clock: systemClock });
+        const deliverer = new LedgeredDeliverer(
+          new VerifiedDeliveryRouter({ senders: [], clock: systemClock }),
+          ledger,
+        );
+        const runner = new SchedulerRunner({ store, clock: systemClock, executor: registry, deliverer });
+        const service = new ScheduleService({
+          jobs: store,
+          runner,
+          nextFire: (cronExpr, after, tz) => cron.nextFireTime(cron.parseCron(cronExpr), after, tz),
+          now,
+        });
+        return service.handle(cmd);
+      },
+    };
+  }
+
   const sidecar = new Sidecar({
     factory,
     now,
@@ -243,6 +321,7 @@ export async function runSidecar(
     learning,
     learningStatus,
     gateway,
+    schedule,
   });
 
   try {

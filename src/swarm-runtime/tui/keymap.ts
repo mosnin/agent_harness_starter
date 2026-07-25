@@ -23,10 +23,10 @@ export type TuiAction =
   | { kind: "input"; char: string }
   | { kind: "submit" }
   | { kind: "backspace" }
-  /** Switch the dashboard to a secondary pane (FLEET / SHOWDOWN / GATEWAY —
-   *  see `./fleet-pane.ts` / `./showdown-pane.ts` / `./gateway-pane.ts`).
-   *  Only produced in view mode. */
-  | { kind: "pane"; pane: "fleet" | "showdown" | "gateway" }
+  /** Switch the dashboard to a secondary pane (FLEET / SHOWDOWN / GATEWAY /
+   *  SCHEDULE — see `./fleet-pane.ts` / `./showdown-pane.ts` /
+   *  `./gateway-pane.ts` / `./schedule-pane.ts`). Only produced in view mode. */
+  | { kind: "pane"; pane: "fleet" | "showdown" | "gateway" | "schedule" }
   | { kind: "none" };
 
 const ENTER_KEYS = new Set(["\r", "\n", "return", "enter"]);
@@ -64,6 +64,7 @@ export function keyToAction(key: string, mode: "view" | "compose"): TuiAction {
   if (key === "f") return { kind: "pane", pane: "fleet" };
   if (key === "s") return { kind: "pane", pane: "showdown" };
   if (key === "w") return { kind: "pane", pane: "gateway" };
+  if (key === "d") return { kind: "pane", pane: "schedule" };
   if (key === "?") return { kind: "toggle-help" };
   if (DOWN_KEYS.has(key)) return { kind: "nav", dir: 1 };
   if (UP_KEYS.has(key)) return { kind: "nav", dir: -1 };

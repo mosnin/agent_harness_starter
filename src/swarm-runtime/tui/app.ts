@@ -30,6 +30,15 @@ import {
   type GatewayPaneEngineRow,
   type GatewayPaneTrafficRow,
 } from "./gateway-pane";
+import {
+  initialSchedulePaneState,
+  schedulePaneKey,
+  renderSchedulePane,
+  type SchedulePaneState,
+  type SchedulePaneJobRow,
+  type SchedulePaneRunRow,
+  type SchedulePaneTally,
+} from "./schedule-pane";
 
 /**
  * The subset of swarm control the interactive TUI needs. A thin adapter over
@@ -56,6 +65,12 @@ export interface TuiController {
    *  via {@link TuiApp.applyGatewayStatus}; absent, the pane keeps its honest
    *  "no connectors probed yet" / "engine: not attached" empty state. */
   refreshGateway?(): void;
+  /** SCHEDULE pane refresh request (`r` while the pane is open, and on open).
+   *  Central wiring reads the real `JobStore` (`buildSchedulePaneSnapshot`
+   *  over `<dataDir>/schedule.json`) and feeds it back via
+   *  {@link TuiApp.setScheduleData}; absent, the pane keeps its honest
+   *  "no scheduled jobs" / "runner: not attached" empty state. */
+  refreshSchedule?(): void;
 }
 
 export interface TuiAppOptions {
@@ -64,7 +79,7 @@ export interface TuiAppOptions {
 }
 
 /** Which full-screen surface the TUI is currently showing. */
-export type TuiPane = "dashboard" | "fleet" | "showdown" | "gateway";
+export type TuiPane = "dashboard" | "fleet" | "showdown" | "gateway" | "schedule";
 
 const HELP_LINES = [
   "  g       start a new goal (compose mode)",
@@ -74,11 +89,13 @@ const HELP_LINES = [
   "  f       toggle the FLEET pane (backends / workers / routing bandit)",
   "  s       toggle the SHOWDOWN pane (swarm vs baseline V-TPH$)",
   "  w       toggle the GATEWAY pane (platform probes / engine / traffic / badges)",
+  "  d       toggle the SCHEDULE pane (cron jobs / runs / outcome tally)",
   "  ?       toggle this help overlay",
   "  q       quit  (also Ctrl-C)",
   "  (fleet pane) ↑/↓ or j/k select worker, r refresh, esc/q back",
   "  (showdown pane) r run a modeled showdown, esc/q back",
   "  (gateway pane) ↑/↓ scroll traffic, pgup/pgdn/home/end jump, r refresh, esc/q back",
+  "  (schedule pane) ↑/↓ or j/k select job, home/end jump, r refresh, esc/q back",
   "  (compose mode) type to build the objective, Enter to submit, Esc to cancel",
 ];
 
@@ -94,6 +111,20 @@ const GATEWAY_NAV_KEYS: Record<string, "up" | "down" | "pageup" | "pagedown" | "
   pageup: "pageup",
   "\x1b[6~": "pagedown",
   pagedown: "pagedown",
+  "\x1b[H": "home",
+  home: "home",
+  "\x1b[F": "end",
+  end: "end",
+};
+
+/** SCHEDULE-pane keys: JOBS selection navigation (the pane's own keymap). */
+const SCHEDULE_NAV_KEYS: Record<string, "up" | "down" | "home" | "end"> = {
+  "\x1b[A": "up",
+  up: "up",
+  k: "up",
+  "\x1b[B": "down",
+  down: "down",
+  j: "down",
   "\x1b[H": "home",
   home: "home",
   "\x1b[F": "end",
@@ -128,6 +159,7 @@ export class TuiApp {
   private fleetPane: FleetPaneState = emptyFleetPaneState();
   private showdownPane: ShowdownPaneState = initialShowdownPaneState();
   private gatewayPane: GatewayPaneState = gatewayPaneInit();
+  private schedulePane: SchedulePaneState = initialSchedulePaneState();
 
   constructor(opts: TuiAppOptions = {}) {
     this.width = opts.width ?? 72;
@@ -210,6 +242,37 @@ export class TuiApp {
     return this.gatewayPane;
   }
 
+  /**
+   * Feed a real schedule snapshot (typically `buildSchedulePaneSnapshot()`
+   * over the real `JobStore` — see `src/hades/cli/tui-command.ts`'s central
+   * wiring). Selection/scroll are preserved (re-clamped against the new JOBS
+   * list by the pane's own windowing on next render/key). `runnerRunning`
+   * must be the honest truth: `null` when no `SchedulerRunner` is attached
+   * to this process at all (the TUI itself never runs one), never a guess.
+   */
+  setScheduleData(data: {
+    jobs: SchedulePaneJobRow[];
+    runs: SchedulePaneRunRow[];
+    tally: SchedulePaneTally | null;
+    runnerRunning: boolean | null;
+  }): void {
+    const maxSelected = Math.max(0, data.jobs.length - 1);
+    this.schedulePane = {
+      ...this.schedulePane,
+      jobs: data.jobs,
+      runs: data.runs,
+      tally: data.tally,
+      runnerRunning: data.runnerRunning,
+      selected: Math.min(this.schedulePane.selected, maxSelected),
+      scroll: Math.min(this.schedulePane.scroll, maxSelected),
+    };
+  }
+
+  /** Read-only view of the SCHEDULE pane's current state (for the main loop / tests). */
+  scheduleState(): SchedulePaneState {
+    return this.schedulePane;
+  }
+
   /** Advance the state machine one keypress. May invoke the controller. */
   handleKey(key: string): { quit?: boolean } {
     // Secondary panes get first claim on keys while open (view mode only) —
@@ -258,6 +321,21 @@ export class TuiApp {
         return {};
       }
     }
+    if (this.currentMode === "view" && this.pane === "schedule") {
+      const nav = SCHEDULE_NAV_KEYS[key];
+      if (nav) {
+        this.schedulePane = schedulePaneKey(this.schedulePane, nav);
+        return {};
+      }
+      if (key === "r") {
+        this.controller?.refreshSchedule?.();
+        return {};
+      }
+      if (key === "\x1b" || key === "escape" || key === "q") {
+        this.pane = "dashboard";
+        return {};
+      }
+    }
 
     const action = keyToAction(key, this.currentMode);
 
@@ -275,6 +353,7 @@ export class TuiApp {
           // so the first frame is never stale.
           if (action.pane === "fleet") this.controller?.refreshFleet?.();
           if (action.pane === "gateway") this.controller?.refreshGateway?.();
+          if (action.pane === "schedule") this.controller?.refreshSchedule?.();
         }
         return {};
 
@@ -349,6 +428,9 @@ export class TuiApp {
     } else if (this.currentMode === "view" && this.pane === "gateway") {
       // renderGatewayPane returns string[] (one entry per line) by contract.
       out.push(...renderGatewayPane(this.gatewayPane, this.width));
+    } else if (this.currentMode === "view" && this.pane === "schedule") {
+      // renderSchedulePane returns string[] (one entry per line) by contract.
+      out.push(...renderSchedulePane(this.schedulePane, this.width));
     } else {
       const dashboard = renderTui(this.state, this.width);
       const lines = dashboard.split("\n");
@@ -398,7 +480,10 @@ export class TuiApp {
     if (this.currentMode === "view" && this.pane === "gateway") {
       return "  [↑/↓ j/k] scroll traffic  [pgup/pgdn/home/end] jump  [r] refresh  [esc/q] back  [?] help";
     }
-    return "  [g] new goal  [+/-] scale pool  [c] cancel  [↑/↓] nav  [f] fleet  [s] showdown  [w] gateway  [?] help  [q] quit";
+    if (this.currentMode === "view" && this.pane === "schedule") {
+      return "  [↑/↓ j/k] select job  [home/end] jump  [r] refresh  [esc/q] back  [?] help";
+    }
+    return "  [g] new goal  [+/-] scale pool  [c] cancel  [↑/↓] nav  [f] fleet  [s] showdown  [w] gateway  [d] schedule  [?] help  [q] quit";
   }
 
   private renderHelp(): string[] {

@@ -162,6 +162,15 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
     case "gateway.error":
       return state;
 
+    // Schedule events are owned by whichever schedule surface consumes them
+    // (the sidecar wire is live; a dedicated renderer card is a follow-up) —
+    // they deliberately do not touch the swarm app state.
+    case "schedule.status":
+    case "schedule.job":
+    case "schedule.run.receipt":
+    case "schedule.error":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.

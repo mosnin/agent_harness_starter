@@ -28,7 +28,7 @@ function usageLines(): string[] {
   return [
     "Usage: hades gateway <start|status|pair|send|bench|help> [args]",
     "",
-    "  start [--probe]                          Start the gateway (long-running); --probe reports connector status and exits without starting",
+    "  start [--probe] [--schedule]             Start the gateway (long-running); --probe reports connector status and exits without starting; --schedule also runs the cron scheduler with verified delivery through the gateway's own connectors",
     "  status                                    Show running state, per-platform connector status, and traffic counters",
     "  pair [--owner]                            Issue a one-time pairing code (trusted by default; owner with --owner)",
     "  send <platform> <user|channel> <text...>  Proactively deliver a message through a connected platform",
@@ -72,6 +72,10 @@ async function runStart(args: string[], deps: GatewayCliDeps, io: GatewayCommand
     return { code: 0, lines };
   }
 
+  if (args.includes("--schedule")) {
+    return runStartWithSchedule(deps, io);
+  }
+
   const started = await deps.process.start();
   const startLines = [
     ...probeTable(started.platforms),
@@ -96,6 +100,69 @@ async function runStart(args: string[], deps: GatewayCliDeps, io: GatewayCommand
   // only after the connectors have stopped — no in-flight turn is orphaned.
   await deps.engineShutdown?.();
   const stopLines = ["gateway: stopped."];
+  for (const line of stopLines) io.write(line);
+
+  return { code: 0, lines: [...startLines, ...stopLines] };
+}
+
+/**
+ * `hades gateway start --schedule` — the gateway <-> scheduler co-runtime:
+ * one `ScheduledGatewayRuntime` running the REAL `SchedulerRunner` poll loop
+ * over the durable `<dataDir>/schedule.json` job store, delivering through
+ * the gateway's OWN live connectors (STYX-gated: a scheduled result without
+ * real verification evidence lands as an honest abstention, never a
+ * "verified" badge), with every delivery receipt appended to the
+ * hash-chained ledger `hades schedule receipts` re-verifies.
+ *
+ * The shutdown ordering is the co-runtime's own contract: scheduler poll
+ * loop first, in-flight fires drained, gateway connectors stopped, and only
+ * then the engine's swarm manager torn down. The final outcome tally printed
+ * is the runtime's real per-`RunOutcome` count — a byte-exact mirror of what
+ * landed in the job store's run history, never a synthesized number.
+ */
+async function runStartWithSchedule(deps: GatewayCliDeps, io: GatewayCommandIo): Promise<CliResult> {
+  if (!deps.schedule) {
+    return {
+      code: 1,
+      lines: [
+        "gateway: --schedule requires deps built by buildGatewayDepsFromEnv({ forStart: true }) — no schedule runtime factory is wired into these deps.",
+      ],
+    };
+  }
+
+  const build = deps.schedule({
+    onEvent: (e) => {
+      if (e.kind === "scheduler") io.write(`scheduler: ${e.scheduler?.kind ?? "event"} — ${e.detail}`);
+    },
+  });
+
+  const status = await build.runtime.start();
+  const startLines = [
+    ...probeTable(status.gateway.platforms),
+    ...engineLines(deps),
+    `schedule: ${status.jobs} job(s) in ${build.storePath}`,
+    `schedule: delivery receipts ledger at ${build.receiptsPath}`,
+    "gateway+scheduler: started — waiting for messages and due jobs (Ctrl+C to stop).",
+  ];
+  for (const line of startLines) io.write(line);
+
+  const wait =
+    io.wait ??
+    (() =>
+      new Promise<void>(() => {
+        build.runtime.installSignalHandlers(process);
+      }));
+  await wait();
+
+  await build.runtime.stop();
+  await deps.engineShutdown?.();
+
+  const finalStatus = build.runtime.status();
+  const o = finalStatus.outcomes;
+  const stopLines = [
+    "gateway+scheduler: stopped.",
+    `schedule outcomes this run: delivered=${o.delivered} abstained=${o.abstained} withheld=${o.withheld} failed=${o.failed} skipped=${o.skipped}`,
+  ];
   for (const line of stopLines) io.write(line);
 
   return { code: 0, lines: [...startLines, ...stopLines] };

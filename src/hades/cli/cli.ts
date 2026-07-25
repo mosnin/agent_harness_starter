@@ -206,7 +206,7 @@ export class HadesCli {
         "  tools <sub>          List/enable/disable the tool catalog (list/enable/disable/info)",
         "  exec <run|bench>     Run one program that chains tools (JS/Python, STYX-traced)",
         "  browser <sub>        Real Chromium browsing: open <url> / bench / probe (STYX-traced)",
-        "  schedule <sub>       Cron scheduler + verified delivery: add/list/remove/run/status",
+        "  schedule <sub>       Cron scheduler + verified delivery: add/list/remove/run/status/receipts",
         "                       (5-field Vixie cron, IANA timezones + DST, misfire policies,",
         "                       durable job store; output only ever delivered as \"verified\"",
         "                       when the STYX gate + ed25519 certificate say so)",

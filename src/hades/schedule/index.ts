@@ -54,3 +54,32 @@ export type {
   OutboundSender,
   VerifiedDeliveryOptions,
 } from "./delivery";
+
+export { ExecutorRegistry } from "./executor-registry";
+export type { ExecutorRegistryOptions } from "./executor-registry";
+
+export { SWARM_TASK_KIND, SwarmJobExecutor, scheduledTurn } from "./swarm-executor";
+export type { SwarmJobExecutorOptions } from "./swarm-executor";
+
+export { ScheduledGatewayRuntime } from "./gateway-runtime";
+export type {
+  ScheduledGatewayRuntimeEvent,
+  ScheduledGatewayRuntimeOptions,
+  ScheduledGatewayRuntimeStatus,
+} from "./gateway-runtime";
+
+export {
+  DeliveryReceiptLedger,
+  LedgeredDeliverer,
+  RECEIPT_LEDGER_GENESIS_SEED,
+} from "./receipt-ledger";
+export type {
+  ReceiptChainVerification,
+  ReceiptLedgerLoadReport,
+  ReceiptLedgerOptions,
+  ReceiptRecord,
+  ReceiptTally,
+} from "./receipt-ledger";
+
+export { buildSchedulePaneSnapshot } from "./pane-snapshot";
+export type { SchedulePaneSnapshot } from "./pane-snapshot";

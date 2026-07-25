@@ -15,9 +15,19 @@
  */
 import { join } from "node:path";
 import type { HadesConfig } from "../config/config";
-import { GatewayProcess } from "../gateway/process";
+import { GatewayProcess, buildConnectorsFromEnv } from "../gateway/process";
 import type { PlatformProbe } from "../gateway/process";
 import type { PlatformConnector } from "../gateway/connector";
+import { JsonFileJobStore } from "../schedule/store";
+import type { JobStore } from "../schedule/store";
+import { systemClock } from "../schedule/clock";
+import { ExecutorRegistry } from "../schedule/executor-registry";
+import { SWARM_TASK_KIND, SwarmJobExecutor } from "../schedule/swarm-executor";
+import { VerifiedDeliveryRouter } from "../schedule/delivery";
+import { DeliveryReceiptLedger, LedgeredDeliverer } from "../schedule/receipt-ledger";
+import { ScheduledGatewayRuntime } from "../schedule/gateway-runtime";
+import type { ScheduledGatewayRuntimeEvent } from "../schedule/gateway-runtime";
+import { BuiltinNoteExecutor } from "./schedule-command";
 import { FileIdentityStore, IdentityLinker, ContinuityRouter } from "../gateway/continuity";
 import { FileTrustStore } from "../gateway/trust-store";
 import { PairingGuard } from "../gateway/pairing";
@@ -30,17 +40,41 @@ import type { EngineProbe, ResolveGatewayEngineDeps } from "../gateway/engine-se
 export type { GatewayAgentEngine } from "../gateway/agent-handler";
 export type { EngineProbe } from "../gateway/engine-select";
 
+/** Everything `hades gateway start --schedule` needs, built by
+ *  {@link GatewayCliDeps.schedule}: the composed co-runtime plus the honest
+ *  facts (paths, store, ledger) the CLI prints and inspects. */
+export interface GatewayScheduleBuild {
+  runtime: ScheduledGatewayRuntime;
+  store: JobStore;
+  storePath: string;
+  receiptsPath: string;
+  ledger: DeliveryReceiptLedger;
+}
+
 export interface GatewayCliDeps {
   process: GatewayProcess;
   pairing: PairingGuard;
   identityPath: string;
   trustPath: string;
+  /** The EXACT connector instances registered on `process` (env-built or
+   *  supplied via overrides) — the same objects `--schedule` hands to
+   *  `VerifiedDeliveryRouter` as outbound senders, so scheduled deliveries
+   *  ride the very transports the gateway started. */
+  connectors: PlatformConnector[];
   /** Honest report of which agent engine this invocation runs (or would run).
    *  Absent when the caller wired deps manually without engine resolution. */
   engineProbe?: EngineProbe;
   /** Tears down the resolved engine's swarm manager (if one was built).
    *  `start` calls this after the gateway stops; no-op for the mock engine. */
   engineShutdown?: () => Promise<void>;
+  /** Compose the gateway<->scheduler co-runtime (`hades gateway start
+   *  --schedule`). Only wired by `buildGatewayDepsFromEnv({ forStart: true })`
+   *  — it needs the resolved engine; the CLI reports an honest error when a
+   *  caller asks for `--schedule` against deps built without it. */
+  schedule?: (opts?: {
+    pollMs?: number;
+    onEvent?: (e: ScheduledGatewayRuntimeEvent) => void;
+  }) => GatewayScheduleBuild;
 }
 
 /**
@@ -82,15 +116,24 @@ export function buildGatewayDeps(
   const pairing = new PairingGuard({ trust, identities, linker, codeTtlMs });
   const finalHandler = pairing.wrap(badgedHandler);
 
+  // Probe env → connectors HERE (the same buildConnectorsFromEnv the process
+  // itself would run) so the returned deps carry the EXACT instances the
+  // process registers — `--schedule` must hand the scheduler's delivery
+  // router the very connectors the gateway starts, never a second probe's
+  // duplicate objects that were never start()ed.
+  const probed = overrides?.connectors ? undefined : buildConnectorsFromEnv(env);
+  const connectors = overrides?.connectors ?? probed!.connectors;
+  const report = overrides?.report ?? probed?.report;
+
   const process = new GatewayProcess({
     handler: finalHandler,
     env,
-    connectors: overrides?.connectors,
-    report: overrides?.report,
+    connectors,
+    report,
     log: overrides?.log,
   });
 
-  return { process, pairing, identityPath, trustPath };
+  return { process, pairing, identityPath, trustPath, connectors };
 }
 
 /**
@@ -124,7 +167,50 @@ export async function buildGatewayDepsFromEnv(
   if (opts?.forStart) {
     const resolved = await resolveGatewayEngine(env, opts?.resolveDeps);
     const deps = buildGatewayDeps(config, env, { engine: resolved.engine, log: opts?.log });
-    return { ...deps, engineProbe: resolved.probe, engineShutdown: resolved.shutdown };
+
+    // The gateway<->scheduler co-runtime factory (`start --schedule`): the
+    // REAL durable job store `hades schedule` writes, an executor registry
+    // routing "note" to the honest no-evidence builtin and "swarm.goal" to
+    // the SAME resolved engine (real STYX-certified swarm or the honestly-
+    // labeled mock — the probe travels with it, never re-labeled), and a
+    // LedgeredDeliverer appending every delivery receipt to the hash-chained
+    // ledger at <dataDir>/schedule-receipts.json — the file
+    // `hades schedule receipts` independently re-verifies.
+    const schedule = (scheduleOpts?: {
+      pollMs?: number;
+      onEvent?: (e: ScheduledGatewayRuntimeEvent) => void;
+    }): GatewayScheduleBuild => {
+      const storePath = join(config.dataDir, "schedule.json");
+      const receiptsPath = join(config.dataDir, "schedule-receipts.json");
+      const store = new JsonFileJobStore(storePath, systemClock);
+
+      const registry = new ExecutorRegistry({
+        onError: (jobId, kind, message) => opts?.log?.(`scheduler: executor for "${kind}" failed on job ${jobId}: ${message}`),
+      });
+      registry.register("note", new BuiltinNoteExecutor());
+      registry.register(SWARM_TASK_KIND, new SwarmJobExecutor({ engine: resolved.engine, probe: resolved.probe }));
+
+      const ledger = new DeliveryReceiptLedger({ path: receiptsPath, clock: systemClock });
+      const deliverer = new LedgeredDeliverer(
+        new VerifiedDeliveryRouter({ senders: deps.connectors, clock: systemClock }),
+        ledger,
+        (message) => opts?.log?.(`scheduler: receipt ledger append failed (delivery unaffected): ${message}`),
+      );
+
+      const runtime = new ScheduledGatewayRuntime({
+        gateway: deps.process,
+        connectors: deps.connectors,
+        store,
+        executor: registry,
+        deliverer,
+        pollMs: scheduleOpts?.pollMs,
+        onEvent: scheduleOpts?.onEvent,
+      });
+
+      return { runtime, store, storePath, receiptsPath, ledger };
+    };
+
+    return { ...deps, engineProbe: resolved.probe, engineShutdown: resolved.shutdown, schedule };
   }
   const deps = buildGatewayDeps(config, env, { log: opts?.log });
   return { ...deps, engineProbe: probeGatewayEngine(env) };

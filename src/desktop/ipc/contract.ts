@@ -43,6 +43,13 @@ import {
   isGatewayEvent,
 } from "./gateway-contract";
 import type { GatewayCommand, GatewayEvent } from "./gateway-contract";
+import {
+  SCHEDULE_COMMAND_KINDS,
+  SCHEDULE_EVENT_KINDS,
+  isScheduleCommand,
+  isScheduleEvent,
+} from "./schedule-contract";
+import type { ScheduleCommand, ScheduleEvent } from "./schedule-contract";
 
 // Re-exported so consumers can treat this module as the single import point
 // for the whole desktop wire format.
@@ -102,6 +109,22 @@ export {
   GATEWAY_COMMAND_KINDS,
   GATEWAY_EVENT_KINDS,
 } from "./gateway-contract";
+export type {
+  ScheduleCommand,
+  ScheduleEvent,
+  ScheduleJobView,
+  ScheduleRunView,
+  ScheduleStatusView,
+} from "./schedule-contract";
+export {
+  isScheduleCommand,
+  isScheduleEvent,
+  isScheduleJobView,
+  isScheduleRunView,
+  isScheduleStatusView,
+  SCHEDULE_COMMAND_KINDS,
+  SCHEDULE_EVENT_KINDS,
+} from "./schedule-contract";
 
 // ---------------------------------------------------------------------------
 // View models
@@ -178,7 +201,8 @@ export type Command =
   | FleetCommand
   | FleetProvisionCommand
   | LearningCommand
-  | GatewayCommand;
+  | GatewayCommand
+  | ScheduleCommand;
 
 export type AppEvent =
   | { kind: "runtime.status"; running: boolean; mode: string; poolSize: number }
@@ -193,7 +217,8 @@ export type AppEvent =
   | FleetEvent
   | FleetProvisionEvent
   | LearningEvent
-  | GatewayEvent;
+  | GatewayEvent
+  | ScheduleEvent;
 
 const COMMAND_KINDS = [
   "runtime.start",
@@ -208,6 +233,7 @@ const COMMAND_KINDS = [
   ...FLEET_PROVISION_COMMAND_KINDS,
   ...LEARNING_COMMAND_KINDS,
   ...GATEWAY_COMMAND_KINDS,
+  ...SCHEDULE_COMMAND_KINDS,
 ] as const;
 
 const EVENT_KINDS = [
@@ -224,6 +250,7 @@ const EVENT_KINDS = [
   ...FLEET_PROVISION_EVENT_KINDS,
   ...LEARNING_EVENT_KINDS,
   ...GATEWAY_EVENT_KINDS,
+  ...SCHEDULE_EVENT_KINDS,
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -377,10 +404,16 @@ export function isCommand(x: unknown): x is Command {
     case "skills.save":
       return isString(x.name) && isString(x.content);
     default:
-      // Fleet + fleet-provision + learning + gateway commands are validated
-      // by their own contract modules' guards; anything none of them
-      // recognizes is not a Command.
-      return isFleetCommand(x) || isFleetProvisionCommand(x) || isLearningCommand(x) || isGatewayCommand(x);
+      // Fleet + fleet-provision + learning + gateway + schedule commands are
+      // validated by their own contract modules' guards; anything none of
+      // them recognizes is not a Command.
+      return (
+        isFleetCommand(x) ||
+        isFleetProvisionCommand(x) ||
+        isLearningCommand(x) ||
+        isGatewayCommand(x) ||
+        isScheduleCommand(x)
+      );
   }
 }
 
@@ -407,10 +440,16 @@ export function isAppEvent(x: unknown): x is AppEvent {
     case "log":
       return isString(x.line) && isNumber(x.at);
     default:
-      // Fleet + fleet-provision + learning + gateway events are validated by
-      // their own contract modules' guards; anything none of them recognizes
-      // is not an AppEvent.
-      return isFleetEvent(x) || isFleetProvisionEvent(x) || isLearningEvent(x) || isGatewayEvent(x);
+      // Fleet + fleet-provision + learning + gateway + schedule events are
+      // validated by their own contract modules' guards; anything none of
+      // them recognizes is not an AppEvent.
+      return (
+        isFleetEvent(x) ||
+        isFleetProvisionEvent(x) ||
+        isLearningEvent(x) ||
+        isGatewayEvent(x) ||
+        isScheduleEvent(x)
+      );
   }
 }
 
