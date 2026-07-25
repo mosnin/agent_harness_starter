@@ -1,0 +1,316 @@
+/**
+ * Hades desktop — Gateway card styles.
+ *
+ * Consumes the design tokens flattened by `theme.ts` (`--color-*`,
+ * `--space-*`, `--radius-*`, `--type-*`, `--shadow-*`, `--motion-*`) —
+ * native Tauri webview surface, not a web page. No hardcoded hex values;
+ * every color comes from a `tokens.css` custom property, so light/dark just
+ * falls out of which token set is mounted at `:root`, exactly like
+ * `learning-card.css` / `fleet-view.css`.
+ */
+
+.gateway-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-ink);
+  font-family: var(--type-family-sans);
+}
+
+.gateway-card--empty {
+  align-items: center;
+}
+
+.gateway-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.gateway-card__title {
+  margin: 0;
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-md);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.gateway-card__started-at,
+.gateway-card__at {
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.gateway-card__started-at--never {
+  font-style: italic;
+}
+
+.gateway-card__at {
+  margin-left: auto;
+}
+
+.gateway-card__empty-message,
+.gateway-empty-message {
+  margin: 0;
+  padding: var(--space-xl);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-ink-tertiary);
+  font-size: var(--type-size-sm);
+  text-align: center;
+  width: 100%;
+}
+
+/* ------------------------------------------------------------------------
+ * Badges — running/stopped, engine mode, platform probe mode, pairing level.
+ * The honest-numbers rule made visible: an offline platform, a mock engine,
+ * or a stopped gateway can never carry a "live"-looking badge.
+ * ---------------------------------------------------------------------- */
+
+.gateway-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-size-2xs);
+  font-weight: var(--type-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.gateway-badge--running {
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}
+
+.gateway-badge--stopped {
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
+}
+
+.gateway-badge--engine-real {
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}
+
+.gateway-badge--engine-mock {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.gateway-badge--engine-none {
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+}
+
+.gateway-badge--real {
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}
+
+.gateway-badge--offline {
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+}
+
+.gateway-badge--owner {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.gateway-badge--trusted {
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+}
+
+/* ------------------------------------------------------------------------
+ * Error lane
+ * ---------------------------------------------------------------------- */
+
+.gateway-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-bad-soft);
+  border: 1px solid var(--color-bad);
+  border-radius: var(--radius-lg);
+  color: var(--color-bad);
+  font-size: var(--type-size-sm);
+}
+
+.gateway-error__message {
+  font-weight: var(--type-weight-medium);
+}
+
+/* ------------------------------------------------------------------------
+ * Platform probe table
+ * ---------------------------------------------------------------------- */
+
+.gateway-probes {
+  display: flex;
+  flex-direction: column;
+}
+
+.gateway-table,
+.gateway-probes-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  font-size: var(--type-size-sm);
+}
+
+.gateway-table thead th {
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-2xs);
+  font-weight: var(--type-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.gateway-table tbody td {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-divider);
+  vertical-align: top;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.gateway-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.gateway-table tbody tr:hover {
+  background: var(--color-surface-hover);
+}
+
+.gateway-probe-row {
+  vertical-align: top;
+}
+
+.gateway-probe-row__platform {
+  font-weight: var(--type-weight-medium);
+  font-variant-numeric: normal;
+}
+
+.gateway-probe-row__detail {
+  color: var(--color-ink-secondary);
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-xs);
+  word-break: break-word;
+}
+
+.gateway-probes--empty {
+  padding: 0;
+}
+
+/* ------------------------------------------------------------------------
+ * Live counters
+ * ---------------------------------------------------------------------- */
+
+.gateway-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.gateway-counters__stat {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------------
+ * Pairing code — TTL-aware
+ * ---------------------------------------------------------------------- */
+
+.gateway-paircode {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.gateway-paircode--empty {
+  justify-content: center;
+  background: transparent;
+  border-style: dashed;
+}
+
+.gateway-paircode--active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.gateway-paircode--expired {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface);
+  opacity: 0.75;
+}
+
+.gateway-paircode__title {
+  margin: 0;
+  flex-basis: 100%;
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-semibold);
+  color: var(--color-ink-secondary);
+}
+
+.gateway-paircode__code {
+  padding: var(--space-2xs) var(--space-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-md);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: 0.06em;
+  color: var(--color-ink);
+}
+
+.gateway-paircode__ttl {
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.gateway-paircode__status {
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-medium);
+}
+
+.gateway-paircode__status--expired {
+  color: var(--color-warn);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
