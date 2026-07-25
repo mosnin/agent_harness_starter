@@ -69,6 +69,18 @@ export type {
   TrustGatePaneBudget,
   TrustGatePaneState,
 } from "./trust-gate-pane";
+export {
+  initMarketPane,
+  marketPaneKey,
+  renderMarketPane,
+  participantNote,
+  scoreCell,
+} from "./market-pane";
+export type {
+  MarketPaneParticipantRow,
+  MarketPaneSummary,
+  MarketPaneState,
+} from "./market-pane";
 export { composeInit, composeText, composeKey, renderCompose } from "./compose";
 export type { ComposeState, ComposeEffect } from "./compose";
 export {

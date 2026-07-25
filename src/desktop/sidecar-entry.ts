@@ -36,11 +36,13 @@ import {
   type StateHandler,
   type MigrateHandler,
   type TrustHandler,
+  type MarketHandler,
   type InferenceInfo,
 } from "./core/sidecar";
 import { StateService } from "./core/state-service";
 import { MigrateService } from "./core/migrate-service";
 import { TrustService } from "./core/trust-service";
+import { MarketService } from "./core/market-service";
 import { defaultMigrateDeps } from "../hades/cli/migrate-command";
 import type { StateEvent } from "./ipc/state-contract";
 import { createWorkspaceStack } from "../hades/state/wiring";
@@ -131,6 +133,14 @@ export interface RunSidecarOptions {
    *  `trust.*` command so sidecar startup never mints a signing key or opens
    *  the ledger unasked. */
   trust?: TrustHandler;
+  /** Real market backend for `market.*`; defaults to a lazily-constructed
+   *  `MarketService` over `openMarket()` rooted at this install's
+   *  `<dataDir>` — the SAME hash-chained reputation ledger, economy,
+   *  certificate replay registry and trusted ed25519 issuer `hades market`
+   *  uses, so a certificate spent in a terminal cannot be re-spent in the
+   *  desktop app. Lazy: nothing is read or deserialized until a `market.*`
+   *  command actually arrives. */
+  market?: MarketHandler;
 }
 
 /**
@@ -484,6 +494,33 @@ export async function runSidecar(
     };
   }
 
+  // Real market lane: the same `openMarket()` handles `hades market` drives,
+  // rooted at the same `<dataDir>` (and therefore trusting the same
+  // `<dataDir>/trust/signing-key` the trust gate signs with). Lazy — no
+  // ledger is deserialized and no key is read until a `market.*` command
+  // actually arrives. `market.book` is a pure read: it prices an order book
+  // and never settles money.
+  let market = opts.market;
+  if (!market) {
+    let marketService: MarketService | undefined;
+    market = {
+      handle: async (cmd) => {
+        try {
+          marketService ??= new MarketService({
+            stackOptions: { env: process.env, dataDir: loadConfig({ env: process.env }).dataDir },
+            now,
+          });
+          return await marketService.handle(cmd);
+        } catch (err) {
+          // MarketService.handle catches its own failures; this only fires if
+          // constructing it (or resolving config) throws. Report the REAL
+          // reason rather than a synthesized empty market.
+          return { kind: "market.error", op: cmd.kind, message: errMsg(err), at: now() };
+        }
+      },
+    };
+  }
+
   const sidecar = new Sidecar({
     factory,
     now,
@@ -504,6 +541,7 @@ export async function runSidecar(
     state,
     migrate,
     trust,
+    market,
   });
 
   try {

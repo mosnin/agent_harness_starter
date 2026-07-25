@@ -34,6 +34,8 @@ import type {
   MigrateEvent,
   TrustCommand,
   TrustEvent,
+  MarketCommand,
+  MarketEvent,
   StateEvent,
   MetricsView,
   RunView,
@@ -202,6 +204,21 @@ export interface TrustHandler {
   handle(cmd: TrustCommand): Promise<TrustEvent>;
 }
 
+/**
+ * Handles `market.*` commands over the REAL verified-work market
+ * (`src/hades/market/**`), resolving to the `MarketEvent` to emit.
+ * Structurally matches `MarketService` (`./market-service.ts`) so central
+ * wiring can pass a service driving the SAME `openMarket()` handles
+ * `hades market` runs — one hash-chained reputation ledger, one economy, one
+ * certificate replay registry and one trusted ed25519 issuer rooted at this
+ * install's `<dataDir>`. Left undefined, a market command reports an honest
+ * `market.error` instead of hanging the caller — it never pretends an empty
+ * market is a healthy one.
+ */
+export interface MarketHandler {
+  handle(cmd: MarketCommand): Promise<MarketEvent>;
+}
+
 /** Truthful description of what inference backs this run — surfaced as a startup log. */
 export interface InferenceInfo {
   kind: "real" | "mock";
@@ -283,6 +300,15 @@ export interface SidecarOptions {
    * would read as "the gate is fine".
    */
   trust?: TrustHandler;
+  /**
+   * Real market backend for `market.*` commands; when set (central wiring
+   * passes a `MarketService` over the real `openMarket()`), the desktop reads
+   * the SAME reputation ledger, economy, replay registry and trusted issuer
+   * the `hades market` CLI does. Left undefined, a market command reports an
+   * honest `market.error` rather than an empty status a renderer would read
+   * as "nobody has ever cheated here".
+   */
+  market?: MarketHandler;
 }
 
 /**
@@ -325,6 +351,7 @@ export class Sidecar {
   private readonly state?: StateHandler;
   private readonly migrate?: MigrateHandler;
   private readonly trust?: TrustHandler;
+  private readonly market?: MarketHandler;
   private stateUnsubscribe?: () => void;
   /** Guards {@link Sidecar.dispose}'s one-shot teardown of the state lane. */
   private disposed = false;
@@ -355,6 +382,7 @@ export class Sidecar {
     this.state = opts.state;
     this.migrate = opts.migrate;
     this.trust = opts.trust;
+    this.market = opts.market;
 
     // Live workspace deltas are PUSHED, not polled: subscribe once, up
     // front, so a write made by another process (a `hades state set` in a
@@ -545,6 +573,26 @@ export class Sidecar {
               kind: "trust.error",
               op: cmd.kind,
               message: "the unified trust gate is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "market.status":
+        case "market.reputation":
+        case "market.book":
+        case "market.simulate":
+          // Central wiring hands us a real MarketService (market-service.ts
+          // over the real openMarket() rooted at the SAME <dataDir> the
+          // `hades market` CLI uses). Without one, reply with an honest
+          // market.error rather than a synthesized empty market — a renderer
+          // must never be able to read "not configured" as "no fabrications".
+          if (this.market) {
+            this.safeEmit(await this.market.handle(cmd));
+          } else {
+            this.safeEmit({
+              kind: "market.error",
+              op: cmd.kind,
+              message: "the verified-work market is not configured in this build",
               at: this.now(),
             });
           }

@@ -74,6 +74,13 @@ import {
   isTrustEvent,
 } from "./trust-contract";
 import type { TrustCommand, TrustEvent } from "./trust-contract";
+import {
+  MARKET_COMMAND_KINDS,
+  MARKET_EVENT_KINDS,
+  isMarketCommand,
+  isMarketEvent,
+} from "./market-contract";
+import type { MarketCommand, MarketEvent } from "./market-contract";
 
 // Re-exported so consumers can treat this module as the single import point
 // for the whole desktop wire format.
@@ -207,6 +214,28 @@ export {
   TRUST_COMMAND_KINDS,
   TRUST_EVENT_KINDS,
 } from "./trust-contract";
+export type {
+  MarketCommand,
+  MarketEvent,
+  MarketParticipantWire,
+  MarketStatusWire,
+  MarketReputationWire,
+  MarketMatchWire,
+  MarketBookWire,
+  MarketSimulationWire,
+} from "./market-contract";
+export {
+  isMarketCommand,
+  isMarketEvent,
+  isMarketParticipantWire,
+  isMarketStatusWire,
+  isMarketReputationWire,
+  isMarketMatchWire,
+  isMarketBookWire,
+  isMarketSimulationWire,
+  MARKET_COMMAND_KINDS,
+  MARKET_EVENT_KINDS,
+} from "./market-contract";
 
 // ---------------------------------------------------------------------------
 // View models
@@ -305,7 +334,8 @@ export type Command =
   | ScheduleCommand
   | StateCommand
   | MigrateCommand
-  | TrustCommand;
+  | TrustCommand
+  | MarketCommand;
 
 export type AppEvent =
   | { kind: "runtime.status"; running: boolean; mode: string; poolSize: number }
@@ -327,7 +357,8 @@ export type AppEvent =
   | ScheduleEvent
   | StateEvent
   | MigrateEvent
-  | TrustEvent;
+  | TrustEvent
+  | MarketEvent;
 
 const COMMAND_KINDS = [
   "runtime.start",
@@ -346,6 +377,7 @@ const COMMAND_KINDS = [
   ...STATE_COMMAND_KINDS,
   ...MIGRATE_COMMAND_KINDS,
   ...TRUST_COMMAND_KINDS,
+  ...MARKET_COMMAND_KINDS,
 ] as const;
 
 const EVENT_KINDS = [
@@ -366,6 +398,7 @@ const EVENT_KINDS = [
   ...STATE_EVENT_KINDS,
   ...MIGRATE_EVENT_KINDS,
   ...TRUST_EVENT_KINDS,
+  ...MARKET_EVENT_KINDS,
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -555,7 +588,7 @@ export function isCommand(x: unknown): x is Command {
       return isString(x.name) && isString(x.content);
     default:
       // Fleet + fleet-provision + learning + gateway + schedule + state +
-      // migrate + trust commands are validated by their own contract
+      // migrate + trust + market commands are validated by their own contract
       // modules' guards; anything none of them recognizes is not a Command.
       return (
         isFleetCommand(x) ||
@@ -565,7 +598,8 @@ export function isCommand(x: unknown): x is Command {
         isScheduleCommand(x) ||
         isStateCommand(x) ||
         isMigrateCommand(x) ||
-        isTrustCommand(x)
+        isTrustCommand(x) ||
+        isMarketCommand(x)
       );
   }
 }
@@ -594,8 +628,8 @@ export function isAppEvent(x: unknown): x is AppEvent {
       return isString(x.line) && isNumber(x.at);
     default:
       // Fleet + fleet-provision + learning + gateway + schedule + state +
-      // migrate + trust events are validated by their own contract modules'
-      // guards; anything none of them recognizes is not an AppEvent.
+      // migrate + trust + market events are validated by their own contract
+      // modules' guards; anything none of them recognizes is not an AppEvent.
       return (
         isFleetEvent(x) ||
         isFleetProvisionEvent(x) ||
@@ -604,7 +638,8 @@ export function isAppEvent(x: unknown): x is AppEvent {
         isScheduleEvent(x) ||
         isStateEvent(x) ||
         isMigrateEvent(x) ||
-        isTrustEvent(x)
+        isTrustEvent(x) ||
+        isMarketEvent(x)
       );
   }
 }

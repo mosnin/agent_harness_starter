@@ -39,3 +39,4 @@ export * from "./schedule/index";
 export * from "./state/index";
 export * from "./migrate/index";
 export * from "./trust/index";
+export * from "./market/index";

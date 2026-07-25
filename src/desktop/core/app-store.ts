@@ -205,6 +205,17 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
     case "trust.error":
       return state;
 
+    // Market events are read-only reports about the verified-work economy
+    // (`./market-service.ts`) — reputation, balances, a cleared order book,
+    // or an explicitly labelled simulation. Like every lane above, they are
+    // rendered directly and deliberately do not touch the swarm app state.
+    case "market.status":
+    case "market.reputation":
+    case "market.book":
+    case "market.simulated":
+    case "market.error":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.

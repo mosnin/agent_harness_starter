@@ -34,6 +34,7 @@ import type { StateCommandDeps } from "./state-command";
 import type { MigrateCommandDeps } from "./migrate-command";
 import type { InstallCommandDeps } from "./install-command";
 import type { TrustCommandDeps } from "./trust-command";
+import type { MarketCommandDeps } from "./market-command";
 import { join } from "node:path";
 
 export interface CliResult {
@@ -105,6 +106,12 @@ export interface HadesCliDeps {
    *  `defaultTrustDeps()` over the same `$HADES_DATA_DIR|.hades` data
    *  directory every other surface uses. */
   trust?: () => TrustCommandDeps;
+  /** Verified-work market (`hades market`). Lazy for the same reason `trust`
+   *  is: building the CLI must never touch `<dataDir>/market`, read the
+   *  signing identity, or deserialize a reputation ledger. Cached after the
+   *  first market subcommand runs, so one process shares one ledger, one
+   *  economy and one replay registry across subcommands. */
+  market?: () => MarketCommandDeps;
   /** Skill-library directory for `hades skills hub` (agentskills.io interop).
    *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
    *  the same convention `hades skill` uses. */
@@ -121,7 +128,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -149,6 +156,8 @@ export class HadesCli {
   private installDeps?: InstallCommandDeps;
   /** Cached result of the lazy `deps.trust` factory (see HadesCliDeps). */
   private trustDeps?: TrustCommandDeps;
+  /** Cached result of the lazy `deps.market` factory (see HadesCliDeps). */
+  private marketDeps?: MarketCommandDeps;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -208,6 +217,8 @@ export class HadesCli {
         return this.install(rest);
       case "trust":
         return this.trust(rest);
+      case "market":
+        return this.market(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -286,6 +297,13 @@ export class HadesCli {
         "                       ed25519 certificates, and a hash-chained trust budget;",
         "                       an uncalibrated or non-discriminating domain is reported",
         "                       as such and abstains — it is never given a fake threshold)",
+        "  market <sub>         The verified-work market a certificate is priced in:",
+        "                       status/reputation/ledger/book/explain/simulate/doctor",
+        "                       (hash-chained Brier reputation, certificate-gated claim",
+        "                       adjudication over the SAME ed25519 identity the trust gate",
+        "                       signs with, escrow/slashing/standing, and a second-price",
+        "                       order book ranked by reputation-adjusted value per dollar;",
+        "                       `simulate` is the only synthetic subcommand and says so)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -469,6 +487,19 @@ export class HadesCli {
       this.trustDeps = this.deps.trust ? this.deps.trust() : defaultTrustDeps();
     }
     return runTrustCommand(args, this.trustDeps);
+  }
+
+  /** `hades market status|reputation|ledger|book|explain|simulate|doctor` —
+   *  the verified-work market. Lazy AND cached for the same reasons `trust`
+   *  is: one process shares one reputation ledger, one economy and one
+   *  certificate replay registry across subcommands, and the dynamic import
+   *  keeps the ed25519/fs cost off every other command's startup path. */
+  private async market(args: string[]): Promise<CliResult> {
+    const { runMarketCommand, defaultMarketDeps } = await import("./market-command");
+    if (!this.marketDeps) {
+      this.marketDeps = this.deps.market ? this.deps.market() : defaultMarketDeps();
+    }
+    return runMarketCommand(args, this.marketDeps);
   }
 
   private model(args: string[]): CliResult {

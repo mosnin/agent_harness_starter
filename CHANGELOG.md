@@ -372,3 +372,94 @@ verifier is structural, so `--from-eval` correctly yields AUC 0.5 and a
 rather than dressed up as a working gate. `doctor` also FAILS the domains
 that ship a single verifier (`procedure`, `message`), because a lone voter
 is always `degraded-evidence` and can never certify however it is calibrated.
+
+## Hades > Hermes, Phase 16 — the verified-work market (`src/hades/market/`)
+
+Phase 15 made a certificate *provable*. This phase makes it *worth something*:
+a market in which the only way to get paid is to attach a certificate that
+independently re-derives, and in which asserting verified work you cannot
+prove is economically fatal rather than merely embarrassing.
+
+- **Reputation** (`market/reputation.ts`): a hash-chained, tamper-evident
+  ledger of (forecast, outcome) events per participant, scored with a
+  Murphy-decomposed Brier SKILL score (`brier = reliability - resolution +
+  uncertainty`), exponential time decay, difficulty weighting and
+  population-prior shrinkage. A forecaster with no *resolution* — one who
+  never distinguishes hard cases from easy ones — cannot out-score a
+  genuinely calibrated one no matter how favourable their task pool's base
+  rate is. Any adjudged fabrication forces the score to a hard,
+  unamortizable zero, and 1000 perfect events do not average it away.
+- **Claims** (`market/claims.ts`): `ClaimAdjudicator` re-derives claim truth
+  from the REAL ed25519 crypto in `styx/certificate` — signature, issuer,
+  output binding, task binding, trace binding, tier, epsilon, freshness,
+  verifier versions, score domain, claim-vs-certificate ceiling and replay.
+  No certificate = honest abstention (`unverified`, score 0, not a lie). A
+  certificate failing ANY check = `fabricated`, score EXACTLY 0. Numbers are
+  only ever read from a payload whose signature already verified.
+- **Economy** (`market/economy.ts`): escrow, the REAL `settlementPayment`
+  Brier rule, slashing, treasury conservation across three buckets, and a
+  hysteresis-guarded `active -> probation -> demoted -> banned` standing
+  machine whose recovery path requires consecutive certified passes — never a
+  single lucky result. A proven fabrication bans in ONE settlement.
+- **Exchange** (`market/exchange.ts`): a trust-gated, second-price order book
+  that ranks offers by REPUTATION-ADJUSTED expected verified value per
+  dollar, closing the selection-stage gap `styx/market.ts` documents but does
+  not fix: a same-price blusterer with a bad track record no longer beats an
+  honest bidder at selection time and only bleeds money later.
+- **Convergence** (`market/convergence.ts`): a seeded cohort driven through
+  the real engine, measuring whether reputation rank order converges on true
+  reliability. Explicitly and permanently labelled a MODEL — its numbers are
+  never mixed into live market state, and the contract guard on the desktop
+  lane REJECTS a simulation view whose model banner has been stripped.
+- **Central wiring** (`market/wiring.ts`): `openMarket()` — the one assembly
+  the CLI, the desktop sidecar and the TUI share, rooted at `<dataDir>/market`
+  and trusting the SAME `<dataDir>/trust/signing-key` identity the trust gate
+  signs with, so a certificate minted by `hades trust admit` in a terminal
+  spends as real money here. Reputation, economy and the certificate replay
+  registry are all durable; a reputation ledger whose hash chain does not
+  re-verify is REFUSED, not silently loaded.
+- **Surfaces**: `hades market status|reputation|ledger|book|explain|simulate|doctor`
+  (`npm run market:*`), the desktop `market.*` IPC lane
+  (`src/desktop/ipc/market-contract.ts`, `src/desktop/core/market-service.ts`),
+  and a pure MARKET TUI pane (`src/swarm-runtime/tui/market-pane.ts`).
+
+### Honesty: what this market will not claim
+
+A Brier SKILL score divides by the variance of a participant's own realized
+outcomes, so until they have both a pass and a fail on record it is
+mathematically UNDEFINED. Every surface reports that as `n/a` / `—` /
+`scoreDefined: false` — never as `0.000`, which would read as "scored
+terribly" when the truth is "not scoreable yet". The economy's
+minimum-reputation gate is likewise not applied to an undefined score: before
+this, an honest worker was permanently barred from the market by the first
+job they did right.
+
+An install with no trust-gate identity trusts NO issuer, and says so in
+`status`, in `doctor` (which FAILS) and in the TUI pane — an empty
+fabrication count on an install that would reject every certificate is not
+evidence that nobody cheated.
+
+### Adversarial fixes found during central integration
+
+- **Certificate theft.** The replay registry keyed only on (signature ->
+  task, output), so a second participant re-presenting a stolen but
+  byte-identical certificate passed every content check and adjudicated
+  `verified`. The binding now includes the participant that consumed it.
+- **Replay-registry poisoning.** The registry was written by the FIRST
+  presentation, valid or not — so anyone who could observe a signature could
+  pre-bind it to a bogus task and the legitimate holder's own correct
+  submission came back `replayed-certificate` -> fabricated -> slashed and
+  banned. Only a fully-valid consumption binds now.
+- **Budget overrun.** The exchange's second price `A_w / V_r` is unbounded
+  above; a weak runner-up drove the clearing price far past the `maxPrice`
+  the requester declared and every offer was gated against. Capped at the
+  order's own budget, which (being a property of the ORDER, not the winner's
+  bid) leaves the truthfulness argument intact.
+- **Treasury insolvency.** Payments are drawn from the treasury with no
+  solvency check, so a long run of successful settlements drove `treasury()`
+  negative while `totalTokens()` still "conserved" — conservation across
+  three buckets is not solvency. Payment is now floored at what exists.
+- **A raw NUL byte** in `exchange.ts`'s source (a delimiter written
+  literally), which made the whole file read as binary to git and grep — the
+  same defect the previous two cycles had to fix. Now an escape, with a test
+  that scans every market source for raw control bytes.

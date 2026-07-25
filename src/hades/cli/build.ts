@@ -29,6 +29,8 @@ import { defaultMigrateDeps } from "./migrate-command";
 import type { MigrateCommandDeps } from "./migrate-command";
 import { defaultTrustDeps } from "./trust-command";
 import type { TrustCommandDeps } from "./trust-command";
+import { defaultMarketDeps } from "./market-command";
+import type { MarketCommandDeps } from "./market-command";
 import { SecretVault } from "../migrate/secrets";
 import { fileConfigAccess, resolveWorkspaceActor, workspaceRoot } from "../state/wiring";
 import { allAdapters } from "../state/domains";
@@ -383,6 +385,17 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
   };
   const trust = (): TrustCommandDeps => defaultTrustDeps(process.env, { dataDir: resolveTrustDataDir() });
 
+  // The verified-work market (`hades market`). Rooted at the SAME data dir —
+  // deliberately, because `<dataDir>/trust/signing-key` is the identity whose
+  // certificates this market accepts. Sharing the dir is what makes a
+  // certificate minted by `hades trust admit` spend as real money here (and
+  // in the desktop `market.*` lane) instead of being re-derived or trusted on
+  // a boolean. Lazy for the same reason as `trust`: no ledger is deserialized
+  // and no key is read until a market subcommand actually runs. Without
+  // persistence it is redirected into the same throwaway temp dir the trust
+  // stack uses, so the two still agree on the key inside one process.
+  const market = (): MarketCommandDeps => defaultMarketDeps(process.env, { dataDir: resolveTrustDataDir() });
+
   return new HadesCli({
     version: HADES_VERSION,
     models,
@@ -397,6 +410,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     state,
     migrate,
     trust,
+    market,
     // `hades skills hub` reads/writes the same on-disk skill library
     // `hades skill` manages ($HADES_SKILLS_DIR wins, matching skills-command).
     skillsDir: process.env.HADES_SKILLS_DIR ?? `${config.dataDir}/skills`,
