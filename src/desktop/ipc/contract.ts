@@ -6,11 +6,13 @@
  * of truth for that wire format: the `Command` union flows renderer -> sidecar,
  * the `AppEvent` union flows sidecar -> renderer.
  *
- * The remote-compute fleet surface (`fleet.*` commands/events) is defined in
- * `./fleet-contract.ts` and merged into the `Command`/`AppEvent` unions here,
- * so the whole pipe (sidecar entry, bridge, renderer) carries fleet traffic
- * with full typing. `fleet-contract.ts` stays standalone/dependency-free;
- * this module is the one that composes.
+ * Each subsystem owns its own standalone, dependency-free contract module —
+ * the remote-compute fleet (`fleet.*`) in `./fleet-contract.ts`, the
+ * scheduler (`schedule.*`) in `./schedule-contract.ts`, the shared workspace
+ * store (`state.*`) in `./state-contract.ts`, and so on. THIS module is the
+ * one that composes them: it merges every kind list, guard and union into
+ * the single `Command`/`AppEvent` pair the whole pipe (sidecar entry,
+ * bridge, renderer) speaks, with full typing end to end.
  *
  * Pure, deterministic — depends only on `./fleet-contract`.
  */
@@ -50,6 +52,13 @@ import {
   isScheduleEvent,
 } from "./schedule-contract";
 import type { ScheduleCommand, ScheduleEvent } from "./schedule-contract";
+import {
+  STATE_COMMAND_KINDS,
+  STATE_EVENT_KINDS,
+  isStateCommand,
+  isStateEvent,
+} from "./state-contract";
+import type { StateCommand, StateEvent } from "./state-contract";
 
 // Re-exported so consumers can treat this module as the single import point
 // for the whole desktop wire format.
@@ -125,6 +134,21 @@ export {
   SCHEDULE_COMMAND_KINDS,
   SCHEDULE_EVENT_KINDS,
 } from "./schedule-contract";
+export type {
+  StateCommand,
+  StateEvent,
+  WorkspaceRecordView,
+  WorkspaceStatusView,
+  WorkspaceConflictView,
+} from "./state-contract";
+export {
+  isStateCommand,
+  isStateEvent,
+  isWorkspaceRecordView,
+  isWorkspaceStatusView,
+  STATE_COMMAND_KINDS,
+  STATE_EVENT_KINDS,
+} from "./state-contract";
 
 // ---------------------------------------------------------------------------
 // View models
@@ -220,7 +244,8 @@ export type Command =
   | FleetProvisionCommand
   | LearningCommand
   | GatewayCommand
-  | ScheduleCommand;
+  | ScheduleCommand
+  | StateCommand;
 
 export type AppEvent =
   | { kind: "runtime.status"; running: boolean; mode: string; poolSize: number }
@@ -239,7 +264,8 @@ export type AppEvent =
   | FleetProvisionEvent
   | LearningEvent
   | GatewayEvent
-  | ScheduleEvent;
+  | ScheduleEvent
+  | StateEvent;
 
 const COMMAND_KINDS = [
   "runtime.start",
@@ -255,6 +281,7 @@ const COMMAND_KINDS = [
   ...LEARNING_COMMAND_KINDS,
   ...GATEWAY_COMMAND_KINDS,
   ...SCHEDULE_COMMAND_KINDS,
+  ...STATE_COMMAND_KINDS,
 ] as const;
 
 const EVENT_KINDS = [
@@ -272,6 +299,7 @@ const EVENT_KINDS = [
   ...LEARNING_EVENT_KINDS,
   ...GATEWAY_EVENT_KINDS,
   ...SCHEDULE_EVENT_KINDS,
+  ...STATE_EVENT_KINDS,
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -460,15 +488,16 @@ export function isCommand(x: unknown): x is Command {
     case "skills.save":
       return isString(x.name) && isString(x.content);
     default:
-      // Fleet + fleet-provision + learning + gateway + schedule commands are
-      // validated by their own contract modules' guards; anything none of
-      // them recognizes is not a Command.
+      // Fleet + fleet-provision + learning + gateway + schedule + state
+      // commands are validated by their own contract modules' guards;
+      // anything none of them recognizes is not a Command.
       return (
         isFleetCommand(x) ||
         isFleetProvisionCommand(x) ||
         isLearningCommand(x) ||
         isGatewayCommand(x) ||
-        isScheduleCommand(x)
+        isScheduleCommand(x) ||
+        isStateCommand(x)
       );
   }
 }
@@ -496,15 +525,16 @@ export function isAppEvent(x: unknown): x is AppEvent {
     case "log":
       return isString(x.line) && isNumber(x.at);
     default:
-      // Fleet + fleet-provision + learning + gateway + schedule events are
-      // validated by their own contract modules' guards; anything none of
-      // them recognizes is not an AppEvent.
+      // Fleet + fleet-provision + learning + gateway + schedule + state
+      // events are validated by their own contract modules' guards; anything
+      // none of them recognizes is not an AppEvent.
       return (
         isFleetEvent(x) ||
         isFleetProvisionEvent(x) ||
         isLearningEvent(x) ||
         isGatewayEvent(x) ||
-        isScheduleEvent(x)
+        isScheduleEvent(x) ||
+        isStateEvent(x)
       );
   }
 }

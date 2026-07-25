@@ -1,0 +1,190 @@
+/**
+ * Hades desktop — keyboard shortcuts overlay styles.
+ *
+ * Consumes only the custom properties already defined by `tokens.css`
+ * (`--color-*`, `--space-*`, `--radius-*`, `--type-*`, `--shadow-*`,
+ * `--motion-*`) — no new color literals, no external fonts, no `@import`.
+ * Visual language matches the rest of the shell: elevation over hard
+ * borders, one accent hue, native-app quiet focus rings.
+ */
+
+.keyboard-help {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3xl) var(--space-xl);
+}
+
+.keyboard-help__overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--color-overlay);
+}
+
+.keyboard-help__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(720px, 100%);
+  max-height: 100%;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  animation: keyboard-help-rise var(--motion-slow) var(--motion-ease-out) both;
+}
+
+@keyframes keyboard-help-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keyboard-help__panel {
+    animation: none;
+  }
+}
+
+.keyboard-help__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg) var(--space-xl);
+  border-bottom: 1px solid var(--color-divider);
+  flex-shrink: 0;
+}
+
+.keyboard-help__title {
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-lg);
+  font-weight: var(--type-weight-semibold);
+  color: var(--color-ink);
+  letter-spacing: -0.01em;
+}
+
+.keyboard-help__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-lg);
+  line-height: 1;
+  cursor: default;
+  transition: background var(--motion-fast) var(--motion-ease-out),
+    color var(--motion-fast) var(--motion-ease-out);
+}
+
+.keyboard-help__close:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-ink);
+}
+
+.keyboard-help__body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-xl) var(--space-2xl);
+  padding: var(--space-xl);
+  overflow-y: auto;
+}
+
+@media (max-width: 560px) {
+  .keyboard-help__body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.keyboard-help__empty {
+  grid-column: 1 / -1;
+  color: var(--color-ink-tertiary);
+  font-size: var(--type-size-sm);
+}
+
+.keyboard-help__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.keyboard-help__group-title {
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-semibold);
+  color: var(--color-ink-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 var(--space-xs);
+}
+
+.keyboard-help__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  list-style: none;
+}
+
+.keyboard-help__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
+  transition: background var(--motion-fast) var(--motion-ease-out);
+}
+
+.keyboard-help__row:hover,
+.keyboard-help__row:focus-visible {
+  background: var(--color-surface-hover);
+}
+
+.keyboard-help__row:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.keyboard-help__label {
+  font-size: var(--type-size-sm);
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.keyboard-help__chord {
+  flex-shrink: 0;
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-medium);
+  color: var(--color-ink-secondary);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3xs) var(--space-xs);
+  white-space: nowrap;
+}
+
+.keyboard-help__footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-sm) var(--space-xl);
+  border-top: 1px solid var(--color-divider);
+  flex-shrink: 0;
+}
+
+.keyboard-help__kbd {
+  font-size: var(--type-size-2xs);
+  color: var(--color-ink-tertiary);
+}

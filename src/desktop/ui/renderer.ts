@@ -49,6 +49,25 @@ import {
   createPaletteEntries,
 } from "./command-palette";
 import type { PaletteState, PaletteAction, PaletteEntry } from "./command-palette";
+import { initialStateSlice, reduceState } from "../core/state-slice";
+import type { StateSlice } from "../core/state-slice";
+import {
+  initialStateViewState,
+  isStateViewDomain,
+  renderStateView,
+  type StateViewState,
+} from "./state-view";
+import type { StateEvent } from "../ipc/state-contract";
+import {
+  KeyDispatcher,
+  KeymapRegistry,
+  defaultBindings,
+  type KeyAction,
+  type KeyContext,
+  type KeyEventLike,
+  type Platform,
+} from "./keyboard-nav";
+import { renderKeyboardHelp } from "./keyboard-help";
 import type { Command } from "../ipc/contract";
 import type { Bridge } from "./bridge";
 
@@ -62,10 +81,24 @@ export type { Bridge } from "./bridge";
 
 export interface AppController {
   getState(): AppState;
+  /** The reduced shared-workspace slice (`state.*` events). */
+  getStateSlice(): StateSlice;
+  /** The currently-active nav surface. */
+  getNav(): NavKey;
   setNav(key: NavKey): void;
   dispatchIntent(intent: { cmd: string; value?: string }): void;
+  /**
+   * Feed one keyboard event through the real keymap engine
+   * (`./keyboard-nav.ts`) and perform whatever `KeyAction` it resolves to.
+   * Returns true when the event was consumed (the caller should
+   * `preventDefault`), false when nothing matched and the webview's default
+   * behavior must stand.
+   */
+  handleKey(ev: KeyEventLike): boolean;
   /** Open/close/drive the command palette overlay. */
   palette(action: PaletteAction): void;
+  /** Open/close/toggle the keyboard-shortcuts overlay. */
+  help(op: "open" | "close" | "toggle"): void;
   /** Run the real in-memory head-to-head benchmark and cache the result (Compare view). */
   runCompare(): void;
   /** Verify a pasted certificate with real ed25519 and cache the result (Trust view). */
@@ -85,6 +118,10 @@ interface ViewExt {
   fleet: FleetViewState;
   /** Swarm learning-loop state, reduced from `learning.*` events by the learning card's own pure reducer. */
   learning: LearningCardState;
+  /** Shared-workspace state, reduced from `state.*` events by `../core/state-slice.ts`'s pure reducer. */
+  state: StateSlice;
+  /** Renderer-owned Workspace view state (selected domain + key filter) — never on the wire. */
+  stateView: StateViewState;
 }
 
 /** Narrow an AppEvent to the fleet slice of the union. */
@@ -106,6 +143,33 @@ function asFleetProvisionEvent(ev: { kind: string }): FleetProvisionEvent | null
  *  learning card's own pure reducer, not by the app-store reducer). */
 function asLearningEvent(ev: { kind: string }): LearningEvent | null {
   return ev.kind === "learning.status" || ev.kind === "learning.error" ? (ev as LearningEvent) : null;
+}
+
+/** Narrow an AppEvent to the shared-workspace slice of the union (consumed by
+ *  `../core/state-slice.ts`'s pure reducer, not by the app-store reducer). */
+function asStateEvent(ev: { kind: string }): StateEvent | null {
+  return ev.kind === "state.status" ||
+    ev.kind === "state.records" ||
+    ev.kind === "state.changed" ||
+    ev.kind === "state.synced" ||
+    ev.kind === "state.error"
+    ? (ev as StateEvent)
+    : null;
+}
+
+/**
+ * Which modifier means "mod" on this machine. Read from the real
+ * `navigator.platform`/`userAgent` when there is one, defaulting to
+ * `"other"` (Ctrl) outside a browser — never guessed from anything else.
+ */
+function detectPlatform(): Platform {
+  try {
+    const nav = (globalThis as { navigator?: { platform?: string; userAgent?: string } }).navigator;
+    const hint = `${nav?.platform ?? ""} ${nav?.userAgent ?? ""}`;
+    return /mac|iphone|ipad|ipod/i.test(hint) ? "mac" : "other";
+  } catch {
+    return "other";
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -199,6 +263,8 @@ function contentFor(nav: NavKey, state: AppState, ext: ViewExt): string {
       return renderCompareView(ext);
     case "metrics":
       return renderMetricsView(ext);
+    case "state":
+      return renderStateView(ext.state, ext.stateView);
     case "settings":
       return renderSettingsView(state);
     default:
@@ -219,12 +285,19 @@ function contentFor(nav: NavKey, state: AppState, ext: ViewExt): string {
  */
 export function createApp(
   bridge: Bridge,
-  opts?: { initialNav?: NavKey; onRender?: (html: string) => void; now?: () => number }
+  opts?: {
+    initialNav?: NavKey;
+    onRender?: (html: string) => void;
+    now?: () => number;
+    /** Override the detected keyboard platform (mac = Cmd is `mod`). */
+    platform?: Platform;
+  }
 ): AppController {
   const now = opts?.now ?? Date.now;
   let state: AppState = initialState();
   let nav: NavKey = opts?.initialNav ?? "run";
   let paletteState: PaletteState = initialPaletteState();
+  let helpOpen = false;
 
   const ext: ViewExt = {
     compare: { running: false, result: null },
@@ -232,7 +305,17 @@ export function createApp(
     vtphHtml: null,
     fleet: initialFleetState(),
     learning: initialLearningState(),
+    state: initialStateSlice(),
+    stateView: initialStateViewState(),
   };
+
+  // The REAL keymap engine (`./keyboard-nav.ts`) replaces what used to be a
+  // four-key inline handler: every NavKey is reachable by `g <letter>` and
+  // `mod+<n>`, the palette and the help sheet have their own bindings, and
+  // Escape unwinds overlay -> palette -> pending chord in a fixed order.
+  const platform: Platform = opts?.platform ?? detectPlatform();
+  const registry = new KeymapRegistry(defaultBindings());
+  const dispatcher = new KeyDispatcher({ registry, platform, now });
   // Renderer-owned clock/history for the honest V-TPH$ input (the pure engine
   // store carries no wall clock). runStartedAt is stamped when the runtime
   // first comes up and cleared when it stops.
@@ -243,8 +326,31 @@ export function createApp(
     return createPaletteEntries({ poolSize: state.poolSize });
   }
 
+  /** The live `KeyContext` the dispatcher scopes bindings against. */
+  function keyContext(): KeyContext {
+    return {
+      nav,
+      overlayOpen: helpOpen,
+      paletteOpen: paletteState.open,
+      // The dispatcher's own text-entry guard also reads `ev.targetEditable`
+      // / `ev.targetTag`; this flag covers the case the DOM cannot answer —
+      // the palette's query field is focused whenever it is open.
+      editing: paletteState.open,
+      running: state.running,
+      listSize: 0,
+      listIndex: 0,
+      platform,
+    };
+  }
+
   function html(): string {
-    const overlay = paletteState.open ? renderPalette(paletteState, paletteEntries()) : "";
+    // Only one overlay is ever mounted: the help sheet traps the keyboard,
+    // so it wins over the palette when both would be open.
+    const overlay = helpOpen
+      ? renderKeyboardHelp(registry, keyContext())
+      : paletteState.open
+        ? renderPalette(paletteState, paletteEntries())
+        : "";
     return renderShell({ state, active: nav }, contentFor(nav, state, ext), overlay);
   }
 
@@ -304,6 +410,17 @@ export function createApp(
             // Malformed learning event: leave learning state untouched.
           }
         }
+        // Workspace-state events feed `../core/state-slice.ts`'s pure
+        // reducer, same isolation contract as the two slices above. The
+        // clock is injected so the reducer stays a pure function.
+        const stateEv = asStateEvent(ev);
+        if (stateEv) {
+          try {
+            ext.state = reduceState(ext.state, stateEv, now);
+          } catch {
+            // Malformed state event: leave the workspace slice untouched.
+          }
+        }
         try {
           state = reduce(state, ev);
         } catch {
@@ -336,15 +453,154 @@ export function createApp(
   // If the app opens directly on the metrics surface, kick the async compute
   // once so the panel resolves instead of sitting on the "Computing…" state.
   if (nav === "metrics") refreshVtph();
+  // Same for the Workspace surface: opening straight onto it must load real
+  // data and arm the live feed, exactly as navigating to it does — otherwise
+  // it would sit on "the sidecar has not answered" forever.
+  if (nav === "state") {
+    send({ kind: "state.watch", enabled: true });
+    refreshWorkspace();
+  }
+
+  /** Ask the sidecar for a fresh status + record page for the selected domain. */
+  function refreshWorkspace(): void {
+    send({ kind: "state.status" });
+    send({ kind: "state.list", domain: ext.stateView.domain });
+  }
+
+  /**
+   * Local (non-wire) Workspace actions plus the wire ones that need the
+   * renderer's own selected domain. Returns true when the command was
+   * consumed here. Every wire command it sends is a REAL `state.*` command
+   * the sidecar's `StateService` answers — nothing is faked locally.
+   */
+  function handleStateCmd(cmd: string, value?: string): boolean {
+    switch (cmd) {
+      case "state.domain": {
+        if (value && isStateViewDomain(value)) {
+          ext.stateView = { ...ext.stateView, domain: value };
+          send({ kind: "state.list", domain: value });
+          emit();
+        }
+        return true;
+      }
+      case "state.filter": {
+        ext.stateView = { ...ext.stateView, filter: value ?? "" };
+        emit();
+        return true;
+      }
+      case "state.refresh":
+        refreshWorkspace();
+        return true;
+      case "state.sync":
+        send({ kind: "state.sync" });
+        refreshWorkspace();
+        return true;
+      case "state.sync.plan":
+        send({ kind: "state.sync", dryRun: true });
+        return true;
+      case "state.delete": {
+        if (!value) return true;
+        send({ kind: "state.delete", domain: ext.stateView.domain, key: value });
+        send({ kind: "state.list", domain: ext.stateView.domain });
+        send({ kind: "state.status" });
+        return true;
+      }
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Perform one resolved `KeyAction`. Returns whether the shell actually
+   * DID something — a key the shell cannot act on must be handed back to the
+   * webview rather than silently swallowed (that is what would break Space
+   * to scroll, or Enter on a focused button).
+   */
+  function runKeyAction(action: KeyAction): boolean {
+    switch (action.type) {
+      case "nav":
+        controller.setNav(action.to);
+        return true;
+      case "command":
+        send(action.command);
+        return true;
+      case "palette":
+        controller.palette({ type: action.op === "open" ? "open" : "close" });
+        return true;
+      case "help":
+        controller.help(action.op);
+        return true;
+      case "focus":
+        // `focus.escape` is the dispatcher's terminal unwind step: nothing
+        // was open and no chord was pending, so there is nothing to close.
+        // List motion only reaches here when a view has published a focus
+        // ring (`KeyContext.listSize > 0`); no shell view does yet, so this
+        // reports "not handled" rather than faking a selection.
+        return false;
+      case "view": {
+        // The generic per-view verbs, mapped to each surface's REAL refresh
+        // path — never a fabricated no-op that still eats the keystroke.
+        if (action.op === "refresh") {
+          switch (nav) {
+            case "state":
+              refreshWorkspace();
+              return true;
+            case "fleet":
+              send({ kind: "fleet.list" });
+              send({ kind: "learning.get" });
+              return true;
+            case "skills":
+              send({ kind: "skills.list" });
+              return true;
+            case "compare":
+              controller.runCompare();
+              return true;
+            case "metrics":
+              refreshVtph();
+              return true;
+            default:
+              return false;
+          }
+        }
+        if (action.op === "compose") {
+          // "Start something new" — the palette is the app's real entry point
+          // for that, and it carries the goal-dispatch action.
+          controller.palette({ type: "open" });
+          return true;
+        }
+        return false;
+      }
+      default:
+        return false;
+    }
+  }
 
   const controller: AppController = {
     getState() {
       return state;
     },
+    getStateSlice() {
+      return ext.state;
+    },
+    getNav() {
+      return nav;
+    },
     setNav(key: NavKey) {
+      const previous = nav;
       nav = key;
       // Entering the metrics surface kicks an async compute of the panel.
       if (key === "metrics") refreshVtph();
+      // Entering the Workspace surface pulls a fresh status + record page and
+      // turns the sidecar's live feed ON, so a `hades state set` typed into a
+      // terminal streams in as a `state.changed` while the view is open.
+      // Leaving it turns the feed back off — no background timer or fs.watch
+      // is left running for a surface nobody is looking at.
+      if (key === "state") {
+        send({ kind: "state.watch", enabled: true });
+        refreshWorkspace();
+      } else if (previous === "state") {
+        send({ kind: "state.watch", enabled: false });
+      }
       // Entering the fleet surface refreshes the (probe-free) snapshot so
       // the view is never stale; the reply streams back as a fleet.snapshot.
       // The learning card refreshes alongside it — the reply streams back as
@@ -357,6 +613,9 @@ export function createApp(
     },
     dispatchIntent(intent: { cmd: string; value?: string }) {
       try {
+        // Workspace intents need the renderer's own selected domain, so they
+        // are resolved here rather than by the stateless `intentToCommand`.
+        if (handleStateCmd(intent.cmd, intent.value)) return;
         const cmd = intentToCommand(intent);
         if (!cmd) return;
         bridge.send(cmd);
@@ -364,14 +623,48 @@ export function createApp(
         // Guard: a bad intent or a throwing bridge must never crash the UI.
       }
     },
+    handleKey(ev: KeyEventLike): boolean {
+      try {
+        const hadPending = dispatcher.pending().length > 0;
+        const result = dispatcher.handle(ev, keyContext());
+        const handled = result.action ? runKeyAction(result.action) : false;
+        // Consume the event when: the shell actually performed the action;
+        // a chord is now pending (`g` awaiting its second key, which must
+        // not reach the webview as a bare keystroke); or a pending chord was
+        // just cancelled (Escape mid-sequence — that IS work, even though
+        // the resulting `focus.escape` action is a no-op for the shell).
+        // Anything else is handed back to the webview rather than swallowed.
+        return handled || result.pending.length > 0 || (hadPending && result.pending.length === 0);
+      } catch {
+        // A key handler must never throw back into the webview.
+        return false;
+      }
+    },
     palette(action: PaletteAction) {
       try {
         const { state: next, command } = paletteReduce(paletteState, action, paletteEntries());
         paletteState = next;
+        // Two modal overlays must never be mounted at once: opening the
+        // palette closes the help sheet.
+        if (paletteState.open) helpOpen = false;
         if (command) send(command);
         emit();
       } catch {
         // A palette action must never crash the UI.
+      }
+    },
+    help(op: "open" | "close" | "toggle") {
+      try {
+        const next = op === "toggle" ? !helpOpen : op === "open";
+        if (next === helpOpen) return;
+        helpOpen = next;
+        // Same mutual exclusion as above, from the other direction.
+        if (helpOpen && paletteState.open) {
+          paletteState = paletteReduce(paletteState, { type: "close" }, paletteEntries()).state;
+        }
+        emit();
+      } catch {
+        // A help toggle must never crash the UI.
       }
     },
     runCompare() {
@@ -451,6 +744,9 @@ export function mountApp(root: HTMLElement, bridge: Bridge): AppController {
   // Tracks whether the palette query field held focus before the last render,
   // so focus + caret can be restored across the full-innerHTML re-render.
   let restorePaletteFocus = false;
+  // Same problem, same fix, for the Workspace view's key filter: it re-renders
+  // on every keystroke, so focus + caret must be restored after each frame.
+  let restoreStateFilterFocus = false;
 
   // The fleet-provision panel is a persistent live-DOM view
   // (`./fleet-provision-view.ts`): it owns typed form state (worker id,
@@ -590,10 +886,13 @@ export function mountApp(root: HTMLElement, bridge: Bridge): AppController {
         root.innerHTML = nextHtml;
         reparentProvisionPanel();
         reparentConflictsPanel();
-        if (restorePaletteFocus) {
-          const field = root.querySelector('[data-palette-field="query"]') as
-            | HTMLInputElement
-            | null;
+        const focusSelector = restorePaletteFocus
+          ? '[data-palette-field="query"]'
+          : restoreStateFilterFocus
+            ? '[data-state-field="filter"]'
+            : null;
+        if (focusSelector) {
+          const field = root.querySelector(focusSelector) as HTMLInputElement | null;
           if (field) {
             field.focus();
             const end = field.value.length;
@@ -630,6 +929,12 @@ export function mountApp(root: HTMLElement, bridge: Bridge): AppController {
       const target = evt.target as Element | null;
       if (!target || typeof target.closest !== "function") return;
 
+      const helpEl = target.closest("[data-help]");
+      if (helpEl) {
+        if (helpEl.getAttribute("data-help") === "close") app.help("close");
+        return;
+      }
+
       const palEl = target.closest("[data-palette]");
       if (palEl) {
         const kind = palEl.getAttribute("data-palette");
@@ -644,6 +949,7 @@ export function mountApp(root: HTMLElement, bridge: Bridge): AppController {
         const cmd = cmdEl.getAttribute("data-cmd");
         if (cmd) {
           restorePaletteFocus = false;
+          restoreStateFilterFocus = false;
           if (!handleLocalCmd(cmd, cmdEl)) {
             const value = readIntentValue(root, cmdEl);
             app.dispatchIntent({ cmd, value });
@@ -662,36 +968,75 @@ export function mountApp(root: HTMLElement, bridge: Bridge): AppController {
     }
   }
 
+  /** True when the event's target is a real text-entry control. */
+  function isEditableTarget(target: EventTarget | null): boolean {
+    const el = target as (Element & { isContentEditable?: boolean }) | null;
+    if (!el || typeof el.tagName !== "string") return false;
+    const tag = el.tagName.toLowerCase();
+    return tag === "input" || tag === "textarea" || tag === "select" || el.isContentEditable === true;
+  }
+
+  function targetTagOf(target: EventTarget | null): string | undefined {
+    const el = target as Element | null;
+    return el && typeof el.tagName === "string" ? el.tagName.toLowerCase() : undefined;
+  }
+
+  /**
+   * The single keydown entry point.
+   *
+   * The palette's OWN list interaction (ArrowUp/ArrowDown/Enter over its
+   * results) stays here, because it is driven by `paletteReduce`'s query
+   * state rather than by the keymap — `KeyDispatcher` deliberately narrows
+   * to `"global"` scope while the palette is open, leaving that lane clear.
+   * Everything else — `mod+K`, `?`, `g <letter>`, `mod+<n>`, Escape's fixed
+   * unwind order — goes through the REAL `KeyDispatcher`.
+   */
   function onKeydown(evt: KeyboardEvent): void {
     try {
-      const key = evt.key;
-      const mod = evt.metaKey || evt.ctrlKey;
-      if (mod && (key === "k" || key === "K")) {
-        evt.preventDefault();
-        restorePaletteFocus = true;
-        app.palette({ type: "open" });
-        return;
+      const paletteOpen = !!root.querySelector('[data-palette-open="true"]');
+      if (paletteOpen) {
+        const key = evt.key;
+        if (key === "ArrowDown") {
+          restorePaletteFocus = true;
+          app.palette({ type: "next" });
+          evt.preventDefault();
+          return;
+        }
+        if (key === "ArrowUp") {
+          restorePaletteFocus = true;
+          app.palette({ type: "prev" });
+          evt.preventDefault();
+          return;
+        }
+        if (key === "Enter") {
+          restorePaletteFocus = false;
+          app.palette({ type: "execute" });
+          evt.preventDefault();
+          return;
+        }
+        if (key === "Escape") {
+          restorePaletteFocus = false;
+          app.palette({ type: "close" });
+          evt.preventDefault();
+          return;
+        }
       }
-      // Everything below only applies while the palette is open.
-      if (!app.getState) return;
-      const paletteOpen = root.querySelector('[data-palette-open="true"]');
-      if (!paletteOpen) return;
 
-      if (key === "Escape") {
-        restorePaletteFocus = false;
-        app.palette({ type: "close" });
-        evt.preventDefault();
-      } else if (key === "ArrowDown") {
-        restorePaletteFocus = true;
-        app.palette({ type: "next" });
-        evt.preventDefault();
-      } else if (key === "ArrowUp") {
-        restorePaletteFocus = true;
-        app.palette({ type: "prev" });
-        evt.preventDefault();
-      } else if (key === "Enter") {
-        restorePaletteFocus = false;
-        app.palette({ type: "execute" });
+      const consumed = app.handleKey({
+        key: evt.key,
+        code: evt.code,
+        ctrlKey: evt.ctrlKey,
+        metaKey: evt.metaKey,
+        shiftKey: evt.shiftKey,
+        altKey: evt.altKey,
+        repeat: evt.repeat,
+        targetTag: targetTagOf(evt.target),
+        targetEditable: isEditableTarget(evt.target),
+      });
+      if (consumed) {
+        // Opening the palette from the keymap must also restore focus into
+        // its query field across the full-innerHTML re-render.
+        restorePaletteFocus = !!root.querySelector('[data-palette-open="true"]');
         evt.preventDefault();
       }
     } catch {
@@ -703,6 +1048,16 @@ export function mountApp(root: HTMLElement, bridge: Bridge): AppController {
     try {
       const target = evt.target as Element | null;
       if (!target || typeof target.getAttribute !== "function") return;
+
+      // Workspace key filter — renderer-local view state, never a wire
+      // command, so typing in it never touches the store.
+      const stateField = target.getAttribute("data-state-field");
+      if (stateField === "filter") {
+        restoreStateFilterFocus = true;
+        app.dispatchIntent({ cmd: "state.filter", value: (target as HTMLInputElement).value ?? "" });
+        return;
+      }
+
       const field = target.getAttribute("data-palette-field");
       if (!field) return;
       const value = (target as HTMLInputElement).value ?? "";

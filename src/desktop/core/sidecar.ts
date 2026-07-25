@@ -29,6 +29,8 @@ import type {
   LearningEvent,
   ScheduleCommand,
   ScheduleEvent,
+  StateCommand,
+  StateEvent,
   MetricsView,
   RunView,
   TaskView,
@@ -146,6 +148,27 @@ export interface ScheduleHandler {
   handle(cmd: ScheduleCommand): Promise<ScheduleEvent>;
 }
 
+/**
+ * Handles `state.*` commands over the SHARED workspace store
+ * (`src/hades/state/**`), resolving to the `StateEvent`s to emit.
+ * Structurally matches `StateService` (`./state-service.ts`) so central
+ * wiring can pass a real service over the real `WorkspaceStore` +
+ * `SyncEngine` + `WorkspaceFeed` rooted at the same `<dataDir>/state` the
+ * `hades state` CLI writes.
+ *
+ * `subscribe` is how live deltas reach the renderer: the sidecar registers
+ * ONE listener at construction and forwards every pushed `StateEvent`
+ * (`state.changed`) out-of-band, so a `hades state set` typed into a
+ * terminal shows up in the running desktop app without the renderer having
+ * asked for it. Left undefined, a state command reports an honest
+ * `state.error` instead of hanging the caller.
+ */
+export interface StateHandler {
+  handle(cmd: StateCommand): Promise<StateEvent[]>;
+  subscribe?(emit: (e: StateEvent) => void): () => void;
+  close?(): void;
+}
+
 /** Truthful description of what inference backs this run — surfaced as a startup log. */
 export interface InferenceInfo {
   kind: "real" | "mock";
@@ -199,6 +222,16 @@ export interface SidecarOptions {
    * silence.
    */
   schedule?: ScheduleHandler;
+  /**
+   * Real shared-workspace backend for `state.*` commands; when set (central
+   * wiring passes a `StateService` over the real `WorkspaceStore` +
+   * `SyncEngine` + `WorkspaceFeed`), those commands read and write the SAME
+   * `<dataDir>/state` journal the `hades state` CLI does, and the handler's
+   * live feed is fanned straight out to the renderer as `state.changed`.
+   * Left undefined, a state command reports an honest `state.error` rather
+   * than silence.
+   */
+  state?: StateHandler;
 }
 
 /**
@@ -238,6 +271,10 @@ export class Sidecar {
   private readonly learningStatus?: LearningStatusHandler;
   private readonly gateway?: GatewayHandler;
   private readonly schedule?: ScheduleHandler;
+  private readonly state?: StateHandler;
+  private stateUnsubscribe?: () => void;
+  /** Guards {@link Sidecar.dispose}'s one-shot teardown of the state lane. */
+  private disposed = false;
   private learningLoop?: { detach(): Promise<void> };
 
   private mode: "inline" | "process" | "docker" = "inline";
@@ -262,6 +299,24 @@ export class Sidecar {
     this.learningStatus = opts.learningStatus;
     this.gateway = opts.gateway;
     this.schedule = opts.schedule;
+    this.state = opts.state;
+
+    // Live workspace deltas are PUSHED, not polled: subscribe once, up
+    // front, so a write made by another process (a `hades state set` in a
+    // terminal, another desktop window) streams out as a `state.changed`
+    // without the renderer having to ask. `state.watch` only toggles whether
+    // the underlying feed is actively polling/watching. A handler without a
+    // `subscribe` (a minimal fake) simply gets no push lane and nothing
+    // pretends otherwise.
+    if (this.state?.subscribe) {
+      try {
+        this.stateUnsubscribe = this.state.subscribe((ev) => this.safeEmit(ev));
+      } catch {
+        // A handler that refuses to subscribe still answers commands; the
+        // push lane is simply absent rather than the sidecar being dead.
+        this.stateUnsubscribe = undefined;
+      }
+    }
   }
 
   /** Process one command. Never throws — a failure becomes a `log` event. */
@@ -378,6 +433,28 @@ export class Sidecar {
             });
           }
           return;
+        case "state.status":
+        case "state.list":
+        case "state.get":
+        case "state.set":
+        case "state.delete":
+        case "state.sync":
+        case "state.watch":
+          // Central wiring hands us a real StateService (state-service.ts
+          // over the real WorkspaceStore/SyncEngine/WorkspaceFeed rooted at
+          // the SAME <dataDir>/state the `hades state` CLI writes). Without
+          // one, reply with an honest state.error rather than silence, so a
+          // renderer waiting on a status/record batch never hangs.
+          if (this.state) {
+            for (const ev of await this.state.handle(cmd)) this.safeEmit(ev);
+          } else {
+            this.safeEmit({
+              kind: "state.error",
+              op: cmd.kind,
+              message: "the shared workspace store is not configured in this build",
+            });
+          }
+          return;
         default: {
           const exhaustive: never = cmd;
           return exhaustive;
@@ -388,7 +465,15 @@ export class Sidecar {
     }
   }
 
-  /** Tear down the current swarm handle, if any. Best-effort, never throws. */
+  /**
+   * Tear down the current swarm handle, if any. Best-effort, never throws.
+   *
+   * NOTE: this runs on every `runtime.stop` (and on `runtime.start`'s
+   * restart path), so it deliberately does NOT close the `StateHandler`
+   * itself — the shared workspace store outlives any single swarm run and
+   * must keep answering `state.*` after the runtime is stopped. Only the
+   * process-lifetime teardown ({@link Sidecar.dispose}) closes it.
+   */
   async close(): Promise<void> {
     const h = this.handleRef;
     this.handleRef = undefined;
@@ -406,6 +491,33 @@ export class Sidecar {
     if (!h) return;
     try {
       await h.close?.();
+    } catch {
+      /* best-effort teardown */
+    }
+  }
+
+  /**
+   * Full process-lifetime teardown: everything {@link Sidecar.close} does,
+   * plus the workspace-state subscription and the state handler itself
+   * (which owns a live `WorkspaceFeed` timer/watcher and an open
+   * `WorkspaceStore`). Called once by `runSidecar` when stdin ends — never
+   * on an ordinary `runtime.stop`, which must leave the shared workspace
+   * readable. Idempotent and never throws.
+   */
+  async dispose(): Promise<void> {
+    await this.close();
+    if (this.disposed) return;
+    this.disposed = true;
+    if (this.stateUnsubscribe) {
+      try {
+        this.stateUnsubscribe();
+      } catch {
+        /* best-effort teardown */
+      }
+      this.stateUnsubscribe = undefined;
+    }
+    try {
+      this.state?.close?.();
     } catch {
       /* best-effort teardown */
     }

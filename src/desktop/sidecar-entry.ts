@@ -33,8 +33,12 @@ import {
   type LearningStatusHandler,
   type GatewayHandler,
   type ScheduleHandler,
+  type StateHandler,
   type InferenceInfo,
 } from "./core/sidecar";
+import { StateService } from "./core/state-service";
+import type { StateEvent } from "./ipc/state-contract";
+import { createWorkspaceStack } from "../hades/state/wiring";
 import { SkillsService } from "./core/skills-service";
 import { SkillTrustService } from "./core/skill-trust-service";
 import { GatewayService } from "./core/gateway-service";
@@ -97,6 +101,14 @@ export interface RunSidecarOptions {
    *  to the hash-chained ledger at `<dataDir>/schedule-receipts.json`. Built
    *  fresh per command so the desktop always sees what the CLI just wrote. */
   schedule?: ScheduleHandler;
+  /** Real shared-workspace backend for `state.*`; defaults to a
+   *  {@link StateService} over the REAL `WorkspaceStore`/`SyncEngine`/
+   *  `WorkspaceFeed` stack at `<dataDir>/state` — the SAME journal
+   *  `hades state` writes — under this desktop install's own stable
+   *  `desktop` actor identity. Built lazily on the first `state.*` command
+   *  so sidecar startup never takes the workspace lock unasked, and torn
+   *  down (feed timer + store handle) when stdin ends. */
+  state?: StateHandler;
 }
 
 /**
@@ -315,6 +327,87 @@ export async function runSidecar(
     };
   }
 
+  // Real shared-workspace lane: one `WorkspaceStore` + `SyncEngine` +
+  // `WorkspaceFeed` rooted at `<dataDir>/state` — byte-for-byte the same
+  // journal `hades state` reads and writes — opened under this install's
+  // STABLE `desktop` actor identity (persisted at `<root>/actors/desktop.json`,
+  // see `../hades/state/wiring.ts`), so the desktop is one durable causal
+  // participant rather than a new one per launch. Built lazily on the first
+  // `state.*` command: sidecar startup must never take the workspace's
+  // cross-process lock for an app that may never open the workspace view.
+  // Feed errors are surfaced as honest `state.error` events, never swallowed.
+  let state = opts.state;
+  if (!state) {
+    let stack: ReturnType<typeof createWorkspaceStack> | undefined;
+    let service: StateService | undefined;
+    let serviceUnsubscribe: (() => void) | undefined;
+    // Subscribers registered BEFORE the stack exists (the `Sidecar`
+    // constructor subscribes up front). Holding them here — rather than
+    // building the stack just to have something to subscribe to — is what
+    // keeps construction genuinely lazy: nothing opens the workspace, and
+    // nothing takes its cross-process lock, until a `state.*` command
+    // actually arrives.
+    const pending = new Set<(e: StateEvent) => void>();
+    const fanOut = (e: StateEvent): void => {
+      for (const cb of [...pending]) {
+        try {
+          cb(e);
+        } catch {
+          /* one bad subscriber must never break another, or the feed */
+        }
+      }
+    };
+
+    const ensure = (): StateService => {
+      if (service) return service;
+      const dataDir = loadConfig({ env: process.env }).dataDir;
+      stack = createWorkspaceStack({
+        dataDir,
+        kind: "desktop",
+        env: process.env,
+        now,
+        // The feed's own error channel rides the same lane, so a watcher
+        // that dies is reported to the renderer instead of the app silently
+        // degrading to "nothing ever changes".
+        onFeedError: (e) => fanOut({ kind: "state.error", op: "state.watch", message: e.message }),
+      });
+      service = new StateService({ store: stack.store, sync: stack.sync, feed: stack.feed, now });
+      serviceUnsubscribe = service.subscribe(fanOut);
+      return service;
+    };
+
+    state = {
+      handle: async (cmd) => {
+        try {
+          return await ensure().handle(cmd);
+        } catch (err) {
+          // Only reachable if the stack itself fails to construct (an
+          // unreadable data dir, a wedged lock); StateService.handle never
+          // throws on its own. Report the REAL reason.
+          return [{ kind: "state.error", op: cmd.kind, message: errMsg(err) }];
+        }
+      },
+      subscribe: (emit) => {
+        pending.add(emit);
+        return () => {
+          pending.delete(emit);
+        };
+      },
+      close: () => {
+        try {
+          serviceUnsubscribe?.();
+          service?.close();
+        } finally {
+          stack?.close();
+          serviceUnsubscribe = undefined;
+          service = undefined;
+          stack = undefined;
+          pending.clear();
+        }
+      },
+    };
+  }
+
   const sidecar = new Sidecar({
     factory,
     now,
@@ -332,6 +425,7 @@ export async function runSidecar(
     learningStatus,
     gateway,
     schedule,
+    state,
   });
 
   try {
@@ -359,7 +453,10 @@ export async function runSidecar(
       await sidecar.handle(command);
     }
   } finally {
-    await sidecar.close();
+    // `dispose`, not `close`: stdin has ended, so this is process-lifetime
+    // teardown — the workspace feed's timer/watcher and the store handle
+    // must go with it, not just the swarm handle.
+    await sidecar.dispose();
   }
 }
 

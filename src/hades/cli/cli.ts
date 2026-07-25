@@ -30,6 +30,7 @@ import { runShowdownVerifyCommand, runShowdownReadyCommand } from "./showdown-ve
 import { runLiveShowdown, verifyLiveArtifacts } from "../bench/showdown-live";
 import { runSkillsHubCommand } from "./skills-hub-command";
 import type { ScheduleCommandDeps } from "./schedule-command";
+import type { StateCommandDeps } from "./state-command";
 import { join } from "node:path";
 
 export interface CliResult {
@@ -70,6 +71,14 @@ export interface HadesCliDeps {
    *  executor, zero-sender verified delivery router — `hades schedule status`
    *  reports that wiring honestly). */
   schedule?: () => ScheduleCommandDeps;
+  /** Shared workspace store (`hades state`). A lazy factory so building the
+   *  CLI never opens `<dataDir>/state` (nor takes its cross-process lock)
+   *  unless a state subcommand actually runs; the result is cached after the
+   *  first call so repeated subcommands share one store instance and one
+   *  actor identity. Absent -> `defaultStateDeps()`, which resolves the same
+   *  `<dataDir>/state` root and the same persisted `cli` actor id, but
+   *  without the real session/memory engine adapters `buildHadesCli` wires. */
+  state?: () => StateCommandDeps;
   /** Skill-library directory for `hades skills hub` (agentskills.io interop).
    *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
    *  the same convention `hades skill` uses. */
@@ -86,7 +95,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -106,6 +115,8 @@ export class HadesCli {
   private backendsDeps?: BackendsCommandDeps;
   /** Cached result of the lazy `deps.schedule` factory (see HadesCliDeps). */
   private scheduleDeps?: ScheduleCommandDeps;
+  /** Cached result of the lazy `deps.state` factory (see HadesCliDeps). */
+  private stateDeps?: StateCommandDeps;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -157,6 +168,8 @@ export class HadesCli {
         return this.browser(rest);
       case "schedule":
         return this.schedule(rest);
+      case "state":
+        return this.state(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -217,6 +230,10 @@ export class HadesCli {
         "                       (5-field Vixie cron, IANA timezones + DST, misfire policies,",
         "                       durable job store; output only ever delivered as \"verified\"",
         "                       when the STYX gate + ed25519 certificate say so)",
+        "  state <sub>          Shared workspace store (sessions/memory/config/skills):",
+        "                       status/list/get/set/delete/export/import/sync/watch/doctor",
+        "                       (hash-chained journal, CRDT merge, cross-process safe —",
+        "                       the SAME <dataDir>/state root the desktop app reads live)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -341,6 +358,22 @@ export class HadesCli {
       this.scheduleDeps = this.deps.schedule ? this.deps.schedule() : defaultScheduleDeps();
     }
     return runScheduleCommand(args, this.scheduleDeps);
+  }
+
+  /** `hades state status|list|get|set|delete|export|import|sync|watch|doctor`
+   *  — the terminal surface over the shared, hash-chained workspace store at
+   *  `<dataDir>/state`, the SAME root the desktop app's `state.*` IPC lane
+   *  and any other surface open. Loaded lazily so `hades help` never opens
+   *  the store (or takes its cross-process lock); deps come from the injected
+   *  lazy factory when configured (`buildHadesCli` wires the real session +
+   *  memory engine adapters there), else `defaultStateDeps()`. Cached so
+   *  repeated subcommands in one process share one store instance. */
+  private async state(args: string[]): Promise<CliResult> {
+    const { runStateCommand, defaultStateDeps } = await import("./state-command");
+    if (!this.stateDeps) {
+      this.stateDeps = this.deps.state ? this.deps.state() : defaultStateDeps();
+    }
+    return runStateCommand(args, this.stateDeps);
   }
 
   private model(args: string[]): CliResult {

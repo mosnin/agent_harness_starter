@@ -172,6 +172,17 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
     case "schedule.error":
       return state;
 
+    // Workspace-state events are owned by `./state-slice.ts`'s own pure
+    // reducer (`reduceState`) — the renderer feeds them there, exactly like
+    // the fleet/learning slices above. They deliberately do not touch the
+    // swarm app state.
+    case "state.status":
+    case "state.records":
+    case "state.changed":
+    case "state.synced":
+    case "state.error":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.

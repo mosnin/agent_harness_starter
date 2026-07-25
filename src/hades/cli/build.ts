@@ -24,6 +24,9 @@ import type { ToolsetManager } from "../tools/manager";
 import type { BackendsCommandDeps, BanditStateStore } from "./backends-command";
 import { defaultScheduleDeps } from "./schedule-command";
 import type { ScheduleCommandDeps } from "./schedule-command";
+import type { StateCommandDeps } from "./state-command";
+import { fileConfigAccess, resolveWorkspaceActor, workspaceRoot } from "../state/wiring";
+import { allAdapters } from "../state/domains";
 import type { RouteBanditState } from "../backends/route-bandit";
 import { BackendManager } from "../backends/manager";
 import type { BackendDescriptor } from "../backends/descriptor";
@@ -272,6 +275,47 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
       HADES_DATA_DIR: persist ? config.dataDir : mkdtempSync(join(tmpdir(), "hades-schedule-")),
     });
 
+  // The shared workspace store (`hades state`). Lazy: `<dataDir>/state` is
+  // only opened — and its cross-process lock only taken — when a state
+  // subcommand actually runs. This is the SAME root the desktop sidecar's
+  // `state.*` IPC lane opens, under a STABLE persisted `cli` actor identity
+  // (see ../state/wiring.ts), so a `hades state set` in a terminal and the
+  // desktop app are genuinely two writers on one CRDT journal, not two
+  // copies. Adapters are bound to the REAL stores built above — the same
+  // `memory`/`sessions` instances every other subcommand uses — so
+  // `hades state export` mirrors what the agent actually remembers, never a
+  // fresh empty engine. Without persistence the workspace lives in a throwaway
+  // temp dir (real files, real locking, nothing in the user's data dir),
+  // matching the profile/schedule stores above.
+  // Resolved on first use, not at build time: a non-persisting build must not
+  // create a temp dir on every `buildHadesCli` call (every test does one),
+  // only when a state subcommand actually runs. Memoized so repeated
+  // subcommands in one process share the same throwaway workspace.
+  let stateDataDir: string | undefined;
+  const resolveStateDataDir = (): string => {
+    if (stateDataDir === undefined) {
+      stateDataDir = persist ? config.dataDir : mkdtempSync(join(tmpdir(), "hades-state-"));
+    }
+    return stateDataDir;
+  };
+  const state = (): StateCommandDeps => {
+    const dir = resolveStateDataDir();
+    const root = workspaceRoot(dir);
+    const deps = {
+      dataDir: dir,
+      sessions,
+      memory,
+      config: fileConfigAccess(dir, process.env),
+      skillsDir: process.env.HADES_SKILLS_DIR ?? `${dir}/skills`,
+    };
+    return {
+      root,
+      actor: resolveWorkspaceActor({ root, kind: "cli", env: process.env }),
+      deps,
+      adapters: allAdapters(deps),
+    };
+  };
+
   return new HadesCli({
     version: HADES_VERSION,
     models,
@@ -283,6 +327,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     profile,
     backends,
     schedule,
+    state,
     // `hades skills hub` reads/writes the same on-disk skill library
     // `hades skill` manages ($HADES_SKILLS_DIR wins, matching skills-command).
     skillsDir: process.env.HADES_SKILLS_DIR ?? `${config.dataDir}/skills`,

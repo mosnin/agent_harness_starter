@@ -33,6 +33,8 @@ export { defaultBrowserCliDeps } from "./browser-deps";
 export type { BrowserDepsIo } from "./browser-deps";
 export { runScheduleCommand, defaultScheduleDeps, BuiltinNoteExecutor } from "./schedule-command";
 export type { ScheduleCommandDeps } from "./schedule-command";
+export { runStateCommand, defaultStateDeps, STATE_USAGE } from "./state-command";
+export type { StateCommandDeps } from "./state-command";
 export { runSkillEvolveCommand } from "./skill-evolve-command";
 export type { SkillEvolveResult, SkillEvolveFs, SkillEvolveOptions } from "./skill-evolve-command";
 export { runGatewayCommand } from "./gateway-command";

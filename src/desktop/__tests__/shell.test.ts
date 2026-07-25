@@ -55,10 +55,21 @@ describe("renderSidebar", () => {
 });
 
 describe("NAV", () => {
-  it("covers exactly the eight nav keys", () => {
+  it("covers exactly the nine nav keys", () => {
     const keys = NAV.map((n) => n.key).sort();
-    const expected: NavKey[] = ["compare", "fleet", "metrics", "run", "settings", "skills", "trust", "workers"].sort() as NavKey[];
+    const expected: NavKey[] = ["compare", "fleet", "metrics", "run", "settings", "skills", "state", "trust", "workers"].sort() as NavKey[];
     expect(keys).toEqual(expected);
+  });
+
+  it("gives every nav key an icon", () => {
+    // A NavKey added without an icon would render an empty span in the
+    // sidebar; ICONS is a Record<NavKey, string>, so this asserts the
+    // runtime table actually has a non-empty entry for each.
+    for (const item of NAV) {
+      const html = renderSidebar(initialState(), item.key);
+      expect(html).toContain(`data-nav="${item.key}"`);
+      expect(html).toContain("<svg");
+    }
   });
 });
 
