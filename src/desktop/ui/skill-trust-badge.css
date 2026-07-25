@@ -1,0 +1,135 @@
+/**
+ * Hades desktop — Skill trust badge styles.
+ *
+ * Consumes the same design tokens as every other desktop stylesheet
+ * (`--color-*`, `--space-*`, `--radius-*`, `--type-*`) — native Tauri
+ * webview surface, not a web page. No hardcoded hex values; light/dark just
+ * falls out of which token set is mounted at `:root` (`tokens.css` flips
+ * `--color-*` under `prefers-color-scheme: dark` and the explicit
+ * `[data-theme]` override, and this file never needs its own media query
+ * because of that). Class names are scoped under the `.skill-trust-badge`
+ * prefix so this file can never collide with `skills-view.css` selectors.
+ *
+ * Five distinct visual treatments, one per `SkillTrustBadgeData["status"]`:
+ * active (ok), probation (warn), demoted (bad, filled), unscored (neutral),
+ * integrity-error (bad, but visually distinct from demoted via a dashed
+ * ring and an inverted dot, since both are "bad" but mean very different
+ * things — one is a trust *verdict*, the other means the verdict itself
+ * cannot be trusted).
+ */
+
+.skill-trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  max-width: 100%;
+  height: 22px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+  font-family: var(--type-family-sans);
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.skill-trust-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.skill-trust-badge__status {
+  text-transform: capitalize;
+}
+
+.skill-trust-badge__metrics {
+  color: var(--color-ink-tertiary);
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-2xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Visually-hidden: present in the DOM (for assistive tech / tests reading
+   `textContent`) but never painted, and never affecting layout. */
+.skill-trust-badge__name.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------------------
+ * Per-status treatments
+ * ---------------------------------------------------------------------- */
+
+.skill-trust-badge--active {
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}
+
+.skill-trust-badge--active .skill-trust-badge__metrics {
+  color: var(--color-ok);
+  opacity: 0.75;
+}
+
+.skill-trust-badge--probation {
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
+}
+
+.skill-trust-badge--probation .skill-trust-badge__metrics {
+  color: var(--color-warn);
+  opacity: 0.75;
+}
+
+.skill-trust-badge--demoted {
+  background: var(--color-bad-soft);
+  color: var(--color-bad);
+}
+
+.skill-trust-badge--demoted .skill-trust-badge__metrics {
+  color: var(--color-bad);
+  opacity: 0.75;
+}
+
+.skill-trust-badge--unscored {
+  background: var(--color-surface-2);
+  color: var(--color-ink-tertiary);
+  border-style: dashed;
+  border-color: var(--color-border-strong);
+}
+
+.skill-trust-badge--unscored .skill-trust-badge__metrics {
+  color: var(--color-ink-tertiary);
+}
+
+.skill-trust-badge--integrity-error {
+  background: var(--color-bad);
+  color: var(--color-ink-on-accent);
+  border-style: dashed;
+  border-color: var(--color-ink-on-accent);
+}
+
+.skill-trust-badge--integrity-error .skill-trust-badge__dot {
+  background: var(--color-ink-on-accent);
+  box-shadow: 0 0 0 2px var(--color-bad);
+}
+
+.skill-trust-badge--integrity-error .skill-trust-badge__metrics {
+  color: var(--color-ink-on-accent);
+  opacity: 0.85;
+}

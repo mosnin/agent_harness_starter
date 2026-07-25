@@ -22,6 +22,7 @@ import {
   validateSkillManifest,
   type SkillManifest,
 } from "../../hades/skills/skill-file";
+import { isSkillTrustBadgeData, type SkillTrustBadgeData } from "./skill-trust-service";
 import type { AppEvent, Command } from "../ipc/contract";
 
 // ---------------------------------------------------------------------------
@@ -72,12 +73,27 @@ export function nodeSkillsFs(): SkillsFs {
 // Service
 // ---------------------------------------------------------------------------
 
+/**
+ * Structural surface of `SkillTrustService.badges` (`./skill-trust-service.ts`):
+ * per-skill trust badge data, same order as `names`, never throwing. Injected
+ * (rather than constructed here) so unit tests stay deterministic and the
+ * central wiring (`../sidecar-entry.ts`) decides whether the desktop attaches
+ * real trust badges to `skills.list`.
+ */
+export interface SkillTrustBadgeSource {
+  badges(names: readonly string[]): Promise<SkillTrustBadgeData[]>;
+}
+
 export interface SkillsServiceOptions {
   /** Skills directory; defaults to `$HADES_SKILLS_DIR` or `<HADES_DATA_DIR|.hades>/skills`. */
   dir?: string;
   /** Injected filesystem; defaults to {@link nodeSkillsFs}. */
   fs?: SkillsFs;
   env?: Record<string, string | undefined>;
+  /** Optional trust badge source (a real `SkillTrustService` in production —
+   *  see `../sidecar-entry.ts`). Absent, `skills.list` entries carry no
+   *  `trust` field; the view renders without badges. */
+  trust?: SkillTrustBadgeSource;
 }
 
 function errMsg(err: unknown): string {
@@ -107,11 +123,13 @@ function slug(name: string): string {
 export class SkillsService {
   private readonly dir: string;
   private readonly fs: SkillsFs;
+  private readonly trust?: SkillTrustBadgeSource;
 
   constructor(opts?: SkillsServiceOptions) {
     const env = opts?.env ?? process.env;
     this.dir = opts?.dir ?? defaultDir(env);
     this.fs = opts?.fs ?? nodeSkillsFs();
+    this.trust = opts?.trust;
   }
 
   /**
@@ -142,13 +160,33 @@ export class SkillsService {
     }
   }
 
-  /** List every valid `*.md` skill in the skills dir as name+description. Malformed files are skipped. */
-  async list(): Promise<Array<{ name: string; description: string }>> {
+  /**
+   * List every valid `*.md` skill in the skills dir as name+description (plus
+   * a real per-skill trust badge when a {@link SkillTrustBadgeSource} is
+   * wired). Malformed files are skipped; a failing trust source degrades to
+   * badge-less entries rather than failing the listing.
+   */
+  async list(): Promise<Array<{ name: string; description: string; trust?: SkillTrustBadgeData }>> {
     const files = await this.readMdFiles();
     const library = new SkillLibrary();
     const report = library.loadFiles(files);
     void report; // errors deliberately silent here — a malformed file just doesn't list
-    return library.list().map((s) => ({ name: s.manifest.name, description: s.manifest.description }));
+    const base = library
+      .list()
+      .map((s) => ({ name: s.manifest.name, description: s.manifest.description }));
+    if (!this.trust || base.length === 0) return base;
+    try {
+      const badges = await this.trust.badges(base.map((s) => s.name));
+      const byName = new Map(badges.filter(isSkillTrustBadgeData).map((b) => [b.name, b]));
+      return base.map((s) => {
+        const badge = byName.get(s.name);
+        return badge ? { ...s, trust: badge } : s;
+      });
+    } catch {
+      // A trust source that throws (SkillTrustService itself never does, but
+      // the injected surface might) must never take the skills list down.
+      return base;
+    }
   }
 
   /**

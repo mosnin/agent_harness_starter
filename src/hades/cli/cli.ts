@@ -206,7 +206,10 @@ export class HadesCli {
         "  skill <sub>          Create/list/validate SKILL.md skills (new/list/show/validate)",
         "                       + skill evolution: synth (SKILL.md from a GATE-VERIFIED",
         "                       trajectory), refine (fold verified uses back in), track",
-        "                       (hash-chained Brier/Wilson record), trust (demotion policy)",
+        "                       (hash-chained Brier/Wilson record), track-batch (record",
+        "                       gated verdicts in bulk, idempotent), trust (demotion",
+        "                       policy; `trust show` = read-only fail-closed report),",
+        "                       holdout (paired candidate-vs-incumbent exit gate)",
         "  tools <sub>          List/enable/disable the tool catalog (list/enable/disable/info)",
         "  exec <run|bench>     Run one program that chains tools (JS/Python, STYX-traced)",
         "  browser <sub>        Real Chromium browsing: open <url> / bench / probe (STYX-traced)",
@@ -272,7 +275,14 @@ export class HadesCli {
    *  the desktop Skills view. */
   private skill(args: string[]): Promise<CliResult> | CliResult {
     const [sub] = args;
-    if (sub === "synth" || sub === "refine" || sub === "track" || sub === "trust") {
+    if (
+      sub === "synth" ||
+      sub === "refine" ||
+      sub === "track" ||
+      sub === "track-batch" ||
+      sub === "trust" ||
+      sub === "holdout"
+    ) {
       return runSkillEvolveCommand(args);
     }
     return runSkillCommand(args);

@@ -185,6 +185,24 @@ export interface RunView {
   status: "running" | "completed" | "failed" | "cancelled";
 }
 
+/**
+ * Per-skill trust badge data attached to `skills.list` entries. A deliberate
+ * STRUCTURAL match to `SkillTrustBadgeData` (`../core/skill-trust-service.ts`)
+ * — duplicated here rather than imported so this module stays the dependency-
+ * free single source of truth for the wire format (the service pulls in the
+ * hades trust/track engines, which the contract must never do). Every number
+ * is real (copied verbatim from the track-record store or the persisted
+ * trust state); `null` metrics mean "no track record", never 0.
+ */
+export interface SkillTrustBadgeView {
+  name: string;
+  status: "active" | "probation" | "demoted" | "unscored" | "integrity-error";
+  wilsonLower: number | null;
+  recentBrier: number | null;
+  n: number;
+  verifiedN: number;
+}
+
 // ---------------------------------------------------------------------------
 // Wire messages
 // ---------------------------------------------------------------------------
@@ -212,7 +230,10 @@ export type AppEvent =
   | { kind: "verification"; report: VerificationView }
   | { kind: "certificate"; cert: CertificateView }
   | { kind: "metrics"; metrics: MetricsView }
-  | { kind: "skills.list"; skills: Array<{ name: string; description: string }> }
+  | {
+      kind: "skills.list";
+      skills: Array<{ name: string; description: string; trust?: SkillTrustBadgeView }>;
+    }
   | { kind: "log"; line: string; at: number }
   | FleetEvent
   | FleetProvisionEvent
@@ -375,8 +396,43 @@ export function isRunView(x: unknown): x is RunView {
   return isString(x.goalId) && isString(x.objective) && isOneOf(x.status, RUN_STATUSES);
 }
 
-function isSkillEntry(x: unknown): x is { name: string; description: string } {
-  return isPlainObject(x) && isString(x.name) && isString(x.description);
+const SKILL_TRUST_STATUSES = [
+  "active",
+  "probation",
+  "demoted",
+  "unscored",
+  "integrity-error",
+] as const;
+
+function isNullableNumber(x: unknown): x is number | null {
+  return x === null || (typeof x === "number" && Number.isFinite(x));
+}
+
+function isCount(x: unknown): x is number {
+  return typeof x === "number" && Number.isInteger(x) && x >= 0;
+}
+
+export function isSkillTrustBadgeView(x: unknown): x is SkillTrustBadgeView {
+  if (!isPlainObject(x)) return false;
+  return (
+    isString(x.name) &&
+    isOneOf(x.status, SKILL_TRUST_STATUSES) &&
+    isNullableNumber(x.wilsonLower) &&
+    isNullableNumber(x.recentBrier) &&
+    isCount(x.n) &&
+    isCount(x.verifiedN)
+  );
+}
+
+function isSkillEntry(
+  x: unknown
+): x is { name: string; description: string; trust?: SkillTrustBadgeView } {
+  return (
+    isPlainObject(x) &&
+    isString(x.name) &&
+    isString(x.description) &&
+    (x.trust === undefined || isSkillTrustBadgeView(x.trust))
+  );
 }
 
 // ---------------------------------------------------------------------------

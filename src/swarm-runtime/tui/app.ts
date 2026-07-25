@@ -39,6 +39,13 @@ import {
   type SchedulePaneRunRow,
   type SchedulePaneTally,
 } from "./schedule-pane";
+import {
+  initSkillTrustPane,
+  skillTrustPaneKey,
+  renderSkillTrustPane,
+  type SkillTrustPaneState,
+  type SkillTrustPaneRow,
+} from "./skill-trust-pane";
 
 /**
  * The subset of swarm control the interactive TUI needs. A thin adapter over
@@ -71,6 +78,13 @@ export interface TuiController {
    *  {@link TuiApp.setScheduleData}; absent, the pane keeps its honest
    *  "no scheduled jobs" / "runner: not attached" empty state. */
   refreshSchedule?(): void;
+  /** SKILLS/TRUST pane refresh request (`r` while the pane is open, and on
+   *  open). Central wiring reads the real, fail-closed `SkillTrustReader`
+   *  (`src/hades/skills/trust-selection.ts` over `<dataDir>/skill-trust.json`
+   *  + `<dataDir>/skill-track.json`) and feeds rows back via
+   *  {@link TuiApp.setSkillTrustData}; absent, the pane keeps its honest
+   *  "no skills tracked" empty state. */
+  refreshSkillTrust?(): void;
 }
 
 export interface TuiAppOptions {
@@ -79,7 +93,7 @@ export interface TuiAppOptions {
 }
 
 /** Which full-screen surface the TUI is currently showing. */
-export type TuiPane = "dashboard" | "fleet" | "showdown" | "gateway" | "schedule";
+export type TuiPane = "dashboard" | "fleet" | "showdown" | "gateway" | "schedule" | "trust";
 
 const HELP_LINES = [
   "  g       start a new goal (compose mode)",
@@ -90,12 +104,14 @@ const HELP_LINES = [
   "  s       toggle the SHOWDOWN pane (swarm vs baseline V-TPH$)",
   "  w       toggle the GATEWAY pane (platform probes / engine / traffic / badges)",
   "  d       toggle the SCHEDULE pane (cron jobs / runs / outcome tally)",
+  "  t       toggle the SKILLS/TRUST pane (per-skill trust status + calibration)",
   "  ?       toggle this help overlay",
   "  q       quit  (also Ctrl-C)",
   "  (fleet pane) ↑/↓ or j/k select worker, r refresh, esc/q back",
   "  (showdown pane) r run a modeled showdown, esc/q back",
   "  (gateway pane) ↑/↓ scroll traffic, pgup/pgdn/home/end jump, r refresh, esc/q back",
   "  (schedule pane) ↑/↓ or j/k select job, home/end jump, r refresh, esc/q back",
+  "  (trust pane) ↑/↓ or j/k select skill, s toggle sort, enter reasons, r refresh, esc/q back",
   "  (compose mode) type to build the objective, Enter to submit, Esc to cancel",
 ];
 
@@ -116,6 +132,19 @@ const GATEWAY_NAV_KEYS: Record<string, "up" | "down" | "pageup" | "pagedown" | "
   "\x1b[F": "end",
   end: "end",
 };
+
+/** SKILLS/TRUST-pane keys: row selection navigation (the pane's own keymap). */
+const TRUST_NAV_KEYS: Record<string, "up" | "down"> = {
+  "\x1b[A": "up",
+  up: "up",
+  k: "up",
+  "\x1b[B": "down",
+  down: "down",
+  j: "down",
+};
+
+/** SKILLS/TRUST-pane keys that toggle the reasons drill-in. */
+const TRUST_ENTER_KEYS = new Set(["\r", "\n", "return", "enter"]);
 
 /** SCHEDULE-pane keys: JOBS selection navigation (the pane's own keymap). */
 const SCHEDULE_NAV_KEYS: Record<string, "up" | "down" | "home" | "end"> = {
@@ -160,6 +189,7 @@ export class TuiApp {
   private showdownPane: ShowdownPaneState = initialShowdownPaneState();
   private gatewayPane: GatewayPaneState = gatewayPaneInit();
   private schedulePane: SchedulePaneState = initialSchedulePaneState();
+  private skillTrustPane: SkillTrustPaneState = initSkillTrustPane([]);
 
   constructor(opts: TuiAppOptions = {}) {
     this.width = opts.width ?? 72;
@@ -273,6 +303,28 @@ export class TuiApp {
     return this.schedulePane;
   }
 
+  /**
+   * Feed real per-skill trust rows (typically `SkillTrustReader.rows()` output
+   * from `src/hades/skills/trust-selection.ts`, mapped field-for-field into
+   * the pane's structural `SkillTrustPaneRow` — see `hades tui`'s central
+   * wiring in `src/hades/cli/tui-command.ts`). Sort mode and the reasons
+   * drill-in are preserved; the selection is re-clamped against the new row
+   * list so a refresh never points past the end.
+   */
+  setSkillTrustData(rows: SkillTrustPaneRow[]): void {
+    const maxSelected = Math.max(0, rows.length - 1);
+    this.skillTrustPane = {
+      ...this.skillTrustPane,
+      rows,
+      selected: Math.min(this.skillTrustPane.selected, maxSelected),
+    };
+  }
+
+  /** Read-only view of the SKILLS/TRUST pane's current state (for the main loop / tests). */
+  skillTrustState(): SkillTrustPaneState {
+    return this.skillTrustPane;
+  }
+
   /** Advance the state machine one keypress. May invoke the controller. */
   handleKey(key: string): { quit?: boolean } {
     // Secondary panes get first claim on keys while open (view mode only) —
@@ -336,6 +388,31 @@ export class TuiApp {
         return {};
       }
     }
+    if (this.currentMode === "view" && this.pane === "trust") {
+      const nav = TRUST_NAV_KEYS[key];
+      if (nav) {
+        this.skillTrustPane = skillTrustPaneKey(this.skillTrustPane, nav);
+        return {};
+      }
+      if (key === "s") {
+        // Sort toggle is claimed by the pane while it is open (the dashboard's
+        // own `s` = SHOWDOWN toggle stays reachable from the dashboard).
+        this.skillTrustPane = skillTrustPaneKey(this.skillTrustPane, "s");
+        return {};
+      }
+      if (TRUST_ENTER_KEYS.has(key)) {
+        this.skillTrustPane = skillTrustPaneKey(this.skillTrustPane, "enter");
+        return {};
+      }
+      if (key === "r") {
+        this.controller?.refreshSkillTrust?.();
+        return {};
+      }
+      if (key === "\x1b" || key === "escape" || key === "q") {
+        this.pane = "dashboard";
+        return {};
+      }
+    }
 
     const action = keyToAction(key, this.currentMode);
 
@@ -354,6 +431,7 @@ export class TuiApp {
           if (action.pane === "fleet") this.controller?.refreshFleet?.();
           if (action.pane === "gateway") this.controller?.refreshGateway?.();
           if (action.pane === "schedule") this.controller?.refreshSchedule?.();
+          if (action.pane === "trust") this.controller?.refreshSkillTrust?.();
         }
         return {};
 
@@ -431,6 +509,9 @@ export class TuiApp {
     } else if (this.currentMode === "view" && this.pane === "schedule") {
       // renderSchedulePane returns string[] (one entry per line) by contract.
       out.push(...renderSchedulePane(this.schedulePane, this.width));
+    } else if (this.currentMode === "view" && this.pane === "trust") {
+      // renderSkillTrustPane returns string[] (one entry per line) by contract.
+      out.push(...renderSkillTrustPane(this.skillTrustPane, this.width));
     } else {
       const dashboard = renderTui(this.state, this.width);
       const lines = dashboard.split("\n");
@@ -483,7 +564,10 @@ export class TuiApp {
     if (this.currentMode === "view" && this.pane === "schedule") {
       return "  [↑/↓ j/k] select job  [home/end] jump  [r] refresh  [esc/q] back  [?] help";
     }
-    return "  [g] new goal  [+/-] scale pool  [c] cancel  [↑/↓] nav  [f] fleet  [s] showdown  [w] gateway  [d] schedule  [?] help  [q] quit";
+    if (this.currentMode === "view" && this.pane === "trust") {
+      return "  [↑/↓ j/k] select skill  [s] sort  [enter] reasons  [r] refresh  [esc/q] back  [?] help";
+    }
+    return "  [g] new goal  [+/-] scale pool  [c] cancel  [↑/↓] nav  [f] fleet  [s] showdown  [w] gateway  [d] schedule  [t] trust  [?] help  [q] quit";
   }
 
   private renderHelp(): string[] {

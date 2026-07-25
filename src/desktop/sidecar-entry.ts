@@ -36,6 +36,7 @@ import {
   type InferenceInfo,
 } from "./core/sidecar";
 import { SkillsService } from "./core/skills-service";
+import { SkillTrustService } from "./core/skill-trust-service";
 import { GatewayService } from "./core/gateway-service";
 import { buildGatewayDeps } from "../hades/cli/gateway-deps";
 import { probeGatewayEngine } from "../hades/gateway/engine-select";
@@ -55,7 +56,11 @@ export interface RunSidecarOptions {
   factory?: SwarmFactory;
   /** Clock override for `log` event timestamps, for deterministic tests. */
   now?: () => number;
-  /** Real skills backend; defaults to a {@link SkillsService} over the local skills dir. */
+  /** Real skills backend; defaults to a {@link SkillsService} over the local
+   *  skills dir, with a real {@link SkillTrustService} attached so every
+   *  `skills.list` entry carries its fail-closed trust badge (read from the
+   *  SAME `<dataDir>/skill-trust.json` + `<dataDir>/skill-track.json` files
+   *  `hades skill trust`/`track` write). */
   skills?: SkillsHandler;
   /** Real fleet backend; defaults to {@link createRealFleet}'s `FleetService`
    *  over the real `BackendManager` + `FleetSupervisor` (local + docker
@@ -314,7 +319,12 @@ export async function runSidecar(
     factory,
     now,
     emit: (event: AppEvent) => output(encodeEvent(event)),
-    skills: opts.skills ?? new SkillsService(),
+    // Real skills backend with real trust badges: SkillTrustService reads the
+    // SAME <dataDir>/skill-trust.json + skill-track.json the `hades skill`
+    // CLI writes, so the desktop's badges and the terminal's `trust show`
+    // report one truth. `badges()` never throws — a corrupt store degrades to
+    // per-skill integrity-error badges, never a dead skills list.
+    skills: opts.skills ?? new SkillsService({ trust: new SkillTrustService() }),
     fleet,
     provision,
     inference: opts.inference ?? detectInference(),

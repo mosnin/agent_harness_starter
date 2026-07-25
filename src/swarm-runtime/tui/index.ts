@@ -51,3 +51,9 @@ export type {
   SchedulePaneTally,
   SchedulePaneState,
 } from "./schedule-pane";
+export {
+  initSkillTrustPane,
+  skillTrustPaneKey,
+  renderSkillTrustPane,
+} from "./skill-trust-pane";
+export type { SkillTrustPaneRow, SkillTrustPaneState } from "./skill-trust-pane";

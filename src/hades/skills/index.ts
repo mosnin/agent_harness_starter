@@ -74,3 +74,30 @@ export type {
 // Phase-10 skill evolution — deterministic refine-on-use engine.
 export { refineSkill, extractRefinementLedger } from "./refine";
 export type { VerifiedUse, RefineOpKind, RefineOp, RefineResult, RefineOptions } from "./refine";
+// Phase-10 skill evolution — read-side, fail-closed trust selection over the
+// persisted skill-trust.json + skill-track.json stores (`hades skill trust show`,
+// the TUI SKILLS/TRUST pane, and the desktop Skills badges all read through this).
+export { SkillTrustReader, resolveWithTrust, orderByTrust } from "./trust-selection";
+export type {
+  EffectiveTrustStatus,
+  SkillTrustRow,
+  TrustReaderFs,
+  TrustAwareResolution,
+} from "./trust-selection";
+// Phase-10 skill evolution — paired holdout exit gate (`hades skill holdout`).
+export { runHoldoutValidation, applyHoldoutDecision } from "./holdout";
+export type {
+  HoldoutCase,
+  HoldoutRunResult,
+  HoldoutRunner,
+  HoldoutArmStats,
+  HoldoutVerdict,
+  HoldoutDecision,
+  HoldoutOptions,
+  HoldoutFs,
+  ApplyResult,
+} from "./holdout";
+// Phase-10 skill evolution — gate-verdict -> track-record machine path
+// (`hades skill track-batch`), idempotent and integrity-guarded.
+export { gateUseToOutcome, GateTrackRecorder } from "./gate-track-hook";
+export type { GatedSkillUse, SkipReason, RecordReport } from "./gate-track-hook";

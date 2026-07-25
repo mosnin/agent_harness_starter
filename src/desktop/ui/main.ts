@@ -21,6 +21,7 @@ import "./shell.css";
 import "./run-view.css";
 import "./trust-view.css";
 import "./skills-view.css";
+import "./skill-trust-badge.css";
 import "./fleet-view.css";
 import "./fleet-provision-view.css";
 import "./fleet-conflicts-view.css";

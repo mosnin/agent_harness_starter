@@ -15,6 +15,7 @@ import type {
   VerificationView,
   CertificateView,
   MetricsView,
+  SkillTrustBadgeView,
 } from "../ipc/contract";
 
 // ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ export interface AppState {
   verifications: VerificationView[]; // newest last
   certificates: CertificateView[];
   metrics: MetricsView | null;
-  skills: Array<{ name: string; description: string }>;
+  skills: Array<{ name: string; description: string; trust?: SkillTrustBadgeView }>;
   log: Array<{ line: string; at: number }>; // capped at 200, newest last
 }
 

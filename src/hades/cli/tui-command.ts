@@ -95,6 +95,10 @@ const HELP_LINES = [
   "  (schedule pane) ↑/↓ or j/k select job, r refresh, esc/q back — reads the SAME",
   "                  <dataDir>/schedule.json `hades schedule` writes; the runner",
   "                  itself belongs to `hades gateway start --schedule`",
+  "  t       toggle the SKILLS/TRUST pane (real fail-closed SkillTrustReader rows)",
+  "  (trust pane) ↑/↓ or j/k select skill, s toggle sort, enter reasons, r refresh,",
+  "               esc/q back — reads the SAME <dataDir>/skill-trust.json +",
+  "               <dataDir>/skill-track.json `hades skill trust`/`track` write",
   "  (compose mode) type to build the objective, Enter to submit, Esc to cancel",
 ];
 
@@ -414,12 +418,14 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
   let showdownRun: () => void = () => {};
   let gatewayRefresh: () => void = () => {};
   let scheduleRefresh: () => void = () => {};
+  let skillTrustRefresh: () => void = () => {};
   const controller: TuiController = {
     ...createSwarmController(handle, { poolSize }),
     refreshFleet: () => fleetRefresh(),
     runShowdown: () => showdownRun(),
     refreshGateway: () => gatewayRefresh(),
     refreshSchedule: () => scheduleRefresh(),
+    refreshSkillTrust: () => skillTrustRefresh(),
   };
   const app = new TuiApp({ controller });
 
@@ -555,6 +561,51 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
         render();
       })().catch((err: unknown) => {
         logs.push({ workerId: "schedule", line: `refresh failed: ${err instanceof Error ? err.message : String(err)}` });
+        render();
+      });
+    };
+
+    // SKILLS/TRUST pane: the real fail-closed SkillTrustReader over the SAME
+    // <dataDir>/skill-trust.json + <dataDir>/skill-track.json files
+    // `hades skill trust` / `hades skill track` write. Names shown are the
+    // union of what the reader can enumerate (persisted trust states + track
+    // records) and the `*.md` skills visible in the skills dir, so a skill
+    // with no history still shows up honestly as "unscored". Built lazily on
+    // each refresh so `r` always reflects what another terminal just wrote.
+    skillTrustRefresh = (): void => {
+      void (async () => {
+        const [{ SkillTrustReader }, { loadConfig }, { join }, { readdirSync }] = await Promise.all([
+          import("../skills/trust-selection"),
+          import("../config/config"),
+          import("node:path"),
+          import("node:fs"),
+        ]);
+        const dataDir = loadConfig({ env: process.env }).dataDir;
+        const reader = new SkillTrustReader({ dataDir });
+        const skillsDir = process.env.HADES_SKILLS_DIR ?? join(dataDir, "skills");
+        let discovered: string[] = [];
+        try {
+          discovered = readdirSync(skillsDir)
+            .filter((f) => f.endsWith(".md"))
+            .map((f) => f.slice(0, -3));
+        } catch {
+          // No skills dir yet: the reader's own names are all there is.
+        }
+        const names = [...new Set([...reader.allKnown(), ...discovered])].sort();
+        app.setSkillTrustData(
+          reader.rows(names).map((r) => ({
+            skillName: r.skillName,
+            status: r.status,
+            wilsonLower: r.wilsonLower,
+            recentBrier: r.recentBrier,
+            n: r.n,
+            verifiedN: r.verifiedN,
+            reasons: r.reasons,
+          }))
+        );
+        render();
+      })().catch((err: unknown) => {
+        logs.push({ workerId: "trust", line: `refresh failed: ${err instanceof Error ? err.message : String(err)}` });
         render();
       });
     };

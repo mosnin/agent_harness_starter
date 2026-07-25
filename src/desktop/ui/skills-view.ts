@@ -13,6 +13,12 @@
 
 import type { AppState } from "../core/app-store";
 import { parseSkillFile, validateSkillManifest, skillTemplate } from "../../hades/skills/skill-file";
+import {
+  trustBadgeLabel,
+  trustBadgeMetricsText,
+  trustBadgeStatusWord,
+  type SkillTrustBadgeData,
+} from "./skill-trust-badge";
 
 export interface SkillEditorStatus {
   ok: boolean;
@@ -37,8 +43,35 @@ function escapeHtml(value: string): string {
 // Skill list
 // ---------------------------------------------------------------------------
 
-/** Renders one card per installed skill: name, description. Escapes both. */
-export function renderSkillList(skills: Array<{ name: string; description: string }>): string {
+/**
+ * String-rendered counterpart of `renderSkillTrustBadge` (the live-DOM badge
+ * in `./skill-trust-badge.ts`): the same element structure and class names,
+ * so `skill-trust-badge.css` styles both identically, produced through this
+ * view's pure string pipeline. All text (label, status word, metrics —
+ * everything derived from the badge data) is escaped before it reaches
+ * markup; the status class suffix comes from the closed five-value status
+ * union but is escaped anyway.
+ */
+function renderTrustBadgeHtml(trust: SkillTrustBadgeData): string {
+  const status = escapeHtml(trust.status);
+  const label = escapeHtml(trustBadgeLabel(trust));
+  const word = escapeHtml(trustBadgeStatusWord(trust.status));
+  const metrics = escapeHtml(trustBadgeMetricsText(trust));
+  return (
+    `<span class="skill-trust-badge skill-trust-badge--${status}"` +
+    ` data-skill-trust-status="${status}" role="status" title="${label}">` +
+    `<span class="skill-trust-badge__dot"></span>` +
+    `<span class="skill-trust-badge__status">${word}</span>` +
+    `<span class="skill-trust-badge__metrics">${metrics}</span>` +
+    `</span>`
+  );
+}
+
+/** Renders one card per installed skill: name, description, and (when the
+ *  sidecar attached one) the skill's real trust badge. Escapes everything. */
+export function renderSkillList(
+  skills: Array<{ name: string; description: string; trust?: SkillTrustBadgeData }>
+): string {
   if (skills.length === 0) {
     return (
       '<div class="skills view empty">' +
@@ -51,10 +84,12 @@ export function renderSkillList(skills: Array<{ name: string; description: strin
     .map((skill) => {
       const name = escapeHtml(skill.name);
       const description = escapeHtml(skill.description);
+      const badge = skill.trust ? renderTrustBadgeHtml(skill.trust) : "";
       return (
         `<article class="skill card" data-cmd="skills.open" data-skill-name="${name}">` +
         `<header class="skill card header">` +
         `<span class="skill card name">${name}</span>` +
+        badge +
         `</header>` +
         `<p class="skill card description">${description}</p>` +
         `</article>`
