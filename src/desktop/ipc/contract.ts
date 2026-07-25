@@ -88,6 +88,13 @@ import {
   isRouteEvent,
 } from "./route-contract";
 import type { RouteCommand, RouteEvent } from "./route-contract";
+import {
+  CLUSTER_COMMAND_KINDS,
+  CLUSTER_EVENT_KINDS,
+  isClusterCommand,
+  isClusterEvent,
+} from "./cluster-contract";
+import type { ClusterCommand, ClusterEvent } from "./cluster-contract";
 
 // Re-exported so consumers can treat this module as the single import point
 // for the whole desktop wire format.
@@ -269,6 +276,24 @@ export {
   ROUTE_COMMAND_KINDS,
   ROUTE_EVENT_KINDS,
 } from "./route-contract";
+export type {
+  ClusterCommand,
+  ClusterEvent,
+  ClusterNodeWire,
+  ClusterStatusWire,
+  ClusterRunWire,
+  ClusterFaultWire,
+} from "./cluster-contract";
+export {
+  isClusterCommand,
+  isClusterEvent,
+  isClusterNodeWire,
+  isClusterStatusWire,
+  isClusterRunWire,
+  isClusterFaultWire,
+  CLUSTER_COMMAND_KINDS,
+  CLUSTER_EVENT_KINDS,
+} from "./cluster-contract";
 
 // ---------------------------------------------------------------------------
 // View models
@@ -369,7 +394,8 @@ export type Command =
   | MigrateCommand
   | TrustCommand
   | MarketCommand
-  | RouteCommand;
+  | RouteCommand
+  | ClusterCommand;
 
 export type AppEvent =
   | { kind: "runtime.status"; running: boolean; mode: string; poolSize: number }
@@ -393,7 +419,8 @@ export type AppEvent =
   | MigrateEvent
   | TrustEvent
   | MarketEvent
-  | RouteEvent;
+  | RouteEvent
+  | ClusterEvent;
 
 const COMMAND_KINDS = [
   "runtime.start",
@@ -414,6 +441,7 @@ const COMMAND_KINDS = [
   ...TRUST_COMMAND_KINDS,
   ...MARKET_COMMAND_KINDS,
   ...ROUTE_COMMAND_KINDS,
+  ...CLUSTER_COMMAND_KINDS,
 ] as const;
 
 const EVENT_KINDS = [
@@ -436,6 +464,7 @@ const EVENT_KINDS = [
   ...TRUST_EVENT_KINDS,
   ...MARKET_EVENT_KINDS,
   ...ROUTE_EVENT_KINDS,
+  ...CLUSTER_EVENT_KINDS,
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -625,7 +654,8 @@ export function isCommand(x: unknown): x is Command {
       return isString(x.name) && isString(x.content);
     default:
       // Fleet + fleet-provision + learning + gateway + schedule + state +
-      // migrate + trust + market + route commands are validated by their own contract
+      // migrate + trust + market + route + cluster commands are validated by
+      // their own contract
       // modules' guards; anything none of them recognizes is not a Command.
       return (
         isFleetCommand(x) ||
@@ -637,7 +667,8 @@ export function isCommand(x: unknown): x is Command {
         isMigrateCommand(x) ||
         isTrustCommand(x) ||
         isMarketCommand(x) ||
-        isRouteCommand(x)
+        isRouteCommand(x) ||
+        isClusterCommand(x)
       );
   }
 }
@@ -666,7 +697,8 @@ export function isAppEvent(x: unknown): x is AppEvent {
       return isString(x.line) && isNumber(x.at);
     default:
       // Fleet + fleet-provision + learning + gateway + schedule + state +
-      // migrate + trust + market + route events are validated by their own contract
+      // migrate + trust + market + route + cluster events are validated by
+      // their own contract
       // modules' guards; anything none of them recognizes is not an AppEvent.
       return (
         isFleetEvent(x) ||
@@ -678,7 +710,8 @@ export function isAppEvent(x: unknown): x is AppEvent {
         isMigrateEvent(x) ||
         isTrustEvent(x) ||
         isMarketEvent(x) ||
-        isRouteEvent(x)
+        isRouteEvent(x) ||
+        isClusterEvent(x)
       );
   }
 }

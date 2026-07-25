@@ -32,6 +32,7 @@ export * from "./observability/index";
 export * from "./config/index";
 export * from "./lifecycle/index";
 export * from "./bench/index";
+export * from "./distributed/index";
 export { createInlineSwarm } from "./factory";
 export type { InlineSwarmOptions } from "./factory";
 export { buildSwarm, SwarmServer, DASHBOARD_HTML } from "./server/index";

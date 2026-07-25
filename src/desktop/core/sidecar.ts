@@ -38,6 +38,8 @@ import type {
   MarketEvent,
   RouteCommand,
   RouteEvent,
+  ClusterCommand,
+  ClusterEvent,
   StateEvent,
   MetricsView,
   RunView,
@@ -236,6 +238,21 @@ export interface RouteHandler {
   handle(cmd: RouteCommand): Promise<RouteEvent>;
 }
 
+/**
+ * Handles `cluster.*` commands over the REAL multi-node fabric
+ * (`src/swarm-runtime/distributed/**`), resolving to the `ClusterEvent` to
+ * emit. Structurally matches `ClusterService` (`./cluster-service.ts`) so
+ * central wiring can pass a service driving the SAME `buildClusterFabric()`
+ * entry point `hades cluster` runs — real SWIM membership, real fencing-token
+ * leases, real signed federation links, the real verification gate and real
+ * ed25519 certificates. Left undefined, a cluster command reports an honest
+ * `cluster.error` instead of hanging the caller — it never pretends an
+ * unconfigured multi-node layer is a healthy idle cluster.
+ */
+export interface ClusterHandler {
+  handle(cmd: ClusterCommand): Promise<ClusterEvent>;
+}
+
 /** Truthful description of what inference backs this run — surfaced as a startup log. */
 export interface InferenceInfo {
   kind: "real" | "mock";
@@ -335,6 +352,14 @@ export interface SidecarOptions {
    * a renderer would read as "no arms have ever gone wrong".
    */
   route?: RouteHandler;
+  /**
+   * Real multi-node backend for `cluster.*` commands; when set (central
+   * wiring passes a `ClusterService`), the desktop builds and measures the
+   * SAME in-process fabric `hades cluster` does. Left undefined, a cluster
+   * command reports an honest `cluster.error` rather than an empty status a
+   * renderer would read as "the cluster is healthy and idle".
+   */
+  cluster?: ClusterHandler;
 }
 
 /**
@@ -379,6 +404,7 @@ export class Sidecar {
   private readonly trust?: TrustHandler;
   private readonly market?: MarketHandler;
   private readonly route?: RouteHandler;
+  private readonly cluster?: ClusterHandler;
   private stateUnsubscribe?: () => void;
   /** Guards {@link Sidecar.dispose}'s one-shot teardown of the state lane. */
   private disposed = false;
@@ -411,6 +437,7 @@ export class Sidecar {
     this.trust = opts.trust;
     this.market = opts.market;
     this.route = opts.route;
+    this.cluster = opts.cluster;
 
     // Live workspace deltas are PUSHED, not polled: subscribe once, up
     // front, so a write made by another process (a `hades state set` in a
@@ -644,6 +671,30 @@ export class Sidecar {
               kind: "route.error",
               op: cmd.kind,
               message: "the budget-constrained router is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "cluster.status":
+        case "cluster.nodes":
+        case "cluster.run":
+        case "cluster.chaos":
+          // Central wiring hands us a real ClusterService (cluster-service.ts
+          // over the real buildClusterFabric() the `hades cluster` CLI runs).
+          // Without one, reply with an honest cluster.error rather than a
+          // synthesized empty cluster — a renderer must never be able to read
+          // "not configured" as "every node is healthy". Each of these
+          // commands BUILDS and tears down a real fabric, so the service
+          // clamps the requested sizes and serializes concurrent requests;
+          // there is deliberately no cluster.bench here (it would monopolize
+          // this single stdio pipe for tens of seconds).
+          if (this.cluster) {
+            this.safeEmit(await this.cluster.handle(cmd));
+          } else {
+            this.safeEmit({
+              kind: "cluster.error",
+              op: cmd.kind,
+              message: "the multi-node cluster layer is not configured in this build",
               at: this.now(),
             });
           }

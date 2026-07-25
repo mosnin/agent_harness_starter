@@ -59,6 +59,8 @@ export { runMarketCommand, defaultMarketDeps, MARKET_USAGE } from "./market-comm
 export type { MarketCommandDeps } from "./market-command";
 export { runRouteCommand, defaultRouteDeps, defaultBenchWiring, ROUTE_USAGE } from "./route-command";
 export type { RouteCommandDeps, RouteBenchWiring } from "./route-command";
+export { runClusterCommand, CLUSTER_USAGE } from "./cluster-command";
+export type { ClusterCommandDeps, ClusterAutoscaleDeps } from "./cluster-command";
 export { runSkillEvolveCommand } from "./skill-evolve-command";
 export type { SkillEvolveResult, SkillEvolveFs, SkillEvolveOptions } from "./skill-evolve-command";
 export { runGatewayCommand } from "./gateway-command";

@@ -136,7 +136,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "cluster", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -231,6 +231,8 @@ export class HadesCli {
         return this.market(rest);
       case "route":
         return this.route(rest);
+      case "cluster":
+        return this.cluster(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -324,6 +326,20 @@ export class HadesCli {
         "                       hash-chained routing ledger; an arm with no published",
         "                       price reports `unpriced`, never a $0 that reads as free,",
         "                       and `bench` refuses to run rather than simulate)",
+        "  cluster <sub>        Run one swarm across many nodes: status/nodes/run/bench/chaos/",
+        "                       autoscale",
+        "                       (SWIM membership + leader election, fencing-token leases,",
+        "                       signed federation links between every pair of nodes, and an",
+        "                       exactly-once verified-result ledger — a task counts as done",
+        "                       only once a REAL gate accepted it and a REAL ed25519",
+        "                       certificate binds the exact bytes produced). `bench` and",
+        "                       `chaos` build and actually execute an in-process fabric on",
+        "                       this machine and report only measured numbers; `chaos` runs",
+        "                       a seeded fault schedule (worker kills, node crashes, link",
+        "                       partitions) and the same seed reproduces the same schedule.",
+        "                       `autoscale` is a DRY RUN: it plans the per-node worker counts",
+        "                       against the SAME registered backends `hades backends` shows,",
+        "                       and provisions nothing",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -534,6 +550,40 @@ export class HadesCli {
       this.routeDeps = this.deps.route ? this.deps.route() : defaultRouteDeps();
     }
     return runRouteCommand(args, this.routeDeps);
+  }
+
+  /** `hades cluster status|nodes|run|bench|chaos|autoscale` — the multi-node surface.
+   *  Every subcommand actually BUILDS a real in-process cluster fabric (one
+   *  real inline `SwarmManager` + real verification gate + real ed25519
+   *  certificates per node, real SWIM membership, real signed federation
+   *  links), runs the work, and tears it down; nothing is a cached or
+   *  precomputed figure. Deliberately NOT cached across invocations the way
+   *  `trust`/`market`/`route` are: there is no persistent cluster daemon, so
+   *  holding a fabric open between subcommands would leak worker pools and
+   *  timers for no benefit. The import is dynamic so `hades help` (and every
+   *  other subcommand) never pays to load the swarm manager, the federation
+   *  stack, or the ed25519 layer. */
+  private async cluster(args: string[]): Promise<CliResult> {
+    const { runClusterCommand } = await import("./cluster-command");
+    return runClusterCommand(args, {
+      // `cluster autoscale` plans against the SAME BackendManager
+      // `hades backends` drives — one registered fleet, two surfaces — so a
+      // plan can only ever name backends this install really has. The
+      // factory stays lazy AND cached (shared with `hades backends`), and is
+      // only invoked by the autoscale subcommand itself; absent, autoscale
+      // refuses rather than planning against an invented backend list.
+      ...(this.deps.backends
+        ? {
+            backends: () => {
+              this.backendsDeps ??= (this.deps.backends as () => BackendsCommandDeps)();
+              return {
+                registry: this.backendsDeps.manager.registry,
+                descriptors: this.backendsDeps.manager.descriptors(),
+              };
+            },
+          }
+        : {}),
+    });
   }
 
   private model(args: string[]): CliResult {

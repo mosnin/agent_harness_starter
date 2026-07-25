@@ -38,6 +38,7 @@ import {
   type TrustHandler,
   type MarketHandler,
   type RouteHandler,
+  type ClusterHandler,
   type InferenceInfo,
 } from "./core/sidecar";
 import { StateService } from "./core/state-service";
@@ -45,6 +46,7 @@ import { MigrateService } from "./core/migrate-service";
 import { TrustService } from "./core/trust-service";
 import { MarketService } from "./core/market-service";
 import { RouteService } from "./core/route-service";
+import { ClusterService } from "./core/cluster-service";
 import { defaultMigrateDeps } from "../hades/cli/migrate-command";
 import type { StateEvent } from "./ipc/state-contract";
 import { createWorkspaceStack } from "../hades/state/wiring";
@@ -151,6 +153,14 @@ export interface RunSidecarOptions {
    *  command actually arrives. READ-ONLY: the lane carries no record/bench
    *  command, so a renderer can never move the budget or start billing. */
   route?: RouteHandler;
+  /** Real multi-node backend for `cluster.*`; defaults to a lazily-constructed
+   *  `ClusterService` over the SAME `buildClusterFabric()` `hades cluster`
+   *  runs from a terminal. Lazy: no fabric, no worker pool and no ed25519 key
+   *  is created until a `cluster.*` command actually arrives. Bounded: the
+   *  service clamps the requested node/task/worker counts and serializes
+   *  concurrent requests, so a renderer cannot wedge the machine, and the lane
+   *  carries no `cluster.bench` command. */
+  cluster?: ClusterHandler;
 }
 
 /**
@@ -557,6 +567,28 @@ export async function runSidecar(
     };
   }
 
+  // Real multi-node lane: the same `buildClusterFabric()` `hades cluster`
+  // drives. Lazy — no fabric (and therefore no worker pool, no ed25519 key,
+  // no SWIM timer) exists until a `cluster.*` command actually arrives, and
+  // every fabric it builds is torn down before the reply is emitted.
+  let cluster = opts.cluster;
+  if (!cluster) {
+    let clusterService: ClusterService | undefined;
+    cluster = {
+      handle: async (cmd) => {
+        try {
+          clusterService ??= new ClusterService({ now });
+          return await clusterService.handle(cmd);
+        } catch (err) {
+          // ClusterService.handle catches its own failures; this only fires
+          // if constructing it throws. Report the REAL reason rather than a
+          // synthesized healthy-looking cluster.
+          return { kind: "cluster.error", op: cmd.kind, message: errMsg(err), at: now() };
+        }
+      },
+    };
+  }
+
   const sidecar = new Sidecar({
     factory,
     now,
@@ -579,6 +611,7 @@ export async function runSidecar(
     trust,
     market,
     route,
+    cluster,
   });
 
   try {

@@ -95,6 +95,19 @@ export type {
   RoutePaneSummary,
   RoutePaneState,
 } from "./route-pane";
+export {
+  initClusterPane,
+  clusterPaneKey,
+  renderClusterPane,
+  nodeNote,
+  leaderCell,
+  CLUSTER_PANE_DEFAULT_WIDTH,
+} from "./cluster-pane";
+export type {
+  ClusterPaneNodeRow,
+  ClusterPaneSummary,
+  ClusterPaneState,
+} from "./cluster-pane";
 export { composeInit, composeText, composeKey, renderCompose } from "./compose";
 export type { ComposeState, ComposeEffect } from "./compose";
 export {

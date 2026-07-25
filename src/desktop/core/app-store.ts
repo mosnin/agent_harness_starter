@@ -228,6 +228,20 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
     case "route.error":
       return state;
 
+    // Cluster events are measured reports about an EPHEMERAL multi-node
+    // fabric that was built, run and torn down for that one request
+    // (`./cluster-service.ts`). They deliberately do not touch the swarm app
+    // state: `state.running`/`workers`/`tasks` describe THIS process's local
+    // swarm, and folding a torn-down fabric's nodes into them would make the
+    // main view claim workers that no longer exist. The renderer renders
+    // these directly, with their `ephemeral`/`complete` flags intact.
+    case "cluster.status":
+    case "cluster.nodes":
+    case "cluster.run":
+    case "cluster.chaos":
+    case "cluster.error":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.
