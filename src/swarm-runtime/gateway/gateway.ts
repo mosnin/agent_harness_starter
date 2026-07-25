@@ -1,6 +1,6 @@
 import type { Goal } from "../types";
 
-export type GatewayPlatform = "slack" | "discord" | "telegram" | "whatsapp" | "signal" | "cli" | "generic";
+export type GatewayPlatform = "slack" | "discord" | "telegram" | "whatsapp" | "signal" | "email" | "cli" | "generic";
 
 /** Platform-agnostic inbound message. */
 export interface InboundMessage {

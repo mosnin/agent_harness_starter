@@ -8,3 +8,11 @@ export { WhatsAppConnector, createWhatsAppHttpTransport, parseWhatsApp } from ".
 export type { WhatsAppTransport, WhatsAppWebhookPayload, WhatsAppConnectorOptions } from "./whatsapp";
 export { SignalConnector, createSignalJsonRpcTransport, parseSignal } from "./signal";
 export type { SignalTransport, SignalEnvelope, SignalConnectorOptions } from "./signal";
+export { EmailConnector, createEmailEnvTransport, EMAIL_PLATFORM } from "./email";
+export type { EmailTransport, EmailEnvelope, EmailAddress, OutgoingEmail, EmailConnectorOptions } from "./email";
+export { parseMessage, buildMessage, parseAddressList, decodeEncodedWords } from "./email-mime";
+export type { ParsedEmail, EmailHeaders, BuildMessageOptions } from "./email-mime";
+export { SmtpClient, nodeTlsSocketFactory } from "./smtp-client";
+export type { TextSocket, TextSocketFactory, SmtpClientOptions } from "./smtp-client";
+export { ImapClient } from "./imap-client";
+export type { ImapClientOptions } from "./imap-client";

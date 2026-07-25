@@ -139,6 +139,8 @@
     "profile:bench": "tsx src/hades/bin/hades.ts profile bench",
     "backends": "tsx src/hades/bin/hades.ts backends",
     "showdown": "tsx src/hades/bin/hades.ts showdown",
+    "gateway": "tsx src/hades/bin/hades.ts gateway",
+    "gateway:bench": "tsx src/hades/bin/hades.ts gateway bench",
     "bench:parity": "tsx src/hades/bin/hades.ts bench parity",
     "desktop:build:sidecar": "node scripts/build-sidecar.mjs",
     "desktop:build:ui": "node scripts/build-desktop.mjs",

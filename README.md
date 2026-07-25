@@ -71,7 +71,7 @@ end-to-end. Closing that gap to genuinely surpass Hermes is the active roadmap.
 | Capability | Where |
 |---|---|
 | Closed learning loop: cross-session memory, curation, skill forge/tuner, user model | `src/hades/memory/`, `src/hades/learning/` |
-| Messaging connectors — Telegram (in+out), Slack/WhatsApp/Discord/Signal (outbound + injectable; inbound webhook/WS is Phase 2) | `src/hades/gateway/` |
+| Messaging gateway — six connectors (Telegram, Discord, Slack, WhatsApp, Signal, Email/IMAP+SMTP), DM pairing + trust store, cross-channel continuity, STYX trust badges, `hades gateway start/status/pair/send/bench` (agent engine defaults to an honest self-announcing mock until a swarm engine is wired) | `src/hades/gateway/`, `hades gateway` |
 | Remote backends — SSH + Docker/process (real); Modal/Daytona/Singularity (interface-only until Phase 2) | `src/hades/backends/` |
 | ACP adapter: editor sessions, streamed updates, edit-approval + provenance | `src/hades/acp/` |
 | Model switching · plugin system + examples · domain skill packs | `src/hades/models/`, `plugins/`, `skill-packs/` |

@@ -28,7 +28,10 @@ docker run --rm -e HADES_MODEL=claude-opus-4-1 -v hades-data:/data hades-gateway
 
 ```
 hades chat                 Start the interactive REPL (memory + swarm)
-hades gateway              Start the messaging gateway (Slack/Telegram/…)
+hades gateway <sub>        Multi-platform messaging gateway: start [--probe] / status /
+                           pair [--owner] / send / bench — telegram, discord, slack,
+                           whatsapp, signal, email; DM pairing + trust, cross-channel
+                           continuity, STYX trust badges on every reply
 hades model [use <id>]     Show or switch the active model
 hades skills [packs]       List skills / available skill packs
 hades plugins              List available plugins
@@ -61,9 +64,22 @@ See `src/hades/examples/learning-loop.ts` for a runnable, dependency-free demo.
 
 `ConnectorHub` runs one handler across many channels with per-user rate limiting
 and mirroring. Built-in connectors (all over injectable transports): **Telegram,
-Slack, Discord, WhatsApp Cloud, Signal**, plus a **voice** pipeline (injectable
-STT/TTS) and **cross-platform continuity** (one identity + one conversation
-across channels, with a prove-it's-you link code).
+Slack, Discord, WhatsApp Cloud, Signal, Email (IMAP-poll + SMTP, dependency-free
+MIME layer)**, plus a **voice** pipeline (injectable STT/TTS) and
+**cross-platform continuity** (one identity + one conversation across channels,
+with a prove-it's-you link code).
+
+The production pipeline `hades gateway start` composes is: **PairingGuard**
+(`/pair`, `/link`, `/whoami`, `/unlink` with brute-force lockout; unknown
+handles never reach the agent) → **ContinuityRouter** (durable identity +
+session across channels) → **BadgeStamper** (every reply carries an honest STYX
+trust badge — verified / abstained / unverified — derived from the real gate
+decision + ed25519 certificate for that exact text, never claimable by a
+handler) → **AgentGatewayHandler** (per-session FIFO, timeout-raced, honest
+failure replies). Connectors come up only for platforms whose `HADES_*`
+credentials exist (`hades gateway start --probe` reports the table; env var
+NAMES only, never values). The default agent engine is a self-announcing
+`[mock]` echo — a real swarm engine is opt-in wiring, never silently faked.
 
 ## Execution backends
 
