@@ -14,6 +14,7 @@ import { execEnabledRegistry } from "../exec/index";
 import { runHierarchyCommand } from "./hierarchy-command";
 import { runBenchCommand } from "./bench-command";
 import { runSkillCommand } from "./skills-command";
+import { runSkillEvolveCommand } from "./skill-evolve-command";
 import { runTuiCommand } from "./tui-command";
 import { runExecCommand } from "./exec-command";
 import { runToolsCommand } from "./tools-command";
@@ -145,7 +146,7 @@ export class HadesCli {
       case "bench":
         return runBenchCommand(rest);
       case "skill":
-        return runSkillCommand(rest);
+        return this.skill(rest);
       case "tui":
         return runTuiCommand(rest);
       case "tools":
@@ -203,6 +204,9 @@ export class HadesCli {
         "                       `ready` reports keyed-live readiness (exit 0 iff ready)",
         "  backends learn       Swarm learning-loop status (live or durable snapshot)",
         "  skill <sub>          Create/list/validate SKILL.md skills (new/list/show/validate)",
+        "                       + skill evolution: synth (SKILL.md from a GATE-VERIFIED",
+        "                       trajectory), refine (fold verified uses back in), track",
+        "                       (hash-chained Brier/Wilson record), trust (demotion policy)",
         "  tools <sub>          List/enable/disable the tool catalog (list/enable/disable/info)",
         "  exec <run|bench>     Run one program that chains tools (JS/Python, STYX-traced)",
         "  browser <sub>        Real Chromium browsing: open <url> / bench / probe (STYX-traced)",
@@ -256,6 +260,22 @@ export class HadesCli {
       return { code, lines };
     }
     return runShowdownCommand(args);
+  }
+
+  /** `hades skill <sub>` — authoring (`new/list/show/validate`, skills-command)
+   *  plus the Phase-10 skill-evolution surface (`synth/refine/track/trust`,
+   *  skill-evolve-command): synthesis from GATE-VERIFIED trajectories,
+   *  refine-on-use, the hash-chained Brier/Wilson track record, and the
+   *  demotion trust policy. Both subsurfaces share the same skills dir
+   *  ($HADES_SKILLS_DIR, default <HADES_DATA_DIR|.hades>/skills), so a
+   *  synthesized skill is immediately visible to `skill list`, the TUI, and
+   *  the desktop Skills view. */
+  private skill(args: string[]): Promise<CliResult> | CliResult {
+    const [sub] = args;
+    if (sub === "synth" || sub === "refine" || sub === "track" || sub === "trust") {
+      return runSkillEvolveCommand(args);
+    }
+    return runSkillCommand(args);
   }
 
   private tools(args: string[]): CliResult {

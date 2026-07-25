@@ -105,6 +105,32 @@ describe("HadesCli", () => {
     expect(res.lines[0]).toBe("Recorded trajectories: 1");
   });
 
+  it("routes `skill` authoring vs evolution subcommands to the right surface", async () => {
+    const { cli } = fullCli();
+
+    // Authoring path (skills-command): help lists both surfaces.
+    const help = await cli.run(["skill", "help"]);
+    expect(help.code).toBe(0);
+    const helpText = help.lines.join("\n");
+    expect(helpText).toContain("new <name>");
+    expect(helpText).toContain("synth <trajectory.json>");
+    expect(helpText).toContain("trust [--policy-file <p>]");
+
+    // Evolution path (skill-evolve-command): `synth` with no file is that
+    // module's usage error, not skills-command's "Unknown skill command".
+    const synth = await cli.run(["skill", "synth"]);
+    expect(synth.code).toBe(1);
+    expect(synth.lines[0]).toBe("Usage: hades skill synth <trajectory.json>");
+
+    const refine = await cli.run(["skill", "refine"]);
+    expect(refine.code).toBe(1);
+    expect(refine.lines[0]).toBe("Usage: hades skill refine <skill> <use.json>");
+
+    // Top-level help advertises the evolution surface.
+    const topHelp = await cli.run(["help"]);
+    expect(topHelp.lines.join("\n")).toContain("synth (SKILL.md from a GATE-VERIFIED");
+  });
+
   it("delegates chat to the injected launcher", async () => {
     const { cli } = fullCli();
     expect((await cli.run(["chat"])).lines).toEqual(["chat started"]);
