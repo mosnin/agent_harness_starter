@@ -31,6 +31,8 @@ export type {
 } from "./browser-command";
 export { defaultBrowserCliDeps } from "./browser-deps";
 export type { BrowserDepsIo } from "./browser-deps";
+export { runScheduleCommand, defaultScheduleDeps, BuiltinNoteExecutor } from "./schedule-command";
+export type { ScheduleCommandDeps } from "./schedule-command";
 export { runGatewayCommand } from "./gateway-command";
 export type { GatewayCommandIo } from "./gateway-command";
 export { buildGatewayDeps, buildGatewayDepsFromEnv } from "./gateway-deps";

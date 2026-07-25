@@ -22,6 +22,8 @@ import { defaultRoleRegistry } from "../teams/role";
 import { defaultToolsetManager } from "../tools/default-catalog";
 import type { ToolsetManager } from "../tools/manager";
 import type { BackendsCommandDeps, BanditStateStore } from "./backends-command";
+import { defaultScheduleDeps } from "./schedule-command";
+import type { ScheduleCommandDeps } from "./schedule-command";
 import type { RouteBanditState } from "../backends/route-bandit";
 import { BackendManager } from "../backends/manager";
 import type { BackendDescriptor } from "../backends/descriptor";
@@ -253,6 +255,23 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     };
   };
 
+  // Phase-9 scheduler (`hades schedule`). Lazy: the on-disk job store is only
+  // opened when a schedule subcommand actually runs. The store lives at
+  // <dataDir>/schedule.json (the resolved config's data dir, not a second
+  // env-only convention); without persistence it lives in a fresh temp dir
+  // for the life of the process — real files, real atomic saves + corruption
+  // quarantine, but nothing written into the user's data dir (same pattern
+  // as the profile store above). Executor/deliverer wiring stays exactly
+  // `defaultScheduleDeps()`'s honest defaults: the builtin `note` executor
+  // (no verification evidence, so nothing is ever delivered as "verified")
+  // and a zero-sender VerifiedDeliveryRouter — `hades schedule status`
+  // reports both facts truthfully until gateway connectors are attached.
+  const schedule = (): ScheduleCommandDeps =>
+    defaultScheduleDeps({
+      ...process.env,
+      HADES_DATA_DIR: persist ? config.dataDir : mkdtempSync(join(tmpdir(), "hades-schedule-")),
+    });
+
   return new HadesCli({
     version: HADES_VERSION,
     models,
@@ -263,6 +282,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     memoryGuard: memory,
     profile,
     backends,
+    schedule,
     // `hades skills hub` reads/writes the same on-disk skill library
     // `hades skill` manages ($HADES_SKILLS_DIR wins, matching skills-command).
     skillsDir: process.env.HADES_SKILLS_DIR ?? `${config.dataDir}/skills`,

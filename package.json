@@ -138,6 +138,7 @@
     "profile": "tsx src/hades/bin/hades.ts profile",
     "profile:bench": "tsx src/hades/bin/hades.ts profile bench",
     "backends": "tsx src/hades/bin/hades.ts backends",
+    "schedule": "tsx src/hades/bin/hades.ts schedule",
     "showdown": "tsx src/hades/bin/hades.ts showdown",
     "gateway": "tsx src/hades/bin/hades.ts gateway",
     "gateway:bench": "tsx src/hades/bin/hades.ts gateway bench",

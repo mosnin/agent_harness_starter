@@ -28,6 +28,7 @@ import { runShowdownLiveCommand } from "./showdown-live-command";
 import { runShowdownVerifyCommand, runShowdownReadyCommand } from "./showdown-verify-command";
 import { runLiveShowdown, verifyLiveArtifacts } from "../bench/showdown-live";
 import { runSkillsHubCommand } from "./skills-hub-command";
+import type { ScheduleCommandDeps } from "./schedule-command";
 import { join } from "node:path";
 
 export interface CliResult {
@@ -60,6 +61,14 @@ export interface HadesCliDeps {
    *  docker) unless a backends subcommand is actually run; the result is
    *  cached after the first call so repeated subcommands share one fleet. */
   backends?: () => BackendsCommandDeps;
+  /** Phase-9 scheduler (`hades schedule`). A lazy factory so building the
+   *  CLI never opens the on-disk job store (or the delivery router's crypto
+   *  stack) unless a schedule subcommand actually runs; the result is cached
+   *  after the first call so repeated subcommands share one store instance.
+   *  Absent -> `defaultScheduleDeps()` (env-driven data dir, builtin `note`
+   *  executor, zero-sender verified delivery router — `hades schedule status`
+   *  reports that wiring honestly). */
+  schedule?: () => ScheduleCommandDeps;
   /** Skill-library directory for `hades skills hub` (agentskills.io interop).
    *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
    *  the same convention `hades skill` uses. */
@@ -76,7 +85,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -94,6 +103,8 @@ export class HadesCli {
   private profileDeps?: ProfileCommandDeps;
   /** Cached result of the lazy `deps.backends` factory (see HadesCliDeps). */
   private backendsDeps?: BackendsCommandDeps;
+  /** Cached result of the lazy `deps.schedule` factory (see HadesCliDeps). */
+  private scheduleDeps?: ScheduleCommandDeps;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -143,6 +154,8 @@ export class HadesCli {
         return this.exec(rest);
       case "browser":
         return this.browser(rest);
+      case "schedule":
+        return this.schedule(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -193,6 +206,10 @@ export class HadesCli {
         "  tools <sub>          List/enable/disable the tool catalog (list/enable/disable/info)",
         "  exec <run|bench>     Run one program that chains tools (JS/Python, STYX-traced)",
         "  browser <sub>        Real Chromium browsing: open <url> / bench / probe (STYX-traced)",
+        "  schedule <sub>       Cron scheduler + verified delivery: add/list/remove/run/status",
+        "                       (5-field Vixie cron, IANA timezones + DST, misfire policies,",
+        "                       durable job store; output only ever delivered as \"verified\"",
+        "                       when the STYX gate + ed25519 certificate say so)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -280,6 +297,20 @@ export class HadesCli {
       lines.push(`browser support unavailable: ${err instanceof Error ? err.message : String(err)}`);
       return { code: 1, lines };
     }
+  }
+
+  /** `hades schedule add|list|remove|run|status` — the Phase 9 scheduler +
+   *  verified-delivery surface. Loaded lazily so `hades help` never pays for
+   *  the job store or the delivery router's ed25519 stack; deps come from the
+   *  injected lazy factory when configured (buildHadesCli wires config.dataDir
+   *  + persistence there), else `defaultScheduleDeps()` — both cached so
+   *  repeated subcommands in one process share one store instance. */
+  private async schedule(args: string[]): Promise<CliResult> {
+    const { runScheduleCommand, defaultScheduleDeps } = await import("./schedule-command");
+    if (!this.scheduleDeps) {
+      this.scheduleDeps = this.deps.schedule ? this.deps.schedule() : defaultScheduleDeps();
+    }
+    return runScheduleCommand(args, this.scheduleDeps);
   }
 
   private model(args: string[]): CliResult {
