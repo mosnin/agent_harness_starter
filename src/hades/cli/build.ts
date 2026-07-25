@@ -31,6 +31,8 @@ import { defaultTrustDeps } from "./trust-command";
 import type { TrustCommandDeps } from "./trust-command";
 import { defaultMarketDeps } from "./market-command";
 import type { MarketCommandDeps } from "./market-command";
+import { defaultRouteDeps } from "./route-command";
+import type { RouteCommandDeps } from "./route-command";
 import { SecretVault } from "../migrate/secrets";
 import { fileConfigAccess, resolveWorkspaceActor, workspaceRoot } from "../state/wiring";
 import { allAdapters } from "../state/domains";
@@ -396,6 +398,14 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
   // stack uses, so the two still agree on the key inside one process.
   const market = (): MarketCommandDeps => defaultMarketDeps(process.env, { dataDir: resolveTrustDataDir() });
 
+  // The budget-constrained router (`hades route`). Rooted at the SAME data
+  // dir as the trust gate and the market, so a routing decision recorded in a
+  // terminal is the same decision the desktop `route.*` lane and the TUI
+  // ROUTE pane read: one arm catalog, one measured cost model, one budget,
+  // one hash-chained routing ledger. Lazy for the same reason as `market`:
+  // nothing under `<dataDir>/routing` is read until a route subcommand runs.
+  const route = (): RouteCommandDeps => defaultRouteDeps(process.env, { dataDir: resolveTrustDataDir() });
+
   return new HadesCli({
     version: HADES_VERSION,
     models,
@@ -411,6 +421,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     migrate,
     trust,
     market,
+    route,
     // `hades skills hub` reads/writes the same on-disk skill library
     // `hades skill` manages ($HADES_SKILLS_DIR wins, matching skills-command).
     skillsDir: process.env.HADES_SKILLS_DIR ?? `${config.dataDir}/skills`,

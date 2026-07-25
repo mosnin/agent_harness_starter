@@ -35,6 +35,7 @@ import type { MigrateCommandDeps } from "./migrate-command";
 import type { InstallCommandDeps } from "./install-command";
 import type { TrustCommandDeps } from "./trust-command";
 import type { MarketCommandDeps } from "./market-command";
+import type { RouteCommandDeps } from "./route-command";
 import { join } from "node:path";
 
 export interface CliResult {
@@ -112,6 +113,13 @@ export interface HadesCliDeps {
    *  first market subcommand runs, so one process shares one ledger, one
    *  economy and one replay registry across subcommands. */
   market?: () => MarketCommandDeps;
+  /** Budget-constrained router (`hades route`). Lazy for the same reason
+   *  `market` is: building the CLI must never touch `<dataDir>/routing`,
+   *  deserialize a bandit posterior, or re-fit the conformal gate. Cached
+   *  after the first route subcommand runs, so one process shares one arm
+   *  catalog, one measured cost model, one budget and one hash-chained
+   *  routing ledger across subcommands. */
+  route?: () => RouteCommandDeps;
   /** Skill-library directory for `hades skills hub` (agentskills.io interop).
    *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
    *  the same convention `hades skill` uses. */
@@ -128,7 +136,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -158,6 +166,8 @@ export class HadesCli {
   private trustDeps?: TrustCommandDeps;
   /** Cached result of the lazy `deps.market` factory (see HadesCliDeps). */
   private marketDeps?: MarketCommandDeps;
+  /** Cached result of the lazy `deps.route` factory (see HadesCliDeps). */
+  private routeDeps?: RouteCommandDeps;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -219,6 +229,8 @@ export class HadesCli {
         return this.trust(rest);
       case "market":
         return this.market(rest);
+      case "route":
+        return this.route(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -304,6 +316,14 @@ export class HadesCli {
         "                       signs with, escrow/slashing/standing, and a second-price",
         "                       order book ranked by reputation-adjusted value per dollar;",
         "                       `simulate` is the only synthetic subcommand and says so)",
+        "  route <sub>          The budget-constrained, risk-controlled router:",
+        "                       status/arms/explain/record/ledger/bench/doctor",
+        "                       (provider x model arm space priced from the REAL price",
+        "                       table, a measured $/token cost model, a budgeted Thompson",
+        "                       bandit, a split-conformal silent-wrong gate and a",
+        "                       hash-chained routing ledger; an arm with no published",
+        "                       price reports `unpriced`, never a $0 that reads as free,",
+        "                       and `bench` refuses to run rather than simulate)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -500,6 +520,20 @@ export class HadesCli {
       this.marketDeps = this.deps.market ? this.deps.market() : defaultMarketDeps();
     }
     return runMarketCommand(args, this.marketDeps);
+  }
+
+  /** `hades route status|arms|explain|record|ledger|bench|doctor` — the
+   *  budget-constrained router. Lazy AND cached for the same reasons
+   *  `market` is: one process shares one arm catalog, one measured cost
+   *  model, one bandit posterior/budget and one hash-chained routing ledger
+   *  across subcommands, and the dynamic import keeps the fs/deserialize
+   *  cost off every other command's startup path. */
+  private async route(args: string[]): Promise<CliResult> {
+    const { runRouteCommand, defaultRouteDeps } = await import("./route-command");
+    if (!this.routeDeps) {
+      this.routeDeps = this.deps.route ? this.deps.route() : defaultRouteDeps();
+    }
+    return runRouteCommand(args, this.routeDeps);
   }
 
   private model(args: string[]): CliResult {

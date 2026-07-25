@@ -216,6 +216,18 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
     case "market.error":
       return state;
 
+    // Route events are read-only reports about the budget-constrained router
+    // (`./route-service.ts`) — the arm space, measured cost, posteriors,
+    // conformal thresholds and the tamper-evident routing ledger. Like every
+    // lane above, they are rendered directly and deliberately do not touch
+    // the swarm app state.
+    case "route.status":
+    case "route.arms":
+    case "route.explain":
+    case "route.ledger":
+    case "route.error":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.

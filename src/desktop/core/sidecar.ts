@@ -36,6 +36,8 @@ import type {
   TrustEvent,
   MarketCommand,
   MarketEvent,
+  RouteCommand,
+  RouteEvent,
   StateEvent,
   MetricsView,
   RunView,
@@ -219,6 +221,21 @@ export interface MarketHandler {
   handle(cmd: MarketCommand): Promise<MarketEvent>;
 }
 
+/**
+ * Handles `route.*` commands over the REAL budget-constrained router
+ * (`src/hades/routing/**`), resolving to the `RouteEvent` to emit.
+ * Structurally matches `RouteService` (`./route-service.ts`) so central
+ * wiring can pass a service driving the SAME `openRouter()` handles
+ * `hades route` runs — one arm catalog, one measured cost model, one bandit
+ * posterior, one budget and one hash-chained routing ledger over this
+ * install's `<dataDir>`. Left undefined, a route command reports an honest
+ * `route.error` instead of hanging the caller — it never pretends an
+ * unconfigured router is an idle one.
+ */
+export interface RouteHandler {
+  handle(cmd: RouteCommand): Promise<RouteEvent>;
+}
+
 /** Truthful description of what inference backs this run — surfaced as a startup log. */
 export interface InferenceInfo {
   kind: "real" | "mock";
@@ -309,6 +326,15 @@ export interface SidecarOptions {
    * as "nobody has ever cheated here".
    */
   market?: MarketHandler;
+  /**
+   * Real routing backend for `route.*` commands; when set (central wiring
+   * passes a `RouteService` over the real `openRouter()`), the desktop reads
+   * the same arm catalog, measured cost model, posterior, budget and
+   * hash-chained routing ledger the `hades route` CLI does. Left undefined, a
+   * route command reports an honest `route.error` rather than an empty status
+   * a renderer would read as "no arms have ever gone wrong".
+   */
+  route?: RouteHandler;
 }
 
 /**
@@ -352,6 +378,7 @@ export class Sidecar {
   private readonly migrate?: MigrateHandler;
   private readonly trust?: TrustHandler;
   private readonly market?: MarketHandler;
+  private readonly route?: RouteHandler;
   private stateUnsubscribe?: () => void;
   /** Guards {@link Sidecar.dispose}'s one-shot teardown of the state lane. */
   private disposed = false;
@@ -383,6 +410,7 @@ export class Sidecar {
     this.migrate = opts.migrate;
     this.trust = opts.trust;
     this.market = opts.market;
+    this.route = opts.route;
 
     // Live workspace deltas are PUSHED, not polled: subscribe once, up
     // front, so a write made by another process (a `hades state set` in a
@@ -593,6 +621,29 @@ export class Sidecar {
               kind: "market.error",
               op: cmd.kind,
               message: "the verified-work market is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "route.status":
+        case "route.arms":
+        case "route.explain":
+        case "route.ledger":
+          // Central wiring hands us a real RouteService (route-service.ts over
+          // the real openRouter() rooted at the SAME <dataDir> the `hades
+          // route` CLI uses). Without one, reply with an honest route.error
+          // rather than a synthesized empty router — a renderer must never be
+          // able to read "not configured" as "nothing has ever been routed
+          // wrong". This lane is READ-ONLY: there is no route.record and no
+          // route.bench, so nothing a renderer sends can move the budget,
+          // rewrite a posterior, append to the ledger, or start billing.
+          if (this.route) {
+            this.safeEmit(await this.route.handle(cmd));
+          } else {
+            this.safeEmit({
+              kind: "route.error",
+              op: cmd.kind,
+              message: "the budget-constrained router is not configured in this build",
               at: this.now(),
             });
           }

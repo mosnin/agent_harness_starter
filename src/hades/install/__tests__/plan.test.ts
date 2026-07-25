@@ -130,7 +130,11 @@ describe("compareNodeVersion", () => {
         // antisymmetric
         const ab = Math.sign(compareNodeVersion(a, b));
         const ba = Math.sign(compareNodeVersion(b, a));
-        expect(ab).toBe(-ba);
+        // `-Math.sign(0)` is `-0`, and `toBe` is `Object.is`, which
+        // distinguishes `-0` from `+0`. Without this normalization the
+        // property flakes on every generated pair of EQUAL versions — a
+        // defect in the assertion, not in `compareNodeVersion`.
+        expect(ab).toBe(ba === 0 ? 0 : -ba);
         // transitive
         if (compareNodeVersion(a, b) <= 0 && compareNodeVersion(b, c) <= 0) {
           expect(compareNodeVersion(a, c)).toBeLessThanOrEqual(0);

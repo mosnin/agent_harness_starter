@@ -37,12 +37,14 @@ import {
   type MigrateHandler,
   type TrustHandler,
   type MarketHandler,
+  type RouteHandler,
   type InferenceInfo,
 } from "./core/sidecar";
 import { StateService } from "./core/state-service";
 import { MigrateService } from "./core/migrate-service";
 import { TrustService } from "./core/trust-service";
 import { MarketService } from "./core/market-service";
+import { RouteService } from "./core/route-service";
 import { defaultMigrateDeps } from "../hades/cli/migrate-command";
 import type { StateEvent } from "./ipc/state-contract";
 import { createWorkspaceStack } from "../hades/state/wiring";
@@ -141,6 +143,14 @@ export interface RunSidecarOptions {
    *  desktop app. Lazy: nothing is read or deserialized until a `market.*`
    *  command actually arrives. */
   market?: MarketHandler;
+  /** Real routing backend for `route.*`; defaults to a lazily-constructed
+   *  `RouteService` over `openRouter()` rooted at this install's
+   *  `<dataDir>/routing` — the SAME arm catalog, measured cost model, bandit
+   *  posterior, budget and hash-chained routing ledger `hades route` drives
+   *  from a terminal. Lazy: nothing is read or deserialized until a `route.*`
+   *  command actually arrives. READ-ONLY: the lane carries no record/bench
+   *  command, so a renderer can never move the budget or start billing. */
+  route?: RouteHandler;
 }
 
 /**
@@ -521,6 +531,32 @@ export async function runSidecar(
     };
   }
 
+  // Real routing lane: the same `openRouter()` handles `hades route` drives,
+  // rooted at the same `<dataDir>`. Lazy — nothing under `<dataDir>/routing`
+  // is read until a `route.*` command actually arrives. Every command on this
+  // lane is a pure read; `route.explain` advances the in-memory PRNG but
+  // records no outcome and never persists.
+  let route = opts.route;
+  if (!route) {
+    let routeService: RouteService | undefined;
+    route = {
+      handle: async (cmd) => {
+        try {
+          routeService ??= new RouteService({
+            stackOptions: { env: process.env, dataDir: loadConfig({ env: process.env }).dataDir },
+            now,
+          });
+          return await routeService.handle(cmd);
+        } catch (err) {
+          // RouteService.handle catches its own failures; this only fires if
+          // constructing it (or resolving config) throws. Report the REAL
+          // reason rather than a synthesized empty router.
+          return { kind: "route.error", op: cmd.kind, message: errMsg(err), at: now() };
+        }
+      },
+    };
+  }
+
   const sidecar = new Sidecar({
     factory,
     now,
@@ -542,6 +578,7 @@ export async function runSidecar(
     migrate,
     trust,
     market,
+    route,
   });
 
   try {

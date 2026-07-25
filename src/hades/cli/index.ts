@@ -57,6 +57,8 @@ export { runTrustCommand, defaultTrustDeps, TRUST_USAGE } from "./trust-command"
 export type { TrustCommandDeps } from "./trust-command";
 export { runMarketCommand, defaultMarketDeps, MARKET_USAGE } from "./market-command";
 export type { MarketCommandDeps } from "./market-command";
+export { runRouteCommand, defaultRouteDeps, defaultBenchWiring, ROUTE_USAGE } from "./route-command";
+export type { RouteCommandDeps, RouteBenchWiring } from "./route-command";
 export { runSkillEvolveCommand } from "./skill-evolve-command";
 export type { SkillEvolveResult, SkillEvolveFs, SkillEvolveOptions } from "./skill-evolve-command";
 export { runGatewayCommand } from "./gateway-command";

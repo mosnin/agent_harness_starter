@@ -81,6 +81,20 @@ export type {
   MarketPaneSummary,
   MarketPaneState,
 } from "./market-pane";
+export {
+  initRoutePane,
+  routePaneKey,
+  renderRoutePane,
+  armNote,
+  costCell,
+  thresholdCell,
+  vtphCell,
+} from "./route-pane";
+export type {
+  RoutePaneArmRow,
+  RoutePaneSummary,
+  RoutePaneState,
+} from "./route-pane";
 export { composeInit, composeText, composeKey, renderCompose } from "./compose";
 export type { ComposeState, ComposeEffect } from "./compose";
 export {
