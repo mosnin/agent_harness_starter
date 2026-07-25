@@ -57,3 +57,78 @@ export {
   renderSkillTrustPane,
 } from "./skill-trust-pane";
 export type { SkillTrustPaneRow, SkillTrustPaneState } from "./skill-trust-pane";
+export { composeInit, composeText, composeKey, renderCompose } from "./compose";
+export type { ComposeState, ComposeEffect } from "./compose";
+export {
+  TUI_COMMAND_SPECS,
+  suggest,
+  acInit,
+  acUpdate,
+  acKey,
+  renderAutocomplete,
+} from "./autocomplete";
+export type { CommandSpec, SlashIntent, Match, AcState, AcEffect } from "./autocomplete";
+export {
+  RecallStore,
+  recallInit,
+  recallKey,
+  filterRecall,
+  renderRecallBar,
+} from "./recall";
+export type {
+  RecallEntry,
+  RecallEntryKind,
+  RecallStoreOptions,
+  RecallLoadResult,
+  RecallState,
+  RecallMode,
+  RecallEffect,
+} from "./recall";
+export {
+  interruptInit,
+  interruptOpen,
+  interruptKey,
+  composeRedirectObjective,
+  renderInterruptOverlay,
+} from "./interrupt";
+export type { InterruptState, InterruptIntent } from "./interrupt";
+export {
+  MAX_STREAM_EVENTS,
+  streamInit,
+  normalizeSwarmEvent,
+  streamAppend,
+  streamKey,
+  streamTick,
+  renderToolStream,
+} from "./tool-stream";
+export type { ToolStreamEvent, ToolStreamState } from "./tool-stream";
+export {
+  laneInit,
+  laneApply,
+  laneKey,
+  vtphReadout,
+  renderVerifyLane,
+} from "./verify-lane";
+export type {
+  LaneRuling,
+  VerifyLaneRow,
+  VerifyLaneState,
+  VerifyEvent,
+  VtphInput,
+} from "./verify-lane";
+export {
+  MAX_FRAMES_PER_RUN,
+  MAX_RUNS_RETAINED,
+  HistoryRecorder,
+  initReplay,
+  replayReduce,
+  replayNext,
+  replayPrev,
+  replayFirst,
+  replayLast,
+  currentFrame,
+  formatDuration,
+  renderHistoryList,
+  renderReplayBar,
+} from "./history";
+export type { GoalRun, GoalRunStatus, ReplayState, ReplayAction } from "./history";

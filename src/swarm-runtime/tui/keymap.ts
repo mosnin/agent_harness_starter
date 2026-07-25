@@ -24,10 +24,14 @@ export type TuiAction =
   | { kind: "submit" }
   | { kind: "backspace" }
   /** Switch the dashboard to a secondary pane (FLEET / SHOWDOWN / GATEWAY /
-   *  SCHEDULE / SKILLS-TRUST — see `./fleet-pane.ts` / `./showdown-pane.ts` /
-   *  `./gateway-pane.ts` / `./schedule-pane.ts` / `./skill-trust-pane.ts`).
-   *  Only produced in view mode. */
-  | { kind: "pane"; pane: "fleet" | "showdown" | "gateway" | "schedule" | "trust" }
+   *  SCHEDULE / SKILLS-TRUST / HISTORY / VERIFY / STREAM — see
+   *  `./fleet-pane.ts` / `./showdown-pane.ts` / `./gateway-pane.ts` /
+   *  `./schedule-pane.ts` / `./skill-trust-pane.ts` / `./history.ts` /
+   *  `./verify-lane.ts` / `./tool-stream.ts`). Only produced in view mode. */
+  | {
+      kind: "pane";
+      pane: "fleet" | "showdown" | "gateway" | "schedule" | "trust" | "history" | "verify" | "stream";
+    }
   | { kind: "none" };
 
 const ENTER_KEYS = new Set(["\r", "\n", "return", "enter"]);
@@ -67,6 +71,9 @@ export function keyToAction(key: string, mode: "view" | "compose"): TuiAction {
   if (key === "w") return { kind: "pane", pane: "gateway" };
   if (key === "d") return { kind: "pane", pane: "schedule" };
   if (key === "t") return { kind: "pane", pane: "trust" };
+  if (key === "h") return { kind: "pane", pane: "history" };
+  if (key === "v") return { kind: "pane", pane: "verify" };
+  if (key === "o") return { kind: "pane", pane: "stream" };
   if (key === "?") return { kind: "toggle-help" };
   if (DOWN_KEYS.has(key)) return { kind: "nav", dir: 1 };
   if (UP_KEYS.has(key)) return { kind: "nav", dir: -1 };

@@ -33,6 +33,12 @@
 import { TuiApp } from "../../swarm-runtime/tui/app";
 import type { TuiController } from "../../swarm-runtime/tui/app";
 import type { TuiState } from "../../swarm-runtime/tui/render";
+import { normalizeSwarmEvent } from "../../swarm-runtime/tui/tool-stream";
+import type { VerifyEvent } from "../../swarm-runtime/tui/verify-lane";
+import { RecallStore } from "../../swarm-runtime/tui/recall";
+import type { RecallEntryKind } from "../../swarm-runtime/tui/recall";
+import { HistoryRecorder } from "../../swarm-runtime/tui/history";
+import type { Verdict } from "../../swarm-runtime/types";
 import type {
   FleetPaneBackendRow,
   FleetPaneBanditRow,
@@ -99,7 +105,23 @@ const HELP_LINES = [
   "  (trust pane) ↑/↓ or j/k select skill, s toggle sort, enter reasons, r refresh,",
   "               esc/q back — reads the SAME <dataDir>/skill-trust.json +",
   "               <dataDir>/skill-track.json `hades skill trust`/`track` write",
-  "  (compose mode) type to build the objective, Enter to submit, Esc to cancel",
+  "  h       toggle the HISTORY pane (recorded goal runs + frame-by-frame replay)",
+  "  (history pane) ↑/↓ or j/k select run, ←/→ scrub frames, home/end jump, esc/q back",
+  "  v       toggle the VERIFY LANE pane (live STYX gate rulings: accept/abstain/",
+  "          reject per task, running tally, and a live V-TPH$ readout computed",
+  "          only from real run figures — honest n/a otherwise)",
+  "  (verify pane) ↑/↓ or j/k scroll, home/end jump, esc/q back",
+  "  o       toggle the STREAM pane (live tool-output tail over the real manager",
+  "          event feed, ring-buffered with an honest dropped counter)",
+  "  (stream pane) ↑/↓ scroll, pgup/pgdn/home/end jump, f cycle source filter,",
+  "                esc/q back",
+  "  esc     interrupt the running goal: resume, abort (with confirm), or type a",
+  "          redirect that supersedes it while preserving completed work",
+  "  (compose mode) multi-line editor — Enter submits, Alt-Enter/Ctrl-J newline,",
+  "                 trailing \\ continues the line, bracketed paste is literal,",
+  "                 /commands autocomplete (Tab/↑↓ cycle, Enter accepts),",
+  "                 ↑ recalls history on an empty buffer, Ctrl-R reverse-search",
+  "                 (recall persists across sessions in <dataDir>/tui-recall.jsonl)",
 ];
 
 /**
@@ -206,6 +228,119 @@ function normalizeLogPayload(payload: unknown): LogRow {
     }
   }
   return { workerId: "swarm", line: "log" };
+}
+
+// ---------------------------------------------------------------------------
+// STREAM + VERIFY LANE wiring — the real manager event feed, no simulation
+// ---------------------------------------------------------------------------
+
+/**
+ * Every event name the STREAM pane's `normalizeSwarmEvent` understands —
+ * exactly the names `SwarmManager` really emits (see the emit-arity table in
+ * `src/swarm-runtime/tui/tool-stream.ts`). The interactive loop subscribes
+ * one `SwarmHandle.on` listener per name.
+ */
+export const SWARM_STREAM_EVENTS = [
+  "log",
+  "task:dispatched",
+  "task:verified",
+  "task:rejected",
+  "task:requeued",
+  "task:escalated",
+  "task:failed",
+  "worker:spawned",
+  "worker:killed",
+  "worker:dead",
+  "goal:planned",
+  "goal:completed",
+  "goal:failed",
+  "goal:aborted",
+] as const;
+
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v !== null && typeof v === "object" ? (v as Record<string, unknown>) : null;
+}
+
+/** Multi-argument manager emits arrive through `SwarmHandle.on` as `[a, b]`; single-argument as the bare payload. */
+function unwrapPair(payload: unknown): [unknown, unknown] {
+  return Array.isArray(payload) ? [payload[0], payload[1]] : [payload, undefined];
+}
+
+function isVerdict(v: unknown): v is Verdict {
+  return v === "accept" || v === "revise" || v === "reject";
+}
+
+/**
+ * Map one raw swarm event (as forwarded by `SwarmHandle.on`'s
+ * single-arg/tuple convention) to a VERIFY LANE `VerifyEvent`, or `null` for
+ * events the lane does not track or payloads too malformed to trust. The
+ * ruling mapping is the lane's locked moat mapping:
+ *
+ *   task:dispatched -> pending      task:verified -> accept (report verdict wins)
+ *   task:rejected   -> reject (report verdict wins — a "revise" report renders abstain)
+ *   task:escalated  -> abstain      task:failed   -> reject (terminal, no report)
+ *   goal:planned    -> run-start    goal:completed/failed/aborted -> run-end
+ *
+ * When a verified/rejected event carries a well-formed `VerificationReport`
+ * (`verdict` in the real `Verdict` union, numeric `score`), it is forwarded
+ * raw so `laneApply` applies the verdict override itself; a malformed report
+ * falls back to the event-name ruling with no score — never a fabricated one.
+ */
+export function verifyEventFromSwarm(eventName: string, payload: unknown, at: number): VerifyEvent | null {
+  const taskEvent = (
+    ruling: "pending" | "accept" | "abstain" | "reject",
+    taskRaw: unknown,
+    reportRaw?: unknown
+  ): VerifyEvent | null => {
+    const task = asRecord(taskRaw);
+    const taskId = typeof task?.id === "string" && task.id.length > 0 ? task.id : undefined;
+    if (!taskId) return null;
+    const description = typeof task?.description === "string" ? task.description : "";
+    const report = asRecord(reportRaw);
+    if (report && isVerdict(report.verdict)) {
+      const score = typeof report.score === "number" ? report.score : null;
+      return {
+        type: "task",
+        at,
+        taskId,
+        description,
+        ruling,
+        report: { verdict: report.verdict, score: score ?? Number.NaN },
+      };
+    }
+    return { type: "task", at, taskId, description, ruling };
+  };
+
+  switch (eventName) {
+    case "task:dispatched": {
+      const [task] = unwrapPair(payload);
+      return taskEvent("pending", task);
+    }
+    case "task:verified": {
+      const [task, report] = unwrapPair(payload);
+      return taskEvent("accept", task, report);
+    }
+    case "task:rejected": {
+      const [task, report] = unwrapPair(payload);
+      return taskEvent("reject", task, report);
+    }
+    case "task:escalated": {
+      const [task] = unwrapPair(payload);
+      return taskEvent("abstain", task);
+    }
+    case "task:failed": {
+      const [task] = unwrapPair(payload);
+      return taskEvent("reject", task);
+    }
+    case "goal:planned":
+      return { type: "run-start", at };
+    case "goal:completed":
+    case "goal:failed":
+    case "goal:aborted":
+      return { type: "run-end", at };
+    default:
+      return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -350,16 +485,34 @@ export function createTuiShowdownRunner(
  * deltas into an absolute size, clamped at 0. `cancel` targets whichever goal
  * was most recently dispatched (the TUI only ever has one goal in flight at a
  * time from the operator's perspective); it's a no-op until a goal exists.
+ *
+ * `abortGoal`/`redirectGoal` back the INTERRUPT overlay: abort is a plain
+ * `cancelGoal(goalId)`, and redirect applies the overlay's LOCKED sequence —
+ * `cancelGoal(goalId)` THEN `dispatchGoal(objective)`, awaited in that exact
+ * order so the superseded goal and its replacement never run concurrently.
+ *
+ * `opts.onGoalDispatched` fires with the real `goalId` the handle returned
+ * (never a guessed one) after every successful dispatch — including a
+ * redirect's replacement goal — so central wiring can keep
+ * `TuiApp.setActiveGoal` and the history recorder truthful.
  */
-export function createSwarmController(handle: SwarmHandle, opts: { poolSize?: number } = {}): TuiController {
+export function createSwarmController(
+  handle: SwarmHandle,
+  opts: { poolSize?: number; onGoalDispatched?: (goalId: string, objective: string) => void } = {}
+): TuiController {
   let poolSize = Math.max(0, opts.poolSize ?? 0);
   let activeGoalId: string | undefined;
+
+  const noteDispatched = (goalId: string | undefined, objective: string): void => {
+    activeGoalId = goalId;
+    if (goalId) opts.onGoalDispatched?.(goalId, objective);
+  };
 
   return {
     dispatchGoal(objective: string): void {
       void Promise.resolve(handle.dispatchGoal(objective))
         .then((res) => {
-          activeGoalId = res?.goalId;
+          noteDispatched(res?.goalId, objective);
         })
         .catch(() => {
           /* failures surface via the swarm's own log/event stream, if any */
@@ -372,6 +525,21 @@ export function createSwarmController(handle: SwarmHandle, opts: { poolSize?: nu
     cancel(): void {
       if (!activeGoalId) return;
       void Promise.resolve(handle.cancelGoal?.(activeGoalId)).catch(() => {});
+    },
+    abortGoal(goalId: string): void {
+      void Promise.resolve(handle.cancelGoal?.(goalId)).catch(() => {});
+      if (goalId === activeGoalId) activeGoalId = undefined;
+    },
+    redirectGoal(goalId: string, objective: string): void {
+      void (async () => {
+        // LOCKED sequence: cancel the superseded goal BEFORE dispatching its
+        // replacement (see src/swarm-runtime/tui/interrupt.ts's contract).
+        await Promise.resolve(handle.cancelGoal?.(goalId)).catch(() => {});
+        const res = await Promise.resolve(handle.dispatchGoal(objective));
+        noteDispatched(res?.goalId, objective);
+      })().catch(() => {
+        /* failures surface via the swarm's own log/event stream, if any */
+      });
     },
   };
 }
@@ -419,13 +587,19 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
   let gatewayRefresh: () => void = () => {};
   let scheduleRefresh: () => void = () => {};
   let skillTrustRefresh: () => void = () => {};
+  let goalDispatched: (goalId: string, objective: string) => void = () => {};
+  let recallRecord: (text: string, kind: RecallEntryKind) => void = () => {};
   const controller: TuiController = {
-    ...createSwarmController(handle, { poolSize }),
+    ...createSwarmController(handle, {
+      poolSize,
+      onGoalDispatched: (goalId, objective) => goalDispatched(goalId, objective),
+    }),
     refreshFleet: () => fleetRefresh(),
     runShowdown: () => showdownRun(),
     refreshGateway: () => gatewayRefresh(),
     refreshSchedule: () => scheduleRefresh(),
     refreshSkillTrust: () => skillTrustRefresh(),
+    recordRecall: (text, kind) => recallRecord(text, kind),
   };
   const app = new TuiApp({ controller });
 
@@ -438,8 +612,6 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
     return 0;
   }
 
-  void now; // reserved clock hook (kept for parity with the rest of the desktop/sidecar deps)
-
   const stdin = (deps.stdin ?? process.stdin) as RawStdin;
 
   return new Promise<number>((resolveExit) => {
@@ -447,12 +619,43 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
     let finished = false;
     let timer: ReturnType<typeof setInterval> | undefined;
 
+    // HISTORY pane: a real HistoryRecorder over the live TuiState frames —
+    // begun on each real dispatch (with the goalId the handle returned),
+    // frames recorded on every render, ended by the goal's own lifecycle
+    // event. Nothing is recorded that didn't actually happen.
+    const recorder = new HistoryRecorder();
+    let historyActive = false;
+    /** Set once, at the session's first `goal:planned` — the V-TPH$ wall-clock base. */
+    let firstRunStartAt: number | null = null;
+
     const render = (): void => {
+      let st: TuiState;
       try {
-        app.setState(readState());
+        st = readState();
+        app.setState(st);
       } catch (err) {
         stdout.write(`\n[tui] snapshot failed: ${err instanceof Error ? err.message : String(err)}\n`);
         return;
+      }
+      // VERIFY LANE: real figures only — the live metrics snapshot and the
+      // wall-clock since the FIRST run-start of this session. The metrics
+      // (verified count, cost) are cumulative across the session, so the
+      // wall-clock base must be too — measuring cumulative counts against
+      // only the latest run's clock would overstate V-TPH$. Missing pieces
+      // feed NaN, which the readout renders as an honest n/a, never a
+      // fabricated value.
+      const m = st.metrics;
+      app.setVtphInput({
+        verifiedCount: m ? m.tasks.verified : Number.NaN,
+        wallMs: firstRunStartAt !== null ? now() - firstRunStartAt : Number.NaN,
+        costUsd: m ? m.usage.costUsd : Number.NaN,
+      });
+      if (historyActive) {
+        try {
+          recorder.recordFrame(st, now());
+        } catch {
+          /* run ended between checks — nothing to record into */
+        }
       }
       const frame = app.frame();
       if (frame !== lastFrame) {
@@ -460,6 +663,84 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
         stdout.write(`\x1b[2J\x1b[H${frame}\n`);
       }
     };
+
+    const endHistoryRun = (status: "completed" | "failed" | "aborted", at: number): void => {
+      if (!historyActive) return;
+      historyActive = false;
+      try {
+        recorder.endRun(status, at);
+      } catch {
+        /* already ended (e.g. run evicted) — the list below stays truthful */
+      }
+      app.setHistoryRuns(recorder.list());
+    };
+
+    goalDispatched = (goalId, objective): void => {
+      app.setActiveGoal({ goalId, objective });
+      try {
+        recorder.beginRun(goalId, objective, now());
+        historyActive = true;
+      } catch {
+        /* duplicate goalId: keep the existing run rather than lie with a second */
+      }
+      app.setHistoryRuns(recorder.list());
+      render();
+    };
+
+    // Cross-session recall history: the durable RecallStore under the real
+    // dataDir. Loaded lazily (config import) — until it resolves, recall
+    // simply has no entries and recording is a no-op; corrupt lines are
+    // skipped with an honest count surfaced in the log tail.
+    let recallStore: RecallStore | undefined;
+    void (async () => {
+      const [{ loadConfig }, { join }] = await Promise.all([import("../config/config"), import("node:path")]);
+      const dataDir = loadConfig({ env: process.env }).dataDir;
+      recallStore = new RecallStore({ filePath: join(dataDir, "tui-recall.jsonl") });
+      const loaded = recallStore.load();
+      app.setRecallEntries(loaded.entries);
+      if (loaded.skippedCorrupt > 0) {
+        logs.push({ workerId: "recall", line: `skipped ${loaded.skippedCorrupt} corrupt recall line(s)` });
+      }
+    })().catch((err: unknown) => {
+      logs.push({
+        workerId: "recall",
+        line: `history load failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    });
+    recallRecord = (text, kind): void => {
+      if (!recallStore) return;
+      try {
+        recallStore.append({ text, at: now(), kind });
+        app.setRecallEntries(recallStore.load().entries);
+      } catch (err) {
+        logs.push({
+          workerId: "recall",
+          line: `history append failed: ${err instanceof Error ? err.message : String(err)}`,
+        });
+      }
+    };
+
+    // STREAM + VERIFY LANE + goal lifecycle: one listener per real manager
+    // event name (the dashboard's own "log" tail is subscribed separately
+    // above). Malformed payloads normalize to null and are dropped, never
+    // rendered as fabricated rows.
+    for (const name of SWARM_STREAM_EVENTS) {
+      handle.on?.(name, (payload: unknown) => {
+        const at = now();
+        const sev = normalizeSwarmEvent(name, payload, at);
+        if (sev) app.applyStreamEvent(sev);
+        const vev = verifyEventFromSwarm(name, payload, at);
+        if (vev) app.applyVerifyEvent(vev);
+        if (name === "goal:planned" && firstRunStartAt === null) {
+          firstRunStartAt = at;
+        }
+        if (name === "goal:completed" || name === "goal:failed" || name === "goal:aborted") {
+          app.setActiveGoal(null);
+          endHistoryRun(name.slice("goal:".length) as "completed" | "failed" | "aborted", at);
+        }
+        render();
+      });
+    }
 
     // SHOWDOWN pane: `r` runs a real modeled showdown through the real
     // engine, progress streaming straight into the pane reducer.
@@ -625,18 +906,33 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
       finished = true;
       if (timer) clearInterval(timer);
       stdin.removeListener?.("data", onData);
-      if (stdin.isTTY && typeof stdin.setRawMode === "function") stdin.setRawMode(false);
+      if (stdin.isTTY && typeof stdin.setRawMode === "function") {
+        stdin.setRawMode(false);
+        // Disable bracketed paste again on the way out (enabled below).
+        stdout.write("\x1b[?2004l");
+      }
       stdin.pause?.();
       await Promise.resolve(handle.close?.()).catch(() => {});
       resolveExit(code);
     };
 
-    if (stdin.isTTY && typeof stdin.setRawMode === "function") stdin.setRawMode(true);
+    if (stdin.isTTY && typeof stdin.setRawMode === "function") {
+      stdin.setRawMode(true);
+      // Enable bracketed paste so the compose editor's paste path receives
+      // the \x1b[200~ … \x1b[201~ markers (pasted text stays literal — never
+      // interpreted as keystrokes). Disabled again in finish().
+      stdout.write("\x1b[?2004h");
+    }
     stdin.setEncoding?.("utf8");
     stdin.resume?.();
     stdin.on?.("data", onData);
 
-    timer = setInterval(render, pollIntervalMs);
+    timer = setInterval(() => {
+      // STREAM pane spinner cadence rides the poll interval (the app itself
+      // never reads a clock).
+      app.tickStream();
+      render();
+    }, pollIntervalMs);
     render();
   });
 }

@@ -46,6 +46,68 @@ import {
   type SkillTrustPaneState,
   type SkillTrustPaneRow,
 } from "./skill-trust-pane";
+import {
+  composeInit,
+  composeKey,
+  composeText,
+  renderCompose,
+  type ComposeState,
+} from "./compose";
+import {
+  TUI_COMMAND_SPECS,
+  acInit,
+  acUpdate,
+  acKey,
+  renderAutocomplete,
+  type AcState,
+  type SlashIntent,
+} from "./autocomplete";
+import {
+  recallInit,
+  recallKey,
+  renderRecallBar,
+  type RecallState,
+  type RecallEffect,
+  type RecallEntry,
+  type RecallEntryKind,
+} from "./recall";
+import {
+  interruptInit,
+  interruptOpen,
+  interruptKey,
+  renderInterruptOverlay,
+  type InterruptState,
+  type InterruptIntent,
+} from "./interrupt";
+import {
+  streamInit,
+  streamAppend,
+  streamKey,
+  streamTick,
+  renderToolStream,
+  type ToolStreamState,
+  type ToolStreamEvent,
+} from "./tool-stream";
+import {
+  laneInit,
+  laneApply,
+  laneKey,
+  vtphReadout,
+  renderVerifyLane,
+  type VerifyLaneState,
+  type VerifyEvent,
+  type VtphInput,
+} from "./verify-lane";
+import {
+  initReplay,
+  replayReduce,
+  currentFrame,
+  renderHistoryList,
+  renderReplayBar,
+  type GoalRun,
+  type ReplayState,
+  type ReplayAction,
+} from "./history";
 
 /**
  * The subset of swarm control the interactive TUI needs. A thin adapter over
@@ -85,6 +147,21 @@ export interface TuiController {
    *  {@link TuiApp.setSkillTrustData}; absent, the pane keeps its honest
    *  "no skills tracked" empty state. */
   refreshSkillTrust?(): void;
+  /** Abort a specific goal (INTERRUPT overlay "abort" intent). Central wiring
+   *  maps this to `handle.cancelGoal(goalId)`. Absent, the overlay falls back
+   *  to the plain `cancel()` above (which targets the most recent goal). */
+  abortGoal?(goalId: string): void;
+  /** Supersede `goalId` with a fresh objective (INTERRUPT overlay "redirect"
+   *  intent). Central wiring MUST apply the locked sequence:
+   *  `cancelGoal(goalId)` THEN `dispatchGoal(objective)` — cancel the
+   *  superseded goal before dispatching its replacement so the two never run
+   *  concurrently. Absent, the app falls back to `cancel()` + `dispatchGoal`. */
+  redirectGoal?(goalId: string, objective: string): void;
+  /** Persist one line of operator input into durable recall history
+   *  (`RecallStore` under the real dataDir — central wiring owns the file and
+   *  the clock; the app never touches fs or `Date.now`). After appending,
+   *  wiring feeds the refreshed entries back via {@link TuiApp.setRecallEntries}. */
+  recordRecall?(text: string, kind: RecallEntryKind): void;
 }
 
 export interface TuiAppOptions {
@@ -93,18 +170,31 @@ export interface TuiAppOptions {
 }
 
 /** Which full-screen surface the TUI is currently showing. */
-export type TuiPane = "dashboard" | "fleet" | "showdown" | "gateway" | "schedule" | "trust";
+export type TuiPane =
+  | "dashboard"
+  | "fleet"
+  | "showdown"
+  | "gateway"
+  | "schedule"
+  | "trust"
+  | "history"
+  | "verify"
+  | "stream";
 
 const HELP_LINES = [
   "  g       start a new goal (compose mode)",
   "  +/-     scale worker pool up/down",
   "  c       cancel the active goal",
+  "  esc     interrupt the running goal (resume / abort / redirect)",
   "  ↑/↓     navigate the task list",
   "  f       toggle the FLEET pane (backends / workers / routing bandit)",
   "  s       toggle the SHOWDOWN pane (swarm vs baseline V-TPH$)",
   "  w       toggle the GATEWAY pane (platform probes / engine / traffic / badges)",
   "  d       toggle the SCHEDULE pane (cron jobs / runs / outcome tally)",
   "  t       toggle the SKILLS/TRUST pane (per-skill trust status + calibration)",
+  "  h       toggle the HISTORY pane (past goal runs + frame replay)",
+  "  v       toggle the VERIFY LANE pane (STYX gate rulings + live V-TPH$)",
+  "  o       toggle the STREAM pane (live tool-output tail, ring-buffered)",
   "  ?       toggle this help overlay",
   "  q       quit  (also Ctrl-C)",
   "  (fleet pane) ↑/↓ or j/k select worker, r refresh, esc/q back",
@@ -112,7 +202,13 @@ const HELP_LINES = [
   "  (gateway pane) ↑/↓ scroll traffic, pgup/pgdn/home/end jump, r refresh, esc/q back",
   "  (schedule pane) ↑/↓ or j/k select job, home/end jump, r refresh, esc/q back",
   "  (trust pane) ↑/↓ or j/k select skill, s toggle sort, enter reasons, r refresh, esc/q back",
-  "  (compose mode) type to build the objective, Enter to submit, Esc to cancel",
+  "  (history pane) ↑/↓ select run, ←/→ scrub frames, home/end jump, esc/q back",
+  "  (verify pane) ↑/↓ scroll rows, home/end jump, esc/q back",
+  "  (stream pane) ↑/↓ scroll, pgup/pgdn/home/end jump, f cycle source filter, esc/q back",
+  "  (compose mode) multi-line editor: Enter submits, Alt-Enter/Ctrl-J newline,",
+  "                 trailing \\ continues, Esc cancels, /command autocompletes",
+  "                 (Tab/↑↓ cycle, Enter accepts), ↑ recalls history on an empty",
+  "                 buffer, Ctrl-R reverse-searches past input",
 ];
 
 /** GATEWAY-pane keys: navigation over the TRAFFIC feed, plus refresh/back. */
@@ -160,6 +256,61 @@ const SCHEDULE_NAV_KEYS: Record<string, "up" | "down" | "home" | "end"> = {
   end: "end",
 };
 
+/** STREAM-pane keys -> `streamKey` actions (raw ANSI sequences + literals). */
+const STREAM_NAV_KEYS: Record<string, "up" | "down" | "pgup" | "pgdn" | "home" | "end"> = {
+  "\x1b[A": "up",
+  up: "up",
+  k: "up",
+  "\x1b[B": "down",
+  down: "down",
+  j: "down",
+  "\x1b[5~": "pgup",
+  pageup: "pgup",
+  "\x1b[6~": "pgdn",
+  pagedown: "pgdn",
+  "\x1b[H": "home",
+  home: "home",
+  "\x1b[F": "end",
+  end: "end",
+};
+
+/** VERIFY-pane keys -> `laneKey` actions. */
+const VERIFY_NAV_KEYS: Record<string, "up" | "down" | "home" | "end"> = {
+  "\x1b[A": "up",
+  up: "up",
+  k: "up",
+  "\x1b[B": "down",
+  down: "down",
+  j: "down",
+  "\x1b[H": "home",
+  home: "home",
+  "\x1b[F": "end",
+  end: "end",
+};
+
+/** HISTORY-pane replay scrub keys -> `replayReduce` actions. */
+const HISTORY_SCRUB_KEYS: Record<string, ReplayAction> = {
+  "\x1b[D": "prev",
+  left: "prev",
+  "\x1b[C": "next",
+  right: "next",
+  "\x1b[H": "first",
+  home: "first",
+  "\x1b[F": "last",
+  end: "last",
+};
+
+const UP_KEY_SET = new Set(["\x1b[A", "up"]);
+const DOWN_KEY_SET = new Set(["\x1b[B", "down"]);
+const ESC_KEY_SET = new Set(["\x1b", "escape"]);
+
+/** Rows of the compose editor's visible window (box adds 2 border lines). */
+const COMPOSE_ROWS = 5;
+/** Rows of the STREAM pane's event window. */
+const STREAM_ROWS = 16;
+/** Rows of the VERIFY LANE pane's task window. */
+const VERIFY_ROWS = 8;
+
 /**
  * Interactive, keyboard-driven TUI as a pure state machine: feed it a
  * `TuiState` snapshot via `setState`, feed it raw keys via `handleKey`, read
@@ -168,12 +319,21 @@ const SCHEDULE_NAV_KEYS: Record<string, "up" | "down" | "home" | "end"> = {
  * and `frame()` output to stdout. That separation is what makes this fully
  * unit-testable without a real TTY.
  *
- * Beyond the main dashboard, two secondary full-screen panes are wired in:
- * the FLEET pane (`./fleet-pane.ts` — backends/workers/routing-bandit, fed
- * via {@link setFleetData}) on `f`, and the SHOWDOWN pane
- * (`./showdown-pane.ts` — live progress + the honest V-TPH$ table, fed via
- * {@link applyShowdownEvent}) on `s`. Both render honest empty/idle states
- * until real data actually arrives — nothing is fabricated to fill a box.
+ * Beyond the main dashboard, the secondary full-screen panes are wired in:
+ * FLEET (`f`), SHOWDOWN (`s`), GATEWAY (`w`), SCHEDULE (`d`), SKILLS/TRUST
+ * (`t`), HISTORY (`h` — past goal runs + frame replay, fed via
+ * {@link setHistoryRuns}), VERIFY LANE (`v` — STYX gate rulings + live
+ * V-TPH$, fed via {@link applyVerifyEvent}/{@link setVtphInput}), and STREAM
+ * (`o` — the live tool-output tail, fed via {@link applyStreamEvent}). All
+ * render honest empty/idle states until real data actually arrives — nothing
+ * is fabricated to fill a box.
+ *
+ * Compose mode is a real multi-line editor (`./compose.ts`) with
+ * slash-command autocomplete (`./autocomplete.ts`) and durable history
+ * recall (`./recall.ts`'s pure reducer — the fs-backed store lives in
+ * central wiring). Esc on the dashboard while a goal is running opens the
+ * INTERRUPT overlay (`./interrupt.ts`): resume, confirm-abort, or type a
+ * redirect that supersedes the goal while preserving completed work.
  */
 export class TuiApp {
   private readonly width: number;
@@ -181,7 +341,12 @@ export class TuiApp {
 
   private state: TuiState = {};
   private currentMode: "view" | "compose" = "view";
-  private composeBuffer = "";
+  private compose: ComposeState = composeInit();
+  private ac: AcState = acInit();
+  private recall: RecallState = recallInit();
+  private recallEntries: RecallEntry[] = [];
+  private interrupt: InterruptState = interruptInit();
+  private activeGoal: { goalId: string; objective: string } | null = null;
   private helpVisible = false;
   private selectedIndex = 0;
   private pane: TuiPane = "dashboard";
@@ -190,6 +355,13 @@ export class TuiApp {
   private gatewayPane: GatewayPaneState = gatewayPaneInit();
   private schedulePane: SchedulePaneState = initialSchedulePaneState();
   private skillTrustPane: SkillTrustPaneState = initSkillTrustPane([]);
+  private stream: ToolStreamState = streamInit();
+  private verifyLane: VerifyLaneState = laneInit();
+  /** Honest default: an unwired/short run reads "V-TPH$ n/a (run too short)" — never a fabricated figure. */
+  private vtph: VtphInput = { verifiedCount: 0, wallMs: 0, costUsd: 0 };
+  private historyRuns: GoalRun[] = [];
+  private historySelected = 0;
+  private replay: ReplayState | null = null;
 
   constructor(opts: TuiAppOptions = {}) {
     this.width = opts.width ?? 72;
@@ -325,11 +497,133 @@ export class TuiApp {
     return this.skillTrustPane;
   }
 
+  // ── This cycle's feed surface (central wiring calls these; see tui-command.ts) ──
+
+  /**
+   * Tell the app which goal is currently running (set on dispatch by central
+   * wiring, cleared with `null` on `goal:completed`/`failed`/`aborted`). The
+   * INTERRUPT overlay only opens while a goal is actually active — an honest
+   * "nothing to interrupt" otherwise — and a goal ending while the overlay is
+   * open closes it (a stale overlay over a dead goal could otherwise abort or
+   * redirect something that no longer exists).
+   */
+  setActiveGoal(goal: { goalId: string; objective: string } | null): void {
+    this.activeGoal = goal;
+    if (goal === null) {
+      this.interrupt = interruptInit();
+    }
+  }
+
+  /** The goal the app currently believes is running (for wiring/tests). */
+  activeGoalInfo(): { goalId: string; objective: string } | null {
+    return this.activeGoal;
+  }
+
+  /** Read-only view of the INTERRUPT overlay's current state (for the main loop / tests). */
+  interruptState(): InterruptState {
+    return this.interrupt;
+  }
+
+  /** Read-only view of the compose editor's current state (for the main loop / tests). */
+  composeState(): ComposeState {
+    return this.compose;
+  }
+
+  /** Read-only view of the autocomplete popup's current state (for the main loop / tests). */
+  autocompleteState(): AcState {
+    return this.ac;
+  }
+
+  /**
+   * Feed the loaded recall history (a real `RecallStore.load()` result —
+   * oldest-first, exactly as the store returns it). The app never touches the
+   * filesystem itself; central wiring owns the store and refreshes this after
+   * every `recordRecall` append.
+   */
+  setRecallEntries(entries: RecallEntry[]): void {
+    this.recallEntries = entries;
+  }
+
+  /** Append one normalized swarm event to the STREAM pane's ring buffer. */
+  applyStreamEvent(ev: ToolStreamEvent): void {
+    this.stream = streamAppend(this.stream, ev);
+  }
+
+  /** Advance the STREAM pane's spinner one frame (the main loop decides the cadence). */
+  tickStream(): void {
+    this.stream = streamTick(this.stream);
+  }
+
+  /** Read-only view of the STREAM pane's current state (for the main loop / tests). */
+  toolStreamState(): ToolStreamState {
+    return this.stream;
+  }
+
+  /** Advance the VERIFY LANE pane's pure reducer (run-start / task rulings / run-end). */
+  applyVerifyEvent(ev: VerifyEvent): void {
+    this.verifyLane = laneApply(this.verifyLane, ev);
+  }
+
+  /** Read-only view of the VERIFY LANE pane's current state (for the main loop / tests). */
+  verifyLaneState(): VerifyLaneState {
+    return this.verifyLane;
+  }
+
+  /**
+   * Feed the real V-TPH$ inputs (`metrics.tasks.verified`,
+   * `metrics.usage.costUsd`, and wall-clock ms since the lane's `run-start`)
+   * — central wiring derives every figure from the live engine and its own
+   * clock; the app never computes or invents one. Until this is called the
+   * readout stays the honest "V-TPH$ n/a (run too short)".
+   */
+  setVtphInput(input: VtphInput): void {
+    this.vtph = input;
+  }
+
+  /**
+   * Feed the recorded goal runs (a real `HistoryRecorder.list()` —
+   * most-recent-first). Selection is re-clamped; the replay scrub position is
+   * kept only if the selected run still exists at the same index.
+   */
+  setHistoryRuns(runs: GoalRun[]): void {
+    this.historyRuns = runs;
+    const maxSelected = Math.max(0, runs.length - 1);
+    if (this.historySelected > maxSelected) {
+      this.historySelected = maxSelected;
+      this.replay = null;
+    }
+    const run = runs[this.historySelected];
+    if (this.replay && (!run || this.replay.runId !== run.goalId)) {
+      this.replay = null;
+    }
+  }
+
   /** Advance the state machine one keypress. May invoke the controller. */
   handleKey(key: string): { quit?: boolean } {
+    // The INTERRUPT overlay claims every key while open, in any pane.
+    if (this.interrupt.phase !== "idle") {
+      // Integrator-level Esc symmetry: the overlay's own reducer deliberately
+      // leaves Esc at the top-level menu unbound (documented no-op), so the
+      // integrator decides — here Esc closes the overlay exactly like `r`
+      // (resume: the goal was never touched). Esc in the confirm/redirect
+      // phases stays with the reducer (it steps back to the menu).
+      if (this.interrupt.phase === "menu" && ESC_KEY_SET.has(key)) {
+        this.interrupt = interruptInit();
+        return {};
+      }
+      const { state, intent } = interruptKey(this.interrupt, key);
+      this.interrupt = state;
+      if (intent) this.applyInterruptIntent(intent);
+      return {};
+    }
+
+    if (this.currentMode === "compose") {
+      return this.handleComposeKey(key);
+    }
+
     // Secondary panes get first claim on keys while open (view mode only) —
     // anything their keymaps don't handle falls through to the main keymap.
-    if (this.currentMode === "view" && this.pane === "fleet") {
+    if (this.pane === "fleet") {
       const paneAction = fleetKeyToAction(key);
       if (paneAction === "up") {
         this.fleetPane = moveFleetSelection(this.fleetPane, -1);
@@ -348,7 +642,7 @@ export class TuiApp {
         return {};
       }
     }
-    if (this.currentMode === "view" && this.pane === "showdown") {
+    if (this.pane === "showdown") {
       if (key === "r") {
         this.controller?.runShowdown?.();
         return {};
@@ -358,7 +652,7 @@ export class TuiApp {
         return {};
       }
     }
-    if (this.currentMode === "view" && this.pane === "gateway") {
+    if (this.pane === "gateway") {
       const nav = GATEWAY_NAV_KEYS[key];
       if (nav) {
         this.gatewayPane = gatewayPaneKey(this.gatewayPane, nav);
@@ -373,7 +667,7 @@ export class TuiApp {
         return {};
       }
     }
-    if (this.currentMode === "view" && this.pane === "schedule") {
+    if (this.pane === "schedule") {
       const nav = SCHEDULE_NAV_KEYS[key];
       if (nav) {
         this.schedulePane = schedulePaneKey(this.schedulePane, nav);
@@ -388,7 +682,7 @@ export class TuiApp {
         return {};
       }
     }
-    if (this.currentMode === "view" && this.pane === "trust") {
+    if (this.pane === "trust") {
       const nav = TRUST_NAV_KEYS[key];
       if (nav) {
         this.skillTrustPane = skillTrustPaneKey(this.skillTrustPane, nav);
@@ -413,6 +707,64 @@ export class TuiApp {
         return {};
       }
     }
+    if (this.pane === "history") {
+      if (UP_KEY_SET.has(key) || key === "k") {
+        this.moveHistorySelection(-1);
+        return {};
+      }
+      if (DOWN_KEY_SET.has(key) || key === "j") {
+        this.moveHistorySelection(1);
+        return {};
+      }
+      const scrub = HISTORY_SCRUB_KEYS[key];
+      if (scrub) {
+        const run = this.historyRuns[this.historySelected];
+        if (run) {
+          const base = this.replay && this.replay.runId === run.goalId ? this.replay : initReplay(run);
+          this.replay = replayReduce(run, base, scrub);
+        }
+        return {};
+      }
+      if (key === "\x1b" || key === "escape" || key === "q") {
+        this.pane = "dashboard";
+        return {};
+      }
+    }
+    if (this.pane === "verify") {
+      const nav = VERIFY_NAV_KEYS[key];
+      if (nav) {
+        this.verifyLane = laneKey(this.verifyLane, nav);
+        return {};
+      }
+      if (key === "\x1b" || key === "escape" || key === "q") {
+        this.pane = "dashboard";
+        return {};
+      }
+    }
+    if (this.pane === "stream") {
+      const nav = STREAM_NAV_KEYS[key];
+      if (nav) {
+        this.stream = streamKey(this.stream, nav);
+        return {};
+      }
+      if (key === "f") {
+        // Source-filter cycle is claimed by the pane while it is open (the
+        // dashboard's own `f` = FLEET toggle stays reachable from there).
+        this.stream = streamKey(this.stream, "f");
+        return {};
+      }
+      if (key === "\x1b" || key === "escape" || key === "q") {
+        this.pane = "dashboard";
+        return {};
+      }
+    }
+
+    // Esc on the dashboard: interrupt the running goal (honest no-op when
+    // nothing is running — you cannot interrupt what is not there).
+    if (ESC_KEY_SET.has(key) && this.pane === "dashboard") {
+      this.interrupt = interruptOpen(this.interrupt, this.activeGoal);
+      return {};
+    }
 
     const action = keyToAction(key, this.currentMode);
 
@@ -425,13 +777,7 @@ export class TuiApp {
         if (this.pane === action.pane) {
           this.pane = "dashboard";
         } else {
-          this.pane = action.pane;
-          // Opening the fleet/gateway pane asks central wiring for fresh data
-          // so the first frame is never stale.
-          if (action.pane === "fleet") this.controller?.refreshFleet?.();
-          if (action.pane === "gateway") this.controller?.refreshGateway?.();
-          if (action.pane === "schedule") this.controller?.refreshSchedule?.();
-          if (action.pane === "trust") this.controller?.refreshSkillTrust?.();
+          this.openPane(action.pane);
         }
         return {};
 
@@ -439,38 +785,18 @@ export class TuiApp {
         // Only produced for "g" in view mode (with an empty objective) —
         // start composing. A real dispatch call is issued on "submit".
         this.pane = "dashboard";
-        this.currentMode = "compose";
-        this.composeBuffer = action.objective ?? "";
+        this.enterCompose(action.objective ?? "");
         return {};
 
       case "input":
-        if (this.currentMode === "compose") {
-          this.composeBuffer += action.char;
-        }
-        return {};
-
       case "backspace":
-        if (this.currentMode === "compose") {
-          this.composeBuffer = this.composeBuffer.slice(0, -1);
-        }
-        return {};
-
       case "submit":
-        if (this.currentMode === "compose") {
-          const objective = this.composeBuffer;
-          this.currentMode = "view";
-          this.composeBuffer = "";
-          this.controller?.dispatchGoal(objective);
-        }
+        // Compose-mode-only actions; unreachable here since compose mode is
+        // handled by handleComposeKey above. Kept for exhaustiveness.
         return {};
 
       case "cancel":
-        if (this.currentMode === "compose") {
-          this.currentMode = "view";
-          this.composeBuffer = "";
-        } else {
-          this.controller?.cancel();
-        }
+        this.controller?.cancel();
         return {};
 
       case "scale":
@@ -495,7 +821,240 @@ export class TuiApp {
     }
   }
 
-  /** Render the full screen: active pane + compose bar + footer/help. */
+  // ── Compose mode (multi-line editor + autocomplete + recall) ──────────────
+
+  private enterCompose(seed: string): void {
+    this.currentMode = "compose";
+    this.compose = composeInit(seed);
+    this.ac = seed.length > 0 ? acUpdate(acInit(), TUI_COMMAND_SPECS, seed) : acInit();
+    this.recall = recallInit();
+  }
+
+  private exitCompose(): void {
+    this.currentMode = "view";
+    this.compose = composeInit();
+    this.ac = acInit();
+    this.recall = recallInit();
+  }
+
+  private handleComposeKey(key: string): { quit?: boolean } {
+    if (key === "\x03" || key === "ctrl-c") {
+      return { quit: true };
+    }
+
+    // Reverse-i-search owns every key while active (arrows and unrelated
+    // control bytes are swallowed by the reducer, never leak into the buffer).
+    if (this.recall.mode === "search" || key === "\x12" || key === "ctrl-r") {
+      const r = recallKey(this.recall, key === "ctrl-r" ? "\x12" : key, this.recallEntries, composeText(this.compose));
+      this.recall = r.state;
+      if (r.effect) this.applyRecallEffect(r.effect);
+      return {};
+    }
+
+    // The autocomplete popup gets the next claim while open: Enter accepts,
+    // Tab/Shift-Tab/↑/↓ cycle, Esc dismisses (first Esc closes the popup, a
+    // second Esc cancels compose — the documented two-stage precedence).
+    if (this.ac.open) {
+      const r = acKey(this.ac, key);
+      if (r.effect !== null || r.state !== this.ac) {
+        this.ac = r.state;
+        if (r.effect?.kind === "accept") {
+          const current = composeText(this.compose);
+          // A fully-typed command keeps its exact-match popup open, so a
+          // no-op accept (completion === what's already typed) on Enter must
+          // submit-through — otherwise Enter could only ever re-accept and
+          // "/fleet⏎" would be unreachable. Tab's accept never submits.
+          const isEnter = key === "\r" || key === "\n" || key === "return" || key === "enter";
+          if (isEnter && r.effect.completed.trim() === current.trim()) {
+            this.compose = composeInit();
+            return this.handleComposeSubmit(current.trim());
+          }
+          this.compose = composeInit(r.effect.completed);
+          this.recall = recallInit();
+        }
+        return {};
+      }
+      // Unconsumed (a printable, backspace, …): fall through to the editor.
+    }
+
+    // ↑ on a fresh (single empty line) buffer starts history recall; ↑/↓
+    // while already cycling keep walking it. Otherwise arrows belong to the
+    // editor's cursor.
+    const isUp = UP_KEY_SET.has(key);
+    const isDown = DOWN_KEY_SET.has(key);
+    if (
+      (this.recall.mode === "cycling" && (isUp || isDown)) ||
+      (this.recall.mode === "idle" && isUp && composeText(this.compose) === "")
+    ) {
+      const raw = isUp ? "\x1b[A" : "\x1b[B";
+      const r = recallKey(this.recall, raw, this.recallEntries, composeText(this.compose));
+      this.recall = r.state;
+      if (r.effect) this.applyRecallEffect(r.effect);
+      return {};
+    }
+    if (this.recall.mode === "cycling") {
+      // Any other key ends the recall session; the recalled text stays in the
+      // buffer and normal editing takes over from it.
+      this.recall = recallInit();
+    }
+
+    const before = composeText(this.compose);
+    const { state, effect } = composeKey(this.compose, key);
+    this.compose = state;
+
+    if (effect?.kind === "cancel") {
+      this.exitCompose();
+      return {};
+    }
+    if (effect?.kind === "submit") {
+      return this.handleComposeSubmit(effect.text);
+    }
+
+    const after = composeText(this.compose);
+    if (after !== before) {
+      this.ac = acUpdate(this.ac, TUI_COMMAND_SPECS, after);
+    }
+    return {};
+  }
+
+  private handleComposeSubmit(text: string): { quit?: boolean } {
+    this.ac = acInit();
+    this.recall = recallInit();
+    if (text.startsWith("/")) {
+      return this.executeSlash(text);
+    }
+    this.currentMode = "view";
+    this.controller?.recordRecall?.(text, "goal");
+    this.controller?.dispatchGoal(text);
+    return {};
+  }
+
+  /**
+   * Execute a submitted slash command. The token is matched exactly (name or
+   * alias, case-insensitive) against `TUI_COMMAND_SPECS` — an unknown command
+   * is an honest no-op that stays in compose with the text intact (and the
+   * popup re-offering suggestions) rather than dispatching "/typo" as a goal.
+   */
+  private executeSlash(text: string): { quit?: boolean } {
+    const firstLine = text.split("\n")[0] ?? "";
+    const body = firstLine.slice(1);
+    const wsIdx = body.search(/\s/);
+    const token = (wsIdx === -1 ? body : body.slice(0, wsIdx)).toLowerCase();
+    const args = wsIdx === -1 ? "" : body.slice(wsIdx).trim();
+    const spec = TUI_COMMAND_SPECS.find(
+      (s) => s.name.toLowerCase() === token || (s.aliases ?? []).some((a) => a.toLowerCase() === token)
+    );
+
+    if (!spec) {
+      this.compose = composeInit(text);
+      this.ac = acUpdate(acInit(), TUI_COMMAND_SPECS, text);
+      return {};
+    }
+
+    this.controller?.recordRecall?.(text, "slash");
+    return this.applySlashIntent(spec.intent, args);
+  }
+
+  private applySlashIntent(intent: SlashIntent, args: string): { quit?: boolean } {
+    switch (intent.kind) {
+      case "dispatch-goal":
+        if (args.length > 0) {
+          this.currentMode = "view";
+          this.controller?.dispatchGoal(args);
+        } else {
+          // "/goal" with no argument: fresh compose buffer, keep composing.
+          this.compose = composeInit();
+        }
+        return {};
+      case "scale":
+        this.currentMode = "view";
+        this.controller?.scalePool(intent.delta);
+        return {};
+      case "cancel":
+        this.currentMode = "view";
+        this.controller?.cancel();
+        return {};
+      case "toggle-help":
+        this.currentMode = "view";
+        this.helpVisible = !this.helpVisible;
+        return {};
+      case "quit":
+        return { quit: true };
+      case "interrupt":
+        this.currentMode = "view";
+        // Honest: opens only when a goal is actually running.
+        this.interrupt = interruptOpen(this.interrupt, this.activeGoal);
+        return {};
+      case "open-pane": {
+        this.currentMode = "view";
+        this.openPane(intent.pane);
+        return {};
+      }
+      default: {
+        const _exhaustive: never = intent;
+        return _exhaustive;
+      }
+    }
+  }
+
+  private applyRecallEffect(effect: RecallEffect): void {
+    // Both effects replace the live buffer (restore-draft restores the text
+    // stashed when recall began). Cursor lands at the end of the text.
+    this.compose = composeInit(effect.text);
+    this.ac = acInit();
+  }
+
+  private applyInterruptIntent(intent: InterruptIntent): void {
+    switch (intent.kind) {
+      case "resume":
+        return; // overlay already reset itself; the goal was never touched
+      case "abort":
+        if (this.controller?.abortGoal) {
+          this.controller.abortGoal(intent.goalId);
+        } else {
+          this.controller?.cancel();
+        }
+        this.activeGoal = null;
+        return;
+      case "redirect":
+        this.controller?.recordRecall?.(intent.objective, "redirect");
+        if (this.controller?.redirectGoal) {
+          this.controller.redirectGoal(intent.goalId, intent.objective);
+        } else if (this.controller) {
+          // Fallback preserves the locked sequence: cancel the superseded
+          // goal, THEN dispatch its replacement.
+          this.controller.cancel();
+          this.controller.dispatchGoal(intent.objective);
+        }
+        this.activeGoal = null;
+        return;
+      default: {
+        const _exhaustive: never = intent;
+        void _exhaustive;
+      }
+    }
+  }
+
+  private openPane(pane: Exclude<TuiPane, "dashboard">): void {
+    this.pane = pane;
+    // Opening a data-backed pane asks central wiring for fresh data so the
+    // first frame is never stale.
+    if (pane === "fleet") this.controller?.refreshFleet?.();
+    if (pane === "gateway") this.controller?.refreshGateway?.();
+    if (pane === "schedule") this.controller?.refreshSchedule?.();
+    if (pane === "trust") this.controller?.refreshSkillTrust?.();
+  }
+
+  private moveHistorySelection(dir: 1 | -1): void {
+    const max = Math.max(0, this.historyRuns.length - 1);
+    const next = Math.min(max, Math.max(0, this.historySelected + dir));
+    if (next !== this.historySelected) {
+      this.historySelected = next;
+      this.replay = null; // a new run scrubs from its first frame
+    }
+  }
+
+  /** Render the full screen: active pane + compose editor + footer/help. */
   frame(): string {
     const out: string[] = [];
 
@@ -512,12 +1071,31 @@ export class TuiApp {
     } else if (this.currentMode === "view" && this.pane === "trust") {
       // renderSkillTrustPane returns string[] (one entry per line) by contract.
       out.push(...renderSkillTrustPane(this.skillTrustPane, this.width));
+    } else if (this.currentMode === "view" && this.pane === "history") {
+      out.push(...this.renderHistoryPane());
+    } else if (this.currentMode === "view" && this.pane === "verify") {
+      out.push(...renderVerifyLane(this.verifyLane, vtphReadout(this.vtph), this.width, VERIFY_ROWS));
+    } else if (this.currentMode === "view" && this.pane === "stream") {
+      out.push("  ── STREAM ─ live tool output ──");
+      out.push(...renderToolStream(this.stream, this.width, STREAM_ROWS, this.activeGoal !== null));
     } else {
       const dashboard = renderTui(this.state, this.width);
       const lines = dashboard.split("\n");
       this.applySelectionHighlight(lines);
       out.push(...lines);
-      out.push(this.renderComposeBar());
+      if (this.currentMode === "compose") {
+        out.push(...renderCompose(this.compose, this.width, COMPOSE_ROWS));
+        out.push(...renderAutocomplete(this.ac, this.width));
+        const bar = renderRecallBar(this.recall, this.recallEntries, this.width);
+        if (bar.length > 0) out.push(bar);
+        out.push(this.renderComposePreview());
+      } else {
+        out.push("  [view mode]");
+      }
+    }
+
+    if (this.interrupt.phase !== "idle") {
+      out.push(...renderInterruptOverlay(this.interrupt, this.width));
     }
 
     out.push(this.renderFooter());
@@ -544,11 +1122,29 @@ export class TuiApp {
     }
   }
 
-  private renderComposeBar(): string {
-    if (this.currentMode !== "compose") {
-      return "  [view mode]";
+  /** One-line submit preview under the editor (multi-line text joins with ⏎). */
+  private renderComposePreview(): string {
+    const preview = composeText(this.compose).split("\n").join("⏎");
+    return `  > goal: ${preview}`;
+  }
+
+  private renderHistoryPane(): string[] {
+    const out: string[] = [];
+    out.push("  ── HISTORY ─ past goal runs (newest first) ──");
+    out.push(...renderHistoryList(this.historyRuns, this.historySelected).split("\n"));
+    const run = this.historyRuns[this.historySelected];
+    if (run) {
+      const rep = this.replay && this.replay.runId === run.goalId ? this.replay : initReplay(run);
+      out.push("");
+      out.push(`  ${renderReplayBar(run, rep)}`);
+      const frame = currentFrame(run, rep);
+      if (frame) {
+        out.push(...renderTui(frame, this.width).split("\n"));
+      } else {
+        out.push("  (no frames recorded for this run)");
+      }
     }
-    return `  > goal: ${this.composeBuffer}▏`;
+    return out;
   }
 
   private renderFooter(): string {
@@ -567,7 +1163,19 @@ export class TuiApp {
     if (this.currentMode === "view" && this.pane === "trust") {
       return "  [↑/↓ j/k] select skill  [s] sort  [enter] reasons  [r] refresh  [esc/q] back  [?] help";
     }
-    return "  [g] new goal  [+/-] scale pool  [c] cancel  [↑/↓] nav  [f] fleet  [s] showdown  [w] gateway  [d] schedule  [t] trust  [?] help  [q] quit";
+    if (this.currentMode === "view" && this.pane === "history") {
+      return "  [↑/↓ j/k] select run  [←/→] scrub frames  [home/end] jump  [esc/q] back  [?] help";
+    }
+    if (this.currentMode === "view" && this.pane === "verify") {
+      return "  [↑/↓ j/k] scroll  [home/end] jump  [esc/q] back  [?] help";
+    }
+    if (this.currentMode === "view" && this.pane === "stream") {
+      return "  [↑/↓ j/k] scroll  [pgup/pgdn/home/end] jump  [f] filter source  [esc/q] back  [?] help";
+    }
+    if (this.currentMode === "compose") {
+      return "  [enter] submit  [alt-enter] newline  [tab] complete  [↑] recall  [ctrl-r] search  [esc] cancel";
+    }
+    return "  [g] new goal  [+/-] scale pool  [c] cancel  [esc] interrupt  [↑/↓] nav  [f] fleet  [s] showdown  [w] gateway  [d] schedule  [t] trust  [h] history  [v] verify  [o] stream  [?] help  [q] quit";
   }
 
   private renderHelp(): string[] {
