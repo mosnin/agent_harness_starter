@@ -17,6 +17,19 @@ import {
   type ShowdownPaneState,
   type ShowdownPaneEvent,
 } from "./showdown-pane";
+import {
+  gatewayPaneInit,
+  gatewayPaneApplyStatus,
+  gatewayPaneAppendTraffic,
+  gatewayPaneApplyBadge,
+  gatewayPaneKey,
+  renderGatewayPane,
+  type GatewayPaneState,
+  type GatewayPaneProbeRow,
+  type GatewayPaneCounters,
+  type GatewayPaneEngineRow,
+  type GatewayPaneTrafficRow,
+} from "./gateway-pane";
 
 /**
  * The subset of swarm control the interactive TUI needs. A thin adapter over
@@ -37,6 +50,12 @@ export interface TuiController {
    *  {@link TuiApp.applyShowdownEvent}; absent, `r` is a no-op and the pane
    *  stays honestly idle. */
   runShowdown?(): void;
+  /** GATEWAY pane refresh request (`r` while the pane is open, and on open).
+   *  Central wiring probes the real gateway env (connector report + engine
+   *  probe — variable NAMES only, never credential values) and feeds it back
+   *  via {@link TuiApp.applyGatewayStatus}; absent, the pane keeps its honest
+   *  "no connectors probed yet" / "engine: not attached" empty state. */
+  refreshGateway?(): void;
 }
 
 export interface TuiAppOptions {
@@ -45,7 +64,7 @@ export interface TuiAppOptions {
 }
 
 /** Which full-screen surface the TUI is currently showing. */
-export type TuiPane = "dashboard" | "fleet" | "showdown";
+export type TuiPane = "dashboard" | "fleet" | "showdown" | "gateway";
 
 const HELP_LINES = [
   "  g       start a new goal (compose mode)",
@@ -54,12 +73,32 @@ const HELP_LINES = [
   "  ↑/↓     navigate the task list",
   "  f       toggle the FLEET pane (backends / workers / routing bandit)",
   "  s       toggle the SHOWDOWN pane (swarm vs baseline V-TPH$)",
+  "  w       toggle the GATEWAY pane (platform probes / engine / traffic / badges)",
   "  ?       toggle this help overlay",
   "  q       quit  (also Ctrl-C)",
   "  (fleet pane) ↑/↓ or j/k select worker, r refresh, esc/q back",
   "  (showdown pane) r run a modeled showdown, esc/q back",
+  "  (gateway pane) ↑/↓ scroll traffic, pgup/pgdn/home/end jump, r refresh, esc/q back",
   "  (compose mode) type to build the objective, Enter to submit, Esc to cancel",
 ];
+
+/** GATEWAY-pane keys: navigation over the TRAFFIC feed, plus refresh/back. */
+const GATEWAY_NAV_KEYS: Record<string, "up" | "down" | "pageup" | "pagedown" | "home" | "end"> = {
+  "\x1b[A": "up",
+  up: "up",
+  k: "up",
+  "\x1b[B": "down",
+  down: "down",
+  j: "down",
+  "\x1b[5~": "pageup",
+  pageup: "pageup",
+  "\x1b[6~": "pagedown",
+  pagedown: "pagedown",
+  "\x1b[H": "home",
+  home: "home",
+  "\x1b[F": "end",
+  end: "end",
+};
 
 /**
  * Interactive, keyboard-driven TUI as a pure state machine: feed it a
@@ -88,6 +127,7 @@ export class TuiApp {
   private pane: TuiPane = "dashboard";
   private fleetPane: FleetPaneState = emptyFleetPaneState();
   private showdownPane: ShowdownPaneState = initialShowdownPaneState();
+  private gatewayPane: GatewayPaneState = gatewayPaneInit();
 
   constructor(opts: TuiAppOptions = {}) {
     this.width = opts.width ?? 72;
@@ -141,6 +181,35 @@ export class TuiApp {
     return this.showdownPane;
   }
 
+  /**
+   * Feed a real gateway status snapshot (typically `GatewayProcess.status()`'s
+   * probes/counters plus an `EngineProbe` — see `src/hades/cli/tui-command.ts`'s
+   * central wiring). Passing the snapshot without an `engine` key leaves the
+   * pane's current engine row untouched; `engine: null` clears it explicitly.
+   */
+  applyGatewayStatus(snapshot: {
+    probes: GatewayPaneProbeRow[];
+    counters: GatewayPaneCounters;
+    engine?: GatewayPaneEngineRow | null;
+  }): void {
+    this.gatewayPane = gatewayPaneApplyStatus(this.gatewayPane, snapshot);
+  }
+
+  /** Append one real traffic event (a ConnectorHub `Mirror` callback row) to the GATEWAY pane feed. */
+  applyGatewayTraffic(row: GatewayPaneTrafficRow): void {
+    this.gatewayPane = gatewayPaneAppendTraffic(this.gatewayPane, row);
+  }
+
+  /** Record one real badge assessment (a `BadgeStamper`/`assessReply` verdict) in the GATEWAY pane tally. */
+  applyGatewayBadge(badge: "verified" | "abstained" | "unverified"): void {
+    this.gatewayPane = gatewayPaneApplyBadge(this.gatewayPane, badge);
+  }
+
+  /** Read-only view of the GATEWAY pane's current state (for the main loop / tests). */
+  gatewayState(): GatewayPaneState {
+    return this.gatewayPane;
+  }
+
   /** Advance the state machine one keypress. May invoke the controller. */
   handleKey(key: string): { quit?: boolean } {
     // Secondary panes get first claim on keys while open (view mode only) —
@@ -174,6 +243,21 @@ export class TuiApp {
         return {};
       }
     }
+    if (this.currentMode === "view" && this.pane === "gateway") {
+      const nav = GATEWAY_NAV_KEYS[key];
+      if (nav) {
+        this.gatewayPane = gatewayPaneKey(this.gatewayPane, nav);
+        return {};
+      }
+      if (key === "r") {
+        this.controller?.refreshGateway?.();
+        return {};
+      }
+      if (key === "\x1b" || key === "escape" || key === "q") {
+        this.pane = "dashboard";
+        return {};
+      }
+    }
 
     const action = keyToAction(key, this.currentMode);
 
@@ -187,9 +271,10 @@ export class TuiApp {
           this.pane = "dashboard";
         } else {
           this.pane = action.pane;
-          // Opening the fleet pane asks central wiring for fresh data so the
-          // first frame is never stale.
+          // Opening the fleet/gateway pane asks central wiring for fresh data
+          // so the first frame is never stale.
           if (action.pane === "fleet") this.controller?.refreshFleet?.();
+          if (action.pane === "gateway") this.controller?.refreshGateway?.();
         }
         return {};
 
@@ -261,6 +346,9 @@ export class TuiApp {
       out.push(...renderFleetPane(this.fleetPane, this.width).split("\n"));
     } else if (this.currentMode === "view" && this.pane === "showdown") {
       out.push(...renderShowdownPane(this.showdownPane, this.width).split("\n"));
+    } else if (this.currentMode === "view" && this.pane === "gateway") {
+      // renderGatewayPane returns string[] (one entry per line) by contract.
+      out.push(...renderGatewayPane(this.gatewayPane, this.width));
     } else {
       const dashboard = renderTui(this.state, this.width);
       const lines = dashboard.split("\n");
@@ -307,7 +395,10 @@ export class TuiApp {
     if (this.currentMode === "view" && this.pane === "showdown") {
       return "  [r] run modeled showdown  [esc/q] back  [?] help";
     }
-    return "  [g] new goal  [+/-] scale pool  [c] cancel  [↑/↓] nav  [f] fleet  [s] showdown  [?] help  [q] quit";
+    if (this.currentMode === "view" && this.pane === "gateway") {
+      return "  [↑/↓ j/k] scroll traffic  [pgup/pgdn/home/end] jump  [r] refresh  [esc/q] back  [?] help";
+    }
+    return "  [g] new goal  [+/-] scale pool  [c] cancel  [↑/↓] nav  [f] fleet  [s] showdown  [w] gateway  [?] help  [q] quit";
   }
 
   private renderHelp(): string[] {

@@ -33,7 +33,8 @@ export { defaultBrowserCliDeps } from "./browser-deps";
 export type { BrowserDepsIo } from "./browser-deps";
 export { runGatewayCommand } from "./gateway-command";
 export type { GatewayCommandIo } from "./gateway-command";
-export { buildGatewayDeps } from "./gateway-deps";
-// (GatewayAgentEngine itself is exported via the gateway barrel — not re-exported
-// here to keep the root `export *` barrels unambiguous.)
+export { buildGatewayDeps, buildGatewayDepsFromEnv } from "./gateway-deps";
+// (GatewayAgentEngine/EngineProbe themselves are exported via the gateway
+// barrel — not re-exported here to keep the root `export *` barrels
+// unambiguous.)
 export type { GatewayCliDeps } from "./gateway-deps";

@@ -24,14 +24,23 @@ import { PairingGuard } from "../gateway/pairing";
 import { BadgeStamper } from "../gateway/badge";
 import { AgentGatewayHandler, echoEngine } from "../gateway/agent-handler";
 import type { GatewayAgentEngine } from "../gateway/agent-handler";
+import { resolveGatewayEngine, probeGatewayEngine } from "../gateway/engine-select";
+import type { EngineProbe, ResolveGatewayEngineDeps } from "../gateway/engine-select";
 
 export type { GatewayAgentEngine } from "../gateway/agent-handler";
+export type { EngineProbe } from "../gateway/engine-select";
 
 export interface GatewayCliDeps {
   process: GatewayProcess;
   pairing: PairingGuard;
   identityPath: string;
   trustPath: string;
+  /** Honest report of which agent engine this invocation runs (or would run).
+   *  Absent when the caller wired deps manually without engine resolution. */
+  engineProbe?: EngineProbe;
+  /** Tears down the resolved engine's swarm manager (if one was built).
+   *  `start` calls this after the gateway stops; no-op for the mock engine. */
+  engineShutdown?: () => Promise<void>;
 }
 
 /**
@@ -82,4 +91,41 @@ export function buildGatewayDeps(
   });
 
   return { process, pairing, identityPath, trustPath };
+}
+
+/**
+ * The full env-honest composition the `hades` binary uses: resolve the agent
+ * engine from environment (see ../gateway/engine-select) and build the
+ * gateway deps around it.
+ *
+ * Engine construction is deliberately gated on `forStart`:
+ *
+ *  - `forStart: true` (`hades gateway start` without `--probe`): the engine
+ *    is actually RESOLVED — behind `HADES_GATEWAY_ENGINE=swarm` plus a real
+ *    provider key that means a real `LLMExecutor`-backed, STYX-certified
+ *    swarm engine (and `engineShutdown` tears its manager down); every other
+ *    env combination gets the honest `[mock]` echo engine. The probe reports
+ *    exactly which one was built.
+ *  - `forStart: false` (status/pair/send/--probe/help): nothing heavy is
+ *    ever constructed just to print a line — the deps get the default echo
+ *    engine (whose handler these subcommands never invoke) and a PURE
+ *    `probeGatewayEngine` report of what `start` would build.
+ */
+export async function buildGatewayDepsFromEnv(
+  config: HadesConfig,
+  env: Record<string, string | undefined>,
+  opts?: {
+    forStart?: boolean;
+    log?: (line: string) => void;
+    /** Test seam forwarded to {@link resolveGatewayEngine}. */
+    resolveDeps?: ResolveGatewayEngineDeps;
+  }
+): Promise<GatewayCliDeps> {
+  if (opts?.forStart) {
+    const resolved = await resolveGatewayEngine(env, opts?.resolveDeps);
+    const deps = buildGatewayDeps(config, env, { engine: resolved.engine, log: opts?.log });
+    return { ...deps, engineProbe: resolved.probe, engineShutdown: resolved.shutdown };
+  }
+  const deps = buildGatewayDeps(config, env, { log: opts?.log });
+  return { ...deps, engineProbe: probeGatewayEngine(env) };
 }

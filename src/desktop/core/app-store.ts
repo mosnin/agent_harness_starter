@@ -154,6 +154,14 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
     case "learning.error":
       return state;
 
+    // Gateway events are owned by whichever gateway surface consumes them
+    // (the sidecar wire is live; a dedicated renderer card is a follow-up) —
+    // they deliberately do not touch the swarm app state.
+    case "gateway.status":
+    case "gateway.paircode":
+    case "gateway.error":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.

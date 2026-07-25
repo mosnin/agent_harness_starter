@@ -83,11 +83,14 @@ const HELP_LINES = [
   "  ↑/↓     navigate the task list",
   "  f       toggle the FLEET pane (real BackendManager telemetry + route bandit)",
   "  s       toggle the SHOWDOWN pane (r runs a real modeled showdown in-place)",
+  "  w       toggle the GATEWAY pane (real env connector probes + engine probe)",
   "  ?       toggle the help overlay",
   "  q       quit  (also Ctrl-C)",
   "  (fleet pane) ↑/↓ or j/k select worker, r refresh, esc/q back",
   "  (showdown pane) r run, esc/q back — every figure of a modeled run is",
   "                  labeled (modeled); nothing live is simulated",
+  "  (gateway pane) ↑/↓ scroll traffic, r refresh, esc/q back — probes name env",
+  "                 VARIABLE NAMES only; live traffic belongs to `hades gateway start`",
   "  (compose mode) type to build the objective, Enter to submit, Esc to cancel",
 ];
 
@@ -398,17 +401,19 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
     if (logs.length > 50) logs.splice(0, logs.length - 50);
   });
 
-  // Pane hooks are late-bound: the fleet refresh and showdown runner need the
-  // app (and the interactive loop's `render`) to exist first, so the
-  // controller closes over mutable slots that the loop fills in below. In
-  // `once` mode they stay honest no-ops — a single non-interactive frame
-  // never probes backends or starts a showdown.
+  // Pane hooks are late-bound: the fleet/gateway refreshes and showdown
+  // runner need the app (and the interactive loop's `render`) to exist first,
+  // so the controller closes over mutable slots that the loop fills in below.
+  // In `once` mode they stay honest no-ops — a single non-interactive frame
+  // never probes backends, probes gateway env, or starts a showdown.
   let fleetRefresh: () => void = () => {};
   let showdownRun: () => void = () => {};
+  let gatewayRefresh: () => void = () => {};
   const controller: TuiController = {
     ...createSwarmController(handle, { poolSize }),
     refreshFleet: () => fleetRefresh(),
     runShowdown: () => showdownRun(),
+    refreshGateway: () => gatewayRefresh(),
   };
   const app = new TuiApp({ controller });
 
@@ -477,6 +482,42 @@ export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
         render();
       })().catch((err: unknown) => {
         logs.push({ workerId: "fleet", line: `refresh failed: ${err instanceof Error ? err.message : String(err)}` });
+        render();
+      });
+    };
+
+    // GATEWAY pane: real env probing through the SAME code paths `hades
+    // gateway` uses — buildConnectorsFromEnv's probe report (variable NAMES
+    // only, never values) via a real, never-started GatewayProcess, plus the
+    // PURE probeGatewayEngine decision (nothing heavy is ever constructed).
+    // The counters shown are this process's own gateway counters — a real
+    // zero tally from a real unstarted process, because the TUI does not run
+    // the gateway; live traffic/badges belong to `hades gateway start`.
+    let gatewayProcPromise: Promise<import("../gateway/process").GatewayProcess> | undefined;
+    gatewayRefresh = (): void => {
+      void (async () => {
+        gatewayProcPromise ??= (async () => {
+          const { GatewayProcess } = await import("../gateway/process");
+          // The handler is unreachable: this process is never start()ed.
+          return new GatewayProcess({
+            handler: async () => ({ text: "", accepted: false }),
+            env: process.env,
+          });
+        })();
+        const [proc, { probeGatewayEngine }] = await Promise.all([
+          gatewayProcPromise,
+          import("../gateway/engine-select"),
+        ]);
+        const s = proc.status();
+        const probe = probeGatewayEngine(process.env);
+        app.applyGatewayStatus({
+          probes: s.platforms,
+          counters: s.counters,
+          engine: { requested: probe.requested, mode: probe.mode, detail: probe.detail },
+        });
+        render();
+      })().catch((err: unknown) => {
+        logs.push({ workerId: "gateway", line: `refresh failed: ${err instanceof Error ? err.message : String(err)}` });
         render();
       });
     };

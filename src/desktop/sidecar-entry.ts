@@ -31,9 +31,13 @@ import {
   type FleetHandler,
   type FleetProvisionHandler,
   type LearningStatusHandler,
+  type GatewayHandler,
   type InferenceInfo,
 } from "./core/sidecar";
 import { SkillsService } from "./core/skills-service";
+import { GatewayService } from "./core/gateway-service";
+import { buildGatewayDeps } from "../hades/cli/gateway-deps";
+import { probeGatewayEngine } from "../hades/gateway/engine-select";
 import { detectInference } from "./core/inference";
 import { createRealFleet } from "./core/fleet-wiring";
 import { LearningService } from "./core/learning-service";
@@ -70,6 +74,14 @@ export interface RunSidecarOptions {
    *  `<dataDir>/learning-status.json` — the SAME file `hades backends learn`
    *  reads, so the desktop and the terminal see one learning history. */
   learningStatus?: LearningStatusHandler;
+  /** Real gateway backend for `gateway.status.get` / `gateway.pair.issue`;
+   *  defaults to a {@link GatewayService} over the REAL `buildGatewayDeps`
+   *  composition — the same env probing, `<dataDir>/gateway/trust.json`
+   *  trust store, and pairing guard `hades gateway` uses, so a code issued
+   *  from the desktop redeems against the same trust file the terminal
+   *  gateway enforces. Built lazily on the first gateway command so sidecar
+   *  startup never touches the gateway stack unasked. */
+  gateway?: GatewayHandler;
 }
 
 /**
@@ -193,6 +205,33 @@ export async function runSidecar(
     factory ??= realSwarmFactory({ decorateProvider: (p, mode) => realFleet.decorateProvider(p, mode) });
   }
 
+  // Real gateway lane: GatewayService over the SAME buildGatewayDeps
+  // composition `hades gateway` runs — same env probes (variable NAMES only,
+  // never values), same <dataDir>/gateway trust/identity files, so desktop-
+  // issued pairing codes redeem against the terminal gateway's trust store.
+  // The stack is built lazily on the first gateway command and cached; the
+  // engine probe is the PURE probeGatewayEngine (nothing heavy is ever
+  // constructed just to answer a status snapshot).
+  let gateway = opts.gateway;
+  if (!gateway) {
+    let realGatewayService: GatewayService | undefined;
+    gateway = {
+      handle: async (cmd, emit) => {
+        if (!realGatewayService) {
+          const config = loadConfig({ env: process.env });
+          const deps = buildGatewayDeps(config, process.env);
+          realGatewayService = new GatewayService({
+            source: deps.process,
+            pairing: deps.pairing,
+            engineProbe: () => probeGatewayEngine(process.env),
+            now,
+          });
+        }
+        await realGatewayService.handle(cmd, emit);
+      },
+    };
+  }
+
   const sidecar = new Sidecar({
     factory,
     now,
@@ -203,6 +242,7 @@ export async function runSidecar(
     inference: opts.inference ?? detectInference(),
     learning,
     learningStatus,
+    gateway,
   });
 
   try {

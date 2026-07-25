@@ -22,3 +22,20 @@ export {
   renderShowdownPane,
 } from "./showdown-pane";
 export type { ShowdownPaneResult, ShowdownPaneState, ShowdownPaneEvent } from "./showdown-pane";
+export {
+  gatewayPaneInit,
+  gatewayPaneApplyStatus,
+  gatewayPaneAppendTraffic,
+  gatewayPaneApplyBadge,
+  gatewayPaneKey,
+  renderGatewayPane,
+  sanitizePreview,
+} from "./gateway-pane";
+export type {
+  GatewayPaneState,
+  GatewayPaneProbeRow,
+  GatewayPaneCounters,
+  GatewayPaneEngineRow,
+  GatewayPaneTrafficRow,
+  GatewayPaneBadgeTally,
+} from "./gateway-pane";

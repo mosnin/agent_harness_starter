@@ -1,5 +1,11 @@
 export { TelegramConnector, createTelegramHttpTransport } from "./telegram";
 export type { TelegramTransport, TelegramUpdate, TelegramConnectorOptions } from "./telegram";
+export { TelegramVoiceConnector, createTelegramVoiceHttpTransport } from "./telegram-voice";
+export type {
+  TelegramVoiceTransport,
+  TelegramVoiceUpdate,
+  TelegramVoiceConnectorOptions,
+} from "./telegram-voice";
 export { SlackConnector, createSlackHttpTransport } from "./slack";
 export type { SlackTransport, SlackEventPayload } from "./slack";
 export { DiscordConnector, createDiscordHttpTransport } from "./discord";

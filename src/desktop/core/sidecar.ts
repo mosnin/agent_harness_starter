@@ -23,6 +23,8 @@ import type {
   FleetEvent,
   FleetProvisionCommand,
   FleetProvisionEvent,
+  GatewayCommand,
+  GatewayEvent,
   LearningCommand,
   LearningEvent,
   MetricsView,
@@ -120,6 +122,17 @@ export interface LearningStatusHandler {
   handle(cmd: LearningCommand, emit: (e: LearningEvent) => void): Promise<void>;
 }
 
+/**
+ * Handles `gateway.*` commands, calling `emit` for every resulting
+ * `GatewayEvent`. Structurally matches `GatewayService.handle`
+ * (`./gateway-service.ts`) so central wiring can pass a real service over the
+ * real `GatewayProcess`/`PairingGuard`; left undefined, a gateway command
+ * reports an honest `gateway.error` instead of hanging the caller.
+ */
+export interface GatewayHandler {
+  handle(cmd: GatewayCommand, emit: (e: GatewayEvent) => void): Promise<void>;
+}
+
 /** Truthful description of what inference backs this run — surfaced as a startup log. */
 export interface InferenceInfo {
   kind: "real" | "mock";
@@ -156,6 +169,14 @@ export interface SidecarOptions {
    * command reports an honest `learning.error` rather than silence.
    */
   learningStatus?: LearningStatusHandler;
+  /**
+   * Real gateway backend for `gateway.status.get` / `gateway.pair.issue`;
+   * when set (central wiring passes a `GatewayService` over the real
+   * `GatewayProcess` + `PairingGuard`), those commands do real work. Left
+   * undefined, a gateway command reports an honest `gateway.error` rather
+   * than silence.
+   */
+  gateway?: GatewayHandler;
 }
 
 /**
@@ -193,6 +214,7 @@ export class Sidecar {
   private readonly inference?: InferenceInfo;
   private readonly learning?: SidecarOptions["learning"];
   private readonly learningStatus?: LearningStatusHandler;
+  private readonly gateway?: GatewayHandler;
   private learningLoop?: { detach(): Promise<void> };
 
   private mode: "inline" | "process" | "docker" = "inline";
@@ -215,6 +237,7 @@ export class Sidecar {
     this.inference = opts.inference;
     this.learning = opts.learning;
     this.learningStatus = opts.learningStatus;
+    this.gateway = opts.gateway;
   }
 
   /** Process one command. Never throws — a failure becomes a `log` event. */
@@ -293,6 +316,22 @@ export class Sidecar {
             this.safeEmit({
               kind: "learning.error",
               message: "learning status is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "gateway.status.get":
+        case "gateway.pair.issue":
+          // Central wiring hands us a real GatewayService (gateway-service.ts
+          // over the real GatewayProcess + PairingGuard). Without one, reply
+          // with an honest gateway.error rather than silence, so a renderer
+          // waiting on a status/pair-code never hangs.
+          if (this.gateway) {
+            await this.gateway.handle(cmd, (ev) => this.safeEmit(ev));
+          } else {
+            this.safeEmit({
+              kind: "gateway.error",
+              message: "gateway is not configured in this build",
               at: this.now(),
             });
           }

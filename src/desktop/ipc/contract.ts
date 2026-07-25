@@ -36,6 +36,13 @@ import {
   isLearningEvent,
 } from "./learning-contract";
 import type { LearningCommand, LearningEvent } from "./learning-contract";
+import {
+  GATEWAY_COMMAND_KINDS,
+  GATEWAY_EVENT_KINDS,
+  isGatewayCommand,
+  isGatewayEvent,
+} from "./gateway-contract";
+import type { GatewayCommand, GatewayEvent } from "./gateway-contract";
 
 // Re-exported so consumers can treat this module as the single import point
 // for the whole desktop wire format.
@@ -78,6 +85,23 @@ export {
   LEARNING_COMMAND_KINDS,
   LEARNING_EVENT_KINDS,
 } from "./learning-contract";
+export type {
+  GatewayCommand,
+  GatewayEvent,
+  GatewayProbeView,
+  GatewayCountersView,
+  GatewayStatusView,
+  GatewayPairCodeView,
+} from "./gateway-contract";
+export {
+  isGatewayCommand,
+  isGatewayEvent,
+  isGatewayProbeView,
+  isGatewayStatusView,
+  isGatewayPairCodeView,
+  GATEWAY_COMMAND_KINDS,
+  GATEWAY_EVENT_KINDS,
+} from "./gateway-contract";
 
 // ---------------------------------------------------------------------------
 // View models
@@ -153,7 +177,8 @@ export type Command =
   | { kind: "skills.save"; name: string; content: string }
   | FleetCommand
   | FleetProvisionCommand
-  | LearningCommand;
+  | LearningCommand
+  | GatewayCommand;
 
 export type AppEvent =
   | { kind: "runtime.status"; running: boolean; mode: string; poolSize: number }
@@ -167,7 +192,8 @@ export type AppEvent =
   | { kind: "log"; line: string; at: number }
   | FleetEvent
   | FleetProvisionEvent
-  | LearningEvent;
+  | LearningEvent
+  | GatewayEvent;
 
 const COMMAND_KINDS = [
   "runtime.start",
@@ -181,6 +207,7 @@ const COMMAND_KINDS = [
   ...FLEET_COMMAND_KINDS,
   ...FLEET_PROVISION_COMMAND_KINDS,
   ...LEARNING_COMMAND_KINDS,
+  ...GATEWAY_COMMAND_KINDS,
 ] as const;
 
 const EVENT_KINDS = [
@@ -196,6 +223,7 @@ const EVENT_KINDS = [
   ...FLEET_EVENT_KINDS,
   ...FLEET_PROVISION_EVENT_KINDS,
   ...LEARNING_EVENT_KINDS,
+  ...GATEWAY_EVENT_KINDS,
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -349,10 +377,10 @@ export function isCommand(x: unknown): x is Command {
     case "skills.save":
       return isString(x.name) && isString(x.content);
     default:
-      // Fleet + fleet-provision + learning commands are validated by their
-      // own contract modules' guards; anything none of them recognizes is
-      // not a Command.
-      return isFleetCommand(x) || isFleetProvisionCommand(x) || isLearningCommand(x);
+      // Fleet + fleet-provision + learning + gateway commands are validated
+      // by their own contract modules' guards; anything none of them
+      // recognizes is not a Command.
+      return isFleetCommand(x) || isFleetProvisionCommand(x) || isLearningCommand(x) || isGatewayCommand(x);
   }
 }
 
@@ -379,10 +407,10 @@ export function isAppEvent(x: unknown): x is AppEvent {
     case "log":
       return isString(x.line) && isNumber(x.at);
     default:
-      // Fleet + fleet-provision + learning events are validated by their own
-      // contract modules' guards; anything none of them recognizes is not an
-      // AppEvent.
-      return isFleetEvent(x) || isFleetProvisionEvent(x) || isLearningEvent(x);
+      // Fleet + fleet-provision + learning + gateway events are validated by
+      // their own contract modules' guards; anything none of them recognizes
+      // is not an AppEvent.
+      return isFleetEvent(x) || isFleetProvisionEvent(x) || isLearningEvent(x) || isGatewayEvent(x);
   }
 }
 

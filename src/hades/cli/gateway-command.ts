@@ -41,6 +41,13 @@ function help(): CliResult {
   return { code: 0, lines: ["hades gateway — real multi-platform messaging gateway", "", ...usageLines()] };
 }
 
+/** One honest engine line: mode + requested + detail (variable NAMES only — never a credential). Empty when no probe was wired. */
+function engineLines(deps: GatewayCliDeps): string[] {
+  const p = deps.engineProbe;
+  if (!p) return [];
+  return [`engine: ${p.mode} (requested ${p.requested}) — ${p.detail}`];
+}
+
 function statusLines(deps: GatewayCliDeps): string[] {
   const s = deps.process.status();
   const runningLine = s.running
@@ -49,19 +56,28 @@ function statusLines(deps: GatewayCliDeps): string[] {
   return [
     runningLine,
     ...probeTable(s.platforms),
+    ...engineLines(deps),
     `counters: inbound=${s.counters.inbound} outbound=${s.counters.outbound} rateLimited=${s.counters.rateLimited}`,
   ];
 }
 
 async function runStart(args: string[], deps: GatewayCliDeps, io: GatewayCommandIo): Promise<CliResult> {
   if (args.includes("--probe")) {
-    const lines = ["gateway: --probe (not started)", ...probeTable(deps.process.status().platforms)];
+    const lines = [
+      "gateway: --probe (not started)",
+      ...probeTable(deps.process.status().platforms),
+      ...engineLines(deps),
+    ];
     for (const line of lines) io.write(line);
     return { code: 0, lines };
   }
 
   const started = await deps.process.start();
-  const startLines = [...probeTable(started.platforms), "gateway: started — waiting for messages (Ctrl+C to stop)."];
+  const startLines = [
+    ...probeTable(started.platforms),
+    ...engineLines(deps),
+    "gateway: started — waiting for messages (Ctrl+C to stop).",
+  ];
   for (const line of startLines) io.write(line);
 
   // Default: block forever, but still install real OS signal handlers so a
@@ -76,6 +92,9 @@ async function runStart(args: string[], deps: GatewayCliDeps, io: GatewayCommand
   await wait();
 
   await deps.process.stop();
+  // The engine's swarm manager (if `start` resolved a real one) is torn down
+  // only after the connectors have stopped — no in-flight turn is orphaned.
+  await deps.engineShutdown?.();
   const stopLines = ["gateway: stopped."];
   for (const line of stopLines) io.write(line);
 

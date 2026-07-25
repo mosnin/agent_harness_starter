@@ -14,17 +14,21 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     onChat: () => ({ code: 0, lines: ["Interactive chat is available via the Hades REPL API (see docs)."] }),
     // The real multi-platform messaging gateway (`hades gateway start|status|
     // pair|send|bench`). Loaded lazily so `hades help` never pays for the
-    // gateway stack; composed by buildGatewayDeps from this process's real
-    // config + env (probe lines only ever name env VARIABLE NAMES, never
-    // values). The default agent engine is the honest, self-announcing
-    // `[mock]` echo engine — a real swarm engine is opt-in via
-    // buildGatewayDeps overrides, never silently substituted.
+    // gateway stack; composed by buildGatewayDepsFromEnv from this process's
+    // real config + env (probe lines only ever name env VARIABLE NAMES, never
+    // values). The agent engine is env-resolved honestly: the real,
+    // STYX-certified swarm engine ONLY behind HADES_GATEWAY_ENGINE=swarm plus
+    // a real provider key — and only for `start`, which actually runs it;
+    // every other subcommand gets a pure probe of what `start` would build.
+    // Every other combination is the honest, self-announcing `[mock]` echo
+    // engine, and the probe line says so.
     onGateway: async (args) => {
-      const [{ runGatewayCommand }, { buildGatewayDeps }] = await Promise.all([
+      const [{ runGatewayCommand }, { buildGatewayDepsFromEnv }] = await Promise.all([
         import("../cli/gateway-command"),
         import("../cli/gateway-deps"),
       ]);
-      const deps = buildGatewayDeps(config, process.env);
+      const forStart = args[0] === "start" && !args.includes("--probe");
+      const deps = await buildGatewayDepsFromEnv(config, process.env, { forStart });
       // `start` is long-running and streams its lines live through io.write
       // (and blocks until a signal); everything it streams is also in
       // result.lines, so once anything was streamed we return no lines —

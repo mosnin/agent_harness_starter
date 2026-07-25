@@ -16,7 +16,9 @@ import type { InboundMessage, OutboundReply } from "../../swarm-runtime/gateway/
 import { ConnectorHub } from "./connector";
 import type { PlatformConnector, DeliveryTarget, Mirror } from "./connector";
 import { RateLimiter } from "./rate-limiter";
-import { TelegramConnector, createTelegramHttpTransport } from "./connectors/telegram";
+import { withChunking } from "./chunked-delivery";
+import { buildVoiceFromEnv } from "./voice-providers";
+import { TelegramVoiceConnector, createTelegramVoiceHttpTransport } from "./connectors/telegram-voice";
 import { DiscordConnector, createDiscordHttpTransport } from "./connectors/discord";
 import { SlackConnector, createSlackHttpTransport } from "./connectors/slack";
 import { WhatsAppConnector, createWhatsAppHttpTransport } from "./connectors/whatsapp";
@@ -113,11 +115,24 @@ export function buildConnectorsFromEnv(env: Record<string, string | undefined>):
 } {
   const results: Array<{ connector?: PlatformConnector; probe: PlatformProbe }> = [];
 
-  results.push(
-    probeSingleVar(env, "telegram", "HADES_TELEGRAM_TOKEN", "TELEGRAM_BOT_TOKEN", (token) =>
-      new TelegramConnector(createTelegramHttpTransport(token))
-    )
+  // Telegram is the voice-capable connector: same long-poll text behavior as
+  // TelegramConnector, plus real voice-note handling through the env-built
+  // VoicePipeline (real Whisper STT with a key, else the self-announcing
+  // "[mock]" transcriber; TTS only behind HADES_TTS_ENABLED=1 — see
+  // ./voice-providers). The voice probe's stt/tts modes are folded into the
+  // telegram probe detail so `gateway status`/`--probe` reports them; like
+  // every other detail string, it carries env variable NAMES only.
+  const voice = buildVoiceFromEnv(env);
+  const telegram = probeSingleVar(env, "telegram", "HADES_TELEGRAM_TOKEN", "TELEGRAM_BOT_TOKEN", (token) =>
+    new TelegramVoiceConnector(createTelegramVoiceHttpTransport(token), voice.pipeline)
   );
+  if (telegram.probe.mode === "real") {
+    telegram.probe = {
+      ...telegram.probe,
+      detail: `${telegram.probe.detail}; voice stt=${voice.probe.stt.mode}, tts=${voice.probe.tts.mode}`,
+    };
+  }
+  results.push(telegram);
   results.push(
     probeSingleVar(env, "discord", "HADES_DISCORD_TOKEN", "DISCORD_BOT_TOKEN", (token) =>
       new DiscordConnector(createDiscordHttpTransport(token))
@@ -227,7 +242,12 @@ export class GatewayProcess {
     };
 
     this.hub = new ConnectorHub(opts.handler, { rateLimiter: countingLimiter, mirror });
-    for (const connector of connectors) this.hub.register(connector);
+    // Chunking rides the wire for every connector — env-built or explicitly
+    // supplied: a reply or proactive send longer than the platform's real
+    // maxChars leaves as N marked, size-legal chunks instead of a raw blob
+    // the platform API would reject or truncate. Idempotent (withChunking
+    // never double-wraps), and byte-identical for under-limit text.
+    for (const connector of withChunking(connectors)) this.hub.register(connector);
   }
 
   /** Idempotent: a second call while already running returns the current status without re-starting connectors. */
