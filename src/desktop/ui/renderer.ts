@@ -58,6 +58,10 @@ import {
   type StateViewState,
 } from "./state-view";
 import type { StateEvent } from "../ipc/state-contract";
+import type { MigrateEvent } from "../ipc/migrate-contract";
+import { initialMigrateSlice, migrateBusy, reduceMigrate } from "../core/migrate-slice";
+import type { MigrateSlice } from "../core/migrate-slice";
+import { renderMigrateCard } from "./migrate-card";
 import {
   KeyDispatcher,
   KeymapRegistry,
@@ -122,6 +126,8 @@ interface ViewExt {
   state: StateSlice;
   /** Renderer-owned Workspace view state (selected domain + key filter) — never on the wire. */
   stateView: StateViewState;
+  /** Migration state, reduced from `migrate.*` events by `../core/migrate-slice.ts`'s pure reducer. */
+  migrate: MigrateSlice;
 }
 
 /** Narrow an AppEvent to the fleet slice of the union. */
@@ -154,6 +160,18 @@ function asStateEvent(ev: { kind: string }): StateEvent | null {
     ev.kind === "state.synced" ||
     ev.kind === "state.error"
     ? (ev as StateEvent)
+    : null;
+}
+
+/** Narrow an AppEvent to the migration slice of the union (consumed by
+ *  `../core/migrate-slice.ts`'s pure reducer, not by the app-store reducer). */
+function asMigrateEvent(ev: { kind: string }): MigrateEvent | null {
+  return ev.kind === "migrate.sources" ||
+    ev.kind === "migrate.plan" ||
+    ev.kind === "migrate.applied" ||
+    ev.kind === "migrate.receipts" ||
+    ev.kind === "migrate.error"
+    ? (ev as MigrateEvent)
     : null;
 }
 
@@ -266,7 +284,12 @@ function contentFor(nav: NavKey, state: AppState, ext: ViewExt): string {
     case "state":
       return renderStateView(ext.state, ext.stateView);
     case "settings":
-      return renderSettingsView(state);
+      // The migration card lives in Settings deliberately: it is a one-time
+      // onboarding action, not a daily surface, so it does not earn its own
+      // nav entry (and cannot silently shift the positional `mod+<n>` nav
+      // bindings by adding one).
+      return `${renderSettingsView(state)}
+      ${renderMigrateCard(ext.migrate)}`;
     default:
       // Guard against a future NavKey landing here unhandled: fall back to
       // the primary working surface rather than throwing.
@@ -307,6 +330,7 @@ export function createApp(
     learning: initialLearningState(),
     state: initialStateSlice(),
     stateView: initialStateViewState(),
+    migrate: initialMigrateSlice(),
   };
 
   // The REAL keymap engine (`./keyboard-nav.ts`) replaces what used to be a
@@ -421,6 +445,16 @@ export function createApp(
             // Malformed state event: leave the workspace slice untouched.
           }
         }
+        // Migration events feed `../core/migrate-slice.ts`'s pure reducer,
+        // same isolation contract as the slices above.
+        const migrateEv = asMigrateEvent(ev);
+        if (migrateEv) {
+          try {
+            ext.migrate = reduceMigrate(ext.migrate, migrateEv);
+          } catch {
+            // Malformed migrate event: leave the migration slice untouched.
+          }
+        }
         try {
           state = reduce(state, ev);
         } catch {
@@ -505,6 +539,46 @@ export function createApp(
         send({ kind: "state.status" });
         return true;
       }
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Migration intents (Settings' Import card). Every one of them sends a
+   * REAL `migrate.*` wire command answered by the sidecar's `MigrateService`
+   * — nothing is simulated in the renderer. `migrate.apply` carries
+   * `confirm: true` ONLY from the explicit Import button, and the button is
+   * disabled while a plan is missing or blocked. Returns true when the
+   * intent was consumed here.
+   */
+  function handleMigrateCmd(cmd: string): boolean {
+    switch (cmd) {
+      case "migrate.scan":
+        ext.migrate = migrateBusy(ext.migrate);
+        send({ kind: "migrate.scan" });
+        emit();
+        return true;
+      case "migrate.plan":
+        ext.migrate = migrateBusy(ext.migrate);
+        send({ kind: "migrate.plan" });
+        emit();
+        return true;
+      case "migrate.apply": {
+        // Refuse locally too: a blocked (or absent) plan must never produce
+        // a confirmed apply, even if the disabled button were bypassed.
+        if (!ext.migrate.plan || ext.migrate.plan.blockers.length > 0) return true;
+        ext.migrate = migrateBusy(ext.migrate);
+        send({ kind: "migrate.apply", confirm: true });
+        send({ kind: "migrate.receipts" });
+        emit();
+        return true;
+      }
+      case "migrate.receipts":
+        ext.migrate = migrateBusy(ext.migrate);
+        send({ kind: "migrate.receipts" });
+        emit();
+        return true;
       default:
         return false;
     }
@@ -616,6 +690,7 @@ export function createApp(
         // Workspace intents need the renderer's own selected domain, so they
         // are resolved here rather than by the stateless `intentToCommand`.
         if (handleStateCmd(intent.cmd, intent.value)) return;
+        if (handleMigrateCmd(intent.cmd)) return;
         const cmd = intentToCommand(intent);
         if (!cmd) return;
         bridge.send(cmd);

@@ -35,6 +35,24 @@ export { runScheduleCommand, defaultScheduleDeps, BuiltinNoteExecutor } from "./
 export type { ScheduleCommandDeps } from "./schedule-command";
 export { runStateCommand, defaultStateDeps, STATE_USAGE } from "./state-command";
 export type { StateCommandDeps } from "./state-command";
+export {
+  runMigrateCommand,
+  defaultMigrateDeps,
+  migrateScan,
+  migratePlanPreview,
+  migrateApply,
+  migrateReceiptSummary,
+  MIGRATE_USAGE,
+} from "./migrate-command";
+export type {
+  MigrateCommandDeps,
+  MigratePipelineOptions,
+  MigrateScanSummary,
+  MigrateSourceSummary,
+  MigrateReceiptSummary,
+} from "./migrate-command";
+export { runInstallCommand, defaultInstallDeps, INSTALL_USAGE } from "./install-command";
+export type { InstallCommandDeps } from "./install-command";
 export { runSkillEvolveCommand } from "./skill-evolve-command";
 export type { SkillEvolveResult, SkillEvolveFs, SkillEvolveOptions } from "./skill-evolve-command";
 export { runGatewayCommand } from "./gateway-command";

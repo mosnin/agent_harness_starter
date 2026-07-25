@@ -27,6 +27,7 @@ import "./fleet-provision-view.css";
 import "./fleet-conflicts-view.css";
 import "./learning-card.css";
 import "./state-view.css";
+import "./migrate-card.css";
 import "./keyboard-help.css";
 
 import { mountApp } from "./renderer";

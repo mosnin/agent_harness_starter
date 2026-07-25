@@ -9,7 +9,8 @@
  * Each subsystem owns its own standalone, dependency-free contract module —
  * the remote-compute fleet (`fleet.*`) in `./fleet-contract.ts`, the
  * scheduler (`schedule.*`) in `./schedule-contract.ts`, the shared workspace
- * store (`state.*`) in `./state-contract.ts`, and so on. THIS module is the
+ * store (`state.*`) in `./state-contract.ts`, migration off Hermes/OpenClaw
+ * (`migrate.*`) in `./migrate-contract.ts`, and so on. THIS module is the
  * one that composes them: it merges every kind list, guard and union into
  * the single `Command`/`AppEvent` pair the whole pipe (sidecar entry,
  * bridge, renderer) speaks, with full typing end to end.
@@ -59,6 +60,13 @@ import {
   isStateEvent,
 } from "./state-contract";
 import type { StateCommand, StateEvent } from "./state-contract";
+import {
+  MIGRATE_COMMAND_KINDS,
+  MIGRATE_EVENT_KINDS,
+  isMigrateCommand,
+  isMigrateEvent,
+} from "./migrate-contract";
+import type { MigrateCommand, MigrateEvent } from "./migrate-contract";
 
 // Re-exported so consumers can treat this module as the single import point
 // for the whole desktop wire format.
@@ -149,6 +157,29 @@ export {
   STATE_COMMAND_KINDS,
   STATE_EVENT_KINDS,
 } from "./state-contract";
+export type {
+  MigrateCommand,
+  MigrateEvent,
+  MigrateRequestOptions,
+  MigrateScanView,
+  MigrateSourceView,
+  MigratePlanView,
+  MigrateActionView,
+  MigrateApplyView,
+  MigrateReceiptsView,
+  MigrateArtifactKind,
+} from "./migrate-contract";
+export {
+  isMigrateCommand,
+  isMigrateEvent,
+  isMigrateScanView,
+  isMigratePlanView,
+  isMigrateApplyView,
+  isMigrateReceiptsView,
+  MIGRATE_COMMAND_KINDS,
+  MIGRATE_EVENT_KINDS,
+  MIGRATE_ARTIFACT_KINDS,
+} from "./migrate-contract";
 
 // ---------------------------------------------------------------------------
 // View models
@@ -245,7 +276,8 @@ export type Command =
   | LearningCommand
   | GatewayCommand
   | ScheduleCommand
-  | StateCommand;
+  | StateCommand
+  | MigrateCommand;
 
 export type AppEvent =
   | { kind: "runtime.status"; running: boolean; mode: string; poolSize: number }
@@ -265,7 +297,8 @@ export type AppEvent =
   | LearningEvent
   | GatewayEvent
   | ScheduleEvent
-  | StateEvent;
+  | StateEvent
+  | MigrateEvent;
 
 const COMMAND_KINDS = [
   "runtime.start",
@@ -282,6 +315,7 @@ const COMMAND_KINDS = [
   ...GATEWAY_COMMAND_KINDS,
   ...SCHEDULE_COMMAND_KINDS,
   ...STATE_COMMAND_KINDS,
+  ...MIGRATE_COMMAND_KINDS,
 ] as const;
 
 const EVENT_KINDS = [
@@ -300,6 +334,7 @@ const EVENT_KINDS = [
   ...GATEWAY_EVENT_KINDS,
   ...SCHEDULE_EVENT_KINDS,
   ...STATE_EVENT_KINDS,
+  ...MIGRATE_EVENT_KINDS,
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -488,16 +523,17 @@ export function isCommand(x: unknown): x is Command {
     case "skills.save":
       return isString(x.name) && isString(x.content);
     default:
-      // Fleet + fleet-provision + learning + gateway + schedule + state
-      // commands are validated by their own contract modules' guards;
-      // anything none of them recognizes is not a Command.
+      // Fleet + fleet-provision + learning + gateway + schedule + state +
+      // migrate commands are validated by their own contract modules'
+      // guards; anything none of them recognizes is not a Command.
       return (
         isFleetCommand(x) ||
         isFleetProvisionCommand(x) ||
         isLearningCommand(x) ||
         isGatewayCommand(x) ||
         isScheduleCommand(x) ||
-        isStateCommand(x)
+        isStateCommand(x) ||
+        isMigrateCommand(x)
       );
   }
 }
@@ -525,16 +561,17 @@ export function isAppEvent(x: unknown): x is AppEvent {
     case "log":
       return isString(x.line) && isNumber(x.at);
     default:
-      // Fleet + fleet-provision + learning + gateway + schedule + state
-      // events are validated by their own contract modules' guards; anything
-      // none of them recognizes is not an AppEvent.
+      // Fleet + fleet-provision + learning + gateway + schedule + state +
+      // migrate events are validated by their own contract modules' guards;
+      // anything none of them recognizes is not an AppEvent.
       return (
         isFleetEvent(x) ||
         isFleetProvisionEvent(x) ||
         isLearningEvent(x) ||
         isGatewayEvent(x) ||
         isScheduleEvent(x) ||
-        isStateEvent(x)
+        isStateEvent(x) ||
+        isMigrateEvent(x)
       );
   }
 }

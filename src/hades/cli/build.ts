@@ -25,6 +25,9 @@ import type { BackendsCommandDeps, BanditStateStore } from "./backends-command";
 import { defaultScheduleDeps } from "./schedule-command";
 import type { ScheduleCommandDeps } from "./schedule-command";
 import type { StateCommandDeps } from "./state-command";
+import { defaultMigrateDeps } from "./migrate-command";
+import type { MigrateCommandDeps } from "./migrate-command";
+import { SecretVault } from "../migrate/secrets";
 import { fileConfigAccess, resolveWorkspaceActor, workspaceRoot } from "../state/wiring";
 import { allAdapters } from "../state/domains";
 import type { RouteBanditState } from "../backends/route-bandit";
@@ -316,6 +319,47 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     };
   };
 
+  // Migration off a real Hermes/OpenClaw install (`hades migrate`). Lazy: no
+  // filesystem probing for foreign installs happens until a migrate
+  // subcommand actually runs. Crucially, the applier is bound to THE SAME
+  // engine handles every other subcommand uses — the guarded memory store
+  // (so imported facts go through the STYX contradiction gate and land in
+  // `hades memory flags` when quarantined, never force-written), the same
+  // session store, the same file-backed config/model selection, and the same
+  // skill library `hades skill`/`hades skills hub` manage. Without
+  // persistence everything is redirected into a throwaway temp data dir
+  // (real files, real receipts, nothing in the user's data dir), matching the
+  // profile/schedule/state stores above.
+  let migrateDataDir: string | undefined;
+  const resolveMigrateDataDir = (): string => {
+    if (migrateDataDir === undefined) {
+      migrateDataDir = persist ? config.dataDir : mkdtempSync(join(tmpdir(), "hades-migrate-"));
+    }
+    return migrateDataDir;
+  };
+  const migrate = (): MigrateCommandDeps => {
+    const dataDir = resolveMigrateDataDir();
+    const now = () => Date.now();
+    return {
+      ...defaultMigrateDeps(process.env),
+      dataDir,
+      deps: () => ({
+        dataDir,
+        memory,
+        guard: memory,
+        sessions,
+        config: fileConfigAccess(dataDir, process.env),
+        modelSelection: selection,
+        skillsDir: process.env.HADES_SKILLS_DIR ?? `${dataDir}/skills`,
+        contextFilesDir: `${dataDir}/context-files`,
+        secretsPath: `${dataDir}/secrets.env`,
+        secrets: new SecretVault(),
+        now,
+        knownModelIds: registry.list().map((m) => m.id),
+      }),
+    };
+  };
+
   return new HadesCli({
     version: HADES_VERSION,
     models,
@@ -328,6 +372,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     backends,
     schedule,
     state,
+    migrate,
     // `hades skills hub` reads/writes the same on-disk skill library
     // `hades skill` manages ($HADES_SKILLS_DIR wins, matching skills-command).
     skillsDir: process.env.HADES_SKILLS_DIR ?? `${config.dataDir}/skills`,

@@ -34,9 +34,12 @@ import {
   type GatewayHandler,
   type ScheduleHandler,
   type StateHandler,
+  type MigrateHandler,
   type InferenceInfo,
 } from "./core/sidecar";
 import { StateService } from "./core/state-service";
+import { MigrateService } from "./core/migrate-service";
+import { defaultMigrateDeps } from "../hades/cli/migrate-command";
 import type { StateEvent } from "./ipc/state-contract";
 import { createWorkspaceStack } from "../hades/state/wiring";
 import { SkillsService } from "./core/skills-service";
@@ -109,6 +112,14 @@ export interface RunSidecarOptions {
    *  so sidecar startup never takes the workspace lock unasked, and torn
    *  down (feed timer + store handle) when stdin ends. */
   state?: StateHandler;
+  /** Real migration backend for `migrate.*`; defaults to a
+   *  {@link MigrateService} over the REAL discover/read/plan/apply pipeline
+   *  rooted at this install's `<dataDir>` — the SAME engine and the SAME
+   *  data directory `hades migrate` uses, so a plan previewed here and a
+   *  plan previewed in a terminal are the same plan. Built lazily on the
+   *  first `migrate.*` command so sidecar startup never probes the
+   *  filesystem for foreign installs unasked. */
+  migrate?: MigrateHandler;
 }
 
 /**
@@ -408,6 +419,34 @@ export async function runSidecar(
     };
   }
 
+  // Real migration lane: the same pipeline `hades migrate` drives, rooted at
+  // the same `<dataDir>`. Lazy — nothing scans the filesystem for a
+  // Hermes/OpenClaw install until a `migrate.*` command actually arrives —
+  // and the service itself refuses to write without `confirm: true`.
+  let migrate = opts.migrate;
+  if (!migrate) {
+    let service: MigrateService | undefined;
+    migrate = {
+      handle: async (cmd) => {
+        try {
+          service ??= new MigrateService({
+            deps: {
+              ...defaultMigrateDeps(process.env),
+              dataDir: loadConfig({ env: process.env }).dataDir,
+            },
+            now,
+          });
+          return await service.handle(cmd);
+        } catch (err) {
+          // MigrateService.handle catches its own failures; this only fires
+          // if constructing it (or resolving config) throws. Report the REAL
+          // reason rather than an empty scan.
+          return { kind: "migrate.error", op: cmd.kind, message: errMsg(err), at: now() };
+        }
+      },
+    };
+  }
+
   const sidecar = new Sidecar({
     factory,
     now,
@@ -426,6 +465,7 @@ export async function runSidecar(
     gateway,
     schedule,
     state,
+    migrate,
   });
 
   try {

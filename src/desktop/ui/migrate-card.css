@@ -1,0 +1,148 @@
+/**
+ * Hades desktop — "Import from Hermes / OpenClaw" card styles.
+ *
+ * Every value comes from a `tokens.css` custom property, so light/dark falls
+ * out of which token set is mounted at `:root` — no hardcoded colors. Native
+ * Tauri webview surface, not a web page.
+ */
+
+.migrate-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.migrate-lede {
+  color: var(--color-ink-secondary);
+  max-width: 68ch;
+}
+
+.migrate-empty {
+  color: var(--color-ink-tertiary);
+}
+
+/* ── Sources ────────────────────────────────────────────────────────────── */
+
+.migrate-sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.migrate-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  font-size: var(--type-size-sm);
+}
+
+.migrate-source--dup {
+  opacity: 0.62;
+}
+
+.migrate-source__layout {
+  color: var(--color-ink-secondary);
+}
+
+.migrate-source__root {
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.migrate-source__count,
+.migrate-source__confidence {
+  color: var(--color-ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.migrate-warning {
+  color: var(--color-warning, var(--color-ink-secondary));
+  font-size: var(--type-size-xs);
+}
+
+/* ── Chips ──────────────────────────────────────────────────────────────── */
+
+.migrate-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.migrate-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px var(--space-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-secondary);
+  white-space: nowrap;
+}
+
+.migrate-chip--muted {
+  color: var(--color-ink-tertiary);
+  border-style: dashed;
+}
+
+.migrate-chip--dry {
+  color: var(--color-accent, var(--color-ink-secondary));
+}
+
+.migrate-chip--bad {
+  color: var(--color-danger, var(--color-ink));
+  border-color: var(--color-danger, var(--color-border));
+}
+
+/* ── Lists / details ────────────────────────────────────────────────────── */
+
+.migrate-list {
+  margin: 0;
+  padding-left: var(--space-lg);
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-secondary);
+}
+
+.migrate-list--bad {
+  color: var(--color-danger, var(--color-ink));
+}
+
+.migrate-list--muted {
+  color: var(--color-ink-tertiary);
+}
+
+.migrate-details summary {
+  cursor: pointer;
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-secondary);
+}
+
+/* ── Status lines ───────────────────────────────────────────────────────── */
+
+.migrate-keys {
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-sm);
+}
+
+.migrate-error,
+.migrate-refused {
+  color: var(--color-danger, var(--color-ink));
+}
+
+.migrate-ok {
+  color: var(--color-success, var(--color-ink));
+}
+
+.migrate-busy {
+  color: var(--color-ink-tertiary);
+}

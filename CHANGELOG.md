@@ -248,3 +248,53 @@ provenance ledger, so the single-inference pipeline stays fully auditable.
   ledger re-verification; `hades exec bench` prints the checkpoint;
   `execEnabledRegistry()` wires `execute_code` into any registry for the agent
   loop / MCP server.
+
+## Hades > Hermes, Phase 14 — one-command migration off Hermes / OpenClaw (`src/hades/migrate/`)
+
+The switching cost *is* the moat. This phase makes moving an existing
+Hermes/OpenClaw install into Hades a single, reversible, auditable command —
+and reachable from the terminal AND the desktop app.
+
+- **Discovery** (`migrate/discovery.ts`): a 12-entry declarative layout table
+  (Hermes/OpenClaw × env override / XDG / dotfile / macOS App Support /
+  Windows APPDATA, plus the legacy pre-rename `~/.clawdbot` and `~/.moltbot`),
+  scored per (layout, root) pair — never first-match-wins. Pure over an
+  `FsProbe` seam; defends against symlink loops, symlink escapes, depth bombs,
+  oversized directories and EACCES without ever throwing. Refuses (loudly) to
+  treat Hades' own data dir as a source.
+- **Readers**: real parsers for JSON/JSONC config, dotenv (a real scanner, not
+  shell evaluation), Markdown context files, JSONL sessions, SKILL.md skills,
+  and a **dependency-free SQLite reader** (`migrate/sqlite-read.ts`) that
+  hand-parses table b-trees, the record format, overflow chains and every
+  serial type — cross-validated row-for-row against real `node:sqlite`
+  fixtures, with adversarial files (encrypted, truncated, page-looped,
+  lying rootpage) failing closed with a documented code.
+- **Canonical IR** (`migrate/ir.ts`): deterministic key-sorted JSON with a
+  pinned cross-run digest, sha256 item hashes, a documented key grammar, and
+  `validateBundle` — which the pipeline now enforces as a real gate, including
+  a secret-material detector so key material can never reach a plan.
+- **Planner** (`migrate/plan.ts`, `migrate/report.ts`): a pure, deterministic
+  conflict engine (per-kind resolvers, five policies, jail-safe renames,
+  idempotency via prior receipts) producing an order-independent `planHash`;
+  no plan with an unresolved blocker may propose a destructive action. The
+  renderer's `[dry run]` banner cannot be omitted and its "NOT IMPORTED"
+  section is never truncated.
+- **Applier** (`migrate/apply.ts`): transactional writes against the REAL
+  engine (memory through the STYX write-guard, sessions, config, model
+  selection, the SKILL.md library, context files, a 0600 `secrets.env`), a
+  hash-chained JSONL receipt log, resume/idempotency, a cross-process lock,
+  and byte-identical rollback on first failure. It refuses to apply a plan
+  marked `dryRun`, and after a rollback it reports *nothing* as applied.
+- **Surfaces**: `hades migrate scan|plan|apply|report|selftest` (apply is a
+  DRY RUN without `--yes`; `selftest` runs the whole pipeline twice against
+  real materialized fixtures in a sandbox and proves idempotency), and the
+  desktop app's **Import from Hermes / OpenClaw** card over a real `migrate.*`
+  IPC lane (`src/desktop/ipc/migrate-contract.ts`,
+  `src/desktop/core/migrate-service.ts`) — the same pipeline, the same
+  `<dataDir>`, applying only on explicit confirmation.
+- **Secrets never travel**: discovered API keys live in a leak-proof
+  `SecretVault` (private field, no `toJSON`/`toString`/inspect path) and reach
+  disk only as `<dataDir>/secrets.env` at mode 0600. Every other surface —
+  terminal output, JSON dumps, IPC events, receipts — carries env-var NAMES.
+- Also wired this cycle: `hades install plan|bundle|verify|doctor`, which
+  shipped previously but had no route in the command router.

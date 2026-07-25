@@ -161,6 +161,24 @@ export function createPaletteEntries(ctx: PaletteContext = { poolSize: 0 }): Pal
       keywords: ["skill", "list", "library", "refresh", "reload"],
       toCommand: () => ({ kind: "skills.list" }),
     },
+    // Migration is discoverable from here, but only its READ-ONLY halves: a
+    // scan and a preview write nothing. The actual import stays behind the
+    // Settings card's explicit Import button, which is the only place a
+    // `confirm: true` apply is ever produced.
+    {
+      id: "migrate.scan",
+      title: "Scan for Hermes / OpenClaw installs",
+      hint: "Look for an existing install to import (writes nothing)",
+      keywords: ["migrate", "import", "hermes", "openclaw", "scan", "move", "switch"],
+      toCommand: () => ({ kind: "migrate.scan" }),
+    },
+    {
+      id: "migrate.plan",
+      title: "Preview migration plan",
+      hint: "Build the deterministic import plan (a dry run — writes nothing)",
+      keywords: ["migrate", "import", "plan", "preview", "dry", "hermes", "openclaw"],
+      toCommand: () => ({ kind: "migrate.plan" }),
+    },
   ];
 }
 

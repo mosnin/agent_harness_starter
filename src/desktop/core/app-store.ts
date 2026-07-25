@@ -183,6 +183,17 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
     case "state.error":
       return state;
 
+    // Migration events are owned by `./migrate-slice.ts`'s own pure reducer
+    // (`reduceMigrate`), which the renderer feeds directly — exactly like the
+    // fleet/learning/state slices above. They deliberately do not touch the
+    // swarm app state.
+    case "migrate.sources":
+    case "migrate.plan":
+    case "migrate.applied":
+    case "migrate.receipts":
+    case "migrate.error":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.

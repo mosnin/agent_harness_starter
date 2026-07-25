@@ -78,6 +78,8 @@ end-to-end. Closing that gap to genuinely surpass Hermes is the active roadmap.
 | Trajectory recording · batch generation · training-data compression | `src/hades/research/` |
 | Interactive REPL (multiline, history, slash commands, streaming) wired to memory | `src/hades/repl/` |
 | Unified `hades` CLI · layered config + env + i18n · Docker/installer | `src/hades/cli/`, `config/`, `bin/` |
+| **Migrate off Hermes/OpenClaw in one command** — cross-platform discovery (env override / XDG / dotfile / macOS / Windows / legacy `clawdbot`+`moltbot`), real readers for JSON/JSONC config, dotenv, Markdown context files, JSONL sessions, SKILL.md skills and **SQLite** (dependency-free reader), a deterministic hash-stable plan with a real conflict engine, and a transactional apply with hash-chained receipts + full rollback. API keys move into a 0600 `secrets.env` and are never printed. `hades migrate scan/plan/apply/report/selftest`, plus the desktop app's **Import from Hermes / OpenClaw** card (same engine, same `<dataDir>`) | `src/hades/migrate/`, `hades migrate`, `src/desktop/core/migrate-service.ts` |
+| Install/verify this build on a real machine: launcher + PATH plan, portable bundle with a sha256 manifest, tamper-checking verify — `hades install plan/bundle/verify/doctor` | `src/hades/install/`, `hades install` |
 
 Everything is built to test **without real credentials** — every connector,
 backend, client, LLM/brain, clock, and transport is injectable.
@@ -85,6 +87,12 @@ backend, client, LLM/brain, clock, and transport is injectable.
 ```bash
 ./scripts/install-hades.sh    # Node 18+, installs, type-checks, drops `hades` on PATH
 hades help
+
+# Coming from Hermes or OpenClaw? Nothing is written until you pass --yes:
+hades migrate scan            # what's on this machine (API keys reported by NAME only)
+hades migrate plan            # the deterministic plan, with conflicts and blockers
+hades migrate apply --yes     # transactional import; rolled back in full on any failure
+hades migrate report          # verify the hash-chained receipt log
 ```
 
 Full reference: [**docs/HADES.md**](./docs/HADES.md),

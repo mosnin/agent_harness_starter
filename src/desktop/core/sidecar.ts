@@ -30,6 +30,8 @@ import type {
   ScheduleCommand,
   ScheduleEvent,
   StateCommand,
+  MigrateCommand,
+  MigrateEvent,
   StateEvent,
   MetricsView,
   RunView,
@@ -169,6 +171,20 @@ export interface StateHandler {
   close?(): void;
 }
 
+/**
+ * Handles `migrate.*` commands over the REAL migration engine
+ * (`src/hades/migrate/**`), resolving to the `MigrateEvent` to emit.
+ * Structurally matches `MigrateService` (`./migrate-service.ts`) so central
+ * wiring can pass a service driving the SAME pipeline `hades migrate` runs
+ * (discover -> read -> plan -> transactional apply against this install's
+ * `<dataDir>`). Left undefined, a migrate command reports an honest
+ * `migrate.error` instead of hanging the caller — it never pretends a scan
+ * found nothing.
+ */
+export interface MigrateHandler {
+  handle(cmd: MigrateCommand): Promise<MigrateEvent>;
+}
+
 /** Truthful description of what inference backs this run — surfaced as a startup log. */
 export interface InferenceInfo {
   kind: "real" | "mock";
@@ -232,6 +248,15 @@ export interface SidecarOptions {
    * than silence.
    */
   state?: StateHandler;
+  /**
+   * Real migration backend for `migrate.*` commands; when set (central
+   * wiring passes a `MigrateService` over the real discover/read/plan/apply
+   * pipeline rooted at this install's `<dataDir>`), the desktop can move a
+   * Hermes/OpenClaw install in without dropping to a terminal. Left
+   * undefined, a migrate command reports an honest `migrate.error` rather
+   * than an empty result that would read as "nothing to import".
+   */
+  migrate?: MigrateHandler;
 }
 
 /**
@@ -272,6 +297,7 @@ export class Sidecar {
   private readonly gateway?: GatewayHandler;
   private readonly schedule?: ScheduleHandler;
   private readonly state?: StateHandler;
+  private readonly migrate?: MigrateHandler;
   private stateUnsubscribe?: () => void;
   /** Guards {@link Sidecar.dispose}'s one-shot teardown of the state lane. */
   private disposed = false;
@@ -300,6 +326,7 @@ export class Sidecar {
     this.gateway = opts.gateway;
     this.schedule = opts.schedule;
     this.state = opts.state;
+    this.migrate = opts.migrate;
 
     // Live workspace deltas are PUSHED, not polled: subscribe once, up
     // front, so a write made by another process (a `hades state set` in a
@@ -429,6 +456,25 @@ export class Sidecar {
             this.safeEmit({
               kind: "schedule.error",
               message: "schedule is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "migrate.scan":
+        case "migrate.plan":
+        case "migrate.apply":
+        case "migrate.receipts":
+          // Central wiring hands us a real MigrateService (migrate-service.ts
+          // over the real migration pipeline). Without one, reply with an
+          // honest migrate.error rather than an empty scan, which a renderer
+          // would legitimately read as "you have nothing to migrate".
+          if (this.migrate) {
+            this.safeEmit(await this.migrate.handle(cmd));
+          } else {
+            this.safeEmit({
+              kind: "migrate.error",
+              op: cmd.kind,
+              message: "migration is not configured in this build",
               at: this.now(),
             });
           }

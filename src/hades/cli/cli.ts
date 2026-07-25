@@ -31,6 +31,8 @@ import { runLiveShowdown, verifyLiveArtifacts } from "../bench/showdown-live";
 import { runSkillsHubCommand } from "./skills-hub-command";
 import type { ScheduleCommandDeps } from "./schedule-command";
 import type { StateCommandDeps } from "./state-command";
+import type { MigrateCommandDeps } from "./migrate-command";
+import type { InstallCommandDeps } from "./install-command";
 import { join } from "node:path";
 
 export interface CliResult {
@@ -79,6 +81,20 @@ export interface HadesCliDeps {
    *  `<dataDir>/state` root and the same persisted `cli` actor id, but
    *  without the real session/memory engine adapters `buildHadesCli` wires. */
   state?: () => StateCommandDeps;
+  /** Migration off Hermes/OpenClaw (`hades migrate`). A lazy factory so
+   *  building the CLI never probes the filesystem for foreign installs (nor
+   *  opens this install's memory/session stores) unless a migrate subcommand
+   *  actually runs; the result is cached after the first call so `plan` and
+   *  `apply` in one process share one set of engine handles. Absent ->
+   *  `defaultMigrateDeps()` (real `process.env`/home/platform, the same
+   *  `$HADES_DATA_DIR|.hades` data directory every other surface uses). */
+  migrate?: () => MigrateCommandDeps;
+  /** Installer/portable-bundle surface (`hades install`). A lazy factory so
+   *  building the CLI never probes the host (platform, PATH, writability)
+   *  unless an install subcommand actually runs; cached after the first call.
+   *  Absent -> `defaultInstallDeps()` (real `$HADES_REPO_ROOT`-or-cwd repo
+   *  root and the version read from that root's real package.json). */
+  install?: () => InstallCommandDeps;
   /** Skill-library directory for `hades skills hub` (agentskills.io interop).
    *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
    *  the same convention `hades skill` uses. */
@@ -95,7 +111,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -117,6 +133,10 @@ export class HadesCli {
   private scheduleDeps?: ScheduleCommandDeps;
   /** Cached result of the lazy `deps.state` factory (see HadesCliDeps). */
   private stateDeps?: StateCommandDeps;
+  /** Cached result of the lazy `deps.migrate` factory (see HadesCliDeps). */
+  private migrateDeps?: MigrateCommandDeps;
+  /** Cached result of the lazy `deps.install` factory (see HadesCliDeps). */
+  private installDeps?: InstallCommandDeps;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -170,6 +190,10 @@ export class HadesCli {
         return this.schedule(rest);
       case "state":
         return this.state(rest);
+      case "migrate":
+        return this.migrate(rest);
+      case "install":
+        return this.install(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -234,6 +258,13 @@ export class HadesCli {
         "                       status/list/get/set/delete/export/import/sync/watch/doctor",
         "                       (hash-chained journal, CRDT merge, cross-process safe —",
         "                       the SAME <dataDir>/state root the desktop app reads live)",
+        "  migrate <sub>        Move a real Hermes/OpenClaw install into Hades:",
+        "                       scan/plan/apply/report/selftest (deterministic plan,",
+        "                       transactional apply with hash-chained receipts + rollback,",
+        "                       API keys never printed; `apply` is a DRY RUN without --yes)",
+        "  install <sub>        Install/verify this build on a real machine:",
+        "                       plan/bundle/verify/doctor (launcher + PATH plan, portable",
+        "                       bundle with a sha256 manifest, tamper-checking verify)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -374,6 +405,35 @@ export class HadesCli {
       this.stateDeps = this.deps.state ? this.deps.state() : defaultStateDeps();
     }
     return runStateCommand(args, this.stateDeps);
+  }
+
+  /** `hades migrate scan|plan|apply|report|selftest` — the one-command move
+   *  off a real Hermes/OpenClaw install: discover it, read it into the
+   *  canonical IR, plan it deterministically, and (only with `--yes`) apply
+   *  it transactionally into THIS install's `<dataDir>`. Loaded lazily so
+   *  `hades help` never probes the filesystem for foreign installs; deps come
+   *  from the injected lazy factory when configured (`buildHadesCli` wires
+   *  this install's real dataDir there), else `defaultMigrateDeps()`. Cached
+   *  so `plan` and `apply` in one process share one set of engine handles. */
+  private async migrate(args: string[]): Promise<CliResult> {
+    const { runMigrateCommand, defaultMigrateDeps } = await import("./migrate-command");
+    if (!this.migrateDeps) {
+      this.migrateDeps = this.deps.migrate ? this.deps.migrate() : defaultMigrateDeps();
+    }
+    return runMigrateCommand(args, this.migrateDeps);
+  }
+
+  /** `hades install plan|bundle|verify|doctor` — the real installer planner
+   *  and portable-bundle builder (`../install/**`). Loaded lazily so
+   *  `hades help` never probes the host machine; deps come from the injected
+   *  lazy factory when configured, else `defaultInstallDeps()`. Cached so
+   *  repeated subcommands in one process share one host probe. */
+  private async install(args: string[]): Promise<CliResult> {
+    const { runInstallCommand, defaultInstallDeps } = await import("./install-command");
+    if (!this.installDeps) {
+      this.installDeps = this.deps.install ? this.deps.install() : defaultInstallDeps();
+    }
+    return runInstallCommand(args, this.installDeps);
   }
 
   private model(args: string[]): CliResult {
