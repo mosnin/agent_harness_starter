@@ -57,6 +57,18 @@ export {
   renderSkillTrustPane,
 } from "./skill-trust-pane";
 export type { SkillTrustPaneRow, SkillTrustPaneState } from "./skill-trust-pane";
+export {
+  initTrustGatePane,
+  trustGatePaneKey,
+  renderTrustGatePane,
+  domainNote,
+  SEPARATION_FLOOR,
+} from "./trust-gate-pane";
+export type {
+  TrustGatePaneDomainRow,
+  TrustGatePaneBudget,
+  TrustGatePaneState,
+} from "./trust-gate-pane";
 export { composeInit, composeText, composeKey, renderCompose } from "./compose";
 export type { ComposeState, ComposeEffect } from "./compose";
 export {

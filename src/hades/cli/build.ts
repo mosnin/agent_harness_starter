@@ -27,6 +27,8 @@ import type { ScheduleCommandDeps } from "./schedule-command";
 import type { StateCommandDeps } from "./state-command";
 import { defaultMigrateDeps } from "./migrate-command";
 import type { MigrateCommandDeps } from "./migrate-command";
+import { defaultTrustDeps } from "./trust-command";
+import type { TrustCommandDeps } from "./trust-command";
 import { SecretVault } from "../migrate/secrets";
 import { fileConfigAccess, resolveWorkspaceActor, workspaceRoot } from "../state/wiring";
 import { allAdapters } from "../state/domains";
@@ -360,6 +362,27 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     };
   };
 
+  // The unified trust gate (`hades trust`). Lazy: the ed25519 signing key is
+  // neither read nor minted, the hash-chained budget ledger is not opened,
+  // and the persisted per-domain conformal calibration is not loaded until a
+  // trust subcommand actually runs. Everything lives under
+  // `<dataDir>/trust/` — the SAME data dir every other surface uses, and the
+  // SAME root the desktop `trust.*` sidecar lane opens — so a certificate
+  // issued by `hades trust admit` in a terminal verifies in the desktop app,
+  // and both spend from one budget chain rather than two private copies.
+  // Without persistence the whole stack is redirected into a throwaway temp
+  // data dir (real key file, real ledger, real calibration file — just not in
+  // the user's data dir), matching the profile/schedule/state/migrate stores
+  // above. Memoized so `calibrate` then `admit` in one process share it.
+  let trustDataDir: string | undefined;
+  const resolveTrustDataDir = (): string => {
+    if (trustDataDir === undefined) {
+      trustDataDir = persist ? config.dataDir : mkdtempSync(join(tmpdir(), "hades-trust-"));
+    }
+    return trustDataDir;
+  };
+  const trust = (): TrustCommandDeps => defaultTrustDeps(process.env, { dataDir: resolveTrustDataDir() });
+
   return new HadesCli({
     version: HADES_VERSION,
     models,
@@ -373,6 +396,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     schedule,
     state,
     migrate,
+    trust,
     // `hades skills hub` reads/writes the same on-disk skill library
     // `hades skill` manages ($HADES_SKILLS_DIR wins, matching skills-command).
     skillsDir: process.env.HADES_SKILLS_DIR ?? `${config.dataDir}/skills`,

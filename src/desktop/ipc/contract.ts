@@ -67,6 +67,13 @@ import {
   isMigrateEvent,
 } from "./migrate-contract";
 import type { MigrateCommand, MigrateEvent } from "./migrate-contract";
+import {
+  TRUST_COMMAND_KINDS,
+  TRUST_EVENT_KINDS,
+  isTrustCommand,
+  isTrustEvent,
+} from "./trust-contract";
+import type { TrustCommand, TrustEvent } from "./trust-contract";
 
 // Re-exported so consumers can treat this module as the single import point
 // for the whole desktop wire format.
@@ -180,6 +187,26 @@ export {
   MIGRATE_EVENT_KINDS,
   MIGRATE_ARTIFACT_KINDS,
 } from "./migrate-contract";
+export type {
+  TrustCommand,
+  TrustEvent,
+  TrustVerifierView,
+  TrustDomainView,
+  TrustBudgetView,
+  TrustStatusView,
+  TrustCalibrationView,
+} from "./trust-contract";
+export {
+  isTrustCommand,
+  isTrustEvent,
+  isTrustVerifierView,
+  isTrustDomainView,
+  isTrustBudgetView,
+  isTrustStatusView,
+  isTrustCalibrationView,
+  TRUST_COMMAND_KINDS,
+  TRUST_EVENT_KINDS,
+} from "./trust-contract";
 
 // ---------------------------------------------------------------------------
 // View models
@@ -277,7 +304,8 @@ export type Command =
   | GatewayCommand
   | ScheduleCommand
   | StateCommand
-  | MigrateCommand;
+  | MigrateCommand
+  | TrustCommand;
 
 export type AppEvent =
   | { kind: "runtime.status"; running: boolean; mode: string; poolSize: number }
@@ -298,7 +326,8 @@ export type AppEvent =
   | GatewayEvent
   | ScheduleEvent
   | StateEvent
-  | MigrateEvent;
+  | MigrateEvent
+  | TrustEvent;
 
 const COMMAND_KINDS = [
   "runtime.start",
@@ -316,6 +345,7 @@ const COMMAND_KINDS = [
   ...SCHEDULE_COMMAND_KINDS,
   ...STATE_COMMAND_KINDS,
   ...MIGRATE_COMMAND_KINDS,
+  ...TRUST_COMMAND_KINDS,
 ] as const;
 
 const EVENT_KINDS = [
@@ -335,6 +365,7 @@ const EVENT_KINDS = [
   ...SCHEDULE_EVENT_KINDS,
   ...STATE_EVENT_KINDS,
   ...MIGRATE_EVENT_KINDS,
+  ...TRUST_EVENT_KINDS,
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -524,8 +555,8 @@ export function isCommand(x: unknown): x is Command {
       return isString(x.name) && isString(x.content);
     default:
       // Fleet + fleet-provision + learning + gateway + schedule + state +
-      // migrate commands are validated by their own contract modules'
-      // guards; anything none of them recognizes is not a Command.
+      // migrate + trust commands are validated by their own contract
+      // modules' guards; anything none of them recognizes is not a Command.
       return (
         isFleetCommand(x) ||
         isFleetProvisionCommand(x) ||
@@ -533,7 +564,8 @@ export function isCommand(x: unknown): x is Command {
         isGatewayCommand(x) ||
         isScheduleCommand(x) ||
         isStateCommand(x) ||
-        isMigrateCommand(x)
+        isMigrateCommand(x) ||
+        isTrustCommand(x)
       );
   }
 }
@@ -562,8 +594,8 @@ export function isAppEvent(x: unknown): x is AppEvent {
       return isString(x.line) && isNumber(x.at);
     default:
       // Fleet + fleet-provision + learning + gateway + schedule + state +
-      // migrate events are validated by their own contract modules' guards;
-      // anything none of them recognizes is not an AppEvent.
+      // migrate + trust events are validated by their own contract modules'
+      // guards; anything none of them recognizes is not an AppEvent.
       return (
         isFleetEvent(x) ||
         isFleetProvisionEvent(x) ||
@@ -571,7 +603,8 @@ export function isAppEvent(x: unknown): x is AppEvent {
         isGatewayEvent(x) ||
         isScheduleEvent(x) ||
         isStateEvent(x) ||
-        isMigrateEvent(x)
+        isMigrateEvent(x) ||
+        isTrustEvent(x)
       );
   }
 }

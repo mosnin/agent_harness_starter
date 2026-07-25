@@ -35,10 +35,12 @@ import {
   type ScheduleHandler,
   type StateHandler,
   type MigrateHandler,
+  type TrustHandler,
   type InferenceInfo,
 } from "./core/sidecar";
 import { StateService } from "./core/state-service";
 import { MigrateService } from "./core/migrate-service";
+import { TrustService } from "./core/trust-service";
 import { defaultMigrateDeps } from "../hades/cli/migrate-command";
 import type { StateEvent } from "./ipc/state-contract";
 import { createWorkspaceStack } from "../hades/state/wiring";
@@ -120,6 +122,15 @@ export interface RunSidecarOptions {
    *  first `migrate.*` command so sidecar startup never probes the
    *  filesystem for foreign installs unasked. */
   migrate?: MigrateHandler;
+  /** Real trust-gate backend for `trust.*`; defaults to a
+   *  {@link TrustService} over the REAL `openTrustStack()` rooted at this
+   *  install's `<dataDir>/trust` — the SAME registry, ed25519 signing
+   *  identity, hash-chained budget and persisted calibration `hades trust`
+   *  uses, so a certificate issued in a terminal verifies here and both
+   *  surfaces spend from one budget chain. Built lazily on the first
+   *  `trust.*` command so sidecar startup never mints a signing key or opens
+   *  the ledger unasked. */
+  trust?: TrustHandler;
 }
 
 /**
@@ -447,6 +458,32 @@ export async function runSidecar(
     };
   }
 
+  // Real trust lane: the same `openTrustStack()` handles `hades trust`
+  // drives, rooted at the same `<dataDir>/trust`. Lazy — no signing key is
+  // minted or read, and no budget ledger is opened, until a `trust.*`
+  // command actually arrives — and the service refuses to persist a
+  // calibration without `confirm: true`.
+  let trust = opts.trust;
+  if (!trust) {
+    let service: TrustService | undefined;
+    trust = {
+      handle: async (cmd) => {
+        try {
+          service ??= new TrustService({
+            stackOptions: { env: process.env, dataDir: loadConfig({ env: process.env }).dataDir },
+            now,
+          });
+          return await service.handle(cmd);
+        } catch (err) {
+          // TrustService.handle catches its own failures; this only fires if
+          // constructing it (or resolving config) throws. Report the REAL
+          // reason rather than a synthesized healthy-looking status.
+          return { kind: "trust.error", op: cmd.kind, message: errMsg(err), at: now() };
+        }
+      },
+    };
+  }
+
   const sidecar = new Sidecar({
     factory,
     now,
@@ -466,6 +503,7 @@ export async function runSidecar(
     schedule,
     state,
     migrate,
+    trust,
   });
 
   try {

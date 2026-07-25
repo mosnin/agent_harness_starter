@@ -298,3 +298,77 @@ and reachable from the terminal AND the desktop app.
   terminal output, JSON dumps, IPC events, receipts — carries env-var NAMES.
 - Also wired this cycle: `hades install plan|bundle|verify|doctor`, which
   shipped previously but had no route in the command router.
+
+## Hades > Hermes, Phase 15 — the unified trust gate (`src/hades/trust/`)
+
+Every verification primitive this repo had was real but *disconnected*: the
+STYX ensemble, the conformal gate, the certificate authority, the tool
+verifiers, the memory write-guard and the user-model auditor each knew their
+own corner and nothing else. This phase joins them into ONE admission
+decision every emitted output passes, and makes it reachable from the
+terminal, the desktop app and the TUI.
+
+- **The spine** (`trust/registry.ts`): one canonical shape every subsystem
+  speaks (`TrustSubject` / `UniversalVerifier` / `UniversalVerdict` /
+  `FusedVerification`) plus `VerifierRegistry`, which selects, runs
+  (timeout- and throw-isolated), normalizes and fuses verdicts through the
+  REAL `WeakVerifierEnsemble`. `normalizeVerdict` is the single choke point
+  every raw verifier return passes: malformed shapes, non-boolean `passed`,
+  out-of-range confidence and thrown/timed-out verifiers all abstain with
+  machine-readable codes and are never counted as a pass. A verdict claiming
+  a stronger tier than its verifier's registered one is clamped; the fused
+  tier is always the WEAKEST contributing tier, so a cheap T4 self-check can
+  never borrow an oracle's credibility by co-voting. `subjectKey` /
+  `canonicalTrace` encode every field individually, so no delimiter-boundary
+  trick can make two distinct subjects collide.
+- **Adapters** (`trust/action-adapters.ts`, `trust/emission-adapters.ts`):
+  every verifier the build already ships, adapted and never re-implemented —
+  the ten real `toolVerifiers()` (tier/prior read verbatim from the real
+  calibration table), the real `ProvenanceLedger` chain check, the real
+  `verifyMemoryWrite`, the real `auditUserModel` — plus two new deterministic
+  verifiers for the domains that had none: outbound-message certificate
+  binding and procedure-run structure.
+- **The gate** (`trust/unified-gate.ts`): registry fusion -> a hard
+  strong-tier-dissent veto (a crowd of weak-tier PASSes may never out-vote a
+  T0/T1 FAIL) -> the per-domain split-conformal threshold -> the tier
+  confidence floor -> the trust budget -> a REAL ed25519 certificate. Its
+  invariant, asserted everywhere: `accepted === (certificate !== undefined)`.
+- **The budget** (`trust/budget.ts`): a durable, hash-chained, tamper-evident
+  ledger of every unit of residual risk ever spent. Any edit, deletion,
+  reorder or forged tail is caught by recomputing every hash from the
+  persisted bytes; a failed chain refuses further spending and reports the
+  budget as fully spent rather than trusting numbers edited to look safer.
+- **The checkpoint** (`trust/risk-eval.ts`): drives the real eval corpus
+  through an injected admission port, grades with each task's own
+  ground-truth grader (never the gate's score), and independently re-audits
+  every certificate issued. A zero-coverage run reports DEGENERATE, never
+  PASS.
+- **Central wiring** (`trust/wiring.ts`): `openTrustStack()` — the one
+  assembly the CLI, the desktop sidecar and anything added later share, so
+  all of them use one verifier set, one ed25519 identity (persisted 0600 at
+  `<dataDir>/trust/signing-key`, so a certificate issued in a terminal still
+  verifies tomorrow), one budget chain and one persisted calibration.
+- **Surfaces**: `hades trust status|verifiers|calibrate|admit|budget|riskeval|doctor`
+  (`npm run trust:*`), the desktop `trust.*` IPC lane
+  (`src/desktop/ipc/trust-contract.ts`, `src/desktop/core/trust-service.ts`)
+  where calibrating requires explicit confirmation and the private key never
+  crosses the wire, and a pure TRUST GATE TUI pane
+  (`src/swarm-runtime/tui/trust-gate-pane.ts`).
+
+### Honesty: what this gate will not claim
+
+Calibration is fitted only from REAL labeled observations — either recorded
+from graded admissions or derived by `--from-eval`, which fuses genuine
+verifier votes over the real `EVAL_TASKS` corpus and labels every point with
+that task's own grader. There is no default threshold and no seeded
+calibration set anywhere; an uncalibrated domain abstains and says so.
+
+Because conformal calibration cannot manufacture discrimination the
+verifiers do not have, the surfaces report the rank AUC alongside every fit
+and `hades trust doctor` FAILS a "calibrated" domain whose scores do not
+separate correct from wrong. On this build the `procedure` domain's only
+verifier is structural, so `--from-eval` correctly yields AUC 0.5 and a
+`+Infinity` threshold — an honest abstain-on-everything, reported as such
+rather than dressed up as a working gate. `doctor` also FAILS the domains
+that ship a single verifier (`procedure`, `message`), because a lone voter
+is always `degraded-evidence` and can never certify however it is calibrated.

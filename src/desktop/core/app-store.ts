@@ -194,6 +194,17 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
     case "migrate.error":
       return state;
 
+    // Trust-gate events are read-only reports about the gate's configuration
+    // and accounting (`./trust-service.ts`); the renderer renders them
+    // directly. Like the fleet/learning/state/migrate lanes above, they
+    // deliberately do not touch the swarm app state.
+    case "trust.status":
+    case "trust.verifiers":
+    case "trust.calibrated":
+    case "trust.budget":
+    case "trust.error":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.

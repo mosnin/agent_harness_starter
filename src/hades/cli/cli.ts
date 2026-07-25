@@ -33,6 +33,7 @@ import type { ScheduleCommandDeps } from "./schedule-command";
 import type { StateCommandDeps } from "./state-command";
 import type { MigrateCommandDeps } from "./migrate-command";
 import type { InstallCommandDeps } from "./install-command";
+import type { TrustCommandDeps } from "./trust-command";
 import { join } from "node:path";
 
 export interface CliResult {
@@ -95,6 +96,15 @@ export interface HadesCliDeps {
    *  Absent -> `defaultInstallDeps()` (real `$HADES_REPO_ROOT`-or-cwd repo
    *  root and the version read from that root's real package.json). */
   install?: () => InstallCommandDeps;
+  /** Unified trust gate (`hades trust`). A lazy factory so building the CLI
+   *  never mints/reads the ed25519 signing key, opens the hash-chained
+   *  budget ledger, or loads the persisted conformal calibration unless a
+   *  trust subcommand actually runs; the result is cached after the first
+   *  call so `calibrate` and `admit` in one process share one stack (one
+   *  registry, one CA identity, one budget chain). Absent ->
+   *  `defaultTrustDeps()` over the same `$HADES_DATA_DIR|.hades` data
+   *  directory every other surface uses. */
+  trust?: () => TrustCommandDeps;
   /** Skill-library directory for `hades skills hub` (agentskills.io interop).
    *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
    *  the same convention `hades skill` uses. */
@@ -111,7 +121,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -137,6 +147,8 @@ export class HadesCli {
   private migrateDeps?: MigrateCommandDeps;
   /** Cached result of the lazy `deps.install` factory (see HadesCliDeps). */
   private installDeps?: InstallCommandDeps;
+  /** Cached result of the lazy `deps.trust` factory (see HadesCliDeps). */
+  private trustDeps?: TrustCommandDeps;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -194,6 +206,8 @@ export class HadesCli {
         return this.migrate(rest);
       case "install":
         return this.install(rest);
+      case "trust":
+        return this.trust(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -265,6 +279,13 @@ export class HadesCli {
         "  install <sub>        Install/verify this build on a real machine:",
         "                       plan/bundle/verify/doctor (launcher + PATH plan, portable",
         "                       bundle with a sha256 manifest, tamper-checking verify)",
+        "  trust <sub>          The unified trust gate every emitted output passes:",
+        "                       status/verifiers/calibrate/admit/budget/riskeval/doctor",
+        "                       (one registry over every shipped verifier, per-domain",
+        "                       split-conformal thresholds fitted from REAL labeled runs,",
+        "                       ed25519 certificates, and a hash-chained trust budget;",
+        "                       an uncalibrated or non-discriminating domain is reported",
+        "                       as such and abstains — it is never given a fake threshold)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -434,6 +455,20 @@ export class HadesCli {
       this.installDeps = this.deps.install ? this.deps.install() : defaultInstallDeps();
     }
     return runInstallCommand(args, this.installDeps);
+  }
+
+  /** `hades trust status|verifiers|calibrate|admit|budget|riskeval|doctor` —
+   *  the unified trust gate. The deps factory is lazy AND cached so a single
+   *  process shares one registry, one ed25519 signing identity, one
+   *  hash-chained budget and one persisted calibration across subcommands;
+   *  the dynamic import keeps the ed25519/fs cost off every other command's
+   *  startup path. */
+  private async trust(args: string[]): Promise<CliResult> {
+    const { runTrustCommand, defaultTrustDeps } = await import("./trust-command");
+    if (!this.trustDeps) {
+      this.trustDeps = this.deps.trust ? this.deps.trust() : defaultTrustDeps();
+    }
+    return runTrustCommand(args, this.trustDeps);
   }
 
   private model(args: string[]): CliResult {
