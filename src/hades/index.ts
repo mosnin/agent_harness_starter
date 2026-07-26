@@ -42,3 +42,4 @@ export * from "./trust/index";
 export * from "./market/index";
 export * from "./routing/index";
 export * from "./eval/index";
+export * from "./dataset/index";

@@ -37,6 +37,7 @@ import type { TrustCommandDeps } from "./trust-command";
 import type { MarketCommandDeps } from "./market-command";
 import type { RouteCommandDeps } from "./route-command";
 import type { EvalCliDeps } from "./eval-command";
+import type { DatasetCliDeps } from "./dataset-command";
 import { join } from "node:path";
 
 export interface CliResult {
@@ -130,6 +131,15 @@ export interface HadesCliDeps {
    *  Absent -> `defaultEvalCliDeps()` over the same `$HADES_DATA_DIR|.hades`
    *  data directory every other surface uses. */
   eval?: () => EvalCliDeps;
+  /** Verified-trajectory data flywheel (`hades dataset`). Lazy for the same
+   *  reason `eval` is: `VerifiedTrajectoryCorpus` takes a real cross-process
+   *  lock on `<dataDir>/dataset/corpus/.lock` and writes a header on
+   *  construction, so building the CLI — or running `hades dataset help` —
+   *  must never open it. Cached after the first dataset subcommand runs, so
+   *  one process shares one hash-chained corpus across subcommands.
+   *  Absent -> `defaultDatasetCliDeps()` over the same `$HADES_DATA_DIR|.hades`
+   *  data directory every other surface uses. */
+  dataset?: () => DatasetCliDeps;
   /** Skill-library directory for `hades skills hub` (agentskills.io interop).
    *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
    *  the same convention `hades skill` uses. */
@@ -146,7 +156,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "cluster", "eval", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "cluster", "eval", "dataset", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -180,6 +190,8 @@ export class HadesCli {
   private routeDeps?: RouteCommandDeps;
   /** Cached result of the lazy `deps.eval` factory (see HadesCliDeps). */
   private evalDeps?: EvalCliDeps;
+  /** Cached result of the lazy `deps.dataset` factory (see HadesCliDeps). */
+  private datasetDeps?: DatasetCliDeps;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -247,6 +259,8 @@ export class HadesCli {
         return this.cluster(rest);
       case "eval":
         return this.eval(rest);
+      case "dataset":
+        return this.dataset(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -365,6 +379,18 @@ export class HadesCli {
         "                       recorded history for the revision that caused it. An",
         "                       unmeasured lane reports NaN and says why; it is never a",
         "                       fabricated 0 that would read as a passing measurement)",
+        "  dataset <sub>        Verified-trajectory data flywheel:",
+        "                       export/import/stats/verify/finetune",
+        "                       (admits ONLY gate-verified trajectories into a",
+        "                       hash-chained corpus -- an unverified or tampered one is",
+        "                       provably excluded -- and exports a byte-reproducible",
+        "                       sharded dataset with a hash-pinned manifest. `verify`",
+        "                       RECOMPUTES everything from the bytes on disk and trusts",
+        "                       nothing the manifest claims: exit 2 = the dataset failed",
+        "                       audit, exit 3 = the corpus's own chain is broken, so it",
+        "                       is a CI gate as-is. `finetune` is OFF by default and",
+        "                       spawns nothing without --enable, a REAL local model and a",
+        "                       clean audit; no loss/accuracy is ever synthesized)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -630,6 +656,27 @@ export class HadesCli {
       this.evalDeps = this.deps.eval ? this.deps.eval() : defaultEvalCliDeps();
     }
     return runEvalCommand(args, this.evalDeps);
+  }
+
+  /** `hades dataset export|import|stats|verify|finetune` — the
+   *  verified-trajectory data flywheel. Lazy AND cached for the same reasons
+   *  `eval` is: the corpus is a cross-process-locked, hash-chained on-disk
+   *  ledger, so one process must share ONE `VerifiedTrajectoryCorpus` across
+   *  subcommands rather than open (and lock) it twice; the dynamic import
+   *  also keeps the encoder, the gzip exporter and the ed25519 auditor off
+   *  every other command's startup path.
+   *
+   *  Like `eval`, this subcommand can exit with 2 or 3: 2 means
+   *  `verify` found the dataset's own bytes untrustworthy and 3 means the
+   *  corpus it claims to be built from has a broken hash chain, so
+   *  `hades dataset verify --with-corpus` is a CI gate as-is. */
+  private async dataset(args: string[]): Promise<CliResult> {
+    const { runDatasetCommand } = await import("./dataset-command");
+    if (!this.datasetDeps) {
+      const { defaultDatasetCliDeps } = await import("./dataset-deps");
+      this.datasetDeps = this.deps.dataset ? this.deps.dataset() : defaultDatasetCliDeps();
+    }
+    return runDatasetCommand(args, this.datasetDeps);
   }
 
   private model(args: string[]): CliResult {
