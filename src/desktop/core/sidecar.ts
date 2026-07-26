@@ -1,0 +1,1193 @@
+/**
+ * Sidecar brain — the headless engine behind the Hades native desktop app.
+ *
+ * The Tauri window never talks to the swarm directly. It spawns this sidecar
+ * as a Node process, writes {@link Command}s to it, and reads {@link AppEvent}s
+ * back (see `src/desktop/ipc/contract.ts` for the wire format). This module is
+ * the process-independent core of that bridge: given a `Command`, drive the
+ * real swarm (`src/swarm-runtime`) and translate whatever it reports into the
+ * IPC contract's view models.
+ *
+ * `Sidecar` never talks to `buildSwarm`/`SwarmManager` directly — it depends on
+ * the small {@link SwarmHandle} surface, built for the real engine by
+ * {@link realSwarmFactory}. That keeps the class fully unit-testable with a
+ * scripted fake and keeps this file the only place that knows how to *drive* a
+ * swarm; everything else here just maps shapes and guards failures.
+ */
+
+import { EventEmitter } from "node:events";
+import type {
+  AppEvent,
+  Command,
+  FleetCommand,
+  FleetEvent,
+  FleetProvisionCommand,
+  FleetProvisionEvent,
+  GatewayCommand,
+  GatewayEvent,
+  LearningCommand,
+  LearningEvent,
+  ScheduleCommand,
+  ScheduleEvent,
+  StateCommand,
+  MigrateCommand,
+  MigrateEvent,
+  TrustCommand,
+  TrustEvent,
+  MarketCommand,
+  MarketEvent,
+  RouteCommand,
+  RouteEvent,
+  ClusterCommand,
+  ClusterEvent,
+  StateEvent,
+  MetricsView,
+  RunView,
+  TaskView,
+  VerificationView,
+  WorkerView,
+} from "../ipc/contract";
+import {
+  isMetricsView,
+  isRunView,
+  isTaskView,
+  isVerificationView,
+  isWorkerView,
+} from "../ipc/contract";
+import { buildSwarm } from "../../swarm-runtime/server/build-swarm";
+import type { ContainerProvider } from "../../swarm-runtime/types";
+
+// ---------------------------------------------------------------------------
+// The minimal surface the sidecar needs from a swarm.
+// ---------------------------------------------------------------------------
+
+export interface SwarmHandle {
+  dispatchGoal(objective: string): Promise<{ goalId: string }> | { goalId: string };
+  cancelGoal?(goalId: string): void | Promise<void>;
+  scalePool?(size: number): void | Promise<void>;
+  killWorker?(id: string): void | Promise<void>;
+  snapshot(): { workers: unknown[]; tasks: unknown[]; goals?: unknown[]; verifications?: unknown[]; metrics?: unknown };
+  /** If the underlying engine emits progress events, subscribe here. */
+  on?(event: string, cb: (payload: unknown) => void): void;
+  /**
+   * The engine's RAW event emitter (the `SwarmManager` itself for
+   * `realSwarmFactory`), preserving multi-argument event payloads — unlike
+   * {@link SwarmHandle.on}, which collapses `(task, report)` into a single
+   * array payload. The swarm learning loop
+   * (`src/hades/backends/swarm-learning.ts`) needs the raw arity to read
+   * `task:verified`'s `(task, report)` pair, so it attaches here. Optional:
+   * a fake handle without it simply gets no learning loop attached.
+   */
+  swarm?: {
+    on(event: string, listener: (...args: unknown[]) => void): unknown;
+    off?(event: string, listener: (...args: unknown[]) => void): unknown;
+  };
+  close?(): Promise<void> | void;
+}
+
+export type SwarmFactory = (opts: {
+  mode: "inline" | "process" | "docker";
+  poolSize: number;
+}) => Promise<SwarmHandle> | SwarmHandle;
+
+/**
+ * Handles skills commands, returning the `AppEvent`s to emit. Structurally
+ * matches `SkillsService.handle` (`./skills-service.ts`) so central wiring can
+ * pass a real service; left undefined, skills commands stay a harmless no-op.
+ */
+export interface SkillsHandler {
+  handle(cmd: Command): Promise<AppEvent[]>;
+}
+
+/**
+ * Handles fleet commands, returning the `FleetEvent`s to emit. Structurally
+ * matches `FleetService.handle` (`./fleet-service.ts`) so central wiring can
+ * pass a real service backed by a real `BackendManager`/`FleetSupervisor`
+ * (see `./fleet-wiring.ts`); left undefined, fleet commands report an honest
+ * `fleet.error` instead of hanging the caller.
+ */
+export interface FleetHandler {
+  handle(cmd: FleetCommand): Promise<FleetEvent[]>;
+}
+
+/**
+ * Handles `fleet.provision` commands, returning the `FleetProvisionEvent`s to
+ * emit. Structurally matches `FleetProvisionService` (`./fleet-provision-service.ts`)
+ * so central wiring can pass a real service backed by the bandit-routed
+ * provisioner + `FleetSupervisor` + registry adoption (see `./fleet-wiring.ts`);
+ * left undefined, a provision command reports an honest `fleet.provision.error`
+ * instead of hanging the caller. `restoredSnapshot()` is emitted once per
+ * `runtime.start` when a crash-recovery restore actually ran (`undefined`
+ * means none did — nothing is emitted, never an empty fabricated restore).
+ */
+export interface FleetProvisionHandler {
+  handle(cmd: FleetProvisionCommand): Promise<FleetProvisionEvent[]>;
+  restoredSnapshot(): Promise<FleetProvisionEvent | undefined>;
+}
+
+/**
+ * Handles `learning.get`, calling `emit` for every resulting `LearningEvent`.
+ * Structurally matches `LearningService.handle` (`./learning-service.ts`) so
+ * central wiring can pass a real service (live loop preferred, durable
+ * snapshot fallback); left undefined, a learning command reports an honest
+ * `learning.error` instead of hanging the caller.
+ */
+export interface LearningStatusHandler {
+  handle(cmd: LearningCommand, emit: (e: LearningEvent) => void): Promise<void>;
+}
+
+/**
+ * Handles `gateway.*` commands, calling `emit` for every resulting
+ * `GatewayEvent`. Structurally matches `GatewayService.handle`
+ * (`./gateway-service.ts`) so central wiring can pass a real service over the
+ * real `GatewayProcess`/`PairingGuard`; left undefined, a gateway command
+ * reports an honest `gateway.error` instead of hanging the caller.
+ */
+export interface GatewayHandler {
+  handle(cmd: GatewayCommand, emit: (e: GatewayEvent) => void): Promise<void>;
+}
+
+/**
+ * Handles `schedule.*` commands, resolving to the single `ScheduleEvent`
+ * reply. Structurally matches `ScheduleService.handle`
+ * (`./schedule-service.ts`) so central wiring can pass a real service over
+ * the real `JsonFileJobStore` + `SchedulerRunner`; left undefined, a schedule
+ * command reports an honest `schedule.error` instead of hanging the caller.
+ */
+export interface ScheduleHandler {
+  handle(cmd: ScheduleCommand): Promise<ScheduleEvent>;
+}
+
+/**
+ * Handles `state.*` commands over the SHARED workspace store
+ * (`src/hades/state/**`), resolving to the `StateEvent`s to emit.
+ * Structurally matches `StateService` (`./state-service.ts`) so central
+ * wiring can pass a real service over the real `WorkspaceStore` +
+ * `SyncEngine` + `WorkspaceFeed` rooted at the same `<dataDir>/state` the
+ * `hades state` CLI writes.
+ *
+ * `subscribe` is how live deltas reach the renderer: the sidecar registers
+ * ONE listener at construction and forwards every pushed `StateEvent`
+ * (`state.changed`) out-of-band, so a `hades state set` typed into a
+ * terminal shows up in the running desktop app without the renderer having
+ * asked for it. Left undefined, a state command reports an honest
+ * `state.error` instead of hanging the caller.
+ */
+export interface StateHandler {
+  handle(cmd: StateCommand): Promise<StateEvent[]>;
+  subscribe?(emit: (e: StateEvent) => void): () => void;
+  close?(): void;
+}
+
+/**
+ * Handles `migrate.*` commands over the REAL migration engine
+ * (`src/hades/migrate/**`), resolving to the `MigrateEvent` to emit.
+ * Structurally matches `MigrateService` (`./migrate-service.ts`) so central
+ * wiring can pass a service driving the SAME pipeline `hades migrate` runs
+ * (discover -> read -> plan -> transactional apply against this install's
+ * `<dataDir>`). Left undefined, a migrate command reports an honest
+ * `migrate.error` instead of hanging the caller — it never pretends a scan
+ * found nothing.
+ */
+export interface MigrateHandler {
+  handle(cmd: MigrateCommand): Promise<MigrateEvent>;
+}
+
+/**
+ * Handles `trust.*` commands over the REAL unified trust gate
+ * (`src/hades/trust/**`), resolving to the `TrustEvent` to emit.
+ * Structurally matches `TrustService` (`./trust-service.ts`) so central
+ * wiring can pass a service driving the SAME `openTrustStack()` handles
+ * `hades trust` runs — one verifier registry, one ed25519 signing identity,
+ * one hash-chained budget and one persisted calibration rooted at this
+ * install's `<dataDir>/trust`. Left undefined, a trust command reports an
+ * honest `trust.error` instead of hanging the caller — it never pretends
+ * the gate is configured and healthy when nothing is wired.
+ */
+export interface TrustHandler {
+  handle(cmd: TrustCommand): Promise<TrustEvent>;
+}
+
+/**
+ * Handles `market.*` commands over the REAL verified-work market
+ * (`src/hades/market/**`), resolving to the `MarketEvent` to emit.
+ * Structurally matches `MarketService` (`./market-service.ts`) so central
+ * wiring can pass a service driving the SAME `openMarket()` handles
+ * `hades market` runs — one hash-chained reputation ledger, one economy, one
+ * certificate replay registry and one trusted ed25519 issuer rooted at this
+ * install's `<dataDir>`. Left undefined, a market command reports an honest
+ * `market.error` instead of hanging the caller — it never pretends an empty
+ * market is a healthy one.
+ */
+export interface MarketHandler {
+  handle(cmd: MarketCommand): Promise<MarketEvent>;
+}
+
+/**
+ * Handles `route.*` commands over the REAL budget-constrained router
+ * (`src/hades/routing/**`), resolving to the `RouteEvent` to emit.
+ * Structurally matches `RouteService` (`./route-service.ts`) so central
+ * wiring can pass a service driving the SAME `openRouter()` handles
+ * `hades route` runs — one arm catalog, one measured cost model, one bandit
+ * posterior, one budget and one hash-chained routing ledger over this
+ * install's `<dataDir>`. Left undefined, a route command reports an honest
+ * `route.error` instead of hanging the caller — it never pretends an
+ * unconfigured router is an idle one.
+ */
+export interface RouteHandler {
+  handle(cmd: RouteCommand): Promise<RouteEvent>;
+}
+
+/**
+ * Handles `cluster.*` commands over the REAL multi-node fabric
+ * (`src/swarm-runtime/distributed/**`), resolving to the `ClusterEvent` to
+ * emit. Structurally matches `ClusterService` (`./cluster-service.ts`) so
+ * central wiring can pass a service driving the SAME `buildClusterFabric()`
+ * entry point `hades cluster` runs — real SWIM membership, real fencing-token
+ * leases, real signed federation links, the real verification gate and real
+ * ed25519 certificates. Left undefined, a cluster command reports an honest
+ * `cluster.error` instead of hanging the caller — it never pretends an
+ * unconfigured multi-node layer is a healthy idle cluster.
+ */
+export interface ClusterHandler {
+  handle(cmd: ClusterCommand): Promise<ClusterEvent>;
+}
+
+/** Truthful description of what inference backs this run — surfaced as a startup log. */
+export interface InferenceInfo {
+  kind: "real" | "mock";
+  detail: string;
+}
+
+export interface SidecarOptions {
+  /** Defaults to {@link realSwarmFactory}. */
+  factory?: SwarmFactory;
+  emit: (e: AppEvent) => void;
+  now?: () => number;
+  /** Real skills backend; when set, `skills.list`/`skills.save` do real work instead of no-op. */
+  skills?: SkillsHandler;
+  /** Real fleet backend; when set, `fleet.*` commands do real work. */
+  fleet?: FleetHandler;
+  /** Real fleet-provision backend; when set, `fleet.provision` does real work
+   *  and a real crash-recovery restore (if one ran) is reported once per
+   *  `runtime.start` as a `fleet.restored` event. */
+  provision?: FleetProvisionHandler;
+  /** When set, an honest inference-mode line is logged on `runtime.start`. */
+  inference?: InferenceInfo;
+  /**
+   * Self-improving routing loop hook. When set AND the started handle
+   * exposes its raw engine emitter ({@link SwarmHandle.swarm}), the sidecar
+   * attaches it after every `runtime.start` and detaches it on stop/close.
+   * Central wiring passes `RealFleet.attachLearning` (`./fleet-wiring.ts`),
+   * which wires the REAL `SwarmOutcomeFeed` -> shared route bandit. A
+   * throwing attach degrades to an honest log line, never a dead runtime.
+   */
+  learning?: (swarm: NonNullable<SwarmHandle["swarm"]>) => Promise<{ detach(): Promise<void> }>;
+  /**
+   * Real learning-status backend for `learning.get`; when set, the desktop's
+   * learning card gets a real live-or-snapshot status. Left undefined, the
+   * command reports an honest `learning.error` rather than silence.
+   */
+  learningStatus?: LearningStatusHandler;
+  /**
+   * Real gateway backend for `gateway.status.get` / `gateway.pair.issue`;
+   * when set (central wiring passes a `GatewayService` over the real
+   * `GatewayProcess` + `PairingGuard`), those commands do real work. Left
+   * undefined, a gateway command reports an honest `gateway.error` rather
+   * than silence.
+   */
+  gateway?: GatewayHandler;
+  /**
+   * Real scheduler backend for `schedule.*` commands; when set (central
+   * wiring passes a `ScheduleService` over the real `JsonFileJobStore` +
+   * `SchedulerRunner`), those commands do real work against the SAME
+   * `<dataDir>/schedule.json` the `hades schedule` CLI uses. Left undefined,
+   * a schedule command reports an honest `schedule.error` rather than
+   * silence.
+   */
+  schedule?: ScheduleHandler;
+  /**
+   * Real shared-workspace backend for `state.*` commands; when set (central
+   * wiring passes a `StateService` over the real `WorkspaceStore` +
+   * `SyncEngine` + `WorkspaceFeed`), those commands read and write the SAME
+   * `<dataDir>/state` journal the `hades state` CLI does, and the handler's
+   * live feed is fanned straight out to the renderer as `state.changed`.
+   * Left undefined, a state command reports an honest `state.error` rather
+   * than silence.
+   */
+  state?: StateHandler;
+  /**
+   * Real migration backend for `migrate.*` commands; when set (central
+   * wiring passes a `MigrateService` over the real discover/read/plan/apply
+   * pipeline rooted at this install's `<dataDir>`), the desktop can move a
+   * Hermes/OpenClaw install in without dropping to a terminal. Left
+   * undefined, a migrate command reports an honest `migrate.error` rather
+   * than an empty result that would read as "nothing to import".
+   */
+  migrate?: MigrateHandler;
+  /**
+   * Real trust-gate backend for `trust.*` commands; when set (central wiring
+   * passes a `TrustService` over the real `openTrustStack()`), the desktop
+   * reads the SAME verifier registry, calibration, budget chain and signing
+   * identity the `hades trust` CLI does. Left undefined, a trust command
+   * reports an honest `trust.error` rather than an empty status a renderer
+   * would read as "the gate is fine".
+   */
+  trust?: TrustHandler;
+  /**
+   * Real market backend for `market.*` commands; when set (central wiring
+   * passes a `MarketService` over the real `openMarket()`), the desktop reads
+   * the SAME reputation ledger, economy, replay registry and trusted issuer
+   * the `hades market` CLI does. Left undefined, a market command reports an
+   * honest `market.error` rather than an empty status a renderer would read
+   * as "nobody has ever cheated here".
+   */
+  market?: MarketHandler;
+  /**
+   * Real routing backend for `route.*` commands; when set (central wiring
+   * passes a `RouteService` over the real `openRouter()`), the desktop reads
+   * the same arm catalog, measured cost model, posterior, budget and
+   * hash-chained routing ledger the `hades route` CLI does. Left undefined, a
+   * route command reports an honest `route.error` rather than an empty status
+   * a renderer would read as "no arms have ever gone wrong".
+   */
+  route?: RouteHandler;
+  /**
+   * Real multi-node backend for `cluster.*` commands; when set (central
+   * wiring passes a `ClusterService`), the desktop builds and measures the
+   * SAME in-process fabric `hades cluster` does. Left undefined, a cluster
+   * command reports an honest `cluster.error` rather than an empty status a
+   * renderer would read as "the cluster is healthy and idle".
+   */
+  cluster?: ClusterHandler;
+}
+
+/**
+ * Manager events that mean "something changed, re-poll the snapshot." These
+ * are exactly the event names `SwarmManager` (`src/swarm-runtime/manager/manager.ts`)
+ * emits for goal/task/worker lifecycle transitions — see `ManagerEvents` there.
+ * `realSwarmFactory` forwards them verbatim through `SwarmHandle.on`, so a fake
+ * test handle can simulate the real engine by firing these same names.
+ */
+const PROGRESS_EVENTS = [
+  "goal:planned",
+  "worker:spawned",
+  "worker:killed",
+  "worker:dead",
+  "task:dispatched",
+  "task:verified",
+  "task:rejected",
+  "task:failed",
+  "task:requeued",
+  "task:escalated",
+  "goal:completed",
+  "goal:failed",
+  "goal:aborted",
+  "goal:contradiction",
+] as const;
+
+export class Sidecar {
+  private handleRef?: SwarmHandle;
+  private readonly factory: SwarmFactory;
+  private readonly emitFn: (e: AppEvent) => void;
+  private readonly now: () => number;
+  private readonly skills?: SkillsHandler;
+  private readonly fleet?: FleetHandler;
+  private readonly provision?: FleetProvisionHandler;
+  private readonly inference?: InferenceInfo;
+  private readonly learning?: SidecarOptions["learning"];
+  private readonly learningStatus?: LearningStatusHandler;
+  private readonly gateway?: GatewayHandler;
+  private readonly schedule?: ScheduleHandler;
+  private readonly state?: StateHandler;
+  private readonly migrate?: MigrateHandler;
+  private readonly trust?: TrustHandler;
+  private readonly market?: MarketHandler;
+  private readonly route?: RouteHandler;
+  private readonly cluster?: ClusterHandler;
+  private stateUnsubscribe?: () => void;
+  /** Guards {@link Sidecar.dispose}'s one-shot teardown of the state lane. */
+  private disposed = false;
+  private learningLoop?: { detach(): Promise<void> };
+
+  private mode: "inline" | "process" | "docker" = "inline";
+  private poolSize = 0;
+
+  // Diff caches so re-polling only emits upserts for state that actually
+  // changed, keyed by id -> serialized last-seen view.
+  private readonly lastWorkers = new Map<string, string>();
+  private readonly lastTasks = new Map<string, string>();
+  private readonly lastGoals = new Map<string, string>();
+  private seenVerifications = 0;
+
+  constructor(opts: SidecarOptions) {
+    this.factory = opts.factory ?? realSwarmFactory();
+    this.emitFn = opts.emit;
+    this.now = opts.now ?? Date.now;
+    this.skills = opts.skills;
+    this.fleet = opts.fleet;
+    this.provision = opts.provision;
+    this.inference = opts.inference;
+    this.learning = opts.learning;
+    this.learningStatus = opts.learningStatus;
+    this.gateway = opts.gateway;
+    this.schedule = opts.schedule;
+    this.state = opts.state;
+    this.migrate = opts.migrate;
+    this.trust = opts.trust;
+    this.market = opts.market;
+    this.route = opts.route;
+    this.cluster = opts.cluster;
+
+    // Live workspace deltas are PUSHED, not polled: subscribe once, up
+    // front, so a write made by another process (a `hades state set` in a
+    // terminal, another desktop window) streams out as a `state.changed`
+    // without the renderer having to ask. `state.watch` only toggles whether
+    // the underlying feed is actively polling/watching. A handler without a
+    // `subscribe` (a minimal fake) simply gets no push lane and nothing
+    // pretends otherwise.
+    if (this.state?.subscribe) {
+      try {
+        this.stateUnsubscribe = this.state.subscribe((ev) => this.safeEmit(ev));
+      } catch {
+        // A handler that refuses to subscribe still answers commands; the
+        // push lane is simply absent rather than the sidecar being dead.
+        this.stateUnsubscribe = undefined;
+      }
+    }
+  }
+
+  /** Process one command. Never throws — a failure becomes a `log` event. */
+  async handle(cmd: Command): Promise<void> {
+    try {
+      switch (cmd.kind) {
+        case "runtime.start":
+          await this.onStart(cmd);
+          return;
+        case "runtime.stop":
+          await this.onStop();
+          return;
+        case "goal.dispatch":
+          await this.onDispatch(cmd);
+          return;
+        case "goal.cancel":
+          await this.onCancel(cmd);
+          return;
+        case "pool.scale":
+          await this.onScale(cmd);
+          return;
+        case "worker.kill":
+          await this.onKill(cmd);
+          return;
+        case "skills.list":
+        case "skills.save":
+          // When a real skills backend is wired (central integration), delegate
+          // to it; otherwise acknowledge harmlessly rather than error, so a
+          // caller waiting on a reply never hangs.
+          if (this.skills) {
+            for (const ev of await this.skills.handle(cmd)) this.safeEmit(ev);
+          }
+          return;
+        case "fleet.list":
+        case "fleet.probe":
+        case "fleet.hibernate":
+        case "fleet.wake":
+        case "fleet.terminate":
+          // Central wiring hands us a real FleetService (fleet-wiring.ts).
+          // Without one, reply with an honest fleet.error rather than
+          // silence, so a renderer waiting on a snapshot never hangs.
+          if (this.fleet) {
+            for (const ev of await this.fleet.handle(cmd)) this.safeEmit(ev);
+          } else {
+            this.safeEmit({
+              kind: "fleet.error",
+              message: "fleet is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "fleet.provision":
+          // Central wiring hands us a real FleetProvisionService
+          // (fleet-wiring.ts). Without one, reply with an honest
+          // fleet.provision.error carrying the request's own id, so the
+          // provision panel's pending row resolves instead of spinning.
+          if (this.provision) {
+            for (const ev of await this.provision.handle(cmd)) this.safeEmit(ev);
+          } else {
+            this.safeEmit({
+              kind: "fleet.provision.error",
+              requestId: cmd.requestId,
+              message: "fleet provisioning is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "learning.get":
+          // Central wiring hands us a real LearningStatusHandler
+          // (LearningService over the live loop / durable snapshot store).
+          // Without one, reply with an honest learning.error rather than
+          // silence, so the learning card never spins forever.
+          if (this.learningStatus) {
+            await this.learningStatus.handle(cmd, (ev) => this.safeEmit(ev));
+          } else {
+            this.safeEmit({
+              kind: "learning.error",
+              message: "learning status is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "gateway.status.get":
+        case "gateway.pair.issue":
+          // Central wiring hands us a real GatewayService (gateway-service.ts
+          // over the real GatewayProcess + PairingGuard). Without one, reply
+          // with an honest gateway.error rather than silence, so a renderer
+          // waiting on a status/pair-code never hangs.
+          if (this.gateway) {
+            await this.gateway.handle(cmd, (ev) => this.safeEmit(ev));
+          } else {
+            this.safeEmit({
+              kind: "gateway.error",
+              message: "gateway is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "schedule.status.get":
+        case "schedule.job.get":
+        case "schedule.job.toggle":
+        case "schedule.job.run":
+          // Central wiring hands us a real ScheduleService (schedule-service.ts
+          // over the real JsonFileJobStore + SchedulerRunner). Without one,
+          // reply with an honest schedule.error rather than silence, so a
+          // renderer waiting on a status/receipt never hangs.
+          if (this.schedule) {
+            this.safeEmit(await this.schedule.handle(cmd));
+          } else {
+            this.safeEmit({
+              kind: "schedule.error",
+              message: "schedule is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "migrate.scan":
+        case "migrate.plan":
+        case "migrate.apply":
+        case "migrate.receipts":
+          // Central wiring hands us a real MigrateService (migrate-service.ts
+          // over the real migration pipeline). Without one, reply with an
+          // honest migrate.error rather than an empty scan, which a renderer
+          // would legitimately read as "you have nothing to migrate".
+          if (this.migrate) {
+            this.safeEmit(await this.migrate.handle(cmd));
+          } else {
+            this.safeEmit({
+              kind: "migrate.error",
+              op: cmd.kind,
+              message: "migration is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "state.status":
+        case "state.list":
+        case "state.get":
+        case "state.set":
+        case "state.delete":
+        case "state.sync":
+        case "state.watch":
+          // Central wiring hands us a real StateService (state-service.ts
+          // over the real WorkspaceStore/SyncEngine/WorkspaceFeed rooted at
+          // the SAME <dataDir>/state the `hades state` CLI writes). Without
+          // one, reply with an honest state.error rather than silence, so a
+          // renderer waiting on a status/record batch never hangs.
+          if (this.state) {
+            for (const ev of await this.state.handle(cmd)) this.safeEmit(ev);
+          } else {
+            this.safeEmit({
+              kind: "state.error",
+              op: cmd.kind,
+              message: "the shared workspace store is not configured in this build",
+            });
+          }
+          return;
+        case "trust.status":
+        case "trust.verifiers":
+        case "trust.calibrate":
+        case "trust.budget":
+          // Central wiring hands us a real TrustService (trust-service.ts
+          // over the real openTrustStack() rooted at the SAME <dataDir>/trust
+          // the `hades trust` CLI uses). Without one, reply with an honest
+          // trust.error rather than a synthesized empty status — a renderer
+          // must never be able to read "not configured" as "gate healthy".
+          if (this.trust) {
+            this.safeEmit(await this.trust.handle(cmd));
+          } else {
+            this.safeEmit({
+              kind: "trust.error",
+              op: cmd.kind,
+              message: "the unified trust gate is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "market.status":
+        case "market.reputation":
+        case "market.book":
+        case "market.simulate":
+          // Central wiring hands us a real MarketService (market-service.ts
+          // over the real openMarket() rooted at the SAME <dataDir> the
+          // `hades market` CLI uses). Without one, reply with an honest
+          // market.error rather than a synthesized empty market — a renderer
+          // must never be able to read "not configured" as "no fabrications".
+          if (this.market) {
+            this.safeEmit(await this.market.handle(cmd));
+          } else {
+            this.safeEmit({
+              kind: "market.error",
+              op: cmd.kind,
+              message: "the verified-work market is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "route.status":
+        case "route.arms":
+        case "route.explain":
+        case "route.ledger":
+          // Central wiring hands us a real RouteService (route-service.ts over
+          // the real openRouter() rooted at the SAME <dataDir> the `hades
+          // route` CLI uses). Without one, reply with an honest route.error
+          // rather than a synthesized empty router — a renderer must never be
+          // able to read "not configured" as "nothing has ever been routed
+          // wrong". This lane is READ-ONLY: there is no route.record and no
+          // route.bench, so nothing a renderer sends can move the budget,
+          // rewrite a posterior, append to the ledger, or start billing.
+          if (this.route) {
+            this.safeEmit(await this.route.handle(cmd));
+          } else {
+            this.safeEmit({
+              kind: "route.error",
+              op: cmd.kind,
+              message: "the budget-constrained router is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "cluster.status":
+        case "cluster.nodes":
+        case "cluster.run":
+        case "cluster.chaos":
+          // Central wiring hands us a real ClusterService (cluster-service.ts
+          // over the real buildClusterFabric() the `hades cluster` CLI runs).
+          // Without one, reply with an honest cluster.error rather than a
+          // synthesized empty cluster — a renderer must never be able to read
+          // "not configured" as "every node is healthy". Each of these
+          // commands BUILDS and tears down a real fabric, so the service
+          // clamps the requested sizes and serializes concurrent requests;
+          // there is deliberately no cluster.bench here (it would monopolize
+          // this single stdio pipe for tens of seconds).
+          if (this.cluster) {
+            this.safeEmit(await this.cluster.handle(cmd));
+          } else {
+            this.safeEmit({
+              kind: "cluster.error",
+              op: cmd.kind,
+              message: "the multi-node cluster layer is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        default: {
+          const exhaustive: never = cmd;
+          return exhaustive;
+        }
+      }
+    } catch (err) {
+      this.safeEmit({ kind: "log", line: `sidecar error: ${errMsg(err)}`, at: this.now() });
+    }
+  }
+
+  /**
+   * Tear down the current swarm handle, if any. Best-effort, never throws.
+   *
+   * NOTE: this runs on every `runtime.stop` (and on `runtime.start`'s
+   * restart path), so it deliberately does NOT close the `StateHandler`
+   * itself — the shared workspace store outlives any single swarm run and
+   * must keep answering `state.*` after the runtime is stopped. Only the
+   * process-lifetime teardown ({@link Sidecar.dispose}) closes it.
+   */
+  async close(): Promise<void> {
+    const h = this.handleRef;
+    this.handleRef = undefined;
+    const loop = this.learningLoop;
+    this.learningLoop = undefined;
+    if (loop) {
+      try {
+        // Detach FIRST so the loop's final best-effort bandit snapshot save
+        // happens before the engine (and its event stream) is torn down.
+        await loop.detach();
+      } catch {
+        /* best-effort teardown */
+      }
+    }
+    if (!h) return;
+    try {
+      await h.close?.();
+    } catch {
+      /* best-effort teardown */
+    }
+  }
+
+  /**
+   * Full process-lifetime teardown: everything {@link Sidecar.close} does,
+   * plus the workspace-state subscription and the state handler itself
+   * (which owns a live `WorkspaceFeed` timer/watcher and an open
+   * `WorkspaceStore`). Called once by `runSidecar` when stdin ends — never
+   * on an ordinary `runtime.stop`, which must leave the shared workspace
+   * readable. Idempotent and never throws.
+   */
+  async dispose(): Promise<void> {
+    await this.close();
+    if (this.disposed) return;
+    this.disposed = true;
+    if (this.stateUnsubscribe) {
+      try {
+        this.stateUnsubscribe();
+      } catch {
+        /* best-effort teardown */
+      }
+      this.stateUnsubscribe = undefined;
+    }
+    try {
+      this.state?.close?.();
+    } catch {
+      /* best-effort teardown */
+    }
+  }
+
+  // ── Command handlers ───────────────────────────────────────────────────
+
+  private async onStart(cmd: Extract<Command, { kind: "runtime.start" }>): Promise<void> {
+    if (this.handleRef) await this.close();
+
+    const built = await this.factory({ mode: cmd.mode, poolSize: cmd.poolSize });
+    this.handleRef = built;
+    this.mode = cmd.mode;
+    this.poolSize = cmd.poolSize;
+
+    this.lastWorkers.clear();
+    this.lastTasks.clear();
+    this.lastGoals.clear();
+    this.seenVerifications = 0;
+
+    this.subscribe(built);
+
+    // Attach the self-improving routing loop against the engine's RAW
+    // emitter (multi-arg task events), when both sides are wired. Honest
+    // failure mode: a log line, never a dead runtime. When the handle has no
+    // raw emitter (a minimal fake), nothing attaches and nothing pretends to.
+    if (this.learning && built.swarm) {
+      try {
+        this.learningLoop = await this.learning(built.swarm);
+        this.safeEmit({
+          kind: "log",
+          line: "learning: swarm outcome feed attached to the shared route bandit",
+          at: this.now(),
+        });
+      } catch (err) {
+        this.learningLoop = undefined;
+        this.safeEmit({ kind: "log", line: `learning attach failed: ${errMsg(err)}`, at: this.now() });
+      }
+    }
+
+    this.safeEmit({ kind: "runtime.status", running: true, mode: cmd.mode, poolSize: cmd.poolSize });
+    if (this.inference) {
+      this.safeEmit({
+        kind: "log",
+        line: `inference: ${this.inference.kind} (${this.inference.detail})`,
+        at: this.now(),
+      });
+    }
+    // Report whatever crash-recovery restore actually ran against the real
+    // fleet (fleet-wiring.ts's restoreWithAdoption pass). `undefined` means
+    // no restore happened — nothing is emitted, never an empty fabricated
+    // "restored nothing" claim. A throwing handler degrades to a log line.
+    if (this.provision) {
+      try {
+        const restored = await this.provision.restoredSnapshot();
+        if (restored) this.safeEmit(restored);
+      } catch (err) {
+        this.safeEmit({ kind: "log", line: `fleet restore snapshot failed: ${errMsg(err)}`, at: this.now() });
+      }
+    }
+    this.poll();
+  }
+
+  private async onStop(): Promise<void> {
+    await this.close();
+    this.safeEmit({ kind: "runtime.status", running: false, mode: this.mode, poolSize: this.poolSize });
+  }
+
+  private async onDispatch(cmd: Extract<Command, { kind: "goal.dispatch" }>): Promise<void> {
+    const h = this.requireHandle();
+    const { goalId } = await h.dispatchGoal(cmd.objective);
+    const run: RunView = { goalId, objective: cmd.objective, status: "running" };
+    this.lastGoals.set(goalId, JSON.stringify(run));
+    this.safeEmit({ kind: "run.upsert", run });
+    this.poll();
+  }
+
+  private async onCancel(cmd: Extract<Command, { kind: "goal.cancel" }>): Promise<void> {
+    const h = this.requireHandle();
+    await h.cancelGoal?.(cmd.goalId);
+    this.poll();
+  }
+
+  private async onScale(cmd: Extract<Command, { kind: "pool.scale" }>): Promise<void> {
+    const h = this.requireHandle();
+    await h.scalePool?.(cmd.size);
+    this.poolSize = cmd.size;
+    this.poll();
+  }
+
+  private async onKill(cmd: Extract<Command, { kind: "worker.kill" }>): Promise<void> {
+    const h = this.requireHandle();
+    await h.killWorker?.(cmd.workerId);
+    this.poll();
+  }
+
+  private requireHandle(): SwarmHandle {
+    if (!this.handleRef) throw new Error("sidecar: runtime not started — send runtime.start first");
+    return this.handleRef;
+  }
+
+  // ── Event-driven + polled streaming ────────────────────────────────────
+
+  /**
+   * Bridge the engine's own progress events (if the handle exposes `on`) to a
+   * snapshot re-poll, so real swarm activity streams out without a timer.
+   * `realSwarmFactory` forwards `SwarmManager`'s events under these exact
+   * names; a fake test handle can fire the same names to simulate them.
+   */
+  private subscribe(h: SwarmHandle): void {
+    if (!h.on) return;
+    for (const name of PROGRESS_EVENTS) h.on(name, () => this.poll());
+    h.on("log", (payload: unknown) => {
+      this.safeEmit({ kind: "log", line: normalizeLogPayload(payload), at: this.now() });
+    });
+  }
+
+  /**
+   * Re-read the handle's snapshot and emit upserts for anything that changed
+   * since the last poll. Called synchronously after every command that can
+   * change swarm state, and reactively whenever a subscribed progress event
+   * fires. No internal timers — callers (or the engine's own events) drive
+   * when this runs, which is what keeps it deterministic under test.
+   */
+  private poll(): void {
+    const h = this.handleRef;
+    if (!h) return;
+
+    let snap: ReturnType<SwarmHandle["snapshot"]>;
+    try {
+      snap = h.snapshot();
+    } catch (err) {
+      this.safeEmit({ kind: "log", line: `snapshot failed: ${errMsg(err)}`, at: this.now() });
+      return;
+    }
+
+    for (const raw of snap.workers ?? []) {
+      const view = toWorkerView(raw);
+      if (!view) continue;
+      const key = JSON.stringify(view);
+      if (this.lastWorkers.get(view.id) === key) continue;
+      this.lastWorkers.set(view.id, key);
+      this.safeEmit({ kind: "worker.upsert", worker: view });
+    }
+
+    for (const raw of snap.tasks ?? []) {
+      const view = toTaskView(raw);
+      if (!view) continue;
+      const key = JSON.stringify(view);
+      if (this.lastTasks.get(view.id) === key) continue;
+      this.lastTasks.set(view.id, key);
+      this.safeEmit({ kind: "task.upsert", task: view });
+    }
+
+    for (const raw of snap.goals ?? []) {
+      const view = toRunView(raw);
+      if (!view) continue;
+      const key = JSON.stringify(view);
+      if (this.lastGoals.get(view.goalId) === key) continue;
+      this.lastGoals.set(view.goalId, key);
+      this.safeEmit({ kind: "run.upsert", run: view });
+    }
+
+    // Verification reports are append-only in the engine (SwarmManager never
+    // mutates a past report), so only the tail beyond what we've already
+    // emitted is new.
+    const verifs = snap.verifications ?? [];
+    for (let i = this.seenVerifications; i < verifs.length; i++) {
+      const view = toVerificationView(verifs[i]);
+      if (view) this.safeEmit({ kind: "verification", report: view });
+    }
+    this.seenVerifications = verifs.length;
+
+    if (snap.metrics !== undefined) {
+      const view = toMetricsView(snap.metrics);
+      if (view) this.safeEmit({ kind: "metrics", metrics: view });
+    }
+  }
+
+  private safeEmit(e: AppEvent): void {
+    try {
+      this.emitFn(e);
+    } catch {
+      /* a bad sink must never break the sidecar */
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Real engine wiring
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a {@link SwarmFactory} backed by the real engine: `buildSwarm` from
+ * `src/swarm-runtime/server/build-swarm.ts` assembles a `SwarmManager` (plus
+ * its provider/bus for the requested isolation mode) and starts its worker
+ * pool; this wraps that manager in the minimal `SwarmHandle` surface the
+ * sidecar depends on.
+ *
+ * - `dispatchGoal` -> `manager.startGoal` (fire-and-track; the manager runs
+ *   the goal to completion in the background, exactly as it does for the
+ *   REST/MCP surfaces).
+ * - `cancelGoal`/`scalePool`/`killWorker` -> `manager.cancelGoal` /
+ *   `manager.scalePool` / `manager.killWorker` directly.
+ * - `snapshot` -> `manager.listWorkers()` / `listTasks()` / `listGoals()` /
+ *   `listVerifications()` / `metrics()` — the same accessors the swarm's own
+ *   REST dashboard uses.
+ * - `on` -> forwards to the manager's `EventEmitter` (`SwarmManager` extends
+ *   `EventEmitter` and emits the `ManagerEvents` named events), so the
+ *   sidecar's `PROGRESS_EVENTS` subscription drives real-time re-polling.
+ * - `close` -> `built.stop()`, which calls `manager.shutdown()`.
+ */
+export function realSwarmFactory(opts: {
+  /** Threaded through to `buildSwarm`'s provider-decoration seam (process/
+   *  docker modes): central wiring passes `RealFleet.decorateProvider` so
+   *  every actually-spawned worker gets real backend attribution. */
+  decorateProvider?: (provider: ContainerProvider, mode: "process" | "docker") => ContainerProvider;
+} = {}): SwarmFactory {
+  return async ({ mode, poolSize }) => {
+    const built = await buildSwarm({ mode, poolSize, decorateProvider: opts.decorateProvider });
+    await built.start();
+    const manager = built.manager;
+    const emitter = manager as unknown as EventEmitter;
+
+    const handle: SwarmHandle = {
+      async dispatchGoal(objective: string) {
+        const { goalId } = await manager.startGoal(objective);
+        return { goalId };
+      },
+      async cancelGoal(goalId: string) {
+        manager.cancelGoal(goalId);
+      },
+      async scalePool(size: number) {
+        await manager.scalePool(size);
+      },
+      async killWorker(id: string) {
+        await manager.killWorker(id, "operator request");
+      },
+      snapshot() {
+        return {
+          workers: manager.listWorkers(),
+          tasks: manager.listTasks(),
+          goals: manager.listGoals(),
+          verifications: manager.listVerifications(),
+          metrics: manager.metrics(),
+        };
+      },
+      on(event: string, cb: (payload: unknown) => void) {
+        emitter.on(event, (...args: unknown[]) => cb(args.length <= 1 ? args[0] : args));
+      },
+      // The RAW emitter, arity-preserving — what the learning loop attaches
+      // to (its `task:verified` handler needs the `(task, report)` pair).
+      swarm: {
+        on: (event: string, listener: (...args: unknown[]) => void) => emitter.on(event, listener),
+        off: (event: string, listener: (...args: unknown[]) => void) => emitter.off(event, listener),
+      },
+      async close() {
+        await built.stop();
+      },
+    };
+
+    return handle;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Engine shape -> IPC view mapping
+// ---------------------------------------------------------------------------
+//
+// Each mapper accepts the real engine's raw shape (`WorkerRecord` /
+// `WorkerTask` / `Goal` / `VerificationReport` / `SwarmMetrics` from
+// `src/swarm-runtime/types.ts`) and always rebuilds a fresh object with
+// exactly the contract's fields — deliberately never short-circuits by
+// returning `raw` even when it already structurally satisfies `isXView`,
+// because the engine's real shapes carry extra fields (e.g. a
+// `VerificationReport` has `feedback`/`at`, and each check has a `weight`)
+// that the `isXView` guards don't reject (they only check that the required
+// fields are present and well-typed, not that there's nothing extra). The
+// `isXView` guards from `../ipc/contract` still do the final validation on
+// the rebuilt candidate, so a malformed snapshot entry is dropped rather than
+// emitted.
+
+function toWorkerView(raw: unknown): WorkerView | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const id = idStr(r.id, r.workerId);
+  if (id === null) return null;
+  const candidate: WorkerView = {
+    id,
+    status: r.status as WorkerView["status"],
+    capabilities: Array.isArray(r.capabilities)
+      ? (r.capabilities as unknown[]).filter((c): c is string => typeof c === "string")
+      : [],
+    killReason: typeof r.killReason === "string" ? r.killReason : undefined,
+  };
+  return isWorkerView(candidate) ? candidate : null;
+}
+
+function toTaskView(raw: unknown): TaskView | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const id = idStr(r.id, r.taskId);
+  if (id === null) return null;
+  const dependsOn = Array.isArray(r.dependsOn)
+    ? (r.dependsOn as unknown[]).filter((c): c is string => typeof c === "string")
+    : undefined;
+  const candidate: TaskView = {
+    id,
+    description: str(r.description),
+    status: r.status as TaskView["status"],
+    requiredCapabilities: Array.isArray(r.requiredCapabilities)
+      ? (r.requiredCapabilities as unknown[]).filter((c): c is string => typeof c === "string")
+      : [],
+    attempts: num(r.attempts),
+    maxAttempts: num(r.maxAttempts),
+    dependsOn,
+  };
+  return isTaskView(candidate) ? candidate : null;
+}
+
+function toVerificationView(raw: unknown): VerificationView | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const checksSrc = Array.isArray(r.checks) ? (r.checks as unknown[]) : [];
+  const candidate: VerificationView = {
+    taskId: str(r.taskId),
+    workerId: str(r.workerId),
+    verdict: r.verdict as VerificationView["verdict"],
+    score: num(r.score),
+    // Engine checks also carry a `weight` (used for gate scoring); the view
+    // only surfaces name/passed/detail.
+    checks: checksSrc.map((c) => {
+      const cc = (c ?? {}) as Record<string, unknown>;
+      return { name: str(cc.name), passed: !!cc.passed, detail: str(cc.detail) };
+    }),
+  };
+  return isVerificationView(candidate) ? candidate : null;
+}
+
+function toRunView(raw: unknown): RunView | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  // Engine `GoalStatus` is "planning"|"running"|"completed"|"failed"|"aborted";
+  // the view has no "planning" (still in-flight, so treat as running) and
+  // calls the manager's "aborted" (budget breach / cancelGoal) "cancelled".
+  const rawStatus = r.status;
+  const status = rawStatus === "aborted" ? "cancelled" : rawStatus === "planning" ? "running" : rawStatus;
+  const goalId = idStr(r.goalId, r.id);
+  if (goalId === null) return null;
+  const candidate: RunView = {
+    goalId,
+    objective: str(r.objective),
+    status: status as RunView["status"],
+  };
+  return isRunView(candidate) ? candidate : null;
+}
+
+function toMetricsView(raw: unknown): MetricsView | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const goals = (r.goals ?? {}) as Record<string, unknown>;
+  const tasks = (r.tasks ?? {}) as Record<string, unknown>;
+  const verification = (r.verification ?? {}) as Record<string, unknown>;
+  const usage = (r.usage ?? {}) as Record<string, unknown>;
+  const candidate: MetricsView = {
+    goalsCompleted: num(goals.completed),
+    goalsTotal: num(goals.total),
+    groundingRate: num(verification.groundingRate),
+    costUsd: num(usage.costUsd),
+    verifiedTasks: num(tasks.verified),
+    // SwarmMetrics.tasks tracks verified/failed/pending/dispatched but not a
+    // "rejected" bucket (a task's "rejected" status is transient — it either
+    // gets retried or becomes "failed"); verification.rejected is the
+    // meaningful count of rejected *attempts* and is what the dashboard wants.
+    rejectedTasks: num(verification.rejected),
+  };
+  return isMetricsView(candidate) ? candidate : null;
+}
+
+// ---------------------------------------------------------------------------
+// Small utilities
+// ---------------------------------------------------------------------------
+
+function str(x: unknown): string {
+  return typeof x === "string" ? x : "";
+}
+
+/**
+ * Identity-field coercion: unlike {@link str}, this returns `null` for anything
+ * that isn't a non-empty string. Mappers use it for id/description so a
+ * malformed engine entry (wrong-typed or missing id) is *dropped*, never
+ * silently coerced into a valid-looking view with an empty id.
+ */
+function idStr(...vals: unknown[]): string | null {
+  for (const v of vals) if (typeof v === "string" && v.length > 0) return v;
+  return null;
+}
+
+function num(x: unknown): number {
+  return typeof x === "number" && Number.isFinite(x) ? x : 0;
+}
+
+function errMsg(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  try {
+    return String(err);
+  } catch {
+    return "unknown error";
+  }
+}
+
+/**
+ * `SwarmManager`'s `log` event fires as `(workerId, line)` — two positional
+ * args, which `realSwarmFactory`'s generic `on` forwarding hands to us as
+ * `[workerId, line]`. Normalize that (and a couple of other reasonable
+ * shapes a fake test handle might use) into a single line of text.
+ */
+function normalizeLogPayload(payload: unknown): string {
+  if (Array.isArray(payload)) {
+    const [a, b] = payload;
+    if (typeof b === "string") return typeof a === "string" ? `${a}: ${b}` : b;
+    if (typeof a === "string") return a;
+  }
+  if (typeof payload === "string") return payload;
+  if (payload && typeof payload === "object" && typeof (payload as Record<string, unknown>).line === "string") {
+    return (payload as Record<string, unknown>).line as string;
+  }
+  return "log";
+}

@@ -1,0 +1,316 @@
+/**
+ * Hades desktop — Workspace (shared state) view styles.
+ *
+ * Every value comes from a `tokens.css` custom property, so light/dark falls
+ * out of which token set is mounted at `:root` — no hardcoded colors. Native
+ * Tauri webview surface, not a web page.
+ */
+
+.state-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding: var(--space-2xl);
+  color: var(--color-ink);
+  font-family: var(--type-family-sans);
+}
+
+/* ── Status ─────────────────────────────────────────────────────────────── */
+
+.state-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.state-status__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.state-status__root {
+  margin: 0;
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.state-status__sync {
+  margin: 0;
+  font-size: var(--type-size-sm);
+  color: var(--color-ink-secondary);
+}
+
+.state-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3xs);
+  padding: var(--space-3xs) var(--space-xs);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-2xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.state-chip--ok {
+  border-color: var(--color-ok);
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}
+
+.state-chip--bad {
+  border-color: var(--color-bad);
+  background: var(--color-bad-soft);
+  color: var(--color-bad);
+  font-weight: var(--type-weight-semibold);
+}
+
+.state-chip--warn {
+  border-color: var(--color-warn);
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
+}
+
+.state-domain-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.state-domain-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  min-width: 7rem;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+
+.state-domain-stat__name {
+  font-size: var(--type-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-tertiary);
+}
+
+.state-domain-stat__count {
+  font-size: var(--type-size-lg);
+  font-weight: var(--type-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.state-domain-stat__when {
+  font-size: var(--type-size-2xs);
+  color: var(--color-ink-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.state-error {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-bad);
+  border-radius: var(--radius-md);
+  background: var(--color-bad-soft);
+  color: var(--color-bad);
+  font-size: var(--type-size-sm);
+}
+
+/* ── Toolbar ────────────────────────────────────────────────────────────── */
+
+.state-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.state-tabs {
+  display: inline-flex;
+  gap: var(--space-3xs);
+  padding: var(--space-3xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.state-tab {
+  appearance: none;
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-3xs) var(--space-sm);
+  background: transparent;
+  color: var(--color-ink-secondary);
+  font: inherit;
+  font-size: var(--type-size-sm);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--motion-ease-out);
+}
+
+.state-tab:hover {
+  background: var(--color-surface-hover);
+}
+
+.state-tab--active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: var(--type-weight-semibold);
+}
+
+.state-tab:focus-visible,
+.state-filter:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.state-filter {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+  padding: var(--space-2xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--type-size-sm);
+}
+
+.state-actions {
+  display: inline-flex;
+  gap: var(--space-2xs);
+}
+
+/* ── Records table ──────────────────────────────────────────────────────── */
+
+.state-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+}
+
+.state-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-size-sm);
+}
+
+.state-table th {
+  text-align: left;
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--color-divider);
+  font-size: var(--type-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-tertiary);
+  font-weight: var(--type-weight-semibold);
+  white-space: nowrap;
+}
+
+.state-table td {
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--color-divider);
+  vertical-align: top;
+}
+
+.state-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.state-row:hover {
+  background: var(--color-surface-hover);
+}
+
+.state-row--deleted {
+  color: var(--color-ink-tertiary);
+  text-decoration: line-through;
+}
+
+.state-row__key,
+.state-row__hash,
+.state-row__actor,
+.state-row__value {
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.state-row__rev,
+.state-row__when {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.state-row__value {
+  max-width: 28rem;
+}
+
+.state-empty {
+  margin: 0;
+  padding: var(--space-lg);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-sm);
+  text-align: center;
+}
+
+/* ── Conflicts + change log ─────────────────────────────────────────────── */
+
+.state-conflicts,
+.state-changelog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.state-conflict,
+.state-change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--type-size-xs);
+}
+
+.state-conflict__key,
+.state-change__keys,
+.state-change__actor {
+  font-family: var(--type-family-mono);
+  overflow-wrap: anywhere;
+}
+
+.state-conflict__reason {
+  color: var(--color-ink-tertiary);
+}
+
+.state-change__seq {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-tertiary);
+}
+
+.state-change--foreign {
+  border-left: 3px solid var(--color-accent);
+}
+
+.state-changelog--empty {
+  color: var(--color-ink-tertiary);
+}

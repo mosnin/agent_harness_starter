@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "incremental": false,
+    "composite": false,
+    "declaration": true,
+    "declarationMap": true
+  },
+  "include": ["src/agents/**/*.ts", "src/swarm-runtime/**/*.ts", "src/hades/**/*.ts", "src/desktop/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/agents/__tests__",
+    "src/swarm-runtime/__tests__", "src/hades/__tests__",
+    "src/desktop/__tests__"
+  ]
+}

@@ -1,0 +1,320 @@
+/**
+ * Hades desktop — Fleet view styles.
+ *
+ * Consumes the design tokens flattened by `theme.ts` (`--color-*`,
+ * `--space-*`, `--radius-*`, `--type-*`, `--shadow-*`, `--motion-*`) —
+ * native Tauri webview surface, not a web page. No hardcoded hex values;
+ * every color comes from a `tokens.css` custom property, so light/dark just
+ * falls out of which token set is mounted at `:root`.
+ */
+
+.fleet-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding: var(--space-2xl);
+  color: var(--color-ink);
+  font-family: var(--type-family-sans);
+}
+
+.fleet-view__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.fleet-view__title {
+  margin: 0;
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-lg);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.fleet-view__snapshot-at {
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.fleet-view__actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.fleet-view__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.fleet-view__section-title {
+  margin: 0;
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-md);
+  font-weight: var(--type-weight-semibold);
+}
+
+.fleet-view__empty,
+.fleet-empty-message {
+  margin: 0;
+  padding: var(--space-xl);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-ink-tertiary);
+  font-size: var(--type-size-sm);
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------------
+ * Error banner
+ * ---------------------------------------------------------------------- */
+
+.fleet-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-bad-soft);
+  border: 1px solid var(--color-bad);
+  border-radius: var(--radius-lg);
+  color: var(--color-bad);
+  font-size: var(--type-size-sm);
+}
+
+.fleet-error__message {
+  font-weight: var(--type-weight-medium);
+}
+
+.fleet-error__worker {
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-xs);
+}
+
+.fleet-error__worker code {
+  font-family: var(--type-family-mono);
+}
+
+.fleet-error__at {
+  margin-left: auto;
+  color: var(--color-ink-tertiary);
+  font-size: var(--type-size-2xs);
+}
+
+/* ------------------------------------------------------------------------
+ * Tables (shared by the backend inventory + worker tables)
+ * ---------------------------------------------------------------------- */
+
+.fleet-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  font-size: var(--type-size-sm);
+}
+
+.fleet-table thead th {
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-2xs);
+  font-weight: var(--type-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fleet-table tbody td {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-divider);
+  vertical-align: top;
+  color: var(--color-ink);
+}
+
+.fleet-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.fleet-table tbody tr:hover {
+  background: var(--color-surface-hover);
+}
+
+.fleet-table code {
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-secondary);
+}
+
+.fleet-backends--empty,
+.fleet-workers--empty {
+  padding: 0;
+}
+
+/* ------------------------------------------------------------------------
+ * Configured / measured tags — the honest-numbers rule, made visible
+ * ---------------------------------------------------------------------- */
+
+.fleet-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-size-2xs);
+  font-weight: var(--type-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.fleet-tag--configured {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.fleet-tag--measured {
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}
+
+.fleet-cost,
+.fleet-telemetry {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3xs);
+}
+
+.fleet-cost__rate,
+.fleet-telemetry__stat {
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------------
+ * Availability pill
+ * ---------------------------------------------------------------------- */
+
+.fleet-available {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-medium);
+}
+
+.fleet-available--yes {
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}
+
+.fleet-available--no {
+  background: var(--color-bad-soft);
+  color: var(--color-bad);
+}
+
+.fleet-available--unknown {
+  background: var(--color-surface-2);
+  color: var(--color-ink-tertiary);
+}
+
+/* ------------------------------------------------------------------------
+ * Lifecycle badges — one selector per FleetLifecycleState, kept in lockstep
+ * with `lifecycleBadgeClass()` in fleet-view.ts (fleet-view.test.ts asserts
+ * every class it can return has a matching selector here).
+ * ---------------------------------------------------------------------- */
+
+.fleet-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  height: 22px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-medium);
+  white-space: nowrap;
+}
+
+.fleet-badge--provisioning {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.fleet-badge--running {
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}
+
+.fleet-badge--hibernating {
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
+}
+
+.fleet-badge--hibernated {
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+}
+
+.fleet-badge--waking {
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
+}
+
+.fleet-badge--failed {
+  background: var(--color-bad-soft);
+  color: var(--color-bad);
+}
+
+.fleet-badge--stopped {
+  background: var(--color-surface-2);
+  color: var(--color-ink-tertiary);
+}
+
+/* Transient in-flight states (hibernating/waking) pulse to signal "no
+ * action available, this will resolve on its own". */
+.fleet-badge--transient {
+  animation: fleet-badge-pulse 1.4s var(--motion-ease-in-out) infinite;
+}
+
+@keyframes fleet-badge-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fleet-badge--transient {
+    animation: none;
+    opacity: 0.75;
+  }
+}
+
+/* ------------------------------------------------------------------------
+ * Worker row actions
+ * ---------------------------------------------------------------------- */
+
+.fleet-worker-row__id {
+  font-weight: var(--type-weight-medium);
+}
+
+.fleet-worker-row__actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}

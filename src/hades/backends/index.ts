@@ -1,0 +1,136 @@
+export { RemoteBackendRegistry } from "./backend";
+export type {
+  RemoteBackend,
+  RemoteSpec,
+  RemoteHandle,
+  RemoteState,
+  ProvisionResult,
+} from "./backend";
+export { FakeBackend } from "./fake-backend";
+export type { FakeBackendOptions } from "./fake-backend";
+export { SshBackend, createSshCliTransport } from "./ssh";
+export type { SshTransport, SshBackendOptions, ExecResult } from "./ssh";
+export { ModalBackend } from "./modal";
+export type {
+  ModalClient,
+  ModalCall,
+  ModalCallStatus,
+  ModalSpawnInput,
+  ModalBackendOptions,
+} from "./modal";
+export { DaytonaBackend } from "./daytona";
+export type {
+  DaytonaClient,
+  DaytonaWorkspace,
+  DaytonaState,
+  DaytonaCreateInput,
+  DaytonaBackendOptions,
+} from "./daytona";
+export { SingularityBackend } from "./singularity";
+export type { CommandRunner, SingularityBackendOptions } from "./singularity";
+export { ScaleToZeroManager } from "./scale-to-zero";
+export type { ScaleToZeroOptions, ScaleEvent } from "./scale-to-zero";
+export { LocalProcessBackend } from "./local";
+export type { LocalChild, SpawnFn, LocalBackendOptions } from "./local";
+export { DockerBackend } from "./docker";
+export type { DockerBackendOptions } from "./docker";
+export { ZERO_TELEMETRY, matchesRequirements, scoreBackend, compareCandidates } from "./descriptor";
+export type {
+  BackendKind,
+  BackendCostModel,
+  BackendDescriptor,
+  BackendRequirements,
+  BackendTelemetrySnapshot,
+} from "./descriptor";
+export { BackendManager } from "./manager";
+export type { BackendManagerOptions, BackendManagerEvent } from "./manager";
+export {
+  LIFECYCLE_TRANSITIONS,
+  ALL_LIFECYCLE_STATES,
+  canTransition,
+  TransitionError,
+  WakeExhaustedError,
+  LifecycleMachine,
+} from "./lifecycle";
+export type { LifecycleState, LifecycleEvent, LifecycleMachineOptions } from "./lifecycle";
+export { HANDLE_STORE_VERSION, HandleStore } from "./handle-store";
+export type { HandleStoreFs, PersistedFleet, HandleStoreOptions, ReconcileReport } from "./handle-store";
+export { FleetSupervisor } from "./fleet-supervisor";
+export type { FleetSupervisorOptions, FleetSupervisorEvent, ProvisionDriver } from "./fleet-supervisor";
+export { HandleAdoptionService, restoreWithAdoption } from "./adoption";
+export type { RegistryAdoptionPort, AdoptionEvent, AdoptionReport } from "./adoption";
+export { BanditRoutedProvisioner } from "./bandit-provisioner";
+export type {
+  BanditSnapshotStore,
+  ProvisionDecision,
+  BanditProvisionerEvent,
+  BanditRoutedProvisionerOptions,
+} from "./bandit-provisioner";
+export { SwarmOutcomeFeed } from "./outcome-feed";
+export type { SwarmManagerLike, OutcomeFeedEvent, OutcomeFeedOptions } from "./outcome-feed";
+export { CostAwareRouteBandit, ROUTE_BANDIT_STATE_VERSION } from "./route-bandit";
+export type {
+  RouteOutcome,
+  BanditArm,
+  RouteDecision,
+  RouteBanditState,
+  RouteBanditOptions,
+} from "./route-bandit";
+export {
+  BACKEND_TRACE_ROOT_PREIMAGE,
+  canonicalRecordBytes,
+  BackendProvenanceLedger,
+  ledgerEventSink,
+} from "./provenance";
+export type {
+  BackendEventType,
+  BackendLifecycleRecord,
+  BackendChainVerifyResult,
+  BackendCertificateFields,
+} from "./provenance";
+export { backendsFleetVerifier, backendsFleetCalibration } from "./verifier";
+export type { BackendFleetReport } from "./verifier";
+export { runParityBench, runParityBenchDetailed } from "./parity-bench";
+export type {
+  ParityBenchOptions,
+  ParityBenchBackendResult,
+  ParityBenchReport,
+  ParityBenchDetailedResult,
+} from "./parity-bench";
+export {
+  ATTRIBUTION_STATE_VERSION,
+  WorkerAttributionRegistry,
+  resolveBackendForTask,
+} from "./worker-attribution";
+export type { AttributionEntry, AttributionState, AttributionStore } from "./worker-attribution";
+export { AttributedContainerProvider } from "./fleet-provider";
+export type {
+  FleetTrackingPort,
+  AttributedProviderOptions,
+  AttributedProviderEvent,
+} from "./fleet-provider";
+export { SwarmLearningLoop, renderLearningReport } from "./swarm-learning";
+export type { SwarmLearningEvent, SwarmLearningOptions, SwarmLearningStatus } from "./swarm-learning";
+export {
+  INLINE_BACKEND_NAME,
+  attachInlineAttribution,
+  attachInlineLearning,
+} from "./inline-attribution";
+export type {
+  SwarmWorkerEventSource,
+  InlineAttributionEvent,
+  InlineAttributionOptions,
+  InlineAttributionHandle,
+  InlineLearningOptions,
+  InlineLearningHandle,
+} from "./inline-attribution";
+export {
+  LEARNING_STATUS_VERSION,
+  FileLearningStatusStore,
+  persistingOnEvent,
+} from "./learning-status-store";
+export type {
+  PersistedLearningStatus,
+  LearningStatusFs,
+  PersistingOnEventHandle,
+} from "./learning-status-store";

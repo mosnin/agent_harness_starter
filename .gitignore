@@ -8,6 +8,7 @@ node_modules/
 out/
 build/
 dist/
+dist-swarm/
 
 # env — NEVER commit real secrets
 .env
@@ -38,3 +39,8 @@ coverage/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+dist/desktop/
+
+# hades default data dir (workspace store, journals, actor identities) —
+# created by `hades …` runs with no HADES_DATA_DIR set; never source
+.hades/

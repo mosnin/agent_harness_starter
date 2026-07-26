@@ -1,0 +1,154 @@
+# Hades v2 — Teams, A2A, and On-Demand Swarms (30-Iteration Build)
+
+**Goal (the user's /goal):** beat Hermes on every axis — capability, security,
+and footprint — by making Hades *team-native*. Hades should excel at **spawning
+swarms of containerized agents on demand** that talk to each other directly
+(**agent-to-agent / A2A**), carry out tasks **in parallel in a fraction of the
+time**, and be assembled from **modular skills and plugins**.
+
+**What Hermes has that we're closing:**
+- Direct **A2A messaging** between agents (we only had manager↔worker).
+- **Team / role** abstractions that form dynamically around a task.
+- A **modular** skill + plugin package model (manifests, versions, hot-load).
+- First-class **parallel fan-out** with measured speedup.
+- Deeper **per-agent capability scoping** on the A2A surface.
+
+**North star:** a task arrives → Hades forms the right *team* of role-specialized
+agents in isolated containers → they coordinate over an authenticated A2A bus →
+work runs in parallel → results are aggregated and verified by the swarm gate →
+the team disbands. More capable, more secure, and lighter than Hermes.
+
+**Working agreement (every iteration):**
+1. Read this file → pick the next `[ ]` iteration.
+2. Write a 2–4 line plan (in the log at the bottom).
+3. Implement a focused chunk under `src/hades/` (new area: `src/hades/teams/`,
+   `src/hades/a2a/`, `src/hades/modules/`, `src/hades/parallel/`,
+   `src/hades/security/`, `src/hades/bench/`).
+4. `tsc` clean + `vitest run` green (add tests; **injectable transports / clocks
+   / spawners** so teams + A2A test without containers or credentials).
+5. Commit to `claude/hermes-swarm-framework-vbhrot`. Update checkbox + log here.
+6. Never break a previously-green iteration (swarm-runtime + Hades v1 stay green).
+
+Baseline: swarm-runtime (699) + Hades v1 complete, **909 tests green**.
+
+---
+
+## Phase G — A2A Communication Layer
+- [x] 1. A2A envelope + addressing (`AgentAddress`, `A2AMessage`, correlation ids).
+- [x] 2. Per-agent mailbox + in-memory A2A bus (send/receive, injectable transport).
+- [x] 3. Pub/sub topics + team broadcast (subscribe, publish, fan-out).
+- [x] 4. Request/response RPC between agents (correlated, timeout, error).
+- [x] 5. Streaming A2A (chunked replies) + backpressure-safe delivery.
+
+## Phase H — Teams & Dynamic Spawning
+- [x] 6. Role registry + `TeamBlueprint` (roles, capabilities, size bounds).
+- [x] 7. `TeamFormer`: decompose a task → required roles → a concrete roster.
+- [x] 8. `Team` spawn over injectable spawner (isolation providers / RemoteBackend).
+- [x] 9. Team lifecycle: form → work → disband (+ failure-aware teardown).
+- [x] 10. Team coordinator wiring the A2A bus to the roster (addressed + broadcast).
+
+## Phase I — Modular Skills & Plugins v2
+- [x] 11. Skill **module manifest** (name, version, deps, capabilities, provides).
+- [x] 12. Semver-ish dependency resolution + topological load order.
+- [x] 13. Skill module loader: hot **load/unload/reload** into a live registry.
+- [x] 14. Plugin **package** format + capability manifest + declared permissions.
+- [x] 15. Unified module registry (skills + plugins) with conflict + version checks.
+
+## Phase J — Parallel Execution & Speedup
+- [x] 16. Parallel fan-out coordinator (map a task across the team).
+- [x] 17. Work-stealing / load balancer across idle roster members.
+- [x] 18. Map-reduce aggregation over A2A (scatter → gather → reduce).
+- [x] 19. Pipeline stages across roles (assembly-line parallelism).
+- [x] 20. Speedup benchmark: parallel-vs-serial wall-clock + efficiency metric.
+
+## Phase K — Security Hardening (beat Hermes)
+- [x] 21. Per-agent capability tokens (NHI) minted per team membership.
+- [x] 22. A2A message signing + verification (injectable signer; tamper-reject).
+- [x] 23. Least-privilege team permission scopes (deny-by-default capability grants).
+- [x] 24. A2A + team **audit trail** (who talked to whom, what was spawned).
+- [x] 25. Secure-by-default spawn policy (resource caps, no-net default, egress allowlist).
+
+## Phase L — Benchmarks / Lightweight / Release
+- [x] 26. Benchmark harness: throughput, latency, A2A round-trip, spawn time.
+- [x] 27. Footprint pass: lazy module loading + slim team defaults (lightweight win).
+- [x] 28. `hades team` CLI surface + team/A2A docs + runnable team example.
+- [x] 29. End-to-end: task → form team → A2A parallel work → verified aggregate → disband.
+- [x] 30. Final review, README/CHANGELOG, benchmark table, build verification; STOP.
+
+---
+
+## Iteration log
+_(newest last; one entry per completed iteration)_
+
+### Phase G — A2A
+- **Iter 1 — A2A envelope + addressing.** `a2a/types`: `AgentAddress` (agentId/role/team) + `BroadcastAddress`, the `A2AMessage` envelope (kinds: event/request/response/stream/stream_end/error, topic, correlationId), and pure delivery logic — `deliversTo` matches direct by agentId and broadcasts by team scope. `MessageFactory` stamps deterministic ids + injectable clock and builds each envelope kind (request seeds its own correlation id). This is the layer the manager↔worker bus lacked: agents addressing each other directly. 5 tests. Full suite green (914).
+- **Iter 2 — mailbox + in-memory A2A bus.** `a2a/bus`: injectable `A2ATransport` (delivery only; addressing stays pure). `InMemoryA2ATransport` delivers each message to every agent it addresses (direct by id, broadcast by team) and never echoes to the sender. `Mailbox` supports both pull (`take()` — await the next message like a coroutine) and push (`on`) consumption. `AgentEndpoint` binds an address + outbound `MessageFactory` + inbound mailbox to the transport (`emit`/`broadcast`/`receive`/`on`/`close`). 6 tests. Full suite green (920).
+- **Iter 3 — pub/sub topics.** `a2a/PubSub` over an `AgentEndpoint`: `subscribe(topic, handler)` so a team broadcast on `"build:done"` only wakes that topic's subscribers, `publish(topic, payload, {team})` is a topic-carrying team broadcast, and `ALL_TOPICS` taps the firehose (coordination/logging). Unsubscribe prunes empty topics; multiple subscribers per topic fan out. 4 tests. Full suite green (924).
+- **Iter 4 — request/response RPC.** `a2a/RpcPeer` over an `AgentEndpoint` both `serve`s inbound requests and `request`s (awaiting the correlated response). Correlation by `correlationId`; a handler that throws surfaces to the caller as a rejected promise via an `error` message; an unanswered request rejects on timeout; concurrent requests correlate independently; `close()` rejects everything in flight. Timers are injectable, so timeout tests deterministically (manual scheduler). 5 tests. Full suite green (929).
+- **Iter 5 — streaming A2A (Phase G complete).** `a2a/StreamPeer`: `serveStream` turns an async-iterable handler into a stream of `stream` messages terminated by `stream_end`/`error`; `requestStream` returns an async generator yielding chunks in order, completing on `stream_end`, throwing on producer error. Built on `AsyncQueue` — ordered, lossless, buffered, with a high-water-mark overflow flag as the backpressure signal. Independent streams run concurrently. 6 tests. **Phase G done.** Full suite green (935).
+
+### Phase J — Parallel execution
+- **Iter 16 — parallel fan-out.** `FanOutCoordinator.map(items)` distributes items across the roster through a **shared work queue** — each member processes one item at a time and pulls the next when free, so max parallelism equals roster size and faster members implicitly do more work. Results return in input order; `byAgent` reports load distribution; `continueOnError` collects `failures` while keeping successes (else the first error rejects). The "fraction of the time" primitive, over an injectable dispatch (RPC/local). 6 tests. Full suite green (995).
+- **Iter 17 — work-stealing load balancer.** `LoadBalancer.run(items)` adds fault tolerance: a failed item is **stolen** to a *different* healthy member (up to `maxRetries`), and a member that fails repeatedly is **quarantined** out of rotation so it stops dragging the team down. Scheduling runs in parallel waves (width = healthy roster) for high throughput; items exhausting retries land in `failures`, and if all agents quarantine the rest fail cleanly. Where fan-out assumes reliable members, the balancer assumes they aren't. 6 tests. Full suite green (1001).
+- **Iter 18 — map-reduce over A2A.** `mapReduce(agents, items, {map, reduce, initial})` runs the classic scatter → gather → reduce: the **map** fans across the roster in parallel (via `FanOutCoordinator`), the **gather** preserves input order regardless of completion order, and the **reduce** folds deterministically. The expensive map shrinks toward 1/N wall-clock on a team of N; verified with sum-of-squares and word-count reduces. 3 tests. Full suite green (1004).
+- **Iter 19 — role pipeline (assembly-line).** `pipeline(items, stages)` flows every item through role-owned stages (researcher → coder → reviewer) with **no barrier between stages** — item B can be in stage 1 while item A is in stage 3 — so wall-clock is the slowest single-item chain, not the sum of per-stage totals. Each stage carries a concurrency bound (its role's agent count) via a semaphore; results stay in input order; `continueOnError` collects instead of rejecting. Overlap + bound verified by timeline. 4 tests. Full suite green (1008).
+- **Iter 20 — speedup benchmark (Phase J complete).** `modelSpeedup(costs, agents)` predicts parallel makespan via greedy list-scheduling and returns `speedup` (serial/parallel) + `efficiency` (speedup/agents) deterministically — the metric a "fraction of the time" claim is measured against. `timed`/`benchmarkSpeedup` measure real serial-vs-parallel wall-clock with an injectable clock (deterministic in tests). 6 tests. **Phase J done.** Full suite green (1014).
+
+### Phase L — Benchmarks / lightweight / release
+- **Iter 26 — benchmark harness.** `bench/`: `summarize` computes throughput (ops/sec) + latency percentiles (mean/p50/p95/min/max) from per-op durations; `measure(fn, iters, now)` times each op with an injectable clock (deterministic in tests); `BenchSuite` runs named benchmarks (A2A round-trip, spawn, …) and renders a comparable text table. The measurement backbone for the release benchmark table. 4 tests. Full suite green (1044).
+- **Iter 27 — footprint / lazy loading.** `Lazy<T>` builds a value at most once on first access; `LazyModuleRegistry` holds factories and instantiates on demand (caching), with `evict` to free memory while keeping the factory. Registering a 100-module catalog builds nothing until something is requested; `footprintReport` quantifies the win (registered vs instantiated, ratio, lazy names). This is how a Hades gateway stays lighter than an eager one. 4 tests. Full suite green (1048).
+- **Iter 28 — `hades team` CLI + docs + example.** Added a `team` subcommand to `HadesCli` (`roles` lists the vocabulary; `plan <objective>` previews the formed roster) wired into `buildHadesCli`. `docs/HADES_TEAMS.md` documents A2A, teams, parallelism, security, and modularity. `demoTeamParallel()` is a dependency-free runnable example that forms a team, spawns it, has each member serve an A2A RPC, fans 12 subtasks across the roster in parallel, aggregates, and reports the modeled speedup — doubling as a regression test. 7 tests. Full suite green (1052).
+- **Iter 29 — end-to-end team stack.** One scenario composing everything: a task forms a **containerized** team (BackendAgentSpawner + FakeBackend) over a **signed + audited** A2A fabric with **secure-by-default** clamped/no-network spawn limits; least-privilege capability tokens are minted per member and enforced (`checker.assert`) before each RPC; the coordinator scatters a batch across coders in parallel and `mapReduce`s the **verified aggregate** (91); the team disbands leaving zero live workers; and the whole run is audited (non-empty conversation graph). A second test proves a forged/mis-signed message injected on the bus is dropped before delivery. 2 tests. Full suite green (1054).
+- **Iter 30 — final review + release (Phase L complete).** Added a "Hades v2 — teams, A2A & on-demand parallel swarms" section to the README (capability map, `hades team` usage, a speedup table, secure-by-default note) and a full Hades v2 entry to the CHANGELOG (all six phases). Final verification: `tsc -p tsconfig.lib.json` clean and the full `vitest run` green at **1054 tests across 127 files**. All 30 v2 iterations complete on top of Hades v1 (909) and the swarm baseline; every subsystem tests without containers, a network, or credentials. **Hades v2 build done — loop stopped.**
+
+---
+
+## Completion summary
+
+**Hades v2 is complete: all 30 iterations across 6 phases, 1054 tests green, `tsc` clean.**
+
+Hades is now **team-native** — the goal delivered:
+- **A2A (G):** agents address each other directly — mailbox/bus, pub/sub, RPC, streaming.
+- **Teams (H):** roles → `TeamFormer` → spawn (in-process *or* **containerized** on Modal/SSH/Daytona/Singularity) → form/work/disband → coordinator. Teams form **on demand** and disband cleanly.
+- **Modularity (I):** manifests + semver resolution, hot load/unload, permissioned plugin packages, unified registry — skills and plugins are truly modular.
+- **Parallelism (J):** fan-out, work-stealing balancer, map-reduce, assembly-line pipeline, measured speedup — work runs **in parallel in a fraction of the time**.
+- **Security (K):** capability tokens (NHI), signed + tamper-rejecting A2A, least-privilege scopes, audit trail, secure-by-default spawn — **more locked down than Hermes**.
+- **Lightweight + release (L):** benchmark harness, lazy-loading footprint, `hades team` CLI, docs, e2e — **faster and lighter**.
+
+The swarm verification gate is never bypassed: a team's aggregate is still a grounded, anti-hallucination-checked result. Everything stays injectable, so the entire team fabric — containers, A2A, crypto, clocks — runs deterministically in tests.
+
+---
+
+## Performance level-up + signature swarm hierarchy mode
+
+Built with a **team of subagents in parallel** (distributed hierarchy, live benchmarks, scale tests), then integrated + verified centrally.
+
+- **O(1) A2A routing.** `InMemoryA2ATransport` now dispatches direct messages (all RPC + streaming — the hot path) via an indexed `Map.get(agentId)` lookup instead of scanning every subscriber. Proven: a **10,000-agent roster** resolves a point-to-point send in **exactly one** subscriber comparison (`routeScans === 1`), not 10,000. Broadcasts still fan out (inherent, team-scoped).
+- **Signature swarm hierarchy mode** (`src/hades/hierarchy/`). A tree of coordinators recursively decomposes a goal (root → sub-coordinators → workers) with **parallel fan-out at every level**, so branching B and depth D marshal **B^D workers in D coordination hops** — wall-clock bounded by the critical path, not total work. `buildBalancedHierarchy` + `hierarchyStats` + in-process `HierarchyOrchestrator` (tracks peak concurrency + critical-path depth) + `DistributedHierarchy` that runs the **same tree over the real A2A bus** (each node its own endpoint + RPC peer — so every node could live in its own container). Scale-tested to **2048 workers deep** and **243 workers wide**.
+- **Runnable benchmarks** (`src/hades/bench/live-bench.ts`, `docs/HADES_BENCHMARKS.md`) that measure the real objects with `performance.now()`. Observed on CI-class hardware:
+  - A2A throughput: **~2.4M messages/sec**; RPC round-trip: **~230k ops/sec** (mean ~0.004ms).
+  - Hierarchy vs flat serial (64 workers, real per-task latency): **~28–42× speedup**, approaching the ideal min(workers, tasks).
+  - Routing scaling: **1 scan at 100 agents AND at 10,000 agents** — the O(1) proof.
+
+Full suite after the level-up: **1076 tests across 133 files**, `tsc` clean.
+
+### Phase K — Security
+- **Iter 21 — capability tokens (NHI).** `security/tokens`: `CapabilityMinter` mints a per-agent `CapabilityToken` scoping exactly what a team member may do (capabilities, team, issued/expiry), one per membership (`mintForTeam` over the roster); `CapabilityChecker` validates (structure + expiry) and authorizes **deny-by-default** — a capability is granted only if the token holds it or `*`; `assert` throws for guard sites. The non-human-identity base for the A2A/spawn checks that follow. 6 tests. Full suite green (1020).
+- **Iter 22 — A2A signing + tamper-reject.** `HmacSigner` (HMAC-SHA256, constant-time verify) behind an injectable `Signer`. `SigningA2ATransport` wraps any `A2ATransport` to **sign every outgoing message and verify every incoming one** over a canonical envelope form, dropping anything unsigned or tampered before it reaches a mailbox (with an `onReject` audit hook) — a spoofed/modified message or one signed with the wrong team secret never gets delivered. `signToken`/`verifyToken` do the same for capability tokens (a privilege-escalation mutation fails verification). Added optional `sig` to the envelope. 5 tests. Full suite green (1025).
+- **Iter 23 — least-privilege scopes.** `TeamPolicy` (team-wide `allow`, optional `perRole` narrowing, explicit `deny`) and pure `scopedCapabilities` = deny-by-default intersection of requested ∩ team-allow ∩ per-role minus deny — there is no path to more privilege than the policy grants. `LeastPrivilege` reports `wouldGrant`/`strippedFor` (audit visibility) and `mintScopedTokens` mints one token per roster member with its role capabilities *already scoped down*, so the `CapabilityChecker` then enforces exactly the least-privilege set. 6 tests. Full suite green (1031).
+- **Iter 24 — audit trail.** `AuditLog` is an append-only, queryable record (by type/team/actor) of the team fabric: A2A messages, spawns/terminations, and every authorization decision, with an injectable clock. `conversationGraph()` reconstructs the directed "who talked to whom" edge counts. `AuditingA2ATransport` wraps any transport to log every published message (composes with the signing transport) — making a Hades swarm fully accountable. 3 tests. Full suite green (1034).
+- **Iter 25 — secure-by-default spawn policy (Phase K complete).** `applySpawnPolicy` brings every containerized member up **locked down**: no network, read-only root, all Linux capabilities dropped, and resource ceilings that clamp requests (with warnings). Network is fail-closed — it stays OFF unless a request *explicitly* asks AND the policy carries an egress allowlist. `checkSpawnRequest` is a strict fail-closed gate for over-cap or unlisted-egress requests. A spawned agent can't reach the network or host FS by accident — the "more secure than Hermes" default. 6 tests. **Phase K done.** Full suite green (1040).
+
+### Phase I — Modular skills & plugins
+- **Iter 11 — module manifest + semver.** `modules/manifest`: `ModuleManifest` (name, semver version, kind skill/plugin/pack, dependencies as name→range, capabilities, provides, permissions) and a dependency-free semver matcher — `parseVersion`, `compareVersions`, and `satisfies` supporting `*`, exact, caret `^`, tilde `~`, and `>=/>/<=/<`. `validateManifest` checks name/version/kind shape and that every dependency range parses. The foundation for resolution + hot-load. 9 tests. Full suite green (966).
+- **Iter 12 — dependency resolution + load order.** `resolveModules(available, roots)` chooses one version per module satisfying **all** accumulated ranges (highest wins) via a bounded constraint fixpoint, reports missing modules and unsatisfiable version conflicts, then returns the chosen set in **dependency-first topological order** (Kahn) — detecting cycles and deduping a shared dep across roots. 6 tests. Full suite green (972).
+- **Iter 13 — hot skill-module loader.** `SkillModuleLoader` loads/unloads/reloads skill modules at runtime (validating each manifest, emitting load/unload/reload events) and `skillRegistry()` projects the currently-loaded set into a fresh `SkillRegistry` for the swarm. `loadAll` resolves dependency order first so nothing loads before what it needs; unloading a module others depend on is refused (returns `blockedBy`) unless forced. 5 tests. Full suite green (977).
+- **Iter 14 — governed plugin packages.** `PluginPackage` = manifest (capabilities, provided hooks, **requested permissions**) + factory. `PluginPackageLoader` installs into a live `PluginManager` enforcing declared permissions **deny-by-default**: a package requesting any ungranted permission is refused before its code runs (returned as `denied`); permission-free packages always pass. Configurable via `allowedPermissions` or a custom `grant`; non-plugin manifests rejected; `installAll` resolves dependency order. More secure than a bare registry. 6 tests. Full suite green (983).
+- **Iter 15 — unified module registry (Phase I complete).** `ModuleRegistry` is one catalog for skills, plugins, and packs: holds every available version (newest-first `find`/`latest`), counts by kind, rejects duplicate name+version, detects real conflicts (a name declared under more than one kind), and resolves a cross-kind install set into dependency-first load order via the shared resolver. The single registry the CLI/marketplace queries and loaders draw from. 6 tests. **Phase I done.** Full suite green (989).
+
+### Phase H — Teams
+- **Iter 6 — role registry + team blueprint.** `teams/`: `AgentRole` (capabilities route tasks; skills + prompt fragment specialize) and `RoleRegistry` with a `defaultRoleRegistry` (planner/researcher/coder/reviewer/tester) + `withCapability` lookup. `TeamBlueprint` (role requirements with counts + min/max, `maxAgents` runaway ceiling); pure `blueprintSize`, `validateBlueprint` (unknown roles, bad counts, oversize teams), and `expandRoster` → concrete namespaced `{agentId, role}` slots. 6 tests. Full suite green (941).
+- **Iter 7 — TeamFormer.** Turns a `TaskSpec` into a concrete team: an injectable `decompose` (LLM) can design the blueprint, else the offline heuristic maps each required capability to a role, brackets the work with a planner + reviewer, falls back to a coder when nothing maps, applies per-role count overrides, validates, and expands to a namespaced roster — throwing when the design exceeds `maxAgents`. `slugify` derives a stable team id. This is "form the right team around a task, on demand." 6 tests. Full suite green (947).
+- **Iter 8 — Team spawn over an injectable spawner.** `Team` spawns every roster slot concurrently (fast formation), wires each to the shared A2A transport, tracks members by id/role, and tears down in parallel; `spawn` is idempotent. `AgentSpawner` abstracts *how* a slot becomes a live agent: `InProcessAgentSpawner` (endpoint only — tests/local) and `BackendAgentSpawner` — provisions each member as a **containerized worker** on a `RemoteBackend` (Modal/SSH/Daytona/Singularity) with the role's capabilities, then connects its endpoint, terminating the worker on stop. Members talk over A2A immediately after spawn. On-demand containerized swarms, injectable end-to-end. 3 tests. Full suite green (950).
+- **Iter 9 — team lifecycle.** `TeamRunner.run(task, work)` drives the full lifecycle — **form → spawn → work → disband** — with failure-aware teardown: whatever happens in `work`, the team is always torn down in the `finally`, so a failed run never leaks containers. State transitions (`forming`/`ready`/`working`/`disbanded`/`failed`) are observable; success ends `disbanded`, failure ends `failed` (with `lastError`) but still tears down every spawned agent. 3 tests. Full suite green (953).
+- **Iter 10 — team coordinator (Phase H complete).** `TeamCoordinator` runs on its own A2A endpoint (`<team>.coordinator`) and gives the orchestrator team-level messaging over the roster: `direct`/`request` (RPC) an individual member, `announce` a topic to the whole team, `onTopic` to listen. It composes the A2A `RpcPeer` + `PubSub` — turning a bag of spawned agents into a coordinated team (the addressed + broadcast surface). 4 tests. **Phase H done.** Full suite green (957).

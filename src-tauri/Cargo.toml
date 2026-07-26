@@ -1,0 +1,54 @@
+# Hades desktop native shell.
+#
+# By DEFAULT this crate is intentionally dependency-free. The build environment
+# this was authored in is headless (no display, no webview system libs, no
+# `cargo tauri` CLI available), so the only thing that can be verified here is
+# that the supervisor logic compiles and runs as a plain Rust binary against the
+# standard library. `cargo check` / `cargo test` with NO `--features` pull no
+# external crates and stay green offline.
+#
+# The OPTIONAL `gui` feature (see `[features]` below) turns this into the real
+# Tauri application: it pulls the `tauri` crate, compiles `src/gui.rs`, and opens
+# a native window whose webview bridges IPC to the spawned Node sidecar. That
+# path requires the platform webview libraries (WebKitGTK / WebView2 / WKWebView)
+# and the Tauri toolchain, so it is a LOCAL, display-machine build step
+# (`cargo check --features gui` / `cargo tauri build`). It is NOT built or
+# verified in this headless environment — see the header of `src/gui.rs`.
+[package]
+name = "hades-desktop"
+version = "0.1.0"
+edition = "2021"
+description = "Hades desktop native shell: process supervisor for the Node sidecar."
+publish = false
+
+[[bin]]
+name = "hades-desktop"
+path = "src/main.rs"
+
+[features]
+# Default is EMPTY on purpose: the feature-off build is the std-only supervisor
+# and pulls no `tauri`/webview code whatsoever.
+default = []
+# Turning `gui` on activates the optional deps below (via `dep:`) so no implicit
+# per-dependency features leak out — `gui` is the single switch for the real
+# window shell.
+gui = ["dep:tauri", "dep:serde_json", "dep:tauri-build"]
+
+[dependencies]
+# Both are OPTIONAL and only compiled under `--features gui`. Because the default
+# feature set is empty, a plain `cargo check` / `cargo test` pulls neither and
+# the crate stays std-only + offline. `serde_json` is used by `src/gui.rs` to
+# frame Command lines to the sidecar's stdin and to parse AppEvent lines from its
+# stdout before emitting them to the webview.
+tauri = { version = "2", optional = true }
+serde_json = { version = "1", optional = true }
+
+[build-dependencies]
+# Optional + gui-gated as well (see `build.rs`). `tauri-build` generates the
+# Tauri context / capability scaffolding that `tauri::generate_context!()` in
+# `src/gui.rs` consumes at compile time. It is only pulled in and only runs when
+# `gui` is enabled; the default build's `build.rs` is a no-op with no build deps.
+tauri-build = { version = "2", features = [], optional = true }
+
+[profile.dev]
+opt-level = 0

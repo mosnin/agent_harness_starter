@@ -1,0 +1,13 @@
+export { VerificationGate } from "./gate";
+export type { Judge, GateConfig } from "./gate";
+export { AntiRogueGuardrail } from "./guardrails";
+export type { GuardrailPolicy, RogueFinding, RogueSeverity } from "./guardrails";
+export { detectContradictions, claimsToRefs } from "./contradiction";
+export type { Contradiction, ClaimRef } from "./contradiction";
+export { ProvenanceStore, buildProvenance } from "./provenance";
+export type { ProvenanceRecord, ClaimProvenance } from "./provenance";
+export { buildTraceHaystack, isEvidenceTraceable } from "./gate";
+export { SemanticGroundingJudge, cosine } from "./semantic-judge";
+export type { SemanticJudgeOptions } from "./semantic-judge";
+export { RuleBasedAdversary, LLMAdversary } from "./adversarial";
+export type { AdversarialVerifier, Refutation, RuleBasedAdversaryOptions } from "./adversarial";

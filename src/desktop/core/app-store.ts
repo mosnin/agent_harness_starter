@@ -1,0 +1,322 @@
+/**
+ * Hades desktop app store.
+ *
+ * A pure reducer over the sidecar's `AppEvent` stream into immutable UI
+ * state, plus a set of derived selectors. This module owns no I/O, no
+ * timers, and no randomness — every transition is a deterministic function
+ * of (state, event).
+ */
+
+import type {
+  AppEvent,
+  WorkerView,
+  TaskView,
+  RunView,
+  VerificationView,
+  CertificateView,
+  MetricsView,
+  SkillTrustBadgeView,
+} from "../ipc/contract";
+
+// ---------------------------------------------------------------------------
+// State shape
+// ---------------------------------------------------------------------------
+
+export interface AppState {
+  running: boolean;
+  mode: string;
+  poolSize: number;
+  workers: WorkerView[]; // sorted by id
+  tasks: TaskView[]; // insertion order
+  runs: RunView[]; // newest first
+  verifications: VerificationView[]; // newest last
+  certificates: CertificateView[];
+  metrics: MetricsView | null;
+  skills: Array<{ name: string; description: string; trust?: SkillTrustBadgeView }>;
+  log: Array<{ line: string; at: number }>; // capped at 200, newest last
+}
+
+const LOG_CAP = 200;
+
+export function initialState(): AppState {
+  return {
+    running: false,
+    mode: "",
+    poolSize: 0,
+    workers: [],
+    tasks: [],
+    runs: [],
+    verifications: [],
+    certificates: [],
+    metrics: null,
+    skills: [],
+    log: [],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Reducer
+// ---------------------------------------------------------------------------
+
+function upsertById<T>(list: T[], item: T, keyOf: (t: T) => string): T[] {
+  const key = keyOf(item);
+  const idx = list.findIndex((existing) => keyOf(existing) === key);
+  if (idx === -1) {
+    return [...list, item];
+  }
+  const next = list.slice();
+  next[idx] = item;
+  return next;
+}
+
+function upsertNewestFirst<T>(list: T[], item: T, keyOf: (t: T) => string): T[] {
+  const key = keyOf(item);
+  const idx = list.findIndex((existing) => keyOf(existing) === key);
+  if (idx === -1) {
+    return [item, ...list];
+  }
+  const next = list.slice();
+  next[idx] = item;
+  return next;
+}
+
+function sortedByIdWorkers(list: WorkerView[]): WorkerView[] {
+  return list.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+export function reduce(state: AppState, ev: AppEvent): AppState {
+  switch (ev.kind) {
+    case "runtime.status":
+      return {
+        ...state,
+        running: ev.running,
+        mode: ev.mode,
+        poolSize: ev.poolSize,
+      };
+
+    case "worker.upsert": {
+      const merged = upsertById(state.workers, ev.worker, (w) => w.id);
+      return { ...state, workers: sortedByIdWorkers(merged) };
+    }
+
+    case "task.upsert": {
+      return { ...state, tasks: upsertById(state.tasks, ev.task, (t) => t.id) };
+    }
+
+    case "run.upsert": {
+      return {
+        ...state,
+        runs: upsertNewestFirst(state.runs, ev.run, (r) => r.goalId),
+      };
+    }
+
+    case "verification": {
+      return { ...state, verifications: [...state.verifications, ev.report] };
+    }
+
+    case "certificate": {
+      return { ...state, certificates: [...state.certificates, ev.cert] };
+    }
+
+    case "metrics": {
+      return { ...state, metrics: ev.metrics };
+    }
+
+    case "skills.list": {
+      return { ...state, skills: [...ev.skills] };
+    }
+
+    case "log": {
+      const appended = [...state.log, { line: ev.line, at: ev.at }];
+      const log = appended.length > LOG_CAP ? appended.slice(appended.length - LOG_CAP) : appended;
+      return { ...state, log };
+    }
+
+    // Fleet events are owned by the fleet view's own pure reducer
+    // (`../ui/fleet-view.ts`'s `applyFleetEvent`) — the renderer feeds them
+    // there. They deliberately do not touch the swarm app state.
+    case "fleet.snapshot":
+    case "fleet.worker.upsert":
+    case "fleet.error":
+      return state;
+
+    // Fleet-provision events are owned by the provision view's own live-DOM
+    // panel (`../ui/fleet-provision-view.ts`), which subscribes to the wire
+    // directly — they deliberately do not touch the swarm app state either.
+    case "fleet.provisioned":
+    case "fleet.provision.error":
+    case "fleet.restored":
+      return state;
+
+    // Learning events are owned by the learning card's own pure reducer
+    // (`../ui/learning-card.ts`'s `applyLearningEvent`) — the renderer feeds
+    // them there. They deliberately do not touch the swarm app state.
+    case "learning.status":
+    case "learning.error":
+      return state;
+
+    // Gateway events are owned by whichever gateway surface consumes them
+    // (the sidecar wire is live; a dedicated renderer card is a follow-up) —
+    // they deliberately do not touch the swarm app state.
+    case "gateway.status":
+    case "gateway.paircode":
+    case "gateway.error":
+      return state;
+
+    // Schedule events are owned by whichever schedule surface consumes them
+    // (the sidecar wire is live; a dedicated renderer card is a follow-up) —
+    // they deliberately do not touch the swarm app state.
+    case "schedule.status":
+    case "schedule.job":
+    case "schedule.run.receipt":
+    case "schedule.error":
+      return state;
+
+    // Workspace-state events are owned by `./state-slice.ts`'s own pure
+    // reducer (`reduceState`) — the renderer feeds them there, exactly like
+    // the fleet/learning slices above. They deliberately do not touch the
+    // swarm app state.
+    case "state.status":
+    case "state.records":
+    case "state.changed":
+    case "state.synced":
+    case "state.error":
+      return state;
+
+    // Migration events are owned by `./migrate-slice.ts`'s own pure reducer
+    // (`reduceMigrate`), which the renderer feeds directly — exactly like the
+    // fleet/learning/state slices above. They deliberately do not touch the
+    // swarm app state.
+    case "migrate.sources":
+    case "migrate.plan":
+    case "migrate.applied":
+    case "migrate.receipts":
+    case "migrate.error":
+      return state;
+
+    // Trust-gate events are read-only reports about the gate's configuration
+    // and accounting (`./trust-service.ts`); the renderer renders them
+    // directly. Like the fleet/learning/state/migrate lanes above, they
+    // deliberately do not touch the swarm app state.
+    case "trust.status":
+    case "trust.verifiers":
+    case "trust.calibrated":
+    case "trust.budget":
+    case "trust.error":
+      return state;
+
+    // Market events are read-only reports about the verified-work economy
+    // (`./market-service.ts`) — reputation, balances, a cleared order book,
+    // or an explicitly labelled simulation. Like every lane above, they are
+    // rendered directly and deliberately do not touch the swarm app state.
+    case "market.status":
+    case "market.reputation":
+    case "market.book":
+    case "market.simulated":
+    case "market.error":
+      return state;
+
+    // Route events are read-only reports about the budget-constrained router
+    // (`./route-service.ts`) — the arm space, measured cost, posteriors,
+    // conformal thresholds and the tamper-evident routing ledger. Like every
+    // lane above, they are rendered directly and deliberately do not touch
+    // the swarm app state.
+    case "route.status":
+    case "route.arms":
+    case "route.explain":
+    case "route.ledger":
+    case "route.error":
+      return state;
+
+    // Cluster events are measured reports about an EPHEMERAL multi-node
+    // fabric that was built, run and torn down for that one request
+    // (`./cluster-service.ts`). They deliberately do not touch the swarm app
+    // state: `state.running`/`workers`/`tasks` describe THIS process's local
+    // swarm, and folding a torn-down fabric's nodes into them would make the
+    // main view claim workers that no longer exist. The renderer renders
+    // these directly, with their `ephemeral`/`complete` flags intact.
+    case "cluster.status":
+    case "cluster.nodes":
+    case "cluster.run":
+    case "cluster.chaos":
+    case "cluster.error":
+      return state;
+
+    default: {
+      // Exhaustiveness guard: if a new AppEvent kind is added upstream and
+      // not handled here, this branch fails to compile.
+      const _exhaustive: never = ev;
+      return state;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Selectors
+// ---------------------------------------------------------------------------
+
+function computeTaskLevels(tasks: TaskView[]): number[] {
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const memo = new Map<string, number>();
+  const visiting = new Set<string>();
+
+  function levelOf(id: string): number {
+    if (memo.has(id)) return memo.get(id) as number;
+    const task = byId.get(id);
+    if (!task || !task.dependsOn || task.dependsOn.length === 0) {
+      memo.set(id, 0);
+      return 0;
+    }
+    if (visiting.has(id)) {
+      // Cycle guard: treat as base level to avoid infinite recursion.
+      memo.set(id, 0);
+      return 0;
+    }
+    visiting.add(id);
+    let max = -1;
+    for (const dep of task.dependsOn) {
+      if (!byId.has(dep)) continue; // dangling dependency: ignore
+      max = Math.max(max, levelOf(dep));
+    }
+    visiting.delete(id);
+    const level = max === -1 ? 0 : max + 1;
+    memo.set(id, level);
+    return level;
+  }
+
+  return tasks.map((t) => levelOf(t.id));
+}
+
+export const selectors = {
+  liveWorkerCount(s: AppState): number {
+    return s.workers.filter((w) => w.status !== "killed" && w.status !== "dead").length;
+  },
+
+  verifiedCount(s: AppState): number {
+    return s.tasks.filter((t) => t.status === "verified").length;
+  },
+
+  rejectedCount(s: AppState): number {
+    return s.verifications.filter((v) => v.verdict !== "accept").length;
+  },
+
+  groundingPct(s: AppState): number {
+    if (!s.metrics) return 0;
+    return Math.round(s.metrics.groundingRate * 100);
+  },
+
+  tasksByLevel(s: AppState): TaskView[][] {
+    const levels = computeTaskLevels(s.tasks);
+    const maxLevel = levels.reduce((m, l) => Math.max(m, l), -1);
+    const result: TaskView[][] = Array.from({ length: maxLevel + 1 }, () => []);
+    s.tasks.forEach((task, i) => {
+      result[levels[i]].push(task);
+    });
+    return result;
+  },
+
+  latestCertificate(s: AppState): CertificateView | null {
+    if (s.certificates.length === 0) return null;
+    return s.certificates[s.certificates.length - 1];
+  },
+};
