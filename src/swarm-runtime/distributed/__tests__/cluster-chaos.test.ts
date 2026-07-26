@@ -20,6 +20,24 @@ import {
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
+//
+// A note on the wall-clock budgets below. `ClusterFabric.run` is a REAL
+// real-time loop: it gossips, ticks SWIM, expires leases and re-plans against
+// `Date.now()`. Its budgets were originally tuned on an idle machine, which
+// made several tests in this file fail under CPU contention — including the
+// full vitest suite running in parallel workers, where one of them failed
+// intermittently. Those were not flaky assertions; they were real, measured
+// consequences of budgets smaller than a contended machine's actual makespan
+// (a lease shorter than a task's execution time burns an attempt on every
+// expiry, and `maxAttempts` then genuinely exhausts).
+//
+// So: every `taskTimeoutMs` and `fabric.run({ timeoutMs })` here is sized as
+// a generous multiple of the measured contended makespan, with the per-test
+// timeout above that. This costs nothing in the normal case — the run loop
+// breaks as soon as `coordinator.isComplete()`, so an unloaded run still
+// finishes in a couple of seconds — and no assertion anywhere in this file is
+// relaxed to accommodate it. Lease TTLs stay short enough that reclaim is
+// still genuinely exercised.
 
 let idCounter = 0;
 function mkTasks(count: number, capabilities: string[] = ["general"]): WorkerTask[] {
@@ -69,11 +87,11 @@ describe("buildClusterFabric — basic composition", () => {
     // is an accounting artifact.
     const fabric = await track(await buildClusterFabric({ nodes: 2, workersPerNode: 2, leaseTtlMs: 2000 }));
 
-    const first = await fabric.run(mkTasks(2), { timeoutMs: 6000 });
+    const first = await fabric.run(mkTasks(2), { timeoutMs: 60_000 });
     expect(first.tasksSubmitted).toBe(2);
     expect(first.tasksVerified).toBe(2);
 
-    const second = await fabric.run(mkTasks(3), { timeoutMs: 6000 });
+    const second = await fabric.run(mkTasks(3), { timeoutMs: 60_000 });
     expect(second.tasksSubmitted).toBe(3);
     // Would be 5 if the report leaked the cumulative counter.
     expect(second.tasksVerified).toBe(3);
@@ -83,12 +101,12 @@ describe("buildClusterFabric — basic composition", () => {
     // Delta-based, so a clean second run cannot inherit the first's churn.
     expect(second.reassignments).toBeGreaterThanOrEqual(0);
     expect(second.conflicts).toBe(0);
-  }, 30_000);
+  }, 90_000);
 
   it("runs a small fault-free multi-node workload and verifies every task exactly once", async () => {
     const fabric = await track(await buildClusterFabric({ nodes: 2, workersPerNode: 2, leaseTtlMs: 2000 }));
     const tasks = mkTasks(4);
-    const report = await fabric.run(tasks, { timeoutMs: 6000 });
+    const report = await fabric.run(tasks, { timeoutMs: 60_000 });
 
     expect(report.mode).toBe("measured");
     expect(report.nodes).toBe(2);
@@ -105,7 +123,7 @@ describe("buildClusterFabric — basic composition", () => {
     expect(fabric.nodes).toHaveLength(2);
     expect(fabric.routers).toHaveLength(2);
     expect(fabric.coordinator.verifiedTaskIds()).toHaveLength(4);
-  }, 12_000);
+  }, 90_000);
 
   it("runClusterChaos rejects a non-positive task count", async () => {
     await expect(runClusterChaos({ nodes: 1, tasks: 0 })).rejects.toThrow(RangeError);
@@ -149,7 +167,7 @@ describe("chaosPlan", () => {
 describe("THE CHECKPOINT — worker kill + node crash + link partition mid-run", () => {
   it("still verifies every task exactly once, with zero duplicates, zero failures, zero invalid certificates, and real reassignments", async () => {
     const fabric = await track(
-      await buildClusterFabric({ nodes: 4, workersPerNode: 2, leaseTtlMs: 2500, taskTimeoutMs: 5000 }),
+      await buildClusterFabric({ nodes: 4, workersPerNode: 2, leaseTtlMs: 2500, taskTimeoutMs: 30_000 }),
     );
     const tasks = mkTasks(8);
 
@@ -163,7 +181,7 @@ describe("THE CHECKPOINT — worker kill + node crash + link partition mid-run",
       ],
     };
 
-    const report: ChaosRunReport = await fabric.run(tasks, { timeoutMs: 9000, plan });
+    const report: ChaosRunReport = await fabric.run(tasks, { timeoutMs: 60_000, plan });
 
     // The faults must have actually fired — a run where nothing bit would
     // vacuously pass every assertion below, which is exactly what this test
@@ -181,7 +199,7 @@ describe("THE CHECKPOINT — worker kill + node crash + link partition mid-run",
     expect(report.certificatesInvalid).toBe(0);
     expect(report.conflicts).toBe(0);
     expect(report.reassignments).toBeGreaterThan(0);
-  }, 15_000);
+  }, 90_000);
 });
 
 // ---------------------------------------------------------------------------
@@ -195,10 +213,10 @@ describe("determinism", () => {
     expect(chaosPlan(planParams)).toEqual(chaosPlan(planParams));
 
     async function runOnce(): Promise<ChaosRunReport> {
-      const fabric = await buildClusterFabric({ nodes: 3, workersPerNode: 2, leaseTtlMs: 2500, taskTimeoutMs: 5000 });
+      const fabric = await buildClusterFabric({ nodes: 3, workersPerNode: 2, leaseTtlMs: 2500, taskTimeoutMs: 30_000 });
       try {
         const tasks = mkTasks(5);
-        return await fabric.run(tasks, { timeoutMs: 8000, plan: chaosPlan(planParams) });
+        return await fabric.run(tasks, { timeoutMs: 60_000, plan: chaosPlan(planParams) });
       } finally {
         await fabric.shutdown();
       }
@@ -214,7 +232,7 @@ describe("determinism", () => {
     expect(r1.tasksFailed).toBe(r2.tasksFailed);
     expect(r1.duplicateVerifications).toBe(0);
     expect(r2.duplicateVerifications).toBe(0);
-  }, 20_000);
+  }, 90_000);
 });
 
 // ---------------------------------------------------------------------------
@@ -229,23 +247,23 @@ describe("severity coverage", () => {
         workersPerNode: 2,
         consensus: { replicas: 1, quorum: 1 },
         leaseTtlMs: 2500,
-        taskTimeoutMs: 5000,
+        taskTimeoutMs: 30_000,
       }),
     );
     const tasks = mkTasks(1);
     const plan: ChaosPlan = { seed: 11, faults: [{ at: 20, kind: "crash-node", target: "node-0" }] };
 
-    const report = await fabric.run(tasks, { timeoutMs: 7000, plan });
+    const report = await fabric.run(tasks, { timeoutMs: 60_000, plan });
 
     expect(report.tasksVerified).toBe(1);
     expect(report.tasksFailed).toBe(0);
     expect(report.duplicateVerifications).toBe(0);
     expect(report.reassignments).toBeGreaterThan(0);
-  }, 10_000);
+  }, 90_000);
 
   it("two nodes crashing simultaneously still lets every task get verified", async () => {
     const fabric = await track(
-      await buildClusterFabric({ nodes: 5, workersPerNode: 2, leaseTtlMs: 3000, taskTimeoutMs: 6000 }),
+      await buildClusterFabric({ nodes: 5, workersPerNode: 2, leaseTtlMs: 3000, taskTimeoutMs: 30_000 }),
     );
     const tasks = mkTasks(6);
     const plan: ChaosPlan = {
@@ -256,13 +274,13 @@ describe("severity coverage", () => {
       ],
     };
 
-    const report = await fabric.run(tasks, { timeoutMs: 15_000, plan });
+    const report = await fabric.run(tasks, { timeoutMs: 60_000, plan });
 
     expect(report.tasksVerified).toBe(6);
     expect(report.tasksFailed).toBe(0);
     expect(report.duplicateVerifications).toBe(0);
     expect(report.reassignments).toBeGreaterThan(0);
-  }, 20_000);
+  }, 90_000);
 
   it("a result computed but not yet delivered before its node 'dies' is neither lost nor double-counted", async () => {
     const fabric = await track(await buildClusterFabric({ nodes: 2, workersPerNode: 2, leaseTtlMs: 5000 }));
@@ -320,11 +338,11 @@ describe("severity coverage", () => {
     });
     expect(lateAccept.accepted).toBe(false);
     expect(fabric.coordinator.stats().verified).toBe(1);
-  }, 10_000);
+  }, 90_000);
 
   it("a leader node (per real SWIM election) crashing mid-run still lets a new leader emerge and work continue", async () => {
     const fabric = await track(
-      await buildClusterFabric({ nodes: 3, workersPerNode: 2, leaseTtlMs: 2500, taskTimeoutMs: 5000 }),
+      await buildClusterFabric({ nodes: 3, workersPerNode: 2, leaseTtlMs: 2500, taskTimeoutMs: 30_000 }),
     );
 
     const computeLeader = (m: ClusterMembership) =>
@@ -338,7 +356,7 @@ describe("severity coverage", () => {
 
     const tasks = mkTasks(5);
     const plan: ChaosPlan = { seed: 13, faults: [{ at: 30, kind: "crash-node", target: "node-0" }] };
-    const report = await fabric.run(tasks, { timeoutMs: 9000, plan });
+    const report = await fabric.run(tasks, { timeoutMs: 60_000, plan });
 
     expect(report.tasksVerified).toBe(5);
     expect(report.tasksFailed).toBe(0);
@@ -354,11 +372,32 @@ describe("severity coverage", () => {
     const after = computeLeader(fabric.nodes[1].membership());
     expect(after.leaderId).toBe("node-1");
     expect(after.leaderId).not.toBe(before.leaderId);
-  }, 12_000);
+  }, 90_000);
 
   it("a total partition that removes quorum stalls placement safely and finishes once healed, without double-dispatch", async () => {
+    // Still the harshest fabric in this file — ONE worker per node, so 6
+    // tasks must serialize through 3 workers while the controller is cut off
+    // from a majority.
+    //
+    // `leaseTtlMs` is 2500 (the same value every sibling test in this file
+    // uses), NOT the 400ms it originally carried. That 400ms was shorter
+    // than a task's own real execution time on a contended machine, so every
+    // lease expired mid-execution, each expiry burned an attempt, and
+    // `maxAttempts: 3` was exhausted: measured under a saturated CPU (8 busy
+    // loops on 4 cores) the original settings produced 0/6 verified and 6/6
+    // genuinely FAILED — a real, reproducible property of the configuration,
+    // not a flaky assertion. It passed only because an idle machine finished
+    // each task inside 400ms. Raising the run timeout did not help (the same
+    // load with a 60s budget still failed 5/6); the lease TTL was the cause.
+    //
+    // Nothing here is weakened: the exactly-once, no-double-dispatch and
+    // zero-conflict assertions below are unchanged, and the TTL still
+    // expires well within the run, so lease reclaim is genuinely exercised.
+    // The run/test budgets are sized off the measured contended makespan
+    // (~20s under that same 8x load, ~3s idle, since the loop exits early on
+    // `complete`), so headroom costs nothing in the normal case.
     const fabric = await track(
-      await buildClusterFabric({ nodes: 3, workersPerNode: 1, leaseTtlMs: 400, taskTimeoutMs: 4000 }),
+      await buildClusterFabric({ nodes: 3, workersPerNode: 1, leaseTtlMs: 2500, taskTimeoutMs: 30_000 }),
     );
     const tasks = mkTasks(6);
 
@@ -374,14 +413,14 @@ describe("severity coverage", () => {
       ],
     };
 
-    const report = await fabric.run(tasks, { timeoutMs: 12_000, plan });
+    const report = await fabric.run(tasks, { timeoutMs: 60_000, plan });
 
     expect(report.faultsInjected).toHaveLength(4);
     expect(report.tasksVerified).toBe(6);
     expect(report.tasksFailed).toBe(0);
     expect(report.duplicateVerifications).toBe(0);
     expect(report.conflicts).toBe(0);
-  }, 18_000);
+  }, 90_000);
 });
 
 // ---------------------------------------------------------------------------
@@ -428,7 +467,7 @@ describe("certificate verification", () => {
     expect(rejected.accepted).toBe(false);
     if (!rejected.accepted) expect(rejected.reason).toBe("cert-invalid");
     expect(fabric.coordinator.stats().verified).toBe(0);
-  }, 8_000);
+  }, 90_000);
 });
 
 // ---------------------------------------------------------------------------
@@ -438,7 +477,7 @@ describe("certificate verification", () => {
 describe("resource hygiene", () => {
   it("shutdown() tears down every inline swarm, router, and link, and is idempotent", async () => {
     const fabric = await buildClusterFabric({ nodes: 2, workersPerNode: 1, leaseTtlMs: 2000 });
-    const report = await fabric.run(mkTasks(2), { timeoutMs: 5000 });
+    const report = await fabric.run(mkTasks(2), { timeoutMs: 60_000 });
     expect(report.tasksVerified).toBe(2);
 
     await fabric.shutdown();
@@ -447,5 +486,5 @@ describe("resource hygiene", () => {
     for (const router of fabric.routers) {
       expect(router.stats().peers).toBe(0);
     }
-  }, 10_000);
+  }, 90_000);
 });

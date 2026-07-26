@@ -41,3 +41,4 @@ export * from "./migrate/index";
 export * from "./trust/index";
 export * from "./market/index";
 export * from "./routing/index";
+export * from "./eval/index";

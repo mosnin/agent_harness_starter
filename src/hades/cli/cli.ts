@@ -36,6 +36,7 @@ import type { InstallCommandDeps } from "./install-command";
 import type { TrustCommandDeps } from "./trust-command";
 import type { MarketCommandDeps } from "./market-command";
 import type { RouteCommandDeps } from "./route-command";
+import type { EvalCliDeps } from "./eval-command";
 import { join } from "node:path";
 
 export interface CliResult {
@@ -120,6 +121,15 @@ export interface HadesCliDeps {
    *  catalog, one measured cost model, one budget and one hash-chained
    *  routing ledger across subcommands. */
   route?: () => RouteCommandDeps;
+  /** Continuous eval + the never-regress gate (`hades eval`). Lazy for the
+   *  same reason `route` is, and for one more: `EvalHistoryLedger` takes a
+   *  real cross-process lock on `<dataDir>/eval`, so constructing it eagerly
+   *  would make every unrelated `hades` invocation contend for it. Cached
+   *  after the first eval subcommand runs, so one process shares one
+   *  hash-chained history ledger, one gate policy and one verdict journal.
+   *  Absent -> `defaultEvalCliDeps()` over the same `$HADES_DATA_DIR|.hades`
+   *  data directory every other surface uses. */
+  eval?: () => EvalCliDeps;
   /** Skill-library directory for `hades skills hub` (agentskills.io interop).
    *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
    *  the same convention `hades skill` uses. */
@@ -136,7 +146,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "cluster", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "cluster", "eval", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -168,6 +178,8 @@ export class HadesCli {
   private marketDeps?: MarketCommandDeps;
   /** Cached result of the lazy `deps.route` factory (see HadesCliDeps). */
   private routeDeps?: RouteCommandDeps;
+  /** Cached result of the lazy `deps.eval` factory (see HadesCliDeps). */
+  private evalDeps?: EvalCliDeps;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -233,6 +245,8 @@ export class HadesCli {
         return this.route(rest);
       case "cluster":
         return this.cluster(rest);
+      case "eval":
+        return this.eval(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -340,6 +354,17 @@ export class HadesCli {
         "                       `autoscale` is a DRY RUN: it plans the per-node worker counts",
         "                       against the SAME registered backends `hades backends` shows,",
         "                       and provisions nothing",
+        "  eval <sub>           Continuous eval + the never-regress gate:",
+        "                       status/run/gate/bisect/history",
+        "                       (measures THIS revision against the real eval suite,",
+        "                       records it to a hash-chained history, compares it to a",
+        "                       real baseline with an exact McNemar test, and REFUSES a",
+        "                       regression -- `gate` and `run --gate` exit 2 on BLOCK and",
+        "                       `history --verify` exits 3 on a broken chain, so either",
+        "                       is a CI merge gate as-is. `bisect` binary-searches the",
+        "                       recorded history for the revision that caused it. An",
+        "                       unmeasured lane reports NaN and says why; it is never a",
+        "                       fabricated 0 that would read as a passing measurement)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -584,6 +609,27 @@ export class HadesCli {
           }
         : {}),
     });
+  }
+
+  /** `hades eval status|run|gate|bisect|history` — the continuous-eval and
+   *  never-regress surface. Lazy AND cached for the same reasons `route` is:
+   *  the eval history ledger is a cross-process-locked, hash-chained on-disk
+   *  file, so one process must share ONE `EvalHistoryLedger` across
+   *  subcommands rather than open (and lock) it twice; the dynamic import
+   *  also keeps the measurement engine, the risk lane and the git revision
+   *  resolver off every other command's startup path.
+   *
+   *  Note this is the ONLY `hades` subcommand that can exit with 2 or 3:
+   *  2 means the never-regress gate genuinely BLOCKED a measured regression
+   *  and 3 means the history chain failed verification, so `hades eval gate`
+   *  and `hades eval history --verify` can each be a CI merge gate directly. */
+  private async eval(args: string[]): Promise<CliResult> {
+    const { runEvalCommand } = await import("./eval-command");
+    if (!this.evalDeps) {
+      const { defaultEvalCliDeps } = await import("./eval-deps");
+      this.evalDeps = this.deps.eval ? this.deps.eval() : defaultEvalCliDeps();
+    }
+    return runEvalCommand(args, this.evalDeps);
   }
 
   private model(args: string[]): CliResult {

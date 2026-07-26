@@ -68,6 +68,7 @@ import {
 } from "node:fs";
 
 import { sha256Hex } from "../styx/certificate";
+import { encodeJsonLine, tryDecodeJsonLine } from "./json-line";
 import {
   verifyScorecard,
   canonicalizeScorecard,
@@ -199,12 +200,12 @@ function isPlainRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
+/** Tolerant JSONL parse. NaN-safe (see ./json-line): the honest `NaN` fields
+ *  an unmeasured risk lane carries are hashed by `canonicalizeScorecard`, so
+ *  they must round-trip through disk verbatim or every chain verification
+ *  after the first append would fail with `hash-mismatch`. */
 function tryParseJson(line: string): unknown {
-  try {
-    return JSON.parse(line);
-  } catch {
-    return undefined;
-  }
+  return tryDecodeJsonLine(line);
 }
 
 interface InternalHeader {
@@ -405,7 +406,7 @@ export class EvalHistoryLedger {
   private atomicRewrite(header: InternalHeader, entries: readonly EvalHistoryEntry[]): void {
     const headerObj: { version: number; checkpointHash?: string } = { version: EVAL_HISTORY_VERSION };
     if (header.checkpointHash !== null) headerObj.checkpointHash = header.checkpointHash;
-    const lines = [JSON.stringify(headerObj), ...entries.map((e) => JSON.stringify(e))];
+    const lines = [encodeJsonLine(headerObj), ...entries.map((e) => encodeJsonLine(e))];
     const body = lines.join("\n") + "\n";
 
     const tmp = `${this.logPath}.tmp-${this.pid}-${Math.random().toString(36).slice(2, 10)}`;
@@ -414,7 +415,7 @@ export class EvalHistoryLedger {
   }
 
   private appendEntryLine(e: EvalHistoryEntry): void {
-    this.fs.writeFileSync(this.logPath, JSON.stringify(e) + "\n", { encoding: "utf8", flag: "a" });
+    this.fs.writeFileSync(this.logPath, encodeJsonLine(e) + "\n", { encoding: "utf8", flag: "a" });
   }
 
   // -------------------------------------------------------------------------

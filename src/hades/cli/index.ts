@@ -61,6 +61,10 @@ export { runRouteCommand, defaultRouteDeps, defaultBenchWiring, ROUTE_USAGE } fr
 export type { RouteCommandDeps, RouteBenchWiring } from "./route-command";
 export { runClusterCommand, CLUSTER_USAGE } from "./cluster-command";
 export type { ClusterCommandDeps, ClusterAutoscaleDeps } from "./cluster-command";
+export { runEvalCommand, evalHelpLines } from "./eval-command";
+export type { EvalCliDeps } from "./eval-command";
+export { defaultEvalCliDeps } from "./eval-deps";
+export type { EvalDepsOptions } from "./eval-deps";
 export { runSkillEvolveCommand } from "./skill-evolve-command";
 export type { SkillEvolveResult, SkillEvolveFs, SkillEvolveOptions } from "./skill-evolve-command";
 export { runGatewayCommand } from "./gateway-command";

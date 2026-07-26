@@ -56,6 +56,14 @@ export interface MeasureOptions {
   /** Real (or test-injected) admission port. Omit to leave the risk lane
    *  honestly `unmeasured` rather than fabricate a passing `0`. */
   admit?: AdmitFn;
+  /** Replaces the recorded `risk.unmeasuredReason` when (and only when) no
+   *  `admit` is supplied. Callers that DECLINED to wire an admission port for
+   *  a specific, actionable reason — e.g. `defaultEvalCliDeps` refusing to
+   *  drive an uncalibrated trust gate, whose every admission would abstain
+   *  and yield a degenerate 0-of-0 "pass" — use this to record that reason
+   *  instead of the generic default. Ignored when `admit` IS supplied, so it
+   *  can never be used to annotate a lane that really was measured. */
+  unmeasuredReason?: string;
   solvers?: ScriptedSolver[];
   now?: () => number;
 }
@@ -252,6 +260,7 @@ export async function runEvalMeasurement(opts: MeasureOptions): Promise<EvalScor
     risk = {
       measured: false,
       unmeasuredReason:
+        opts.unmeasuredReason ??
         "no AdmitFn supplied (opts.admit) -- the risk lane requires a real admission gate to drive " +
         "runRiskEval. Reporting a fabricated 0 here would misrepresent an untested silent-wrong rate as " +
         "a passing measurement, so every result-shaped field below is an honest 'nothing happened' value: " +
