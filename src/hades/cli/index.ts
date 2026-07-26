@@ -65,6 +65,8 @@ export { runEvalCommand, evalHelpLines } from "./eval-command";
 export type { EvalCliDeps } from "./eval-command";
 export { defaultEvalCliDeps } from "./eval-deps";
 export type { EvalDepsOptions } from "./eval-deps";
+export { runGovCommand, defaultGovDeps } from "./gov-command";
+export type { GovCommandDeps, GovStack } from "./gov-command";
 export { runDatasetCommand, datasetHelpLines } from "./dataset-command";
 export type { DatasetCliDeps } from "./dataset-command";
 export { defaultDatasetCliDeps, nodeSpawnPort } from "./dataset-deps";

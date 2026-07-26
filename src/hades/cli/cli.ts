@@ -38,6 +38,7 @@ import type { MarketCommandDeps } from "./market-command";
 import type { RouteCommandDeps } from "./route-command";
 import type { EvalCliDeps } from "./eval-command";
 import type { DatasetCliDeps } from "./dataset-command";
+import type { GovCommandDeps } from "./gov-command";
 import { join } from "node:path";
 
 export interface CliResult {
@@ -140,6 +141,15 @@ export interface HadesCliDeps {
    *  Absent -> `defaultDatasetCliDeps()` over the same `$HADES_DATA_DIR|.hades`
    *  data directory every other surface uses. */
   dataset?: () => DatasetCliDeps;
+  /** Governance stack (`hades gov`). Lazy for the same reason `dataset` is,
+   *  and then some: resolving the gov stack opens `<dataDir>/gov`, takes the
+   *  keystore's cross-process directory lock and — on a virgin data dir —
+   *  MINTS this agent's ed25519 identity, so building the CLI (or running
+   *  `hades help`) must never do it. Cached after the first gov subcommand
+   *  runs, so one process shares one keystore, one audit chain and one
+   *  policy store across subcommands. Absent -> `defaultGovDeps()` over the
+   *  same `$HADES_DATA_DIR|.hades` directory every other surface uses. */
+  gov?: () => GovCommandDeps;
   /** Skill-library directory for `hades skills hub` (agentskills.io interop).
    *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
    *  the same convention `hades skill` uses. */
@@ -156,7 +166,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "cluster", "eval", "dataset", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "cluster", "eval", "dataset", "gov", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -192,6 +202,8 @@ export class HadesCli {
   private evalDeps?: EvalCliDeps;
   /** Cached result of the lazy `deps.dataset` factory (see HadesCliDeps). */
   private datasetDeps?: DatasetCliDeps;
+  /** Cached result of the lazy `deps.gov` factory (see HadesCliDeps). */
+  private govDeps?: GovCommandDeps;
 
   constructor(private readonly deps: HadesCliDeps = {}) {
     this.version = deps.version ?? "0.1.0";
@@ -261,6 +273,8 @@ export class HadesCli {
         return this.eval(rest);
       case "dataset":
         return this.dataset(rest);
+      case "gov":
+        return this.gov(rest);
       case "chat":
         return this.deps.onChat ? this.deps.onChat(rest) : { code: 1, lines: ["chat is not available in this build."] };
       case "gateway":
@@ -391,6 +405,18 @@ export class HadesCli {
         "                       is a CI gate as-is. `finetune` is OFF by default and",
         "                       spawns nothing without --enable, a REAL local model and a",
         "                       clean audit; no loss/accuracy is ever synthesized)",
+        "  gov <sub>            Governance: identity/token/audit/policy/airgap/doctor",
+        "                       (a real ed25519 agent identity in a sealed, rotatable",
+        "                       keystore; attenuable macaroon-style capability tokens",
+        "                       that can only ever be NARROWED; a tamper-evident audit",
+        "                       chain with Merkle inclusion proofs and signed",
+        "                       checkpoints, re-verified from its own bytes; a signed",
+        "                       policy bundle that fails CLOSED on anything but a clean",
+        "                       load; and an air-gap that really does neutralize this",
+        "                       process's fetch/http/https/socket/dns/tls seams.",
+        "                       `token check`/`policy test` exit 2 on DENY and",
+        "                       `audit verify`/`doctor` exit 1 on a broken artifact,",
+        "                       so they are CI gates as-is)",
         "  learn stats          Show the recorded-trajectory dataset size",
         "  version              Print the version",
         "  help                 Show this help",
@@ -677,6 +703,28 @@ export class HadesCli {
       this.datasetDeps = this.deps.dataset ? this.deps.dataset() : defaultDatasetCliDeps();
     }
     return runDatasetCommand(args, this.datasetDeps);
+  }
+
+  /** `hades gov identity|token|audit|policy|airgap|doctor` — the governance
+   *  operator surface: this agent's ed25519 identity and sealed keystore,
+   *  attenuable capability tokens, the tamper-evident Merkle-checkpointed
+   *  audit chain, the signed fail-closed policy bundle, and a REAL air-gap
+   *  over this process's egress seams. Lazy AND cached (see HadesCliDeps.gov)
+   *  — the dynamic import also keeps ed25519, the audit chain and the policy
+   *  engine off every other command's startup path.
+   *
+   *  Exit codes survive the router: `token check` and `policy test` exit 2 on
+   *  a DENY (distinct from 1, which means the command itself failed), and
+   *  `audit verify`, `audit prove`, `identity verify`, `airgap probe`,
+   *  `airgap run` and `doctor` exit non-zero when the artifact they inspect
+   *  does not verify — so any of them is a CI gate as-is. */
+  private async gov(args: string[]): Promise<CliResult> {
+    const { runGovCommand } = await import("./gov-command");
+    if (!this.govDeps) {
+      const { defaultGovDeps } = await import("./gov-command");
+      this.govDeps = this.deps.gov ? this.deps.gov() : defaultGovDeps();
+    }
+    return runGovCommand(args, this.govDeps);
   }
 
   private model(args: string[]): CliResult {
