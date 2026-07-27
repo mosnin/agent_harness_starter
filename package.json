@@ -1,8 +1,8 @@
 {
-  "name": "@agent-harness/core",
+  "name": "hades-agent",
   "version": "0.1.0",
   "private": false,
-  "description": "Drop-in agent infrastructure for Next.js SaaS \u2014 memory, guardrails, governance, capability tokens.",
+  "description": "hades - a verifiable AI agent harness. CLI, TUI and native desktop app: task orchestration with a STYX verification gate, ed25519 certificates and conformal abstention, so every accepted result can be proven.",
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

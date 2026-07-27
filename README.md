@@ -47,7 +47,7 @@ Full reference: [**ARCHITECTURE.md**](./ARCHITECTURE.md), [**docs/24-swarm-runti
 Library usage:
 
 ```typescript
-import { createInlineSwarm } from "@agent-harness/core/swarm-runtime";
+import { createInlineSwarm } from "hades-agent/swarm-runtime";
 
 const swarm = await createInlineSwarm({ capabilities: ["research", "code"], poolSize: 3 });
 const goal = await swarm.runGoal("Describe the module architecture");

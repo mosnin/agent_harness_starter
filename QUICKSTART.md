@@ -34,7 +34,7 @@ That single directory is all the infrastructure. Everything else in this repo (r
 
 ```bash
 # Option A — npm package (recommended; get security patches via npm update)
-npm install @agent-harness/core @openai/agents openai zod
+npm install hades-agent @openai/agents openai zod
 
 # Option B — copy the source directly (full customisation)
 # cp -r ../agent_harness_starter/src/agents src/agents

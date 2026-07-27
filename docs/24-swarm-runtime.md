@@ -48,7 +48,7 @@ Every worker container runs hardened: `--cap-drop ALL`, `--no-new-privileges`,
 ## Library usage
 
 ```typescript
-import { createInlineSwarm } from "@agent-harness/core/swarm-runtime";
+import { createInlineSwarm } from "hades-agent/swarm-runtime";
 
 const swarm = await createInlineSwarm({ capabilities: ["research", "code"], poolSize: 3 });
 swarm.on("task:verified", (t, report) => console.log("verified", t.id, report.score));
@@ -75,8 +75,8 @@ Or wire your own executor (e.g. the full agent harness with its tool registry)
 for real, tool-grounded workers:
 
 ```typescript
-import { createInlineSwarm } from "@agent-harness/core/swarm-runtime";
-import { LLMExecutor, createOpenAICompatibleChat } from "@agent-harness/core/swarm-runtime";
+import { createInlineSwarm } from "hades-agent/swarm-runtime";
+import { LLMExecutor, createOpenAICompatibleChat } from "hades-agent/swarm-runtime";
 
 const chat = createOpenAICompatibleChat({ apiKey: process.env.OPENAI_API_KEY!, model: "gpt-4o-mini" });
 const swarm = await createInlineSwarm({ capabilities: ["research"], executor: new LLMExecutor(chat) });
