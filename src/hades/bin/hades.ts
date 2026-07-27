@@ -43,6 +43,26 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
       return streamed > 0 ? { code: result.code, lines: [] } : result;
     },
   });
+  // The wordmark is a front-door affordance, not decoration: it prints only
+  // for a bare `hades` / `hades help` on a real TTY. Piped output, CI, --json
+  // consumers and every other subcommand get clean, unadorned text — see
+  // shouldShowBanner/shouldUseColor for the policy.
+  const bare = argv.length === 0 || argv[0] === "help";
+  if (bare) {
+    const { renderBanner, shouldShowBanner, shouldUseColor } = await import("../cli/banner");
+    const isTTY = Boolean(process.stdout.isTTY);
+    if (shouldShowBanner(process.env, isTTY)) {
+      console.log(
+        renderBanner({
+          color: shouldUseColor(process.env, isTTY),
+          width: process.stdout.columns ?? 80,
+          tagline: "the agent you can prove",
+        })
+      );
+      console.log("");
+    }
+  }
+
   const result = await cli.run(argv);
   for (const line of result.lines) console.log(line);
   return result.code;

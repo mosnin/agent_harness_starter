@@ -33,6 +33,7 @@ import type { ScheduleCommandDeps } from "./schedule-command";
 import type { StateCommandDeps } from "./state-command";
 import type { MigrateCommandDeps } from "./migrate-command";
 import type { InstallCommandDeps } from "./install-command";
+import type { SetupDeps } from "./setup-command";
 import type { TrustCommandDeps } from "./trust-command";
 import type { MarketCommandDeps } from "./market-command";
 import type { RouteCommandDeps } from "./route-command";
@@ -150,6 +151,13 @@ export interface HadesCliDeps {
    *  policy store across subcommands. Absent -> `defaultGovDeps()` over the
    *  same `$HADES_DATA_DIR|.hades` directory every other surface uses. */
   gov?: () => GovCommandDeps;
+  /** First-run setup, diagnosis and update reporting (`hades setup|doctor|
+   *  update`). A lazy factory so building the CLI never stats the filesystem
+   *  nor reads package.json unless one of those commands actually runs;
+   *  cached after the first call. Absent -> `defaultSetupDeps(loadConfig())`,
+   *  which probes this real machine and leaves the NETWORK version lookup
+   *  OFF (so `hades update` is offline-honest unless a fetch is injected). */
+  setup?: () => SetupDeps;
   /** Skill-library directory for `hades skills hub` (agentskills.io interop).
    *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
    *  the same convention `hades skill` uses. */
@@ -166,7 +174,7 @@ export interface HadesCliDeps {
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "cluster", "eval", "dataset", "gov", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["setup", "doctor", "update", "chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "cluster", "eval", "dataset", "gov", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -192,6 +200,8 @@ export class HadesCli {
   private migrateDeps?: MigrateCommandDeps;
   /** Cached result of the lazy `deps.install` factory (see HadesCliDeps). */
   private installDeps?: InstallCommandDeps;
+  /** Cached result of the lazy `deps.setup` factory (see HadesCliDeps). */
+  private setupDepsCache?: SetupDeps;
   /** Cached result of the lazy `deps.trust` factory (see HadesCliDeps). */
   private trustDeps?: TrustCommandDeps;
   /** Cached result of the lazy `deps.market` factory (see HadesCliDeps). */
@@ -261,6 +271,13 @@ export class HadesCli {
         return this.migrate(rest);
       case "install":
         return this.install(rest);
+      case "setup":
+        return this.setup(rest);
+      case "doctor":
+        return this.doctor(rest);
+      case "update":
+      case "upgrade":
+        return this.update(rest);
       case "trust":
         return this.trust(rest);
       case "market":
@@ -343,6 +360,10 @@ export class HadesCli {
         "                       scan/plan/apply/report/selftest (deterministic plan,",
         "                       transactional apply with hash-chained receipts + rollback,",
         "                       API keys never printed; `apply` is a DRY RUN without --yes)",
+        "  setup [--write]      First-run setup: preview (default) or create the data",
+        "                       dir + config, and report what this machine can do",
+        "  doctor               Read-only readiness check (exits non-zero on failure)",
+        "  update               Report installed vs published version + upgrade command",
         "  install <sub>        Install/verify this build on a real machine:",
         "                       plan/bundle/verify/doctor (launcher + PATH plan, portable",
         "                       bundle with a sha256 manifest, tamper-checking verify)",
@@ -580,6 +601,42 @@ export class HadesCli {
    *  `hades help` never probes the host machine; deps come from the injected
    *  lazy factory when configured, else `defaultInstallDeps()`. Cached so
    *  repeated subcommands in one process share one host probe. */
+  /** Lazily build (and cache) the real setup/doctor/update deps. Mirrors
+   *  `install`: dynamic import so `hades help` never pays for node:fs, and one
+   *  cached probe shared across subcommands in a process. */
+  private async resolveSetupDeps(): Promise<SetupDeps> {
+    if (!this.setupDepsCache) {
+      if (this.deps.setup) {
+        this.setupDepsCache = this.deps.setup();
+      } else {
+        const [{ defaultSetupDeps }, { loadConfig }] = await Promise.all([
+          import("./setup-deps"),
+          import("../config/config"),
+        ]);
+        this.setupDepsCache = defaultSetupDeps(loadConfig({ env: process.env }));
+      }
+    }
+    return this.setupDepsCache;
+  }
+
+  /** `hades setup` — preview by default; `--write` applies. */
+  private async setup(args: string[]): Promise<CliResult> {
+    const { runSetupCommand } = await import("./setup-command");
+    return runSetupCommand(args, await this.resolveSetupDeps());
+  }
+
+  /** `hades doctor` — read-only; exits non-zero when a check fails. */
+  private async doctor(args: string[]): Promise<CliResult> {
+    const { runDoctorCommand } = await import("./setup-command");
+    return runDoctorCommand(args, await this.resolveSetupDeps());
+  }
+
+  /** `hades update` — reports versions and the upgrade command; never self-mutates. */
+  private async update(args: string[]): Promise<CliResult> {
+    const { runUpdateCommand } = await import("./setup-command");
+    return runUpdateCommand(args, await this.resolveSetupDeps());
+  }
+
   private async install(args: string[]): Promise<CliResult> {
     const { runInstallCommand, defaultInstallDeps } = await import("./install-command");
     if (!this.installDeps) {
