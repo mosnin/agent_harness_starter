@@ -143,7 +143,7 @@ benefit of the doubt.
   shows every verdict and check — served by `SwarmServer` over REST + SSE.
 - **Docker**: `docker/swarm/worker.Dockerfile`, `manager.Dockerfile`, and
   `docker-compose.swarm.yml` for a one-command local swarm.
-- **Library**: `import { createInlineSwarm, buildSwarm, SwarmServer } from "@agent-harness/core/swarm-runtime"`.
+- **Library**: `import { createInlineSwarm, buildSwarm, SwarmServer } from "hades-agent/swarm-runtime"`.
 
 ---
 

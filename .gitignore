@@ -44,3 +44,6 @@ dist/desktop/
 # hades default data dir (workspace store, journals, actor identities) —
 # created by `hades …` runs with no HADES_DATA_DIR set; never source
 .hades/
+
+# hades CLI bundle (built by scripts/build-hades.mjs)
+dist-hades/

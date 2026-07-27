@@ -1,8 +1,8 @@
 {
-  "name": "@agent-harness/core",
+  "name": "hades-agent",
   "version": "0.1.0",
   "private": false,
-  "description": "Drop-in agent infrastructure for Next.js SaaS \u2014 memory, guardrails, governance, capability tokens.",
+  "description": "hades - a verifiable AI agent harness. CLI, TUI and native desktop app: task orchestration with a STYX verification gate, ed25519 certificates and conformal abstention, so every accepted result can be proven.",
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -108,6 +108,7 @@
     "QUICKSTART.md",
     ".env.example",
     "dist-swarm",
+    "dist-hades",
     "docker",
     "docker-compose.swarm.yml",
     "ARCHITECTURE.md"
@@ -192,7 +193,10 @@
     "desktop:build:ui": "node scripts/build-desktop.mjs",
     "desktop:build": "npm run desktop:build:sidecar && npm run desktop:build:ui",
     "desktop:dev": "npm run desktop:build && cargo tauri dev --features gui",
-    "package:desktop": "node scripts/package-desktop.mjs"
+    "package:desktop": "node scripts/package-desktop.mjs",
+    "build:hades": "node scripts/build-hades.mjs",
+    "setup": "tsx src/hades/bin/hades.ts setup",
+    "doctor": "tsx src/hades/bin/hades.ts doctor"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",
@@ -256,6 +260,7 @@
     "node": ">=20.0.0"
   },
   "bin": {
+    "hades": "./dist-hades/hades.js",
     "hermes-swarm": "./dist-swarm/cli.js"
   }
 }

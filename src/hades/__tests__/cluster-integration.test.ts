@@ -12,7 +12,7 @@
  * A barrel assertion is not ceremony here: TypeScript SILENTLY DROPS a name
  * from an `export *` when two re-export sources disagree on it, so a name
  * collision introduced upstream would remove the whole cluster surface from
- * `@agent-harness/core/swarm-runtime` while still compiling clean. Only a
+ * `hades-agent/swarm-runtime` while still compiling clean. Only a
  * runtime read catches that.
  */
 

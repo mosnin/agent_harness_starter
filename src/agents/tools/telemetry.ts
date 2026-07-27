@@ -5,7 +5,7 @@
  * are called most, which are slowest, and which are failing.
  *
  * @example
- *   import { createToolTelemetry } from "@agent-harness/core/tools";
+ *   import { createToolTelemetry } from "hades-agent/tools";
  *
  *   const telemetry = createToolTelemetry();
  *
