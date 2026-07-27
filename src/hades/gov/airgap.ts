@@ -202,7 +202,15 @@ const DNS_FUNCTION_KEYS: readonly string[] = [
  * own reference.
  */
 function realAirgapTarget(): AirgapTarget {
-  const req = createRequire(import.meta.url);
+  // Dual-format guard (duplicated in migrate/fixtures.ts on purpose — a shared
+  // helper would be this file's ONLY repo-internal import): in the CJS bundle
+  // (scripts/build-hades.mjs, format "cjs") esbuild leaves `import.meta` as an
+  // empty object, so `import.meta.url` is `undefined` and
+  // `createRequire(undefined)` throws — there `__filename` is the real module
+  // path. Under genuine ESM `__filename` is undeclared, but `typeof` on an
+  // undeclared identifier never throws, so the check falls through to
+  // `import.meta.url`, which is the one that exists in that format.
+  const req = createRequire(typeof __filename === "string" ? __filename : import.meta.url);
   return {
     globals: globalThis as unknown as { fetch?: unknown },
     http: req("node:http") as unknown,

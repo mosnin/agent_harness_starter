@@ -36,6 +36,12 @@ export default defineConfig({
     "@supabase/supabase-js", "@pinecone-database/pinecone",
     "@prisma/client", "convex", "modal", "@daytonaio/sdk",
     "composio-core", "@modelcontextprotocol/sdk", "@upstash/redis",
+    "playwright-core", "chromium-bidi", "@browserbasehq/sdk", "@tavily/core",
     "next", "react", "react-dom",
+    // node: builtins are always external at runtime (platform: node), but the
+    // dts bundler (`dts.resolve: true`) also needs them declared external —
+    // otherwise it tries to inline @types/node's ambient modules and fails
+    // ('"EventEmitter" is not exported by "node:events"').
+    /^node:/,
   ],
 });

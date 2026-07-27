@@ -15,6 +15,7 @@
  *   --image NAME                   Worker docker image (docker mode)
  *   --host H                       Bind host (default: 127.0.0.1)
  *   --json                         Machine-readable output for `run`
+ *   -h, --help                     Print usage and exit 0 (anywhere in argv)
  */
 import { buildSwarm, type SwarmMode } from "./server/build-swarm";
 import { SwarmServer } from "./server/swarm-server";
@@ -35,6 +36,7 @@ interface Flags {
   dockerNetwork?: string;
   authToken?: string;
   json: boolean;
+  help: boolean;
   _: string[];
 }
 
@@ -47,6 +49,7 @@ function parseArgs(argv: string[]): Flags {
     controlPort: 8787,
     host: "127.0.0.1",
     json: false,
+    help: false,
     _: [],
   };
   for (let i = 0; i < argv.length; i++) {
@@ -64,7 +67,9 @@ function parseArgs(argv: string[]): Flags {
       case "--host": f.host = next(); break;
       case "--auth-token": f.authToken = next(); break;
       case "--json": f.json = true; break;
-      case "-h": case "--help": f._.push("help"); break;
+      // A flag, not a positional: pushing "help" onto `_` here once made
+      // `run --help` execute a swarm goal literally named "help".
+      case "-h": case "--help": f.help = true; break;
       default: f._.push(a);
     }
   }
@@ -87,7 +92,8 @@ FLAGS
   --control-port N               worker control-plane port (default 8787)
   --image NAME                   worker docker image (docker mode)
   --host H                       bind host (default 127.0.0.1)
-  --json                         machine-readable run output`;
+  --json                         machine-readable run output
+  -h, --help                     print usage and exit`;
 
 async function cmdDoctor(): Promise<void> {
   const docker = await new DockerProvider({ image: "x" }).isAvailable();
@@ -102,6 +108,7 @@ async function cmdRun(f: Flags): Promise<void> {
   const objective = f._.slice(1).join(" ").trim();
   if (!objective) {
     console.error('error: provide an objective, e.g. hermes-swarm run "summarize the repo"');
+    console.log(HELP);
     process.exit(1);
   }
   const swarm = await buildSwarm({
@@ -175,7 +182,9 @@ async function cmdTui(f: Flags): Promise<void> {
 async function main(): Promise<void> {
   const f = parseArgs(process.argv.slice(2));
   const cmd = f._[0];
-  if (!cmd || cmd === "help") { console.log(HELP); return; }
+  // -h/--help anywhere in argv prints usage and exits 0 before any command
+  // (worker pools included) is ever built.
+  if (f.help || !cmd || cmd === "help") { console.log(HELP); return; }
   switch (cmd) {
     case "run": return cmdRun(f);
     case "serve": return cmdServe(f);

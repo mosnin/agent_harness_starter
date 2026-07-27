@@ -266,7 +266,16 @@ function writeRealSqliteDb(absPath: string, seed: number): SqliteBuildResult {
     // Synchronous `require` (via createRequire) rather than dynamic `import()` --
     // this whole module's contract is synchronous (`materialize*Fixture` returns
     // `FixtureManifest`, not a Promise), so SQLite fixture generation must be too.
-    const req = createRequire(import.meta.url);
+    //
+    // Dual-format guard (duplicated in gov/airgap.ts on purpose -- no shared
+    // spot exists that both files reach without inventing a new dependency):
+    // in the CJS bundle (scripts/build-hades.mjs, format "cjs") esbuild leaves
+    // `import.meta` as an empty object, so `import.meta.url` is `undefined` and
+    // `createRequire(undefined)` throws -- there `__filename` is the real module
+    // path. Under genuine ESM `__filename` is undeclared, but `typeof` on an
+    // undeclared identifier never throws, so this falls through to
+    // `import.meta.url`, the token that format actually provides.
+    const req = createRequire(typeof __filename === "string" ? __filename : import.meta.url);
     nodeSqlite = req("node:sqlite") as NodeSqliteModule;
   } catch (e) {
     return { wrote: false, reason: `node:sqlite is unavailable in this runtime: ${(e as Error).message}`, memoryRows: 0, sessionCount: 0 };
