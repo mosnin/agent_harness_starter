@@ -60,6 +60,7 @@ import type { EvalTask } from "../bench/vtph";
 import { VerifierRegistry, type TrustDomain, type TrustSubject } from "./registry";
 import { actionVerifiers } from "./action-adapters";
 import { emissionVerifiers } from "./emission-adapters";
+import { referenceRecomputeVerifier } from "./reference-verifier";
 import { UnifiedTrustGate, type UnifiedGateConfig } from "./unified-gate";
 import { TrustBudgetLedger, type TrustBudgetConfig } from "./budget";
 import { scriptedSolvers, type ScriptedSolver } from "./risk-eval";
@@ -349,6 +350,14 @@ export function openTrustStack(opts: TrustStackOptions = {}): TrustStack {
   const registry = new VerifierRegistry();
   registry.registerAll(actionVerifiers());
   registry.registerAll(emissionVerifiers());
+  // The first verifier above T4. Registered under "procedure" for two
+  // reasons: procedural runs are where machine-checkable reference specs
+  // actually appear, and that domain previously had a single voter, so every
+  // single-subject admit() was "degraded-evidence" and it could never certify
+  // at all (`hades trust doctor` failed it). It abstains on any subject whose
+  // request carries no SPEC: reference, so adding it can only ever ADD
+  // information to a fused verdict — never dilute one.
+  registry.register(referenceRecomputeVerifier("procedure"));
 
   const key = resolveTrustSigningKey({ root: root ?? undefined, env });
   const issuer = new CertificateAuthority(key.privateKeyHex);

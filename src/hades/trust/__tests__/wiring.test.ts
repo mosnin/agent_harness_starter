@@ -471,8 +471,14 @@ describe("structural certifiability of what this build actually ships", () => {
 
     // This is a real property of the shipped verifier set, asserted so a
     // future change that fixes it (or breaks it further) is caught here.
-    expect(byDomain.get("procedure")!.registered).toBe(1);
-    expect(byDomain.get("procedure")!.canEverCertify).toBe(false);
+    //
+    // `procedure` USED to ship a single voter and therefore could never
+    // certify anything. It now also carries the T1-reference recompute
+    // verifier, so two verifiers can co-vote on one subject and the domain
+    // is structurally certifiable. `message` is still the lone-voter case
+    // this test was originally written to pin.
+    expect(byDomain.get("procedure")!.registered).toBe(2);
+    expect(byDomain.get("procedure")!.canEverCertify).toBe(true);
     expect(byDomain.get("message")!.registered).toBe(1);
     expect(byDomain.get("message")!.canEverCertify).toBe(false);
     expect(byDomain.get("memory")!.canEverCertify).toBe(true);

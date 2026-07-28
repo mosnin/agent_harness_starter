@@ -552,10 +552,15 @@ describe("hades trust doctor", () => {
     const res = await runTrustCommand(["doctor", "--json"], deps);
     const parsed = JSON.parse(text(res.lines)) as { checks: { name: string; ok: boolean; detail: string }[] };
     const byName = new Map(parsed.checks.map((c) => [c.name, c]));
-    expect(byName.get('domain "procedure" can certify')!.ok).toBe(false);
+    // `message` is the remaining lone-voter domain and must still be failed
+    // loudly rather than reported healthy.
     expect(byName.get('domain "message" can certify')!.ok).toBe(false);
-    expect(byName.get('domain "procedure" can certify')!.detail).toContain("lone voter can never certify");
+    expect(byName.get('domain "message" can certify')!.detail).toContain("lone voter can never certify");
     expect(byName.get('domain "memory" can certify')!.ok).toBe(true);
+    // `procedure` gained the T1-reference recompute verifier, so it now has
+    // two co-voters and is structurally certifiable — the doctor must report
+    // that change rather than keep failing a domain that was fixed.
+    expect(byName.get('domain "procedure" can certify')!.ok).toBe(true);
   });
 
   it("FAILS a calibrated-but-non-discriminating domain rather than calling it healthy", async () => {

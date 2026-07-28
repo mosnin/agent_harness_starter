@@ -38,6 +38,15 @@
  * mode label attached somewhere in the returned/rendered artifact.
  * ------------------------------------------------------------------ */
 
+import {
+  computeSpec,
+  fnv1aHex,
+  SPEC_PREFIX,
+  type ReferenceFamily,
+  type ReferenceSpec,
+} from "../styx/reference-spec";
+import { referenceRecomputeVerifier } from "../trust/reference-verifier";
+import type { TrustSubject } from "../trust/registry";
 import { sha256Hex } from "../styx/certificate";
 import { runVtph, compareVtph } from "./vtph";
 import type { AgentRunner, AgentRunResult, EvalTask, VtphComparison, VtphReport } from "./vtph";
@@ -88,86 +97,48 @@ function pickUnique(rng: () => number, pool: readonly string[], count: number): 
 // Task families — 4 real, independently-graded families
 // ===========================================================================
 
-export type ShowdownFamily = "arithmetic" | "extraction" | "transform" | "checksum";
+/**
+ * The four families' spec types, the ONE ground-truth function and the
+ * `SPEC:` prompt contract now live in `../styx/reference-spec.ts`, so the
+ * task generator here, the graders below and the T1-reference verifier
+ * (`../trust/reference-verifier.ts`) all compute truth through a single
+ * implementation. Re-exported under the historical `Showdown*` names so
+ * existing importers of this module are unaffected.
+ */
+export type ShowdownFamily = ReferenceFamily;
+type ArithmeticSpec = import("../styx/reference-spec").ArithmeticSpec;
+type ExtractionSpec = import("../styx/reference-spec").ExtractionSpec;
+type TransformSpec = import("../styx/reference-spec").TransformSpec;
+type ChecksumSpec = import("../styx/reference-spec").ChecksumSpec;
+type ShowdownSpec = ReferenceSpec;
 
-interface ArithmeticSpec {
-  family: "arithmetic";
-  start: number;
-  ops: Array<["add" | "sub" | "mul", number]>;
-}
-interface ExtractionSpec {
-  family: "extraction";
-  record: Record<string, string>;
-  field: string;
-}
-interface TransformSpec {
-  family: "transform";
-  text: string;
-  op: "reverse" | "upper" | "lower" | "rot13" | "wordcount";
-}
-interface ChecksumSpec {
-  family: "checksum";
-  text: string;
-}
-type ShowdownSpec = ArithmeticSpec | ExtractionSpec | TransformSpec | ChecksumSpec;
+/**
+ * The T1-reference verifier the swarm lane consults before it is allowed to
+ * claim "verified". Built once: it is pure and stateless, and using the
+ * registered verifier object (rather than calling `matchesReference` here)
+ * keeps the benchmark honest — the lane passes exactly the check the trust
+ * stack ships, including its abstention rule.
+ */
+const REFERENCE_GATE = referenceRecomputeVerifier("procedure");
 
-/** Deterministic FNV-1a 32-bit checksum, rendered as 8 lowercase hex chars. */
-function fnv1aHex(s: string): string {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < s.length; i++) {
-    hash ^= s.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
-}
-
-function rot13(s: string): string {
-  return s.replace(/[a-zA-Z]/g, (c) => {
-    const base = c <= "Z" ? 65 : 97;
-    return String.fromCharCode(((c.charCodeAt(0) - base + 13) % 26) + base);
-  });
-}
-
-/** The ONE ground-truth function every family's `grade` AND every honest
- *  worker (scripted or real) computes through — real code, never a
- *  precomputed constant threaded around. */
-function computeSpec(spec: ShowdownSpec): string {
-  switch (spec.family) {
-    case "arithmetic": {
-      const result = spec.ops.reduce((acc, [op, val]) => {
-        if (op === "add") return acc + val;
-        if (op === "sub") return acc - val;
-        return acc * val;
-      }, spec.start);
-      return String(result);
-    }
-    case "extraction":
-      return spec.record[spec.field] ?? "";
-    case "transform": {
-      switch (spec.op) {
-        case "reverse":
-          return spec.text.split("").reverse().join("");
-        case "upper":
-          return spec.text.toUpperCase();
-        case "lower":
-          return spec.text.toLowerCase();
-        case "rot13":
-          return rot13(spec.text);
-        case "wordcount":
-          return String(spec.text.trim().split(/\s+/).filter(Boolean).length);
-      }
-      break;
-    }
-    case "checksum":
-      return fnv1aHex(spec.text);
-  }
+/** Adapt one benchmark task + produced answer to the verifier's subject shape. */
+function referenceSubject(task: EvalTask, output: string): TrustSubject {
+  return {
+    domain: "procedure",
+    subjectId: task.id,
+    taskId: task.id,
+    input: task.prompt,
+    output,
+    evidence: {},
+    trace: [],
+  };
 }
 
 const SPEC_TRAILER =
   "\nRespond with only the exact result and nothing else.";
 
 function withSpec(lines: string[], spec: ShowdownSpec): string {
-  return [...lines, "", `SPEC:${JSON.stringify(spec)}${SPEC_TRAILER}`].join("\n");
+  return [...lines, "", `${SPEC_PREFIX}${JSON.stringify(spec)}${SPEC_TRAILER}`].join("\n");
 }
 
 const ARITH_OPS = ["add", "sub", "mul"] as const;
@@ -756,10 +727,29 @@ export async function runShowdown(opts: ShowdownOptions): Promise<ShowdownResult
       let provenance: string[];
 
       if (wt && wt.status === "verified" && wt.result) {
-        verdict = "verified";
-        claimedVerified = true;
         output = String(wt.result.output);
         provenance = (wt.result.claims ?? []).flatMap((c) => c.evidence);
+        // The swarm's own gate is a T4-consistency ensemble: it can tell that
+        // an answer is well-FORMED, not that it is RIGHT. Before this lane is
+        // allowed to claim "verified", the answer must also survive the
+        // T1-reference verifier — the same registered verifier object the
+        // trust stack uses (`../trust/reference-verifier.ts`), recomputing
+        // the truth from the spec embedded in the request. On any task whose
+        // prompt carries no reference the verifier abstains and the swarm's
+        // own verdict stands unchanged.
+        const refSubject = referenceSubject(task, output);
+        const refVerdict = REFERENCE_GATE.appliesTo(refSubject)
+          ? await REFERENCE_GATE.verify(refSubject)
+          : undefined;
+        if (refVerdict && !refVerdict.abstained && !refVerdict.passed) {
+          // Decline rather than lie — this is the entire product thesis, and
+          // it is what turns a silent-wrong into a declined.
+          verdict = "rejected";
+          claimedVerified = false;
+        } else {
+          verdict = "verified";
+          claimedVerified = true;
+        }
       } else {
         verdict = rejectedGoals.has(goalId) ? "rejected" : "failed";
         claimedVerified = false;
