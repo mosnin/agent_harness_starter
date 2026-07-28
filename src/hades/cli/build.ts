@@ -434,7 +434,23 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     trajectories: new InMemoryTrajectoryStore(),
     roles: defaultRoleRegistry(),
     toolset,
-    onChat: opts.onChat,
+    // `hades chat` is wired here rather than at the bin, because the REPL
+    // needs exactly the stores this function already built (the guarded
+    // memory store, the session store, the model command) — composing a
+    // second set at the entrypoint would give chat a different memory than
+    // `hades memory`. `opts.onChat` still wins so tests can inject a fake.
+    onChat:
+      opts.onChat ??
+      (async (args) => {
+        const { runChatCommand } = await import("./chat-command");
+        return runChatCommand(args, {
+          memory,
+          sessions,
+          ...(models ? { models } : {}),
+          dataDir: config.dataDir,
+          env: process.env,
+        });
+      }),
     onGateway: opts.onGateway,
   });
 }
