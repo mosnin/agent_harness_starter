@@ -1,5 +1,12 @@
 export { VerificationGate } from "./gate";
-export type { Judge, GateConfig } from "./gate";
+export type {
+  Judge,
+  GateConfig,
+  ExternalVerification,
+  ExternalVerifier,
+  ExternalVerifierInput,
+  VerifyContext,
+} from "./gate";
 export { AntiRogueGuardrail } from "./guardrails";
 export type { GuardrailPolicy, RogueFinding, RogueSeverity } from "./guardrails";
 export { detectContradictions, claimsToRefs } from "./contradiction";

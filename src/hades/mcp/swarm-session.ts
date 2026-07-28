@@ -14,6 +14,8 @@
 
 import { EventEmitter } from "node:events";
 import { createInlineSwarm, type InlineSwarmOptions } from "../../swarm-runtime/factory";
+import { VerificationGate } from "../../swarm-runtime/verification/gate";
+import { createSwarmTrustBridge } from "../trust/swarm-bridge";
 import type { SwarmManager } from "../../swarm-runtime/manager/manager";
 import type { McpServer, McpServerTool } from "./server";
 import { createSwarmTaskTool, type SwarmSessionFactory, type SwarmSessionPort } from "./swarm-task-tool";
@@ -52,17 +54,55 @@ export function adaptSwarmManager(manager: SwarmManager): SwarmSessionPort {
  * `base` lets the host pre-configure engine options (a custom planner,
  * executor, budget, …); the per-request `poolSize`/`capabilities`/
  * `maxAttempts` from the MCP client always win over `base`'s.
+ *
+ * The gate defaults to carrying the STYX trust bridge
+ * (`../trust/swarm-bridge.ts`), which adds exactly ONE correctness check:
+ * T1-reference recompute. The answer to a goal whose objective embeds a
+ * machine-checkable `SPEC:` reference is recomputed and compared, so a
+ * provably wrong answer is declined instead of returned as "verified". No
+ * other STYX verifier votes here. The bridge abstains — leaving the score
+ * untouched — on every other result, including every intermediate subtask of
+ * a goal that does carry a reference.
+ *
+ * A host's `base.gate` is MERGED with that default rather than replacing it —
+ * see {@link mergeGateWithBridge} for why a host tuning one threshold must not
+ * silently lose correctness checking.
  */
 export function realSwarmSessionFactory(base: InlineSwarmOptions = {}): SwarmSessionFactory {
   return async ({ poolSize, capabilities, maxAttempts }) => {
     const manager = await createInlineSwarm({
       ...base,
+      gate: mergeGateWithBridge(base.gate),
       poolSize,
       capabilities,
       maxAttempts,
     });
     return adaptSwarmManager(manager);
   };
+}
+
+/**
+ * Combine a host-supplied gate configuration with the STYX trust bridge.
+ *
+ * The obvious spelling — `{ gate: { externalVerifier: bridge }, ...base }` —
+ * is a trap, and it shipped once: object spread replaces `gate` wholesale, so
+ * a host that passed `gate: { acceptThreshold: 0.9 }` for an entirely
+ * unrelated reason silently lost correctness checking as a side effect of
+ * tuning a threshold. Losing a verifier must never be a side effect of
+ * configuring something else, so the merge is per-FIELD: every value the host
+ * set wins, and the bridge survives unless the host set `externalVerifier`
+ * itself.
+ *
+ * A host that hands over a fully-constructed `VerificationGate` is a different
+ * case and is honoured as-is: its checks and thresholds are already baked in
+ * and there is no field to merge into. That host owns its gate, including the
+ * decision not to wire a correctness oracle into it. Callers wanting both
+ * should build their gate with `new VerificationGate({ externalVerifier:
+ * createSwarmTrustBridge(), … })`.
+ */
+export function mergeGateWithBridge(base: InlineSwarmOptions["gate"]): InlineSwarmOptions["gate"] {
+  if (base instanceof VerificationGate) return base;
+  return { externalVerifier: createSwarmTrustBridge(), ...base };
 }
 
 /**

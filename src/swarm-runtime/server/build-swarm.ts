@@ -10,6 +10,7 @@ import { createInlineSwarm } from "../factory";
 import { LLMPlanner } from "../manager/planner";
 import { createOpenAICompatibleChat, chatToPlannerComplete } from "../worker/llm-executor";
 import type { GuardrailPolicy } from "../verification/guardrails";
+import { VerificationGate, type GateConfig } from "../verification/gate";
 import type { TaskExecutor } from "../worker/executor";
 import type { ContainerProvider, ResourceLimits } from "../types";
 
@@ -45,6 +46,20 @@ export interface BuildSwarmOptions {
    * ignored.
    */
   executor?: TaskExecutor;
+  /**
+   * Verification gate (or its config) every worker result is scored by —
+   * applies to ALL modes, because the gate runs manager-side, not in the
+   * worker.
+   *
+   * This is the seam a composition root uses to hand the manager a
+   * CORRECTNESS oracle (`GateConfig.externalVerifier`); the swarm CLI passes
+   * `src/hades/trust/swarm-bridge.ts`'s bridge through here. Declared as a
+   * plain option rather than imported, so this module keeps depending on
+   * nothing above it — same inversion as {@link decorateProvider}.
+   * Omitted: the manager builds its default `VerificationGate`, exactly as
+   * before.
+   */
+  gate?: GateConfig | VerificationGate;
   model?: string;
   maxAttempts?: number;
   guardrailPolicy?: GuardrailPolicy;
@@ -120,6 +135,7 @@ export async function buildSwarm(opts: BuildSwarmOptions): Promise<BuiltSwarm> {
       poolSize: opts.poolSize,
       planner: opts.planner ?? plannerFromEnv(opts.model),
       executor: opts.executor,
+      ...(opts.gate === undefined ? {} : { gate: opts.gate }),
       guardrailPolicy: opts.guardrailPolicy,
       maxAttempts: opts.maxAttempts,
       model: opts.model,
@@ -173,6 +189,12 @@ export async function buildSwarm(opts: BuildSwarmOptions): Promise<BuiltSwarm> {
     capabilities,
     poolSize: opts.poolSize,
     planner: opts.planner ?? plannerFromEnv(opts.model),
+    // The gate is manager-side, so process/docker workers are scored by it
+    // exactly like inline ones — the isolation boundary changes where the work
+    // runs, never what it takes to be accepted.
+    ...(opts.gate === undefined
+      ? {}
+      : { gate: opts.gate instanceof VerificationGate ? opts.gate : new VerificationGate(opts.gate) }),
     guardrailPolicy: opts.guardrailPolicy,
     workerLimits: opts.workerLimits,
     workerImage: opts.workerImage,

@@ -14,7 +14,9 @@ import {
   registerSwarmTaskTool,
   registerCertifiedSwarmTool,
   adaptSwarmManager,
+  mergeGateWithBridge,
 } from "../swarm-session";
+import { VerificationGate, type GateConfig } from "../../../swarm-runtime/verification/gate";
 import type { VerifiedSwarmResult } from "../swarm-task-tool";
 import { verifyHandoffAtBoundary, type CertifiedHandoff } from "../cert-handoff";
 import { CertificateAuthority, generatePrivateKeyHex } from "../../styx/certificate";
@@ -127,4 +129,36 @@ describe("registerSwarmTaskTool + realSwarmSessionFactory (real engine)", () => 
       await port.stop();
     }
   }, 30_000);
+});
+
+/**
+ * The gate a host gets when it configures the session factory.
+ *
+ * Losing correctness checking must never be a SIDE EFFECT of configuring
+ * something else. The first spelling of this wiring spread the default gate
+ * before `...base`, so `realSwarmSessionFactory({ gate: { acceptThreshold: 0.9 } })`
+ * — a host tuning one number — silently dropped the STYX bridge entirely.
+ */
+describe("mergeGateWithBridge", () => {
+  it("keeps the bridge when a host sets an unrelated gate field", () => {
+    const merged = mergeGateWithBridge({ acceptThreshold: 0.9 });
+    expect(merged).not.toBeInstanceOf(VerificationGate);
+    const cfg = merged as GateConfig;
+    expect(cfg.acceptThreshold).toBe(0.9); // the host's value wins
+    expect(cfg.externalVerifier).toBeDefined(); // and the bridge survives
+  });
+
+  it("wires the bridge when the host configured no gate at all", () => {
+    expect((mergeGateWithBridge(undefined) as GateConfig).externalVerifier).toBeDefined();
+  });
+
+  it("lets a host replace the oracle outright — an explicit choice, not a side effect", () => {
+    const mine = { verify: async () => ({ passed: true, abstained: true, tier: "t", reasons: ["r"] }) };
+    expect((mergeGateWithBridge({ externalVerifier: mine }) as GateConfig).externalVerifier).toBe(mine);
+  });
+
+  it("honours a fully-constructed VerificationGate as-is — there is no field to merge into", () => {
+    const gate = new VerificationGate({ acceptThreshold: 0.5 });
+    expect(mergeGateWithBridge(gate)).toBe(gate);
+  });
 });

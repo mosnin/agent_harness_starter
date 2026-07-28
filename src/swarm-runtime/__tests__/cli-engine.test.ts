@@ -13,7 +13,11 @@
  *    that exact variable on stderr — never a silent fallback to mock;
  *  - `--provider local` against a dead 127.0.0.1 port really attempts the
  *    connection and fails FAST with a clear transport error (no hang, no
- *    external network: the endpoint is a loopback port nothing listens on).
+ *    external network: the endpoint is a loopback port nothing listens on);
+ *  - and, against a loopback endpoint that behaves like a competent model, the
+ *    CLI prints the CORRECT answer but DECLINES a confidently-formatted wrong
+ *    one — the audited defect was `=== goal COMPLETED === / 42` on a task
+ *    whose answer is 8, and the first fix for it declined the right answer too.
  *
  * Every spawn scrubs all provider key vars and SWARM_* engine config from the
  * child env, then injects only what the test declares, so results are
@@ -22,9 +26,11 @@
 import { describe, it, expect } from "vitest";
 import { execFile } from "node:child_process";
 import { createServer, type AddressInfo } from "node:net";
+import { createServer as createHttpServer } from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PROVIDERS } from "../worker/providers";
+import { computeSpec, type ReferenceSpec } from "../../hades/styx/reference-spec";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..", "..");
@@ -156,5 +162,152 @@ describe("hermes-swarm CLI — real engine path (loopback only, no external netw
     // Fail-fast, not a hang: refused loopback connects resolve instantly; the
     // bound is generous only for slow CI spawns of tsx itself.
     expect(elapsedMs).toBeLessThan(30_000);
+  }, SPAWN_TIMEOUT_MS);
+});
+
+// ---------------------------------------------------------------------------
+// Correctness, not just grounding — at the real process boundary
+// ---------------------------------------------------------------------------
+
+/**
+ * A loopback OpenAI-compatible endpoint that answers like a COMPETENT model on
+ * a swarm plan: prose for the planner's fan-out subtasks, the requested value
+ * for the final synthesis task. Every reply is well-grounded (its evidence is
+ * quoted verbatim out of the prompt it was given), so the gate's six grounding
+ * checks pass either way and the only thing that can separate a right run from
+ * a wrong one is a CORRECTNESS check.
+ *
+ * That distinction is the point. `scripts/stub-llm.mjs --mode solve` returns
+ * the reference answer for EVERY task including the fan-out ones, so it cannot
+ * see the regression where a swarm refutes an intermediate result for not
+ * being the final answer. This one can.
+ */
+function startCompetentModel(finalAnswer: (specLine: string) => string): Promise<{
+  baseUrl: string;
+  close: () => Promise<void>;
+}> {
+  const server = createHttpServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      const payload = JSON.parse(body) as { messages?: Array<{ content?: unknown }> };
+      const prompt = (payload.messages ?? [])
+        .map((m) => (typeof m.content === "string" ? m.content : ""))
+        .join("\n");
+      const specLine =
+        prompt
+          .split("\n")
+          .map((l) => l.trim())
+          .filter((l) => l.startsWith("SPEC:"))
+          .pop() ?? "";
+      const synthesizing = /TASK:\s*Synthesize/.test(prompt);
+      const answer = synthesizing
+        ? finalAnswer(specLine)
+        : "From this angle the objective is a deterministic computation to be recomputed at synthesis time.";
+      // Cite a verbatim slice of the prompt so `evidence-traceable` passes on
+      // its merits — a model that grounds badly would fail the gate for a
+      // reason that has nothing to do with what these tests measure.
+      const quoted = (prompt.split("\n").find((l) => l.startsWith("TASK:")) ?? prompt).slice(0, 80);
+      const content = JSON.stringify({
+        answer,
+        claims: [
+          {
+            statement: synthesizing ? `The answer is ${answer}.` : "The task was read in full.",
+            evidence: [quoted],
+            confidence: 0.9,
+          },
+        ],
+      });
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          id: "stub",
+          object: "chat.completion",
+          model: "competent-stub",
+          choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }],
+        }),
+      );
+    });
+  });
+  return new Promise((resolve, reject) => {
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address() as AddressInfo;
+      resolve({
+        baseUrl: `http://127.0.0.1:${port}`,
+        close: () => new Promise<void>((done) => server.close(() => done())),
+      });
+    });
+  });
+}
+
+/** Recomputed by the shipped ground-truth function — never hard-coded here. */
+const CLI_SPEC: ReferenceSpec = { family: "arithmetic", start: 5, ops: [["add", 3]] };
+const CLI_TRUTH = computeSpec(CLI_SPEC);
+const CLI_OBJECTIVE = [
+  "Compute the result of the arithmetic below.",
+  "Respond with only the exact result and nothing else.",
+  `SPEC:${JSON.stringify(CLI_SPEC)}`,
+].join("\n");
+
+describe("hermes-swarm CLI — a wrong answer is declined, not printed as COMPLETED", () => {
+  async function runAgainstModel(answer: (specLine: string) => string): Promise<CliRun> {
+    const model = await startCompetentModel(answer);
+    try {
+      return await runCli([
+        "run",
+        CLI_OBJECTIVE,
+        "--provider", "local",
+        "--model", "competent-stub",
+        "--base-url", `${model.baseUrl}/v1`,
+        "--workers", "1",
+        "--caps", "general",
+      ]);
+    } finally {
+      await model.close();
+    }
+  }
+
+  it("prints the CORRECT answer and exits 0 when the model actually solves the task", async () => {
+    // The regression guard: verification that declines correct work is not
+    // "safe", it is broken. This must pass before the next test means anything.
+    const res = await runAgainstModel((specLine) => {
+      const spec = JSON.parse(specLine.slice("SPEC:".length)) as ReferenceSpec;
+      return computeSpec(spec);
+    });
+    expect(res.stdout).toMatch(/=== goal COMPLETED ===/);
+    expect(res.stdout).toContain(CLI_TRUTH);
+    expect(res.code).toBe(0);
+  }, SPAWN_TIMEOUT_MS);
+
+  it("FAILS the goal on a confidently-formatted wrong answer", async () => {
+    const res = await runAgainstModel(() => "42");
+    expect(res.stdout).toMatch(/=== goal FAILED ===/);
+    expect(res.stdout).not.toMatch(/=== goal COMPLETED ===/);
+    expect(res.code).not.toBe(0);
+    // And it says WHY, naming the recomputed truth — a rejection nobody can
+    // audit is barely better than a silent acceptance.
+    expect(res.stderr).toContain("independently REFUTED");
+    expect(res.stderr).toContain("reference-mismatch:arithmetic");
+    expect(res.stderr).toContain(CLI_TRUTH);
+  }, SPAWN_TIMEOUT_MS);
+
+  it("leaves an objective with no SPEC: reference alone — it completes as always", async () => {
+    const model = await startCompetentModel(() => "the release shipped on Tuesday");
+    try {
+      const res = await runCli([
+        "run",
+        "Summarize the release notes in one sentence.",
+        "--provider", "local",
+        "--model", "competent-stub",
+        "--base-url", `${model.baseUrl}/v1`,
+        "--workers", "1",
+        "--caps", "general",
+      ]);
+      expect(res.stdout).toMatch(/=== goal COMPLETED ===/);
+      expect(res.code).toBe(0);
+    } finally {
+      await model.close();
+    }
   }, SPAWN_TIMEOUT_MS);
 });

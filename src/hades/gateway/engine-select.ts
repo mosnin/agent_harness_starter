@@ -23,6 +23,7 @@ import { CertificateAuthority, generatePrivateKeyHex } from "../styx/certificate
 import { defaultCalibration } from "../styx/runner";
 import { createInlineSwarm } from "../../swarm-runtime/factory";
 import { LLMExecutor, createOpenAICompatibleChat, type ChatFn } from "../../swarm-runtime/worker/llm-executor";
+import { createSwarmTrustBridge } from "../trust/swarm-bridge";
 
 /** The manager type {@link verifiedSwarmEngine} needs — named without an
  * extra import: `GatewayManager` (swarm-runtime/gateway/gateway) is exactly
@@ -107,9 +108,31 @@ function detectKey(env: Record<string, string | undefined>): DetectedKey | undef
   return undefined;
 }
 
-/** Real default: a genuine inline swarm wrapping `shutdown` into the `{manager, shutdown}` shape. */
+/**
+ * Real default: a genuine inline swarm wrapping `shutdown` into the
+ * `{manager, shutdown}` shape.
+ *
+ * The swarm's `VerificationGate` is handed the STYX trust bridge
+ * (`../trust/swarm-bridge.ts`), which adds exactly ONE correctness check to
+ * this path: T1-reference recompute. When a goal's objective carries a
+ * machine-checkable `SPEC:` reference, the goal's final answer is recomputed
+ * and compared, and a mismatch declines the turn instead of certifying it.
+ * Nothing else in the STYX stack votes here — see the bridge's module docs for
+ * why the structural verifier abstains — so this is one check, not "the trust
+ * stack".
+ *
+ * Everywhere else the bridge abstains and the gate scores exactly as it always
+ * did: an objective with no reference, and every intermediate subtask result
+ * even on a goal that has one. So this is additive — it can decline a provably
+ * wrong answer, it can never accept one the grounding checks would have
+ * refused, and it cannot fail a correct run. Constructing it costs no key, no
+ * data directory and no network call.
+ */
 async function defaultCreateManager(executor: LLMExecutor): Promise<{ manager: Manager; shutdown: () => Promise<void> }> {
-  const manager = await createInlineSwarm({ executor });
+  const manager = await createInlineSwarm({
+    executor,
+    gate: { externalVerifier: createSwarmTrustBridge() },
+  });
   return { manager, shutdown: () => manager.shutdown() };
 }
 

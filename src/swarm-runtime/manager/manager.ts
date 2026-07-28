@@ -783,7 +783,7 @@ export class SwarmManager extends EventEmitter {
     if (this.enforceBudget(task.goalId)) return; // goal aborted — stop processing
 
     // Evaluate this single result against behaviour + grounding.
-    const { report, accepted, killed, blocked, reason } = await this.evaluateResult(result);
+    const { report, accepted, killed, blocked, reason } = await this.evaluateResult(result, task);
 
     // Consensus tasks accumulate replicas; single tasks resolve immediately.
     if (task.consensus && (task.consensus.replicas ?? 1) > 1) {
@@ -813,8 +813,50 @@ export class SwarmManager extends EventEmitter {
     }
   }
 
-  /** Run the anti-rogue guardrail + verification gate over one worker result. */
-  private async evaluateResult(result: WorkerResult): Promise<{
+  /**
+   * Does this task's output BECOME the goal's answer?
+   *
+   * The manager is the only component that can answer that: a worker sees one
+   * task, and a `WorkerResult` records what was produced, never what role it
+   * plays in the plan. This is deliberately the exact same predicate
+   * {@link synthesize} uses to pick the goal's answer out of the finished
+   * tasks — one definition, so "what the run returns" and "what a correctness
+   * oracle is allowed to judge" cannot drift apart.
+   *
+   * False for every other task, including a fan-out subtask whose description
+   * quotes the objective verbatim (`DeterministicPlanner` writes exactly
+   * that). Those legitimately return prose, and an oracle told to judge them
+   * against the objective's expected answer would refute correct work.
+   *
+   * When a plan contains no synthesis task at all, `synthesize()` returns a
+   * COMPOSITE of every task's output and no single result is the answer — so
+   * this is false everywhere and a correctness oracle abstains everywhere,
+   * which is reported honestly per result rather than guessed at.
+   */
+  private static answersGoal(task: WorkerTask): boolean {
+    return (task.input as { mode?: unknown } | undefined)?.mode === "synthesize";
+  }
+
+  /**
+   * Run the anti-rogue guardrail + verification gate over one worker result.
+   *
+   * `task` is threaded in only so the gate can hand its (optional) external
+   * verifier the REQUEST CONTEXT: a `WorkerResult` records what a worker
+   * produced, never what it was asked, and a correctness oracle cannot
+   * recompute an answer it has not seen the question for. Three facts go
+   * across, and the third is what keeps the oracle from vetoing correct runs:
+   *
+   *  - `taskDescription` — the request this worker was handed;
+   *  - `objective`       — the request the whole goal answers, read from the
+   *    `Goal` rather than from the subtask, because a planner may paraphrase
+   *    or drop it;
+   *  - `isGoalAnswer`    — whether this result IS the goal's answer (see
+   *    {@link answersGoal}) or intermediate work product.
+   *
+   * With no external verifier configured — the default — the gate ignores all
+   * of it entirely.
+   */
+  private async evaluateResult(result: WorkerResult, task: WorkerTask): Promise<{
     report: VerificationReport;
     accepted: boolean;
     killed: boolean;
@@ -826,7 +868,12 @@ export class SwarmManager extends EventEmitter {
     if (worst === "kill") {
       await this.killWorker(result.workerId, findings.map((f) => f.rule).join(","));
     }
-    const report = await this.gate.verify(result);
+    const objective = this.goals.get(task.goalId)?.objective;
+    const report = await this.gate.verify(result, {
+      taskDescription: task.description,
+      ...(objective === undefined ? {} : { objective }),
+      isGoalAnswer: SwarmManager.answersGoal(task),
+    });
     this.verifications.push(report);
 
     let accepted = report.verdict === "accept" && worst !== "kill" && worst !== "block";
@@ -1025,7 +1072,10 @@ export class SwarmManager extends EventEmitter {
 
   private synthesize(tasks: WorkerTask[]): unknown {
     // Prefer the explicit synthesis task's output; else collect all outputs.
-    const synth = tasks.find((t) => (t.input as { mode?: string }).mode === "synthesize");
+    // `answersGoal` IS this selection rule — shared so the result a
+    // correctness oracle is allowed to judge is exactly the result the goal
+    // returns (see `evaluateResult`).
+    const synth = tasks.find((t) => SwarmManager.answersGoal(t));
     if (synth?.result) return synth.result.output;
     return tasks.filter((t) => t.result).map((t) => ({ task: t.description, output: t.result!.output }));
   }

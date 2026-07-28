@@ -26,6 +26,22 @@
  * API keys are NEVER flags: each provider reads its documented env var
  * (OPENAI_API_KEY, ANTHROPIC_API_KEY, …) so keys never land in shell history
  * or `ps` output.
+ *
+ * ## Why this entry point reaches up into `src/hades`
+ *
+ * A CLI is a composition root: its job is to decide which real parts get wired
+ * together. `run` and `serve` therefore hand the manager's verification gate
+ * the STYX correctness bridge (`src/hades/trust/swarm-bridge.ts`), so the
+ * answer to a goal whose objective carries a machine-checkable `SPEC:`
+ * reference is checked for being RIGHT and not merely well-evidenced. Without
+ * it this CLI would happily print `=== goal COMPLETED ===` over a silently
+ * wrong answer, which is exactly what it did before.
+ *
+ * The library layer stays clean: `server/build-swarm.ts` declares a `gate`
+ * option and imports nothing from `src/hades`, exactly like its
+ * `decorateProvider` seam — so only entry points know both sides. Nor is this
+ * a new dependency direction: `distributed/` already imports `src/hades/**` in
+ * seven non-test modules and `index.ts` re-exports them.
  */
 import { buildSwarm, type SwarmMode } from "./server/build-swarm";
 import { SwarmServer } from "./server/swarm-server";
@@ -37,6 +53,8 @@ import { describeRunEngine, formatEngineLine, resolveRunEngine, type RunEngineDe
 import { createChat } from "./worker/providers";
 import { LLMExecutor } from "./worker/llm-executor";
 import type { TaskExecutor } from "./worker/executor";
+import type { GateConfig } from "./verification/gate";
+import { createSwarmTrustBridge } from "../hades/trust/swarm-bridge";
 
 interface Flags {
   mode: SwarmMode;
@@ -137,7 +155,16 @@ ENGINE
   read ONLY from each provider's env var (e.g. OPENAI_API_KEY) — never from
   flags — so keys stay out of shell history and ps output. --provider local
   (Ollama/vLLM) needs no key. Model-backed runs are inline-mode only;
-  process/docker workers pick their executor from the worker environment.`;
+  process/docker workers pick their executor from the worker environment.
+
+VERIFICATION
+  Every worker result is scored by the manager's verification gate (grounding:
+  claims, evidence, traceability). run and serve additionally wire the STYX
+  T1-reference oracle: when the objective embeds a machine-checkable
+  SPEC:{json} line, the goal's final answer is RECOMPUTED and compared, and a
+  mismatch fails the goal instead of printing it as COMPLETED. That is the only
+  check here that can refute an answer for being WRONG rather than unevidenced;
+  with no SPEC: line it abstains and changes nothing.`;
 
 async function cmdDoctor(f: Flags): Promise<void> {
   const docker = await new DockerProvider({ image: "x" }).isAvailable();
@@ -165,6 +192,21 @@ async function cmdDoctor(f: Flags): Promise<void> {
  * hanging a worker (generous enough for a real long completion).
  */
 const CHAT_TIMEOUT_MS = 120_000;
+
+/**
+ * The gate configuration every CLI-built swarm gets: the default grounding
+ * checks PLUS the STYX correctness bridge.
+ *
+ * Built fresh per command rather than shared at module scope so `--help` and
+ * `doctor` construct nothing. The bridge itself needs no key, no data
+ * directory and no network call, and abstains — leaving the score untouched —
+ * on every result that is not the goal's answer to a `SPEC:`-bearing
+ * objective, so wiring it in is additive: it can decline a provably wrong
+ * answer and can never accept one the grounding checks would have refused.
+ */
+function cliGateConfig(): GateConfig {
+  return { externalVerifier: createSwarmTrustBridge() };
+}
 
 async function cmdRun(f: Flags): Promise<void> {
   const objective = f._.slice(1).join(" ").trim();
@@ -227,6 +269,7 @@ async function cmdRun(f: Flags): Promise<void> {
     managerUrl: f.managerUrl,
     dockerNetwork: f.dockerNetwork,
     executor,
+    gate: cliGateConfig(),
   });
   const m = swarm.manager;
   if (!f.json) {
@@ -270,6 +313,9 @@ async function cmdServe(f: Flags): Promise<void> {
     workerImage: f.image,
     managerUrl: f.managerUrl,
     dockerNetwork: f.dockerNetwork,
+    // Same gate as `run`: a goal dispatched from the dashboard is the same
+    // product surface and must not be held to a weaker bar than the terminal.
+    gate: cliGateConfig(),
   });
   const server = new SwarmServer(swarm, { port: f.port, host: f.host, authToken: f.authToken });
   await server.listen();
