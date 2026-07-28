@@ -18,9 +18,16 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { InMemoryTrajectoryStore } from "../research/recorder";
+import { costJournalPath } from "../cost/journal";
 import { defaultRoleRegistry } from "../teams/role";
-import { defaultToolsetManager } from "../tools/default-catalog";
+import { defaultToolsetManager, realFetchLike } from "../tools/default-catalog";
 import type { ToolsetManager } from "../tools/manager";
+import {
+  InMemoryMcpMountStore,
+  JsonFileMcpMountStore,
+  type McpMountStore,
+} from "../tools/mcp-catalog";
+import type { ToolsMcpCommandDeps } from "./tools-mcp-command";
 import type { BackendsCommandDeps, BanditStateStore } from "./backends-command";
 import { defaultScheduleDeps } from "./schedule-command";
 import type { ScheduleCommandDeps } from "./schedule-command";
@@ -189,11 +196,45 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
 
   const summarizer = new SessionSummarizer({ llm: opts.llmSummarize });
 
+  // Mounted external MCP servers live beside the enable/disable state, in the
+  // same data dir every other durable surface uses, so `hades tools mcp add`
+  // in a terminal and the next `hades exec` (or the desktop app, or the TUI)
+  // are looking at ONE mount set rather than private copies. Without
+  // persistence the mounts live in memory for the life of the process — real
+  // mounts, real connections, just nothing written into the user's data dir
+  // (the same pattern as the profile/schedule/state stores below).
+  const mcpStatePath = persist ? `${config.dataDir}/mcp-servers.json` : undefined;
+  const mcpStore: McpMountStore =
+    mcpStatePath !== undefined ? new JsonFileMcpMountStore(mcpStatePath) : new InMemoryMcpMountStore();
+
   const toolset =
     opts.toolset ??
     defaultToolsetManager({
       statePath: persist ? `${config.dataDir}/tools.json` : undefined,
+      // The catalog inherits every mounted server's tools (namespaced
+      // `mcp.<server>.<tool>`), so they show up in `hades tools list` and are
+      // callable from `hades exec` exactly like a builtin. Reading the mount
+      // file spawns nothing: entries connect only when actually called.
+      mcpMountStore: mcpStore,
     });
+
+  // `hades tools mcp <sub>`: the same store the catalog above reads, plus the
+  // live catalog so a mount/unmount takes effect in THIS process rather than
+  // only in the next one. The mount seams are the real ones — a genuine
+  // `child_process.spawn` for stdio, and the SAME fetch transport the catalog
+  // gives its mounted entries, so `mcp add --url` probes with exactly what a
+  // later call will use rather than failing on a transport the call path has.
+  const mcpMounts = (): ToolsMcpCommandDeps => {
+    const fetchFn = realFetchLike();
+    return {
+      store: mcpStore,
+      catalog: toolset.getCatalog(),
+      mount: {
+        env: process.env as Record<string, string | undefined>,
+        ...(fetchFn !== undefined ? { fetchFn } : {}),
+      },
+    };
+  };
 
   // Phase-5 dialectic user model (`hades profile`). Lazy: the store (and its
   // on-disk profile at <dataDir>/user-model.json) is only opened when a
@@ -434,6 +475,7 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
     trajectories: new InMemoryTrajectoryStore(),
     roles: defaultRoleRegistry(),
     toolset,
+    mcpMounts,
     // `hades chat` is wired here rather than at the bin, because the REPL
     // needs exactly the stores this function already built (the guarded
     // memory store, the session store, the model command) — composing a
@@ -449,8 +491,20 @@ export function buildHadesCli(config: HadesConfig, opts: BuildCliOptions = {}): 
           ...(models ? { models } : {}),
           dataDir: config.dataDir,
           env: process.env,
+          // The SAME journal path `hades cost` reads (wired below), so the
+          // writer and the reader can never disagree about where spend was
+          // recorded. `null` when not persisting: a non-persisting build
+          // still MEASURES and prints its cost line, it just does not write
+          // a durable record — the alternative (writing into a real user's
+          // spend history from a test) would corrupt the very ledger this
+          // feature exists to keep honest.
+          costJournal: persist ? costJournalPath(config.dataDir) : null,
         });
       }),
     onGateway: opts.onGateway,
+    // `hades cost` reads the journal `hades chat` writes. Only wired when
+    // persisting; otherwise the command resolves its own default path and
+    // honestly reports "no runs recorded".
+    ...(persist ? { costJournal: costJournalPath(config.dataDir) } : {}),
   });
 }

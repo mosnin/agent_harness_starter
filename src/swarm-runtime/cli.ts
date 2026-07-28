@@ -50,6 +50,8 @@ import { LocalProcessProvider } from "./providers/local-process";
 import { renderTui } from "./tui/render";
 import { installGracefulShutdown } from "./lifecycle/shutdown";
 import { describeRunEngine, formatEngineLine, resolveRunEngine, type RunEngineDecision } from "./run-engine";
+import { CostMeter, formatCostLine } from "../hades/cost/meter";
+import { appendRunCost, costJournalPath } from "../hades/cost/journal";
 import { createChat } from "./worker/providers";
 import { LLMExecutor } from "./worker/llm-executor";
 import type { TaskExecutor } from "./worker/executor";
@@ -244,6 +246,12 @@ async function cmdRun(f: Flags): Promise<void> {
   console.error(formatEngineLine(decision));
 
   let executor: TaskExecutor | undefined;
+  // Measured cost for a REAL run. The meter only ever receives observations
+  // from a live provider round trip (`worker/providers.ts` → `onUsage`), so
+  // an offline run records nothing rather than a $0 that would be
+  // indistinguishable from a real run that happened to be free.
+  const meter = new CostMeter();
+  const runStartedAt = Date.now();
   if (decision.kind === "real") {
     // Mirror engine-select.ts's real path exactly: a ChatFn wrapped in
     // `new LLMExecutor(chat)` and handed to the inline swarm factory. Like
@@ -255,6 +263,7 @@ async function cmdRun(f: Flags): Promise<void> {
       model: decision.model,
       baseUrl: decision.baseUrl,
       timeoutMs: CHAT_TIMEOUT_MS,
+      onUsage: (obs) => void meter.record(obs),
     });
     executor = new LLMExecutor(chat);
   }
@@ -300,6 +309,32 @@ async function cmdRun(f: Flags): Promise<void> {
     // JSON.stringify(undefined) is undefined — a failed goal has no synthesis.
     console.log(synthesis ?? "(no synthesis — goal did not complete)");
   }
+
+  // The measured cost of the run, on stderr with the rest of the progress
+  // output so `--json` stdout stays machine-readable. Only for a real engine:
+  // an offline run consulted no provider and has nothing to bill. The figure
+  // is MEASURED (provider-reported tokens x a cited list price, real clock)
+  // or explicitly UNKNOWN — never a modeled stand-in.
+  if (decision.kind === "real") {
+    const wallClockMs = Date.now() - runStartedAt;
+    console.error(formatCostLine(meter.report(), { wallClockMs }));
+    const journal = costJournalPath(process.env.HADES_DATA_DIR ?? ".hades");
+    const problem = appendRunCost(journal, {
+      v: 1,
+      runId: `swarm-${runStartedAt.toString(36)}-${goal.id.slice(0, 6)}`,
+      surface: "swarm-run",
+      startedAt: runStartedAt,
+      wallClockMs,
+      model: decision.model,
+      provider: decision.provider,
+      calls: meter.calls(),
+      report: meter.report(),
+    });
+    // Reported, not swallowed: nobody is told their spend was recorded when
+    // it was not. It is not fatal — the work itself succeeded.
+    if (problem) console.error(`cost: NOT recorded to ${journal} — ${problem}`);
+  }
+
   process.exit(goal.status === "completed" ? 0 : 1);
 }
 

@@ -42,7 +42,7 @@
  * @module hades/chat/brain
  */
 
-import { HttpModelClient, type ChatMessage } from "../models/client";
+import { HttpModelClient, type ChatMessage, type ModelCallObservation } from "../models/client";
 import type { ConversationBrain, ConversationTurnContext } from "../repl/agent";
 
 // ---------------------------------------------------------------------------
@@ -82,6 +82,21 @@ export interface ResolveChatBrainDeps {
   chat?: ChatTransport;
   /** Injected fetch for the real {@link HttpModelClient}. Tests only. */
   fetchImpl?: typeof fetch;
+  /**
+   * Cost-measurement seam: called once per REAL provider round trip with the
+   * tokens the provider itself reported and the measured latency (see
+   * `../models/client.ts`'s {@link ModelCallObservation}). `hades chat` feeds
+   * this straight into a `CostMeter`, which is how a chat turn can report
+   * what it actually cost.
+   *
+   * It is deliberately only wired on the REAL path: the `[mock]` brain makes
+   * no provider call, so it emits no observation and therefore contributes
+   * nothing to any spend total. A mock run costing "$0.00" and a real run
+   * costing $0.00 would otherwise be indistinguishable in the ledger.
+   */
+  onCall?: (obs: ModelCallObservation) => void;
+  /** Clock for call latency/timestamps. Injectable so tests are deterministic. */
+  now?: () => number;
 }
 
 /**
@@ -236,7 +251,17 @@ export function resolveChatBrain(
   const baseUrlOverride = provider === "anthropic" ? env.ANTHROPIC_BASE_URL : env.OPENAI_BASE_URL;
   const baseUrl = baseUrlOverride ?? CHAT_DEFAULT_BASE_URLS[provider];
 
-  const transport = deps?.chat ?? httpChatTransport({ provider, model, baseUrl, apiKey, fetchImpl: deps?.fetchImpl });
+  const transport =
+    deps?.chat ??
+    httpChatTransport({
+      provider,
+      model,
+      baseUrl,
+      apiKey,
+      ...(deps?.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
+      ...(deps?.onCall ? { onCall: deps.onCall } : {}),
+      ...(deps?.now ? { now: deps.now } : {}),
+    });
 
   return { kind: "real", provider, model, keyVar, baseUrl, brain: transportChatBrain(transport) };
 }
@@ -268,10 +293,16 @@ function httpChatTransport(opts: {
   baseUrl: string;
   apiKey: string;
   fetchImpl?: typeof fetch;
+  onCall?: (obs: ModelCallObservation) => void;
+  now?: () => number;
 }): ChatTransport {
   const client = new HttpModelClient(
     { name: opts.provider, kind: "openai", baseUrl: opts.baseUrl, apiKey: opts.apiKey, models: [opts.model] },
-    opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : undefined,
+    {
+      ...(opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
+      ...(opts.onCall ? { onCall: opts.onCall } : {}),
+      ...(opts.now ? { now: opts.now } : {}),
+    },
   );
   return async (messages) => (await client.chat({ model: opts.model, messages, maxTokens: CHAT_MAX_TOKENS })).text;
 }

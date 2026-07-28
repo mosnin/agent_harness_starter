@@ -7,7 +7,15 @@
  * messages) but goes through an INJECTABLE `fetch`, so it unit-tests without
  * keys. Swap in `globalThis.fetch` + a real API key and the same code hits the
  * live endpoints.
+ *
+ * Cost accounting here is REAL: token counts come off the provider's own
+ * `usage` block, never from an estimator. The one thing the wire cannot tell
+ * us is what a provider charges, so prices come from the single cited table
+ * in `../cost/prices.ts` — and a model that table does not know is reported
+ * UNKNOWN by `../cost/meter.ts` rather than billed at $0.
  */
+
+import { toPriceEntries } from "../cost/prices";
 
 // ---------------------------------------------------------------------------
 // Public message / request / response contracts
@@ -29,9 +37,39 @@ export interface ChatResponse {
   text: string;
   tokensIn: number;
   tokensOut: number;
-  usd: number;
+  /**
+   * Measured spend for this call, or `null` when the model carries NO price
+   * entry. `null` is deliberately not `0`: every metric in `../bench/vtph.ts`
+   * divides by spend, so an unpriced call reported as free silently flatters
+   * the headline. A consumer must decide what to do with "unknown" rather
+   * than have that decision made for it by a zero it cannot detect.
+   */
+  usd: number | null;
   model: string;
   provider: string;
+  /**
+   * Did the provider's response actually carry a `usage` block?
+   *
+   * When `false`, `tokensIn`/`tokensOut` are `0` because NOTHING WAS
+   * REPORTED — not because nothing was consumed. The two are
+   * indistinguishable in the numbers alone, which is why this flag exists:
+   * `../cost/meter.ts` turns `usageReported: false` into `tokensIn: null` so
+   * an unreported call is excluded from a total instead of dragging it down
+   * toward a flattering zero.
+   *
+   * Optional so every pre-existing hand-built `ChatResponse` still compiles;
+   * a consumer that cares must treat `undefined` as "unknown", not "true".
+   */
+  usageReported?: boolean;
+  /**
+   * The model id the provider REPORTED serving, when the response named one.
+   * `usd` is priced against the REQUESTED id (`model`) regardless — silently
+   * re-pricing on a response field would let a provider move the bill — so a
+   * mismatch between the two is surfaced as a caveat by the cost surfaces.
+   */
+  servedModel?: string;
+  /** Measured wall clock for this round trip, in ms (injected clock). */
+  latencyMs?: number;
 }
 
 export interface ModelClient {
@@ -57,7 +95,34 @@ export interface PriceEntry {
  * Looked up by EXACT model id. An unknown model yields 0 (so accounting never
  * throws mid-run); the caller is free to warn when a live model is missing a
  * price. Pure — no I/O, no mutation.
+ *
+ * ⚠ That documented `0` is a LIE-SHAPED value: it is indistinguishable from a
+ * genuinely free call, and every metric in `../bench/vtph.ts` divides by
+ * spend, so a `0` that should have been "unknown" inflates the headline. Two
+ * consumers already guard it (`../routing/arms.ts` marks such an arm
+ * `unpriced`), and NEW code should call `../cost/prices.ts`'s
+ * {@link import("../cost/prices").priceCall} instead: it returns
+ * `{ priced: false, usd: null }`, which cannot be summed into a total by
+ * accident. This function stays as-is only because existing callers depend on
+ * its non-throwing numeric contract.
  */
+/**
+ * {@link computeCost}'s honest sibling: returns `null` — never a lie-shaped
+ * `0` — when the model has no price entry. New code should prefer this;
+ * `computeCost` survives only because existing callers depend on its
+ * non-throwing numeric contract.
+ */
+export function priceOrNull(
+  model: string,
+  tokensIn: number,
+  tokensOut: number,
+  prices: PriceEntry[],
+): number | null {
+  const entry = prices.find((p) => p.model === model);
+  if (!entry) return null;
+  return (tokensIn / 1e6) * entry.inPerMTok + (tokensOut / 1e6) * entry.outPerMTok;
+}
+
 export function computeCost(
   model: string,
   tokensIn: number,
@@ -65,38 +130,26 @@ export function computeCost(
   prices: PriceEntry[],
 ): number {
   const entry = prices.find((p) => p.model === model);
-  if (!entry) return 0; // unknown model → 0 cost (documented)
+  if (!entry) return 0; // unknown model → 0 cost (documented; see the warning above)
   return (
     (tokensIn / 1e6) * entry.inPerMTok + (tokensOut / 1e6) * entry.outPerMTok
   );
 }
 
 /**
- * Sensible published list prices (USD per 1e6 tokens) for a handful of Claude
- * and OpenAI-dialect models. Sources are the vendors' standard (non-batch,
- * non-cached) list pricing:
- *   - Claude Opus tier:   $15 in / $75 out
- *   - Claude Sonnet tier: $3 in  / $15 out
- *   - Claude Haiku 4.5:   $1 in  / $5 out
- *   - Claude Fable 5:     creative tier, priced at the Haiku point ($1 / $5)
- *   - OpenAI gpt-4o:      $2.50 in / $10 out
- *   - OpenAI gpt-4o-mini: $0.15 in / $0.60 out
- *   - OpenAI gpt-4.1:     $2 in / $8 out
- *   - OpenAI gpt-4.1-mini:$0.40 in / $1.60 out
- * These are defaults only; a deployment can inject its own PriceEntry[].
+ * Published list prices (USD per 1e6 tokens) for the models this build knows.
+ *
+ * This is a *view* of the single price table in `../cost/prices.ts` — the
+ * numbers are NOT duplicated here. That table carries, per entry, the vendor
+ * page each figure was transcribed from and the date the line was last edited
+ * in this repo, and it is what `hades cost prices` prints. Keeping one table
+ * is the point: two lists of dollar figures drift, and a drifted price is a
+ * fabricated number wearing a citation.
+ *
+ * These remain defaults only; a deployment can inject its own `PriceEntry[]`,
+ * or point `HADES_PRICES_FILE` at its own table (see `../cost/prices.ts`).
  */
-export const DEFAULT_PRICES: PriceEntry[] = [
-  // Anthropic / Claude (ids match src/hades/models/defaults.ts)
-  { model: "claude-opus-4-1", inPerMTok: 15, outPerMTok: 75 },
-  { model: "claude-sonnet-5", inPerMTok: 3, outPerMTok: 15 },
-  { model: "claude-haiku-4-5-20251001", inPerMTok: 1, outPerMTok: 5 },
-  { model: "claude-fable-5", inPerMTok: 1, outPerMTok: 5 },
-  // OpenAI-dialect
-  { model: "gpt-4o", inPerMTok: 2.5, outPerMTok: 10 },
-  { model: "gpt-4o-mini", inPerMTok: 0.15, outPerMTok: 0.6 },
-  { model: "gpt-4.1", inPerMTok: 2, outPerMTok: 8 },
-  { model: "gpt-4.1-mini", inPerMTok: 0.4, outPerMTok: 1.6 },
-];
+export const DEFAULT_PRICES: PriceEntry[] = toPriceEntries();
 
 // ---------------------------------------------------------------------------
 // HttpModelClient — a single provider endpoint
@@ -121,29 +174,73 @@ export interface ProviderConfig {
 
 interface OpenAIChatResponse {
   choices?: Array<{ message?: { content?: string } }>;
+  model?: string;
   usage?: { prompt_tokens?: number; completion_tokens?: number };
 }
 
 interface AnthropicMessagesResponse {
   content?: Array<{ type?: string; text?: string }>;
+  model?: string;
   usage?: { input_tokens?: number; output_tokens?: number };
+}
+
+/**
+ * What the client observed on ONE round trip, handed to
+ * {@link HttpModelClientOptions.onCall} the moment the response is parsed.
+ *
+ * This is the seam that makes measured cost possible without threading a
+ * meter through every call site: whatever built the client (the chat brain,
+ * a bench harness, a worker) subscribes once and receives every real call.
+ * `tokensIn`/`tokensOut` are `null` — not 0 — when the provider returned no
+ * usage block, so a downstream total can exclude the call instead of
+ * understating itself. Nothing here contains a key or a credentialed URL, so
+ * an observation is always safe to log.
+ */
+export interface ModelCallObservation {
+  provider: string;
+  /** Model REQUESTED (what pricing keys on). */
+  model: string;
+  /** Model the provider REPORTED serving, when it named one. */
+  servedModel?: string;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  /** Measured round-trip wall clock in ms, from the injected clock. */
+  latencyMs: number;
+  /** Epoch ms at completion, from the injected clock. */
+  at: number;
+}
+
+export interface HttpModelClientOptions {
+  fetchImpl?: typeof fetch;
+  prices?: PriceEntry[];
+  /**
+   * Called once per SUCCESSFUL round trip with what was really observed.
+   * Never called for a failed request — a call that produced no response
+   * consumed no reported tokens, and inventing an observation for it would
+   * put a fabricated row in the cost ledger. Exceptions thrown by the
+   * observer are swallowed: bookkeeping must not fail an agent's work.
+   */
+  onCall?: (obs: ModelCallObservation) => void;
+  /** Clock for latency/timestamps. Injectable so tests are deterministic. */
+  now?: () => number;
 }
 
 export class HttpModelClient implements ModelClient {
   private readonly provider: ProviderConfig;
   private readonly fetchImpl: typeof fetch;
   private readonly prices: PriceEntry[];
+  private readonly onCall?: (obs: ModelCallObservation) => void;
+  private readonly now: () => number;
 
-  constructor(
-    provider: ProviderConfig,
-    opts?: { fetchImpl?: typeof fetch; prices?: PriceEntry[] },
-  ) {
+  constructor(provider: ProviderConfig, opts?: HttpModelClientOptions) {
     this.provider = provider;
     // Bind to preserve the correct `this` for a real global fetch.
     const impl = opts?.fetchImpl ?? globalThis.fetch;
     this.fetchImpl =
       opts?.fetchImpl ?? (impl ? impl.bind(globalThis) : impl);
     this.prices = opts?.prices ?? DEFAULT_PRICES;
+    if (opts?.onCall) this.onCall = opts.onCall;
+    this.now = opts?.now ?? Date.now;
   }
 
   async chat(req: ChatRequest): Promise<ChatResponse> {
@@ -172,6 +269,7 @@ export class HttpModelClient implements ModelClient {
       headers["Authorization"] = `Bearer ${this.provider.apiKey}`;
     }
 
+    const startedAt = this.now();
     const res = await this.fetchImpl(url, {
       method: "POST",
       headers,
@@ -185,9 +283,13 @@ export class HttpModelClient implements ModelClient {
     }
     const data = (await res.json()) as OpenAIChatResponse;
     const text = data.choices?.[0]?.message?.content ?? "";
-    const tokensIn = data.usage?.prompt_tokens ?? 0;
-    const tokensOut = data.usage?.completion_tokens ?? 0;
-    return this.finalize(req.model, text, tokensIn, tokensOut);
+    // Usage counts as REPORTED only when both fields are really numbers. A
+    // response with no usage block (or half of one) yields `null`, which the
+    // cost layer excludes — as opposed to `?? 0`, which would have silently
+    // recorded a real call as having consumed nothing.
+    const tokensIn = numberOrNull(data.usage?.prompt_tokens);
+    const tokensOut = numberOrNull(data.usage?.completion_tokens);
+    return this.finalize(req.model, text, tokensIn, tokensOut, startedAt, data.model);
   }
 
   private async chatAnthropic(req: ChatRequest): Promise<ChatResponse> {
@@ -221,6 +323,7 @@ export class HttpModelClient implements ModelClient {
     };
     if (this.provider.apiKey) headers["x-api-key"] = this.provider.apiKey;
 
+    const startedAt = this.now();
     const res = await this.fetchImpl(url, {
       method: "POST",
       headers,
@@ -237,24 +340,63 @@ export class HttpModelClient implements ModelClient {
       .filter((b) => (b.type ?? "text") === "text")
       .map((b) => b.text ?? "")
       .join("");
-    const tokensIn = data.usage?.input_tokens ?? 0;
-    const tokensOut = data.usage?.output_tokens ?? 0;
-    return this.finalize(req.model, text, tokensIn, tokensOut);
+    const tokensIn = numberOrNull(data.usage?.input_tokens);
+    const tokensOut = numberOrNull(data.usage?.output_tokens);
+    return this.finalize(req.model, text, tokensIn, tokensOut, startedAt, data.model);
   }
 
+  /**
+   * Build the response and emit the cost observation.
+   *
+   * `tokensIn`/`tokensOut` arrive as `number | null`. The public
+   * {@link ChatResponse} keeps its long-standing numeric contract (unreported
+   * → `0`, as before), but `usageReported` records which of the two it was,
+   * and the {@link ModelCallObservation} handed to `onCall` carries the
+   * honest `null` — so nothing that measures spend has to guess.
+   */
   private finalize(
     model: string,
     text: string,
-    tokensIn: number,
-    tokensOut: number,
+    tokensIn: number | null,
+    tokensOut: number | null,
+    startedAt: number,
+    servedModel?: string,
   ): ChatResponse {
+    const at = this.now();
+    const latencyMs = Math.max(0, at - startedAt);
+    const usageReported = tokensIn !== null && tokensOut !== null;
+    const inTok = tokensIn ?? 0;
+    const outTok = tokensOut ?? 0;
+
+    if (this.onCall) {
+      try {
+        this.onCall({
+          provider: this.provider.name,
+          model,
+          ...(servedModel ? { servedModel } : {}),
+          tokensIn,
+          tokensOut,
+          latencyMs,
+          at,
+        });
+      } catch {
+        // Bookkeeping must never fail the agent's actual work.
+      }
+    }
+
     return {
       text,
-      tokensIn,
-      tokensOut,
-      usd: computeCost(model, tokensIn, tokensOut, this.prices),
+      tokensIn: inTok,
+      tokensOut: outTok,
+      // Uses the nullable path deliberately: computeCost() returns a
+      // lie-shaped 0 for an unpriced model (see its JSDoc). This is the
+      // production meter, so it must be able to say "unknown".
+      usd: priceOrNull(model, inTok, outTok, this.prices),
       model,
       provider: this.provider.name,
+      usageReported,
+      ...(servedModel ? { servedModel } : {}),
+      latencyMs,
     };
   }
 
@@ -267,6 +409,15 @@ export class HttpModelClient implements ModelClient {
   }
 }
 
+/**
+ * A provider-reported token count, or `null` when the field was absent or
+ * not a finite number. The `null` is load-bearing: it is what keeps an
+ * unreported call out of a spend total instead of coercing it to `0`.
+ */
+function numberOrNull(v: number | undefined): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
 // ---------------------------------------------------------------------------
 // MultiProviderClient — routing, load balancing, bounded concurrency, stats
 // ---------------------------------------------------------------------------
@@ -275,7 +426,14 @@ export interface MultiProviderStats {
   calls: number;
   byProvider: Record<string, number>;
   byModel: Record<string, number>;
+  /** Money actually measured. EXCLUDES unpriced calls — see `unpricedCalls`. */
   totalUsd: number;
+  /**
+   * Calls whose model had no price entry. `totalUsd` is therefore a LOWER
+   * BOUND whenever this is non-zero, and any surface reporting spend must say
+   * so rather than presenting the total as complete.
+   */
+  unpricedCalls: number;
   totalTokensIn: number;
   totalTokensOut: number;
   maxObservedConcurrency: number;
@@ -352,6 +510,7 @@ export class MultiProviderClient implements ModelClient {
       byProvider: {},
       byModel: {},
       totalUsd: 0,
+      unpricedCalls: 0,
       totalTokensIn: 0,
       totalTokensOut: 0,
       maxObservedConcurrency: 0,
@@ -401,7 +560,11 @@ export class MultiProviderClient implements ModelClient {
     s.calls++;
     s.byProvider[res.provider] = (s.byProvider[res.provider] ?? 0) + 1;
     s.byModel[res.model] = (s.byModel[res.model] ?? 0) + 1;
-    s.totalUsd += res.usd;
+    // An unpriced call contributes nothing to the money total — but it is
+    // COUNTED, so a reader can tell "cheap" from "unmeasured". Adding a
+    // silent 0 here is what made every spend-derived metric flattering.
+    if (res.usd === null) s.unpricedCalls++;
+    else s.totalUsd += res.usd;
     s.totalTokensIn += res.tokensIn;
     s.totalTokensOut += res.tokensOut;
   }
@@ -413,6 +576,7 @@ export class MultiProviderClient implements ModelClient {
       byProvider: { ...this.statsData.byProvider },
       byModel: { ...this.statsData.byModel },
       totalUsd: this.statsData.totalUsd,
+      unpricedCalls: this.statsData.unpricedCalls,
       totalTokensIn: this.statsData.totalTokensIn,
       totalTokensOut: this.statsData.totalTokensOut,
       maxObservedConcurrency: this.statsData.maxObservedConcurrency,

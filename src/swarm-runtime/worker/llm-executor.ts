@@ -126,6 +126,34 @@ export function chatTransportError(e: unknown, url: string, timeoutMs?: number):
 }
 
 /**
+ * What one real round trip through {@link createOpenAICompatibleChat} cost,
+ * as reported by the provider itself.
+ *
+ * This transport used to parse the response and keep only the message text,
+ * discarding the `usage` block the endpoint had already sent — which is why
+ * a swarm run could never say what it cost. The seam is deliberately shaped
+ * so an UNREPORTED count is `null`, never `0`: a call that consumed tokens
+ * but whose usage block was missing must not be recorded as free. The
+ * consumer (`src/hades/cost/`) turns these into a measured total, or an
+ * explicit UNKNOWN.
+ */
+export interface ChatUsageObservation {
+  /** Model REQUESTED (what a price table keys on). */
+  model: string;
+  /** Model the provider REPORTED serving, when it named one. */
+  servedModel?: string;
+  provider: string;
+  /** Prompt tokens as reported, or `null` when the response had no usage block. */
+  tokensIn: number | null;
+  /** Completion tokens as reported, or `null` when absent. */
+  tokensOut: number | null;
+  /** Measured round-trip wall clock, ms. */
+  latencyMs: number;
+  /** Epoch ms at completion. */
+  at: number;
+}
+
+/**
  * Build a {@link ChatFn} that calls any OpenAI-compatible /chat/completions
  * endpoint using global fetch (no SDK dependency — safe for the lean worker
  * bundle).
@@ -141,10 +169,24 @@ export function createOpenAICompatibleChat(opts: {
    * (previous behaviour, preserved for existing callers).
    */
   timeoutMs?: number;
+  /** Logical provider name for the observation. Default `"openai-compatible"`. */
+  providerName?: string;
+  /**
+   * Called once per SUCCESSFUL round trip with the provider's own usage
+   * counts and the measured latency. Never called for a failed request: a
+   * call that produced no response reported no tokens, and inventing a row
+   * for it would put a fabricated entry in the cost ledger. Observer
+   * exceptions are swallowed — bookkeeping must not fail a worker's task.
+   */
+  onUsage?: (obs: ChatUsageObservation) => void;
+  /** Clock for latency/timestamps. Injectable so tests stay deterministic. */
+  now?: () => number;
 }): ChatFn {
   const base = (opts.baseUrl ?? "https://api.openai.com/v1").replace(/\/$/, "");
+  const now = opts.now ?? Date.now;
   return async (messages) => {
     let res: Response;
+    const startedAt = now();
     try {
       res = await fetch(`${base}/chat/completions`, {
         method: "POST",
@@ -164,9 +206,36 @@ export function createOpenAICompatibleChat(opts: {
       throw chatTransportError(e, base, opts.timeoutMs);
     }
     if (!res.ok) throw new Error(`chat completion failed: ${res.status} ${await res.text()}`);
-    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+      model?: string;
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+    };
+
+    if (opts.onUsage) {
+      const at = now();
+      try {
+        opts.onUsage({
+          model: opts.model,
+          ...(typeof data.model === "string" && data.model ? { servedModel: data.model } : {}),
+          provider: opts.providerName ?? "openai-compatible",
+          tokensIn: finiteOrNull(data.usage?.prompt_tokens),
+          tokensOut: finiteOrNull(data.usage?.completion_tokens),
+          latencyMs: Math.max(0, at - startedAt),
+          at,
+        });
+      } catch {
+        // Cost bookkeeping must never break the worker's actual work.
+      }
+    }
+
     return data.choices?.[0]?.message?.content ?? "";
   };
+}
+
+/** A reported token count, or `null` when the provider reported nothing. */
+function finiteOrNull(v: number | undefined): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
 /** LLM-backed planner completion function from the same chat interface. */

@@ -500,6 +500,32 @@ export class UnifiedTrustGate {
         subjectSha256,
       );
     }
+    if (fused.degradedReason === "self-attested-only") {
+      // Distinct from "single-verifier" on purpose: here two or more verifiers
+      // DID vote, so a counter would have said the evidence bar was cleared.
+      // It was not. The extra vote(s) came from SELF-ATTESTED verifiers that
+      // passed — verifiers that compare answerer-supplied material against
+      // other answerer-supplied material, whose pass anyone controlling the
+      // subject can obtain at will (see `./registry.ts`
+      // `UniversalVerifier.selfAttested`). Counting that as a co-voter is
+      // precisely how a false answer buys the second vote that turns an
+      // abstention into a signed certificate, so it is refused by name.
+      const selfIds = fused.verdicts
+        .filter((v) => !v.abstained && v.passed && this.cfg.registry.isSelfAttestedId(v.verifierId))
+        .map((v) => `${v.verifierId}@${v.version}`)
+        .join(",");
+      return this.recordAbstention(
+        state,
+        subject,
+        "degraded-evidence",
+        `[${key.slice(0, 12)}] fewer than two INDEPENDENT verifiers contributed a vote: the ` +
+          `additional passing verifier(s) [${selfIds}] are self-attested — they check ` +
+          `answerer-supplied material against other answerer-supplied material, so their pass is ` +
+          `reachable by whoever produced the answer and is not evidence that it is correct.`,
+        fused,
+        subjectSha256,
+      );
+    }
 
     // Verifier-conflict veto: a strong-tier FAIL must never be out-voted by a
     // crowd of weak-tier PASSes into acceptance. Checked BEFORE the score

@@ -13,6 +13,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { ToolRegistry, builtinRegistry } from "../agent/tools";
+import { BUILTIN_TOOL_SOURCE } from "./catalog";
 import type { ToolCatalog, ToolCategory, ToolMode } from "./catalog";
 
 /** Durable enable/disable state, keyed by tool id. */
@@ -92,6 +93,10 @@ export interface ToolStatus {
   requiredEnvKeys: string[];
   verifierId: string;
   description: string;
+  /** `"builtin"`, or `"mcp:<server>"` for a tool inherited over MCP. Always
+   *  populated here (the catalog's optional field is defaulted), so every
+   *  consumer of `status()` can show provenance without a fallback. */
+  source: string;
 }
 
 export interface ToolsetManagerOptions {
@@ -167,6 +172,17 @@ export class ToolsetManager {
     return stored === undefined ? this.defaultEnabled : stored;
   }
 
+  /**
+   * The catalog this manager manages. Exposed (read-only by convention) so a
+   * command that changes the catalog's CONTENTS rather than its enable/disable
+   * state — `hades tools mcp add|remove`, which mounts and unmounts inherited
+   * MCP tools — can act on the catalog the current process is already using,
+   * instead of only on the persisted file the next process will read.
+   */
+  getCatalog(): ToolCatalog {
+    return this.catalog;
+  }
+
   status(): ToolStatus[] {
     return this.catalog.list().map((entry) => ({
       id: entry.id,
@@ -177,6 +193,7 @@ export class ToolsetManager {
       requiredEnvKeys: [...entry.requiredEnvKeys],
       verifierId: entry.verifierId,
       description: entry.tool.description,
+      source: entry.source ?? BUILTIN_TOOL_SOURCE,
     }));
   }
 

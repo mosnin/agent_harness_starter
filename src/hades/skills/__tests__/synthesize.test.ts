@@ -400,7 +400,13 @@ describe("synthesizeSkill", () => {
     };
     const result = await synthesizeSkill([tampered]);
     expect(result.ok).toBe(false);
-    expect(result.rejections).toEqual([{ code: "bad-signature", detail: expect.any(String) }]);
+    // `sourceGoalId` is asserted, not tolerated: a per-source rejection MUST
+    // carry the identity of the source it is about. Callers render refusals
+    // by goal, and the only alternative — re-deriving it by position — is
+    // wrong on any partial rejection.
+    expect(result.rejections).toEqual([
+      { code: "bad-signature", detail: expect.any(String), sourceGoalId: vt.trajectory.goalId },
+    ]);
     expect(result.content).toBeUndefined();
   });
 
@@ -510,7 +516,11 @@ describe("synthesizeSkill", () => {
 
     const result = await synthesizeSkill([good, { trajectory: badTrajectory, certificate: badCert }]);
     expect(result.ok).toBe(true);
-    expect(result.rejections).toEqual([{ code: "failed-trajectory", detail: expect.any(String) }]);
+    // The rejection names goal-bad — the source that actually failed — and NOT
+    // `good`, which is about to become the synthesized skill's provenance.
+    expect(result.rejections).toEqual([
+      { code: "failed-trajectory", detail: expect.any(String), sourceGoalId: "goal-bad" },
+    ]);
     const extracted = extractProvenance(result.manifest!.instructions);
     expect(extracted!.sourceCount).toBe(1);
   });

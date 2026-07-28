@@ -81,6 +81,34 @@ export {
 } from "./emission-adapters";
 export type { ProcedureStepProvenance } from "./emission-adapters";
 
+// -- T2-genrm (the middle rung of the ladder) -------------------------------
+export {
+  rubricGradeVerifier,
+  buildGraderPrompt,
+  parseRubricGrade,
+  extractRubric,
+  formatRubric,
+  isRubric,
+  resolveRubric,
+  GENRM_VERIFIER_ID,
+  GENRM_VERIFIER_PRIOR,
+  GENRM_KEY_VARS,
+  RUBRIC_PREFIX,
+  DEFAULT_RUBRIC_MAX_SCORE,
+  DEFAULT_RUBRIC_PASS_RATIO,
+} from "./genrm-verifier";
+export type {
+  Rubric,
+  RubricCriterion,
+  ResolvedRubric,
+  RubricGrader,
+  RubricGrade,
+  GradeRequest,
+  GradeParseResult,
+  GradeParseFailure,
+  GenrmVerifierOptions,
+} from "./genrm-verifier";
+
 // -- The gate ---------------------------------------------------------------
 export { UnifiedTrustGate, formatTrustGateReport } from "./unified-gate";
 export type {

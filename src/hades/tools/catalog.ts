@@ -50,7 +50,22 @@ export interface CatalogEntry {
   requiresNetwork: boolean;
   requiredEnvKeys: string[];
   verifierId: string;
+  /**
+   * Where this tool came from. Omitted means `"builtin"` — a tool this build
+   * ships and whose behaviour it owns. Tools inherited over MCP set
+   * `"mcp:<server>"` (see `./mcp-catalog.ts`).
+   *
+   * This exists so a user can always tell OUR tools from someone else's:
+   * `hades tools list` prints it as its own column, because "which of these
+   * did you write?" is a question about trust, not cosmetics. It is optional
+   * so the eight decoupled factory files (which each carry a structural
+   * duplicate of this shape) need no change to keep satisfying it.
+   */
+  source?: string;
 }
+
+/** `CatalogEntry.source` for a tool this build ships itself. */
+export const BUILTIN_TOOL_SOURCE = "builtin";
 
 const MAX_ID_LENGTH = 128;
 /** Conservative, portable tool-id charset: no path separators, no
@@ -102,6 +117,18 @@ export class ToolCatalog {
 
   get(id: string): CatalogEntry | undefined {
     return this.entries.get(id);
+  }
+
+  /**
+   * Drop an entry, returning whether it was there. Needed by `hades tools mcp
+   * remove`, which must be able to unmount a server's tools from the CATALOG
+   * THIS PROCESS ALREADY BUILT (a long-lived REPL/TUI session), not merely
+   * from the persisted mount file — otherwise an unmounted tool would keep
+   * answering until restart, which is precisely the kind of quiet divergence
+   * between stated and actual state this codebase refuses to ship.
+   */
+  remove(id: string): boolean {
+    return this.entries.delete(id);
   }
 
   /** All entries, sorted by tool name (matches `ToolRegistry.list()`'s

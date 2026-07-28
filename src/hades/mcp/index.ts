@@ -17,6 +17,41 @@ export type {
 } from "./client";
 export { McpServer, loopbackTransportPair } from "./server";
 export type { McpServerTool, McpServerOptions } from "./server";
+// Real transports: a spawned stdio server, and a hosted HTTP endpoint. These
+// are what turn the client from a protocol implementation into a way to reach
+// the ecosystem's actual servers.
+export { StdioMcpTransport, realStdioSpawn, MCP_TRANSPORT_ERROR_CODE } from "./stdio-transport";
+export type {
+  StdioProcessHandle,
+  StdioSpawnLike,
+  StdioSpawnOptions,
+  StdioTransportOptions,
+} from "./stdio-transport";
+export { HttpMcpTransport, parseHttpFrames } from "./http-transport";
+export type { McpFetchLike, HttpTransportOptions } from "./http-transport";
+// Mounting: connect to a server spec, list its tools, call one — with honest
+// failures and no mock branch anywhere.
+export {
+  DEFAULT_MCP_TIMEOUT_MS,
+  callMcpServerTool,
+  contentToText,
+  declaredEnvKeys,
+  describeMcpEndpoint,
+  listMcpServerTools,
+  openMcpSession,
+  unmetEnvRequirements,
+} from "./mount";
+export type {
+  McpServerSpec,
+  McpStdioServerSpec,
+  McpHttpServerSpec,
+  McpMountDeps,
+  McpSession,
+  McpListResult,
+  McpCallOutcome,
+  McpFailure,
+  McpServerIdentity,
+} from "./mount";
 export { createSwarmTaskTool, SWARM_TASK_INPUT_SCHEMA } from "./swarm-task-tool";
 export type {
   SwarmTaskRequest,

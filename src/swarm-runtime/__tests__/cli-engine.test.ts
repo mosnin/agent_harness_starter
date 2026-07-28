@@ -23,10 +23,12 @@
  * child env, then injects only what the test declares, so results are
  * identical on a dev box with real keys exported and in CI.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterAll } from "vitest";
 import { execFile } from "node:child_process";
 import { createServer, type AddressInfo } from "node:net";
 import { createServer as createHttpServer } from "node:http";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PROVIDERS } from "../worker/providers";
@@ -36,6 +38,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..", "..");
 const CLI_TS = join(REPO_ROOT, "src", "swarm-runtime", "cli.ts");
 const TSX_BIN = join(REPO_ROOT, "node_modules", ".bin", "tsx");
+/** Throwaway data dir for every spawn — see the note in `runCli`. */
+const TEST_DATA_DIR = mkdtempSync(join(tmpdir(), "hermes-cli-engine-"));
 
 /** One tsx spawn is ~2s cold; leave generous headroom for a loaded CI box. */
 const SPAWN_TIMEOUT_MS = 60_000;
@@ -62,6 +66,12 @@ function runCli(args: string[], extraEnv: Record<string, string> = {}): Promise<
   delete env.SWARM_MODEL;
   delete env.SWARM_BASE_URL;
   delete env.OPENAI_BASE_URL;
+  // A real `run` now appends a measured-cost record to <dataDir>/cost/runs.jsonl.
+  // Point every spawn at a throwaway dir: a test suite must never write rows
+  // into the developer's real spend ledger — that ledger is the thing this
+  // feature exists to keep trustworthy, and a fabricated row in it would be
+  // exactly the corruption the accounting refuses to commit.
+  env.HADES_DATA_DIR = TEST_DATA_DIR;
   Object.assign(env, extraEnv);
   return new Promise((resolve, reject) => {
     execFile(
@@ -78,6 +88,10 @@ function runCli(args: string[], extraEnv: Record<string, string> = {}): Promise<
     );
   });
 }
+
+afterAll(() => {
+  rmSync(TEST_DATA_DIR, { recursive: true, force: true });
+});
 
 /** Reserve a loopback port, then free it: connecting to it is refused fast. */
 function unusedLoopbackPort(): Promise<number> {

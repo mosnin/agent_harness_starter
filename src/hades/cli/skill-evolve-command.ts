@@ -49,9 +49,9 @@
  * @module hades/cli/skill-evolve-command
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
-import { dirname, join } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 
 import {
   extractProvenance,
@@ -89,6 +89,8 @@ import {
   type HoldoutRunner,
 } from "../skills/holdout";
 import { GateTrackRecorder, type GatedSkillUse, type SkipReason } from "../skills/gate-track-hook";
+import { forgeFromVerified, summarizeForge } from "../skills/forge";
+import { JOURNAL_PATH_ENV, loadJournal, resolveJournalPath } from "../research/gate-journal";
 
 // ---------------------------------------------------------------------------
 // Public contract
@@ -413,6 +415,244 @@ async function cmdSynth(rest: string[], ctx: Ctx): Promise<SkillEvolveResult> {
     lines.push(`${result.rejections.length} source(s) rejected:`);
     for (const r of result.rejections) lines.push(`  [${r.code}] ${r.detail}`);
   }
+  return { code: 0, lines };
+}
+
+// ---------------------------------------------------------------------------
+// forge — the closed learning loop's product surface
+// ---------------------------------------------------------------------------
+
+interface ForgeFlags {
+  from?: string;
+  name?: string;
+  minTools?: number;
+  out?: string;
+}
+
+function parseForgeFlags(args: string[]): { ok: true; flags: ForgeFlags } | { ok: false; error: string } {
+  const flags: ForgeFlags = {};
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    const nextValue = (): string | undefined => {
+      const v = args[++i];
+      return v === undefined || v.startsWith("--") ? undefined : v;
+    };
+    if (a === "--from-verified" || a === "--from") {
+      const v = nextValue();
+      if (v === undefined) return { ok: false, error: `${a} requires a path to a trajectory journal.` };
+      flags.from = v;
+    } else if (a === "--name") {
+      const v = nextValue();
+      if (v === undefined) return { ok: false, error: "--name requires a skill name." };
+      flags.name = v;
+    } else if (a === "--min-tools") {
+      const v = Number(nextValue());
+      if (!Number.isInteger(v) || v < 1) return { ok: false, error: "--min-tools must be a positive integer." };
+      flags.minTools = v;
+    } else if (a === "--out") {
+      const v = nextValue();
+      if (v === undefined) return { ok: false, error: "--out requires a path." };
+      flags.out = v;
+    } else {
+      return { ok: false, error: `Unknown flag: ${a}` };
+    }
+  }
+  return { ok: true, flags };
+}
+
+/**
+ * Canonical absolute form of a path that MAY NOT EXIST YET.
+ *
+ * `resolve()` alone collapses `.`/`..` and makes the path absolute, which
+ * defeats `<data>/candidates/../skills/x.md`. It does NOT defeat a symlink, and
+ * `realpathSync` throws on a path whose leaf has not been created — which is
+ * always the case for a candidate we are about to write. So: walk up to the
+ * deepest ANCESTOR that really exists, `realpathSync` that, and re-attach the
+ * not-yet-created tail. A path with no existing ancestor at all falls back to
+ * the resolved form, which is still strictly stronger than a raw string.
+ */
+function canonicalPath(p: string): string {
+  const abs = resolve(p);
+  let head = abs;
+  const tail: string[] = [];
+  for (;;) {
+    try {
+      const real = realpathSync(head);
+      return tail.length === 0 ? real : join(real, ...tail);
+    } catch {
+      const parent = dirname(head);
+      if (parent === head) return abs;
+      tail.unshift(basename(head));
+      head = parent;
+    }
+  }
+}
+
+/**
+ * True when `p` is `dir` itself or sits anywhere beneath it, compared on
+ * CANONICAL paths (see {@link canonicalPath}) rather than raw strings.
+ *
+ * This guard is load-bearing, not cosmetic: it is the only thing standing
+ * between `hades skill forge` and an install that skipped the holdout gate. A
+ * purely lexical version stopped the obvious mistake and nothing else —
+ * `--out <data>/candidates/../skills/pwned.md` walked straight through it and
+ * the command then printed "NOT installed." over a skill that WAS installed and
+ * immediately listed by `hades skill list`. Both `..` traversal and a symlinked
+ * parent directory are resolved here so the printed claim and the filesystem
+ * agree. The residual gap is a TOCTOU race (a symlink swapped between this
+ * check and the write); that is a different threat model from an operator
+ * typing a path, and the honest answer is that this is a guard against
+ * bypassing the holdout gate by accident or by `..`, not a sandbox.
+ */
+function isInsideDir(p: string, dir: string): boolean {
+  const cp = canonicalPath(p);
+  const cd = canonicalPath(dir);
+  if (cp === cd) return true;
+  const prefix = cd.endsWith(sep) ? cd : `${cd}${sep}`;
+  return cp.startsWith(prefix);
+}
+
+/**
+ * `hades skill forge [--from-verified <journal.json>] [--name <n>] [--min-tools <n>] [--out <candidate.md>]`
+ *
+ * The wire that was missing: a captured trajectory journal
+ * (`../research/gate-journal.ts`) in, a CANDIDATE SKILL.md out — and an honest
+ * count of how much of that journal the verification gate refused to certify.
+ *
+ * Two properties this command exists to enforce, both structural rather than
+ * advisory:
+ *
+ *  1. **Only gate-verified trajectories become skills.** The filter lives in
+ *     `forgeFromVerified`, not here; this command reports its refusals verbatim,
+ *     each one naming the verdict that caused it. A journal of nothing but
+ *     declined/refuted runs exits 1 with a per-entry explanation and writes
+ *     nothing.
+ *  2. **Forging is not promoting.** The output goes to a candidates directory
+ *     and NEVER to the skills dir — an `--out` that points inside the skills dir
+ *     is refused outright. The only path from candidate to installed skill
+ *     remains `hades skill holdout ... --apply`, which is where paired held-out
+ *     verified performance is actually measured. This command prints that exact
+ *     next command rather than doing it.
+ *
+ * Capture itself is opt-in: with no `--from-verified`, the journal path comes
+ * from `$HADES_TRAJECTORY_JOURNAL`, and when that is unset the command exits 1
+ * naming the VARIABLE as an unmet requirement rather than silently finding
+ * nothing to do.
+ */
+async function cmdForge(rest: string[], ctx: Ctx, env: Record<string, string | undefined>): Promise<SkillEvolveResult> {
+  const parsedFlags = parseForgeFlags(rest);
+  if (!parsedFlags.ok) return fail1(parsedFlags.error);
+  const flags = parsedFlags.flags;
+
+  // --- Resolve the journal: explicit flag, else the opt-in env var ---------
+  let journalPath: string;
+  let sourceLabel: string;
+  if (flags.from) {
+    journalPath = flags.from;
+    sourceLabel = journalPath;
+  } else {
+    const resolved = resolveJournalPath(env);
+    if (!resolved.enabled || !resolved.path) {
+      return {
+        code: 1,
+        lines: [
+          "No trajectory journal to forge from.",
+          `  unmet requirement: ${resolved.unmetRequirement ?? `$${JOURNAL_PATH_ENV} is not set.`}`,
+          `  Pass --from-verified <journal.json>, or set $${JOURNAL_PATH_ENV} to opt this install in to capture.`,
+        ],
+      };
+    }
+    journalPath = resolved.path;
+    // Convention: a value that came from the environment is reported by
+    // VARIABLE NAME, never by value.
+    sourceLabel = `$${JOURNAL_PATH_ENV}`;
+  }
+
+  const journal = loadJournal(journalPath, {
+    readFile: (p: string) => ctx.fs.readFile(p),
+    writeFile: (p: string, c: string) => ctx.fs.writeFile(p, c),
+    mkdirp: (d: string) => ctx.fs.mkdirp(d),
+  });
+  if (!journal.exists) return fail1(`Trajectory journal not found: ${sourceLabel}`);
+  if (journal.error) return fail1(`Cannot read trajectory journal ${sourceLabel}: ${journal.error}`);
+
+  const lines: string[] = [`journal: ${sourceLabel}`];
+  for (const p of journal.problems) {
+    lines.push(`  refused entry ${p.index}: [${p.code}] ${p.detail}`);
+  }
+  if (journal.runs.length === 0) {
+    lines.push(
+      journal.problems.length > 0
+        ? `No usable entries: all ${journal.problems.length} entr(y/ies) failed validation.`
+        : "Trajectory journal is empty — no run has been captured yet."
+    );
+    return { code: 1, lines };
+  }
+
+  const report = await forgeFromVerified(journal.runs, {
+    ...(flags.name !== undefined ? { name: flags.name } : {}),
+    ...(flags.minTools !== undefined ? { minSuccessfulTools: flags.minTools } : {}),
+    now: ctx.now(),
+  });
+
+  lines.push(summarizeForge(report));
+  for (const r of report.refused) {
+    lines.push(`  [${r.code}] ${r.goalId}: ${r.detail}`);
+  }
+
+  if (!report.ok || !report.manifest || !report.content || !report.provenance) {
+    lines.push(
+      report.eligible === 0
+        ? "Nothing forged: no captured trajectory carries a \"verified\" gate verdict. This is the intended behaviour — a trajectory the gate declined or refuted is never a skill source."
+        : "Nothing forged: every gate-verified source was refused by synthesis (see the reasons above)."
+    );
+    return { code: 1, lines };
+  }
+
+  // --- Candidate only. Promotion belongs to the holdout gate. -------------
+  const name = report.manifest.name;
+  const candidatePath = flags.out ?? join(ctx.dataDir, "candidates", `${name}.md`);
+  if (isInsideDir(candidatePath, ctx.dir)) {
+    lines.push(
+      `Refusing to write a forged candidate into the skills dir (${ctx.dir}): that would install it without a holdout decision.`,
+      `A forged skill becomes installed only via: hades skill holdout ${name} --candidate <path> --suite <suite.json> --results <results.json> --apply`
+    );
+    return { code: 1, lines };
+  }
+
+  // Same preflight discipline as `synth`: prove the exact bytes load through
+  // the real SkillLibrary, and that the provenance we are about to persist
+  // extracts back out of them, BEFORE anything touches disk.
+  const roundTrip = extractProvenance(report.manifest.instructions);
+  if (!roundTrip || roundTrip.certSha256 !== report.provenance.certSha256) {
+    lines.push("Forge produced content whose embedded provenance failed to round-trip; refusing to write.");
+    return { code: 1, lines };
+  }
+  const preflight = new SkillLibrary();
+  const preflightReport = preflight.loadFiles([{ path: candidatePath, content: report.content }]);
+  if (preflightReport.errors.length > 0 || !preflight.get(name)) {
+    lines.push("Forged SKILL.md failed a SkillLibrary preflight load; refusing to write.");
+    for (const e of preflightReport.errors) lines.push(`  ${e.path}: ${e.error}`);
+    return { code: 1, lines };
+  }
+
+  ctx.fs.mkdirp(dirname(candidatePath));
+  ctx.fs.writeFile(candidatePath, report.content);
+
+  const p = report.provenance;
+  lines.push(
+    `Forged CANDIDATE skill "${name}" -> ${candidatePath}`,
+    `provenance: cert=${p.certSha256} goal=${p.trajectoryGoalId} pCorrect=${fmt(p.pCorrect)} epsilon=${fmt(
+      p.epsilon
+    )} sources=${p.sourceCount} synthesizedAt=${p.synthesizedAt}`,
+    `objective: ${p.objective}`,
+    // Not a bare assertion: the path above was checked against the skills dir on
+    // CANONICAL form (`..` and symlinks resolved) before a byte was written, and
+    // the check is named here so the claim is auditable rather than trusted.
+    `NOT installed — written outside the skills dir (${ctx.dir}).`,
+    "A forged skill is promoted only by held-out VERIFIED performance:",
+    `  hades skill holdout ${name} --candidate ${candidatePath} --suite <suite.json> --results <results.json> --apply`
+  );
   return { code: 0, lines };
 }
 
@@ -1096,9 +1336,17 @@ async function cmdHoldout(rest: string[], ctx: Ctx): Promise<SkillEvolveResult> 
 // ---------------------------------------------------------------------------
 
 const USAGE: string[] = [
-  "Usage: hades skill <synth|refine|track|track-batch|trust|holdout> ...",
+  "Usage: hades skill <forge|synth|refine|track|track-batch|trust|holdout> ...",
   "",
   "Commands:",
+  "  forge [--from-verified <journal.json>] [--name <n>] [--min-tools <n>] [--out <path>]",
+  "      Close the learning loop: distil a CANDIDATE SKILL.md from captured",
+  "      trajectories the verification gate CERTIFIED. A declined or refuted",
+  "      trajectory is refused by name and verdict, never distilled — that",
+  "      refusal is the point. Writes a candidate only; promotion still requires",
+  "      `skill holdout ... --apply`. With no --from-verified the journal path",
+  `      comes from $${JOURNAL_PATH_ENV} (capture is opt-in).`,
+  "",
   "  synth <trajectory.json>",
   "      Synthesize a new SKILL.md from a GATE-VERIFIED trajectory (or a JSON",
   "      array of trajectories). Never writes a file for a rejected trajectory.",
@@ -1157,6 +1405,8 @@ export async function runSkillEvolveCommand(args: string[], opts: SkillEvolveOpt
     }
 
     switch (sub) {
+      case "forge":
+        return await cmdForge(rest, ctx, env);
       case "synth":
         return await cmdSynth(rest, ctx);
       case "refine":

@@ -73,6 +73,23 @@ grep -q 'chat engine: real' <<<"$CHAT_REAL" || fail "chat did not use the real p
 grep -q '\[mock\]' <<<"$CHAT_REAL" && fail "chat silently fell back to mock despite a configured key"
 pass "chat --once reaches a real endpoint"
 
+# Measured cost is MEASURED. The stub reports usage {prompt:50, completion:10}
+# per response, so the run must report exactly that — a figure traceable to
+# the bytes the endpoint sent, not a constant compiled into the harness.
+grep -q 'cost: .* 50 / 10 (measured) tokens over 1 call(s)' <<<"$CHAT_REAL" \
+  || fail "chat did not report the provider's own token counts: $(grep '^cost:' <<<"$CHAT_REAL")"
+COST_OUT="$($HADES cost last)"
+grep -q '50 / 10 (measured)' <<<"$COST_OUT" || fail "hades cost did not read back the measured run"
+grep -q '\$0.0000135' <<<"$COST_OUT" || fail "hades cost did not price 50/10 gpt-4o-mini tokens at list price"
+pass "cost measured from real usage, persisted, and read back"
+
+# An UNPRICED model must never contribute a silent $0 — that would understate
+# spend and inflate every per-dollar metric built on it.
+UNPRICED="$(HADES_CHAT_MODEL=not-a-real-model-id $HADES chat --once 'ping')"
+grep -q 'UNKNOWN' <<<"$UNPRICED" || fail "an unpriced model did not report UNKNOWN spend"
+grep -qE 'cost: \$0(\.0+)? ' <<<"$UNPRICED" && fail "an unpriced model was billed as \$0 — the exact flattering lie"
+pass "unpriced model reports UNKNOWN, never \$0"
+
 # The headline property: a model returning confidently-formatted WRONG answers
 # must produce declines, never silent-wrongs.
 $HADES showdown live --tasks 4 --seed 5 --out "$WORK/live-wrong" >/dev/null

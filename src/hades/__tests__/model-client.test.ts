@@ -371,6 +371,9 @@ describe("MultiProviderClient concurrency", () => {
       byProvider: {},
       byModel: {},
       totalUsd: 0,
+      // Unpriced calls are COUNTED rather than summed as free — `totalUsd` is
+      // a lower bound whenever this is non-zero.
+      unpricedCalls: 0,
       totalTokensIn: 0,
       totalTokensOut: 0,
       maxObservedConcurrency: 0,

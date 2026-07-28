@@ -159,6 +159,33 @@ export interface UniversalVerifier {
    * NAMES only, never values.
    */
   requiresConfig?(): string | undefined;
+  /**
+   * Optional, default false. Declares that every check this verifier runs
+   * compares ANSWERER-SUPPLIED material against other ANSWERER-SUPPLIED
+   * material — so its PASS is reachable by anyone who controls the subject and
+   * carries no independent information about whether the answer is CORRECT.
+   *
+   * `verify.procedure-run` is the shipped example: it checks a self-declared
+   * step manifest (`evidence.declaredSteps`) against a self-declared trace and
+   * asserts the output equals the last step's detail. Every input to that
+   * comparison comes from the same author as the answer.
+   *
+   * This repo has already been bitten by exactly this once. The calibration
+   * harness used to synthesize `declaredSteps` FROM the trace it was about to
+   * be checked against; the harness fix (see `./wiring.ts`
+   * `evalCalibrationSubject`) records the diagnosis verbatim — "a verifier that
+   * cannot fail carries no information, but its constant PASS still moved the
+   * fused score". Removing the synthesized evidence fixed the harness; it did
+   * not fix the underlying rule, so any subject that supplies its own
+   * `declaredSteps` could still buy a free second voter and convert an
+   * abstention into a signed certificate.
+   *
+   * `verify()` therefore drops a self-attested PASS from the evidence set
+   * before counting voters (see {@link VerifierRegistry.verify}). A
+   * self-attested FAIL is KEPT: a proven structural mismatch is real evidence
+   * of a problem even though its absence proves nothing. Asymmetric on purpose.
+   */
+  selfAttested?: boolean;
 }
 
 /** Many verdicts on one subject, collapsed into one calibrated signal. */
@@ -174,7 +201,7 @@ export interface FusedVerification {
   verifierVersions: string[];
   abstainedIds: string[];
   degraded: boolean;
-  degradedReason?: "no-verifier" | "all-abstained" | "single-verifier";
+  degradedReason?: "no-verifier" | "all-abstained" | "single-verifier" | "self-attested-only";
 }
 
 /** Diagnostic explaining why `select()` did or didn't include a verifier. */
@@ -559,6 +586,22 @@ export class VerifierRegistry {
     return out;
   }
 
+  /** True iff the registered verifier with this id declared itself self-attested
+   *  (its PASS is answerer-reachable and therefore not evidence — see
+   *  {@link UniversalVerifier.selfAttested}). An id with no registered verifier
+   *  is treated as NOT self-attested: that is the conservative answer, because
+   *  it keeps an unknown vote in the evidence set rather than silently
+   *  discarding a dissent. */
+  private isSelfAttested(verifierId: string): boolean {
+    return this.verifiers.get(verifierId)?.selfAttested === true;
+  }
+
+  /** Public form of the same question, so a surface can NAME the verifier whose
+   *  pass it declined to count instead of reporting an unexplained abstention. */
+  isSelfAttestedId(verifierId: string): boolean {
+    return this.isSelfAttested(verifierId);
+  }
+
   /** Deterministic (`id`-sorted) list of verifiers eligible for `subject`. */
   select(subject: TrustSubject): UniversalVerifier[] {
     return this.selectWithDiagnostics(subject)
@@ -580,6 +623,14 @@ export class VerifierRegistry {
     const selected = this.select(subject);
     const verdicts = await Promise.all(selected.map((v) => runVerifier(v, subject, timeoutMs)));
     const contributing = verdicts.filter((v) => !v.abstained);
+    // A self-attested PASS is not evidence — see UniversalVerifier.selfAttested.
+    // It is dropped BEFORE the voter count decides whether this fusion is
+    // degraded, and before it can reach the ensemble, because a voter whose
+    // pass the answerer can always obtain would otherwise buy the second vote
+    // that turns "degraded-evidence, abstain" into a signed certificate. A
+    // self-attested FAIL is kept: a proven structural mismatch is real.
+    const evidence = contributing.filter((v) => !(this.isSelfAttested(v.verifierId) && v.passed));
+    const droppedSelfAttested = contributing.length - evidence.length;
 
     let score: number;
     let agreement: number;
@@ -593,23 +644,26 @@ export class VerifierRegistry {
       score = 0.5;
       agreement = 0.5;
       weights = {};
-    } else if (contributing.length === 0) {
+    } else if (evidence.length === 0) {
       degraded = true;
-      degradedReason = "all-abstained";
+      // Naming WHICH emptiness this is: "everyone abstained" and "the only
+      // votes were self-attested passes" are different facts about the run and
+      // an operator has to be able to tell them apart.
+      degradedReason = droppedSelfAttested > 0 ? "self-attested-only" : "all-abstained";
       score = 0.5;
       agreement = 0.5;
       weights = {};
-    } else if (contributing.length === 1) {
+    } else if (evidence.length === 1) {
       degraded = true;
-      degradedReason = "single-verifier";
-      const solo = contributing[0];
+      degradedReason = droppedSelfAttested > 0 ? "self-attested-only" : "single-verifier";
+      const solo = evidence[0];
       score = solo.confidence;
       agreement = solo.passed ? 1 : 0;
       const soloPrior = this.verifiers.get(solo.verifierId)?.prior ?? 0;
       weights = { [solo.verifierId]: clamp01(soloPrior) };
     } else {
       const ensemble = new WeakVerifierEnsemble();
-      const votes: VerifierVote[][] = [contributing.map((v) => ({ verifierId: v.verifierId, passed: v.passed }))];
+      const votes: VerifierVote[][] = [evidence.map((v) => ({ verifierId: v.verifierId, passed: v.passed }))];
       const [result]: EnsembleResult[] = ensemble.fitPredict(votes);
       this.lastEnsemble = ensemble;
       score = result.score;
@@ -657,8 +711,16 @@ export class VerifierRegistry {
       }),
     );
 
+    // Same evidence rule as single-subject `verify()`: a self-attested PASS
+    // never reaches `fitPredict`. Batch fusion is where a constant-pass voter
+    // does the most damage — it votes on EVERY subject, so the ensemble reads
+    // its unanimity as reliability and pins scores at the top. That is not a
+    // hypothesis: `./wiring.ts`'s `evalCalibrationSubject` documents it as the
+    // measured cause of a previously unreachable finite conformal threshold.
     const votes: VerifierVote[][] = perSubject.map(({ verdicts }) =>
-      verdicts.filter((v) => !v.abstained).map((v) => ({ verifierId: v.verifierId, passed: v.passed })),
+      verdicts
+        .filter((v) => !v.abstained && !(this.isSelfAttested(v.verifierId) && v.passed))
+        .map((v) => ({ verifierId: v.verifierId, passed: v.passed })),
     );
 
     const ensemble = new WeakVerifierEnsemble();
@@ -667,8 +729,16 @@ export class VerifierRegistry {
 
     return perSubject.map(({ subject, selected, verdicts }, i) => {
       const contributing = verdicts.filter((v) => !v.abstained);
+      const evidence = contributing.filter((v) => !(this.isSelfAttested(v.verifierId) && v.passed));
+      const droppedSelfAttested = contributing.length - evidence.length;
       const degradedReason: FusedVerification["degradedReason"] =
-        selected.length === 0 ? "no-verifier" : contributing.length === 0 ? "all-abstained" : undefined;
+        selected.length === 0
+          ? "no-verifier"
+          : evidence.length === 0
+            ? droppedSelfAttested > 0
+              ? "self-attested-only"
+              : "all-abstained"
+            : undefined;
       const tier =
         contributing.length === 0
           ? weakestTier(verdicts.map((v) => v.tier))

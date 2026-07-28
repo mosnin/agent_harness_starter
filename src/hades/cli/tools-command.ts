@@ -7,6 +7,15 @@
  *   hades tools enable <name>   Enable a tool (persists immediately)
  *   hades tools disable <name>  Disable a tool (persists immediately)
  *   hades tools info <name>     Full metadata for one tool
+ *   hades tools mcp <sub>       Mount/unmount external MCP servers
+ *                               (`./tools-mcp-command.ts`, dispatched by
+ *                                `cli.ts` because it is async and needs the
+ *                                mount store this command never touches)
+ *
+ * The SOURCE column is not decoration: once MCP mounts exist, a catalog can
+ * contain tools this build did not write. Which of these is ours and which
+ * was inherited is a trust question, so it is answered in the default listing
+ * rather than hidden behind `info`.
  *
  * Terminal-free (returns `{ code, lines }`) so it unit-tests without a
  * shell or real stdout, matching the rest of `src/hades/cli/*`.
@@ -26,6 +35,8 @@ const USAGE = [
   "  enable <name>     Enable a tool",
   "  disable <name>    Disable a tool",
   "  info <name>       Show full metadata for one tool",
+  "  mcp <command>     Mount external MCP servers (add/list/remove);",
+  "                    run `hades tools mcp help` for its own usage",
   "  help              Show this help",
 ];
 
@@ -36,12 +47,13 @@ function pad(text: string, width: number): string {
 function formatTable(rows: ToolStatus[]): string[] {
   if (rows.length === 0) return ["No tools in the catalog."];
 
-  const headers = ["NAME", "CATEGORY", "MODE", "STATUS", "KEYS"];
+  const headers = ["NAME", "CATEGORY", "MODE", "STATUS", "SOURCE", "KEYS"];
   const cells = rows.map((r) => [
     r.id,
     r.category,
     r.mode,
     r.enabled ? "enabled" : "disabled",
+    r.source,
     r.requiredEnvKeys.length > 0 ? `needs: ${r.requiredEnvKeys.join(",")}` : "-",
   ]);
 
@@ -58,6 +70,7 @@ function formatTable(rows: ToolStatus[]): string[] {
 function formatInfo(s: ToolStatus): string[] {
   return [
     `name:            ${s.id}`,
+    `source:          ${s.source}`,
     `category:        ${s.category}`,
     `mode:            ${s.mode}`,
     `enabled:         ${s.enabled}`,

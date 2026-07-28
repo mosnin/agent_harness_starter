@@ -19,19 +19,27 @@
  *                 prove the gate DECLINES rather than certifies — the exact
  *                 case that failed the product audit.
  *
+ * It also serves a real `usage` block, which is what the cost meter
+ * (`src/hades/cost/`) reads. `--usage off` OMITS that block, reproducing the
+ * providers and proxies that do not report usage — the case where token
+ * counts must come back UNKNOWN rather than being silently recorded as zero.
+ *
  * Usage:
  *   node scripts/stub-llm.mjs --port 8791 --mode wrong
+ *   node scripts/stub-llm.mjs --port 8791 --usage off
  */
 import http from "node:http";
 
 function parseArgs(argv) {
-  const out = { port: 8791, mode: "solve" };
+  const out = { port: 8791, mode: "solve", usage: "on" };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--port") out.port = Number(argv[++i]);
     else if (argv[i] === "--mode") out.mode = argv[++i];
+    else if (argv[i] === "--usage") out.usage = argv[++i];
   }
   if (!Number.isFinite(out.port)) throw new Error("--port must be a number");
   if (out.mode !== "solve" && out.mode !== "wrong") throw new Error('--mode must be "solve" or "wrong"');
+  if (out.usage !== "on" && out.usage !== "off") throw new Error('--usage must be "on" or "off"');
   return out;
 }
 
@@ -89,7 +97,7 @@ function extractSpec(text) {
   return found;
 }
 
-const { port, mode } = parseArgs(process.argv.slice(2));
+const { port, mode, usage } = parseArgs(process.argv.slice(2));
 let calls = 0;
 
 const server = http.createServer((req, res) => {
@@ -124,14 +132,18 @@ const server = http.createServer((req, res) => {
         object: "chat.completion",
         model: "stub-model",
         choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }],
-        usage: { prompt_tokens: 50, completion_tokens: 10, total_tokens: 60 },
+        // --usage off omits the block entirely (not zeroes it): the cost
+        // meter must then report the call's tokens UNKNOWN. Zeroing it here
+        // would test the wrong thing — a provider that says "0 tokens" and a
+        // provider that says nothing are different facts.
+        ...(usage === "on" ? { usage: { prompt_tokens: 50, completion_tokens: 10, total_tokens: 60 } } : {}),
       }),
     );
   });
 });
 
 server.listen(port, "127.0.0.1", () => {
-  console.error(`[stub-llm] mode=${mode} listening on http://127.0.0.1:${port}`);
+  console.error(`[stub-llm] mode=${mode} usage=${usage} listening on http://127.0.0.1:${port}`);
 });
 
 for (const sig of ["SIGINT", "SIGTERM"]) {

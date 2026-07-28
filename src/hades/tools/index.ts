@@ -15,8 +15,32 @@
  */
 
 // Canonical shapes + catalog
-export { ToolCatalog, isValidToolId } from "./catalog";
+export { ToolCatalog, isValidToolId, BUILTIN_TOOL_SOURCE } from "./catalog";
 export type { CatalogEntry, ToolMode, ToolCategory, FetchLike, ToolFactoryOptions } from "./catalog";
+
+// Inherited tools: external MCP servers mounted into the catalog
+export {
+  MCP_TOOL_ID_PREFIX,
+  MCP_UNVERIFIED_VERIFIER_ID,
+  InMemoryMcpMountStore,
+  JsonFileMcpMountStore,
+  mcpCatalogEntries,
+  mcpSource,
+  mcpToolId,
+  planMcpEntries,
+  parseMcpToolInput,
+  describeInputSchema,
+  isValidMcpServerName,
+  validateMountRecord,
+} from "./mcp-catalog";
+export type {
+  McpMountRecord,
+  McpMountStore,
+  McpMountedTool,
+  McpEntryPlan,
+  SkippedMcpTool,
+} from "./mcp-catalog";
+export { mcpSwarmTools } from "./mcp-swarm-tools";
 
 // Enable/disable management + persistence
 export { ToolsetManager, InMemoryToolStateStore, JsonFileToolStateStore } from "./manager";

@@ -25,6 +25,20 @@
  * provider key the brain is the self-announcing `[mock]` echo; there is no
  * path that fabricates a model answer.
  *
+ * ## Measured cost
+ *
+ * A real chat session is metered: every provider round trip reports its own
+ * token counts and its measured latency through the brain's `onCall` seam
+ * (`../chat/brain.ts` → `../models/client.ts`), a `CostMeter` (`../cost/`)
+ * rolls them up, and the session ends with ONE `cost:` line and one durable
+ * record in `<dataDir>/cost/runs.jsonl` that `hades cost` reads back.
+ *
+ * The `[mock]` path is deliberately NOT metered and writes NO record: it
+ * makes no provider call, so it has no cost to report, and a $0 row in the
+ * spend ledger would be indistinguishable from a real run that happened to
+ * be free. Silence is the honest output there — the `[mock]` label on the
+ * reply already says no model was consulted.
+ *
  * @module hades/cli/chat-command
  */
 
@@ -32,6 +46,8 @@ import { createInterface } from "node:readline";
 import { ConversationalAgent } from "../repl/agent";
 import type { ReplIO } from "../repl/core";
 import { resolveChatBrain, formatChatEngineLine, type ResolvedChatBrain } from "../chat/brain";
+import { CostMeter, formatCostLine } from "../cost/meter";
+import { appendRunCost, costJournalPath, type RunCostRecord } from "../cost/journal";
 import type { MemoryStore } from "../memory/store";
 import type { SessionStore } from "../memory/session-store";
 import type { ModelCommand } from "../models/command";
@@ -51,6 +67,15 @@ export interface ChatCommandDeps {
   io?: ReplIO;
   /** Input stream for piped/interactive mode. Defaults to process.stdin. */
   input?: NodeJS.ReadableStream & { isTTY?: boolean };
+  /**
+   * Where the measured run-cost record is appended. Defaults to
+   * `<dataDir>/cost/runs.jsonl` — the file `hades cost` reads. Pass `null`
+   * to measure and report without persisting (used by tests so a unit run
+   * never writes into a real user's spend history).
+   */
+  costJournal?: string | null;
+  /** Clock for run wall-clock + per-call latency. Injectable for tests. */
+  now?: () => number;
 }
 
 const USAGE = [
@@ -84,6 +109,48 @@ function stdoutIo(): ReplIO {
   };
 }
 
+/** Run id: sortable time prefix + enough entropy to not collide within a ms. */
+function newRunId(now: number): string {
+  return `chat-${now.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Close out a metered session: build the one honest `cost:` line and append
+ * the durable record.
+ *
+ * Returns the lines to print. An unwritable journal is REPORTED (an extra
+ * line) rather than swallowed or thrown — the user's chat succeeded, so the
+ * command still exits 0, but nobody is told their spend was recorded when it
+ * was not.
+ */
+function closeCostRun(
+  meter: CostMeter,
+  resolved: ResolvedChatBrain,
+  deps: ChatCommandDeps,
+  startedAt: number,
+  endedAt: number,
+): string[] {
+  const wallClockMs = Math.max(0, endedAt - startedAt);
+  const report = meter.report();
+  const lines = [formatCostLine(report, { wallClockMs })];
+
+  if (deps.costJournal === null) return lines;
+  const path = deps.costJournal ?? costJournalPath(deps.dataDir);
+  const record: RunCostRecord = {
+    v: 1,
+    runId: newRunId(startedAt),
+    surface: "chat",
+    startedAt,
+    wallClockMs,
+    ...(resolved.kind === "real" ? { model: resolved.model, provider: resolved.provider } : {}),
+    calls: meter.calls(),
+    report,
+  };
+  const problem = appendRunCost(path, record);
+  if (problem) lines.push(`cost: NOT recorded to ${path} — ${problem}`);
+  return lines;
+}
+
 /**
  * Run `hades chat`. Returns a {@link CliResult}; in interactive/piped mode the
  * output is streamed live through the io sink and `lines` comes back empty so
@@ -95,8 +162,19 @@ export async function runChatCommand(args: string[], deps: ChatCommandDeps): Pro
     return { code: 0, lines: USAGE };
   }
 
-  const resolved = (deps.resolve ?? resolveChatBrain)(deps.env);
+  // The meter is wired BEFORE resolution so the brain's very first round trip
+  // is observed. It only ever receives observations from the real HTTP path
+  // (`../chat/brain.ts` passes `onCall` to `HttpModelClient` and nowhere
+  // else), so a mock session leaves it empty and reports nothing.
+  const now = deps.now ?? Date.now;
+  const meter = new CostMeter();
+  const startedAt = now();
+  const resolved = (deps.resolve ?? resolveChatBrain)(deps.env, {
+    onCall: (obs) => void meter.record(obs),
+    now,
+  });
   const engineLine = formatChatEngineLine(resolved);
+  const metered = resolved.kind === "real";
 
   // ── one-shot ──────────────────────────────────────────────────────────────
   const onceIdx = args.indexOf("--once");
@@ -107,7 +185,8 @@ export async function runChatCommand(args: string[], deps: ChatCommandDeps): Pro
     }
     const agent = buildAgent(deps, resolved);
     const reply = await agent.handler(message, () => {}, new AbortController().signal);
-    return { code: 0, lines: [engineLine, reply] };
+    const cost = metered ? closeCostRun(meter, resolved, deps, startedAt, now()) : [];
+    return { code: 0, lines: [engineLine, reply, ...cost] };
   }
 
   // ── piped / interactive ───────────────────────────────────────────────────
@@ -134,5 +213,10 @@ export async function runChatCommand(args: string[], deps: ChatCommandDeps): Pro
   rl.close();
 
   if (interactive && !exited) io.writeLine("");
+  // One cost line for the WHOLE session (every turn's calls), not per turn:
+  // the question a user asks is "what did this session cost", and repeating a
+  // running subtotal after each reply invites reading one turn's number as
+  // the total.
+  if (metered) for (const l of closeCostRun(meter, resolved, deps, startedAt, now())) io.writeLine(l);
   return { code: 0, lines: [] };
 }

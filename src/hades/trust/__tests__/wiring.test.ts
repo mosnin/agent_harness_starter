@@ -32,6 +32,7 @@ import { evalTrustSubject, scriptedSolvers } from "../risk-eval";
 import { EVAL_TASKS } from "../../bench/eval-suite";
 import { verifyCertificate, certifiesOutput } from "../../styx/certificate";
 import type { TrustSubject } from "../registry";
+import type { RubricGrader } from "../genrm-verifier";
 import type { CalibrationPoint } from "../../styx/gate";
 
 function tempDir(): string {
@@ -585,9 +586,18 @@ describe("structural certifiability of what this build actually ships", () => {
     // verifier, so two verifiers can co-vote on one subject and the domain
     // is structurally certifiable. `message` is still the lone-voter case
     // this test was originally written to pin.
-    expect(byDomain.get("procedure")!.registered).toBe(2);
+    //
+    // The third `procedure` registration is the T2-genrm rubric grader, which
+    // is CONDITIONAL on a grader model: registered here, but not effective,
+    // so the count that decides certifiability is deliberately unmoved.
+    expect(byDomain.get("procedure")!.registered).toBe(3);
     expect(byDomain.get("procedure")!.effective).toBe(2);
-    expect(byDomain.get("procedure")!.canEverCertify).toBe(true);
+    // ...and of those two, only ONE carries independent evidence:
+    // `verify.procedure-run` is self-attested, so its pass is dropped before
+    // voters are counted. `effective >= 2` used to report this domain as
+    // structurally certifiable; that was false, and the boolean now says so.
+    expect(byDomain.get("procedure")!.independent).toBe(1);
+    expect(byDomain.get("procedure")!.canEverCertify).toBe(false);
     // `message` registers the T3-agreement verifier too, but that one is
     // CONDITIONAL: with no judges configured it declares an unmet
     // requirement, so only one voter is effective and the domain still
@@ -612,12 +622,136 @@ describe("structural certifiability of what this build actually ships", () => {
 
     const fused = await stack.registry.verify(procedureSubject("p", "x"));
     expect(fused.verdicts.filter((v) => !v.abstained)).toHaveLength(1);
-    expect(fused.degradedReason).toBe("single-verifier");
+    // The lone voter here is `verify.procedure-run`, and `procedureSubject`
+    // hands it a step manifest derived from the subject's own trace — so it
+    // passes BY CONSTRUCTION. That makes it self-attested (see
+    // `../registry.ts` UniversalVerifier.selfAttested) and its pass is dropped
+    // from the evidence set entirely, which is a sharper statement than
+    // "single-verifier": there was not one voter's worth of evidence, there was
+    // none. Asserting the precise reason keeps that distinction pinned.
+    expect(fused.degradedReason).toBe("self-attested-only");
+    expect(fused.degraded).toBe(true);
 
     const admission = await stack.gate.admit(procedureSubject("p", "x"));
     expect(admission.accepted).toBe(false);
     expect(admission.abstention?.code).toBe("degraded-evidence");
     expect(admission.certificate).toBeUndefined();
+  });
+
+  it("refuses to certify a FALSE answer bought with a self-attested pass plus a generous grader", async () => {
+    // The exact adversarial case that made this build issue an ed25519
+    // certificate at P(correct)=1.000000 for "The Treaty of Westphalia was
+    // signed in 1923 by the United Nations": two contributing voters, neither
+    // carrying independent correctness evidence. `verify.procedure-run` passes
+    // because the answerer declared a manifest matching its own trace, and the
+    // grader is a stub that scores everything full marks. Counting the first as
+    // a co-voter is what cleared the evidence bar.
+    const alwaysFive: RubricGrader = {
+      name: "stub-generous",
+      async grade(req) {
+        const scores: Record<string, number> = {};
+        for (const c of req.rubric.criteria) scores[c.id] = 5;
+        return JSON.stringify({ scores });
+      },
+    };
+    const stack = openTrustStack({
+      dataDir: tempDir(),
+      env: noEnv,
+      now: () => 0,
+      epsilon: 0.2,
+      rubricGrader: alwaysFive,
+    });
+    const points: CalibrationPoint[] = [];
+    for (let i = 0; i < 40; i++) points.push({ score: 0.99, correct: true });
+    stack.gate.calibrate("procedure", points);
+
+    const rubric =
+      'RUBRIC:{"id":"terse-exact","criteria":[{"id":"accurate","description":"states the correct facts"}]}';
+    const subject: TrustSubject = {
+      domain: "procedure",
+      subjectId: "westphalia",
+      taskId: "westphalia",
+      input: `When was the Treaty of Westphalia signed, and by whom?\n${rubric}`,
+      output: "The Treaty of Westphalia was signed in 1923 by the United Nations.",
+      evidence: { declaredSteps: ["reason", "answer"] },
+      trace: [
+        { seq: 1, kind: "reason", detail: "recall" },
+        {
+          seq: 2,
+          kind: "answer",
+          detail: "The Treaty of Westphalia was signed in 1923 by the United Nations.",
+        },
+      ],
+    };
+
+    const fused = await stack.registry.verify(subject);
+    // Both really do vote and both really do pass — the fix is NOT that one of
+    // them stopped voting. It is that a self-attested pass is not evidence.
+    const contributing = fused.verdicts.filter((v) => !v.abstained);
+    expect(contributing.map((v) => v.verifierId).sort()).toEqual([
+      "verify.procedure-run",
+      "verify.rubric-grade",
+    ]);
+    expect(contributing.every((v) => v.passed)).toBe(true);
+    expect(fused.degraded).toBe(true);
+    expect(fused.degradedReason).toBe("self-attested-only");
+
+    const admission = await stack.gate.admit(subject);
+    expect(admission.accepted).toBe(false);
+    expect(admission.certificate).toBeUndefined();
+    expect(admission.abstention?.code).toBe("degraded-evidence");
+    expect(admission.abstention?.message).toMatch(/self-attested/);
+    expect(admission.abstention?.message).toContain("verify.procedure-run");
+  });
+
+  it("still certifies a CORRECT answer when T1-reference and the grader genuinely co-vote", async () => {
+    // The other half of the claim: the evidence rule must not have been bought
+    // by disabling the capability. Here `verify.procedure-run` abstains (no
+    // declared manifest), so the two contributing voters are T1-reference — an
+    // independent recomputation from the request text — and the grader.
+    const alwaysFive: RubricGrader = {
+      name: "stub-generous",
+      async grade(req) {
+        const scores: Record<string, number> = {};
+        for (const c of req.rubric.criteria) scores[c.id] = 5;
+        return JSON.stringify({ scores });
+      },
+    };
+    const stack = openTrustStack({
+      dataDir: tempDir(),
+      env: noEnv,
+      now: () => 0,
+      epsilon: 0.2,
+      rubricGrader: alwaysFive,
+    });
+    const points: CalibrationPoint[] = [];
+    for (let i = 0; i < 40; i++) points.push({ score: 0.99, correct: true });
+    stack.gate.calibrate("procedure", points);
+
+    const rubric =
+      'RUBRIC:{"id":"terse-exact","criteria":[{"id":"accurate","description":"states the correct facts"}]}';
+    const input = `Reverse "Hello".\nSPEC:{"family":"transform","op":"reverse","text":"Hello"}\n${rubric}`;
+    const good: TrustSubject = {
+      domain: "procedure",
+      subjectId: "rev",
+      taskId: "rev",
+      input,
+      output: "olleH",
+      evidence: {},
+      trace: [{ seq: 1, kind: "answer", detail: "olleH" }],
+    };
+
+    const fused = await stack.registry.verify(good);
+    expect(fused.degraded).toBe(false);
+    const admission = await stack.gate.admit(good);
+    expect(admission.accepted).toBe(true);
+    expect(admission.certificate).toBeDefined();
+
+    // And the T1 hard veto still outranks a generous grader on a WRONG answer.
+    const bad = await stack.gate.admit({ ...good, subjectId: "rev2", taskId: "rev2", output: "Hello" });
+    expect(bad.accepted).toBe(false);
+    expect(bad.abstention?.code).toBe("verifier-conflict");
+    expect(bad.certificate).toBeUndefined();
   });
 
   it("memory really does draw TWO co-voting real verifiers", async () => {

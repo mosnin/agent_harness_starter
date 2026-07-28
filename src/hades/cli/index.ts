@@ -6,6 +6,8 @@ export { runExecCommand } from "./exec-command";
 export type { ExecCommandResult, ExecCommandOptions } from "./exec-command";
 export { runToolsCommand } from "./tools-command";
 export type { ToolsCommandDeps } from "./tools-command";
+export { runToolsMcpCommand, defaultToolsMcpDeps, parseMcpAddArgs } from "./tools-mcp-command";
+export type { ToolsMcpCommandDeps } from "./tools-mcp-command";
 export { runBackendsCommand } from "./backends-command";
 export type { BackendsCommandDeps, BanditStateStore } from "./backends-command";
 export { runReconcileAdoptCommand } from "./backends-adopt-command";
@@ -59,6 +61,8 @@ export { runMarketCommand, defaultMarketDeps, MARKET_USAGE } from "./market-comm
 export type { MarketCommandDeps } from "./market-command";
 export { runRouteCommand, defaultRouteDeps, defaultBenchWiring, ROUTE_USAGE } from "./route-command";
 export type { RouteCommandDeps, RouteBenchWiring } from "./route-command";
+export { runCostCommand, defaultCostDeps } from "./cost-command";
+export type { CostCommandDeps } from "./cost-command";
 export { runClusterCommand, CLUSTER_USAGE } from "./cluster-command";
 export type { ClusterCommandDeps, ClusterAutoscaleDeps } from "./cluster-command";
 export { runEvalCommand, evalHelpLines } from "./eval-command";

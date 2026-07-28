@@ -41,6 +41,7 @@ export * from "./migrate/index";
 export * from "./trust/index";
 export * from "./market/index";
 export * from "./routing/index";
+export * from "./cost/index";
 export * from "./eval/index";
 export * from "./dataset/index";
 export * from "./gov/index";

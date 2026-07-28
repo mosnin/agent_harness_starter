@@ -611,6 +611,18 @@ export function procedureRunVerifier(): UniversalVerifier {
     domain: "procedure",
     tier: calibration.tier,
     prior: clamp01(calibration.prior),
+    // Every input to every check below — `evidence.declaredSteps`,
+    // `evidence.stepProvenance`, `subject.trace`, `subject.output` — is written
+    // by the same author as the answer. A pass therefore proves this run was
+    // internally CONSISTENT with what it said about itself, and nothing about
+    // whether the answer is right; anyone who can build the subject can obtain
+    // that pass. Declaring it here keeps `VerifierRegistry.verify` from
+    // counting that pass as the second, independent vote that clears the
+    // evidence bar (a FAIL still counts — a proven structural mismatch is real
+    // evidence). Without this flag, a flatly false answer carrying a
+    // self-consistent manifest plus one other passing voter was enough to issue
+    // a signed certificate at P(correct)=1.
+    selfAttested: true,
     appliesTo(subject: TrustSubject): boolean {
       return !!subject && subject.domain === "procedure";
     },

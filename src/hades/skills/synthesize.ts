@@ -55,6 +55,22 @@ export interface SynthesisRejection {
     | "too-thin"
     | "suspicious-content";
   detail: string;
+  /**
+   * The `goalId` of the ONE source this rejection is about — present only when
+   * the rejection is genuinely per-source, and deliberately ABSENT on verdicts
+   * that are aggregate over the accepted set (`too-thin` counts distinct tools
+   * across every accepted source; no single goal caused it).
+   *
+   * This field exists because the alternative — pairing rejections back to
+   * sources POSITIONALLY — is wrong in exactly the common case. Synthesis
+   * emits one rejection per REJECTED source, so `rejections[i]` lines up with
+   * `sources[i]` only when EVERY source was rejected; on a partial rejection
+   * the positional guess pins a real failure detail onto an innocent goal and
+   * never names the goal that actually failed. A caller rendering a refusal
+   * must print the goal from THIS field or print no goal at all — a wrong
+   * attribution is a fabrication, not a rounding error.
+   */
+  sourceGoalId?: string;
 }
 
 /** Provenance embedded (and later extracted) from a synthesized skill's body. */
@@ -467,7 +483,15 @@ export async function synthesizeSkill(
     if (verdict.ok) {
       accepted.push(source);
     } else {
-      rejections.push(verdict.rejection);
+      // Stamp the rejection with the goal it is ABOUT, at the only point in the
+      // pipeline where that identity is known for certain. Downstream reporters
+      // must never re-derive it by position (see SynthesisRejection.sourceGoalId).
+      const goalId = source.trajectory?.goalId;
+      rejections.push(
+        typeof goalId === "string" && goalId !== ""
+          ? { ...verdict.rejection, sourceGoalId: goalId }
+          : verdict.rejection
+      );
     }
   }
 

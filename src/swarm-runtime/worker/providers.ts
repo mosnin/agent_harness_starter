@@ -1,4 +1,10 @@
-import { chatTransportError, createOpenAICompatibleChat, type ChatFn, type ChatMessage } from "./llm-executor";
+import {
+  chatTransportError,
+  createOpenAICompatibleChat,
+  type ChatFn,
+  type ChatMessage,
+  type ChatUsageObservation,
+} from "./llm-executor";
 
 export type ProviderName =
   | "openai"
@@ -50,6 +56,16 @@ export interface CreateChatOptions {
   timeoutMs?: number;
   /** Injectable fetch for testing. */
   fetchImpl?: typeof fetch;
+  /**
+   * Cost-measurement seam: called once per SUCCESSFUL round trip with the
+   * provider's own token counts and the measured latency. Wired identically
+   * on both dialects, so a run's measured spend does not depend on which
+   * provider served it. An unreported count arrives as `null`, never `0` —
+   * see {@link ChatUsageObservation}.
+   */
+  onUsage?: (obs: ChatUsageObservation) => void;
+  /** Clock for latency/timestamps. Injectable so tests stay deterministic. */
+  now?: () => number;
 }
 
 /**
@@ -65,7 +81,7 @@ export function createChat(opts: CreateChatOptions): ChatFn {
   const baseUrl = (opts.baseUrl ?? cfg.baseUrl).replace(/\/$/, "");
 
   if (cfg.style === "anthropic") {
-    return anthropicChat({ ...opts, apiKey, baseUrl });
+    return anthropicChat({ ...opts, apiKey, baseUrl, providerName: opts.provider });
   }
   return createOpenAICompatibleChat({
     apiKey,
@@ -73,6 +89,9 @@ export function createChat(opts: CreateChatOptions): ChatFn {
     baseUrl,
     temperature: opts.temperature,
     timeoutMs: opts.timeoutMs,
+    providerName: opts.provider,
+    ...(opts.onUsage ? { onUsage: opts.onUsage } : {}),
+    ...(opts.now ? { now: opts.now } : {}),
   });
 }
 
@@ -89,8 +108,12 @@ function anthropicChat(opts: {
   maxTokens?: number;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  providerName?: string;
+  onUsage?: (obs: ChatUsageObservation) => void;
+  now?: () => number;
 }): ChatFn {
   const doFetch = opts.fetchImpl ?? fetch;
+  const now = opts.now ?? Date.now;
   return async (messages: ChatMessage[]) => {
     const system = messages
       .filter((m) => m.role === "system")
@@ -101,6 +124,7 @@ function anthropicChat(opts: {
       .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content }));
 
     let res: Response;
+    const startedAt = now();
     try {
       res = await doFetch(`${opts.baseUrl}/v1/messages`, {
         method: "POST",
@@ -122,10 +146,39 @@ function anthropicChat(opts: {
       throw chatTransportError(e, `${opts.baseUrl}/v1/messages`, opts.timeoutMs);
     }
     if (!res.ok) throw new Error(`anthropic messages failed: ${res.status} ${await res.text()}`);
-    const data = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
+    const data = (await res.json()) as {
+      content?: Array<{ type: string; text?: string }>;
+      model?: string;
+      usage?: { input_tokens?: number; output_tokens?: number };
+    };
+
+    // Same contract as the OpenAI dialect: report what the provider really
+    // said, with `null` (not 0) where it said nothing.
+    if (opts.onUsage) {
+      const at = now();
+      try {
+        opts.onUsage({
+          model: opts.model,
+          ...(typeof data.model === "string" && data.model ? { servedModel: data.model } : {}),
+          provider: opts.providerName ?? "anthropic",
+          tokensIn: finiteOrNull(data.usage?.input_tokens),
+          tokensOut: finiteOrNull(data.usage?.output_tokens),
+          latencyMs: Math.max(0, at - startedAt),
+          at,
+        });
+      } catch {
+        // Cost bookkeeping must never break the worker's actual work.
+      }
+    }
+
     return (data.content ?? [])
       .filter((b) => b.type === "text")
       .map((b) => b.text ?? "")
       .join("");
   };
+}
+
+/** A reported token count, or `null` when the provider reported nothing. */
+function finiteOrNull(v: number | undefined): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }

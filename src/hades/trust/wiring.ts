@@ -62,6 +62,7 @@ import { actionVerifiers } from "./action-adapters";
 import { emissionVerifiers } from "./emission-adapters";
 import { referenceRecomputeVerifier } from "./reference-verifier";
 import { crossModelAgreementVerifier, type AgreementJudge } from "./agreement-verifier";
+import { rubricGradeVerifier, GENRM_VERIFIER_ID, type Rubric, type RubricGrader } from "./genrm-verifier";
 import { UnifiedTrustGate, type UnifiedGateConfig } from "./unified-gate";
 import { TrustBudgetLedger, type TrustBudgetConfig } from "./budget";
 import { evalTrustSubject, scriptedSolvers, type ScriptedSolver } from "./risk-eval";
@@ -311,6 +312,15 @@ export interface TrustStackOptions {
    * or more judges makes the domain genuinely certifiable.
    */
   agreementJudges?: readonly AgreementJudge[];
+  /**
+   * Grader model for the T2-genrm verifier (`procedure` domain), and an
+   * optional operator policy rubric for requests that declare no `RUBRIC:`
+   * line of their own. Omitted, that verifier registers but reports an unmet
+   * requirement, so `domainCertifiability` counts it out exactly as it does
+   * the T3 judges.
+   */
+  rubricGrader?: RubricGrader;
+  rubric?: Rubric;
 }
 
 export interface TrustStack {
@@ -364,8 +374,18 @@ export function openTrustStack(opts: TrustStackOptions = {}): TrustStack {
   // actually appear, and that domain previously had a single voter, so every
   // single-subject admit() was "degraded-evidence" and it could never certify
   // at all (`hades trust doctor` failed it). It abstains on any subject whose
-  // request carries no SPEC: reference, so adding it can only ever ADD
-  // information to a fused verdict — never dilute one.
+  // request carries no SPEC: reference, so it adds a vote only where it can
+  // actually recompute something.
+  //
+  // The stronger form of that sentence — "adding a verifier can only ever ADD
+  // information to a fused verdict, never dilute one" — used to appear here and
+  // is FALSE, so it is recorded as false rather than deleted. A verifier that
+  // votes but carries no correctness information still changes the outcome: it
+  // clears the two-voter evidence bar that turns an abstention into a signed
+  // certificate. That is a real defect this build hit (a T4 self-attested pass
+  // plus one generous grader certifying a flatly false answer at P=1.000000),
+  // and it is fixed in `./registry.ts` by refusing to count a SELF-ATTESTED
+  // pass as evidence — not by trusting each verifier to be additive.
   registry.register(referenceRecomputeVerifier("procedure"));
   // T3-agreement for `message` — the remaining lone-voter domain, and the one
   // where nothing can be recomputed (there is no ground truth for an outbound
@@ -378,6 +398,47 @@ export function openTrustStack(opts: TrustStackOptions = {}): TrustStack {
     crossModelAgreementVerifier({
       domain: "message",
       ...(opts.agreementJudges ? { judges: opts.agreementJudges } : {}),
+    }),
+  );
+  // T2-genrm completes the ladder for `procedure` — the domain both the eval
+  // harness (`evalCalibrationSubject`) and the swarm bridge build subjects in.
+  // T1-reference only fires on a request carrying a SPEC:/REF: reference; on
+  // every other procedure subject it abstains, and `verify.procedure-run`
+  // abstains too (nothing declares a step manifest), so that large middle had
+  // no voter above T4 at all.
+  //
+  // What this buys, stated exactly: on a subject carrying a RUBRIC: standard
+  // (or when an operator policy rubric is configured) the grader votes — which
+  // is new coverage where nobody voted, and a co-voter for T1 when the request
+  // carries BOTH a reference and a rubric. A SPEC-only subject is unchanged: T1
+  // still votes alone and admit() still reports degraded-evidence.
+  //
+  // What it COSTS, which the first version of this comment omitted:
+  //
+  //  a. The co-vote is only genuine because the grader is not shown T1's answer
+  //     key. `buildGraderPrompt` used to interpolate the request verbatim, so on
+  //     a SPEC-carrying subject the "second opinion" was a model reading the
+  //     first voter's source — two voters looking at one answer key are one
+  //     voter. `withholdReferenceLines` (`./genrm-verifier.ts`) now strips the
+  //     SPEC:/REF: lines before the request reaches the grader.
+  //
+  //  b. A grader is an OPINION, and a grader that says yes to everything is an
+  //     opinion worth nothing. It was enough, together with the answerer's own
+  //     `verify.procedure-run` pass, to certify a flatly false answer at
+  //     P(correct)=1.000000. That combination is now refused by
+  //     `./registry.ts`'s self-attested-evidence rule, but the general shape of
+  //     the risk stands and belongs in the record: this rung's value is bounded
+  //     by the honesty of whoever wires up the grader, which is why it ships
+  //     inert and why nothing here claims a measured reliability for it.
+  //
+  // CONDITIONAL, like T3: with no grader it reports an unmet requirement,
+  // `domainCertifiability` counts it out, and it can never make a domain look
+  // certifiable that is not.
+  registry.register(
+    rubricGradeVerifier({
+      domain: "procedure",
+      ...(opts.rubricGrader ? { grader: opts.rubricGrader } : {}),
+      ...(opts.rubric ? { rubric: opts.rubric } : {}),
     }),
   );
 
@@ -707,7 +768,21 @@ export interface DomainCertifiability {
    * verifier cannot co-vote on anything.
    */
   effective: number;
-  /** False when fewer than two EFFECTIVE verifiers exist — `admit()` can never accept. */
+  /**
+   * Verifiers that can vote here AND whose vote is INDEPENDENT evidence —
+   * `effective` minus any that declare themselves self-attested
+   * (`UniversalVerifier.selfAttested`).
+   *
+   * This is the number `canEverCertify` is really about. A self-attested
+   * verifier compares answerer-supplied material against other
+   * answerer-supplied material, so `../registry.ts` drops its PASS before
+   * counting voters; two verifiers of which one is self-attested therefore
+   * reach the same `degraded-evidence` abstention as one verifier alone.
+   * Counting it as a co-voter here is the same inert-counted-as-working
+   * failure `effective` exists to prevent, one layer along.
+   */
+  independent: number;
+  /** False when fewer than two INDEPENDENT verifiers exist — `admit()` can never accept. */
   canEverCertify: boolean;
   detail: string;
 }
@@ -723,41 +798,79 @@ export function domainCertifiability(stack: TrustStack): DomainCertifiability[] 
       .map((v) => ({ id: v.id, reason: v.requiresConfig?.() }))
       .filter((x): x is { id: string; reason: string } => typeof x.reason === "string");
     const effective = registered - unmet.length;
-    const canEverCertify = effective >= 2;
+    // A self-attested verifier's PASS is dropped from the evidence set by
+    // `../registry.ts`, so it can never be the second voter that clears the
+    // bar. It is counted out here for the same reason an inert one is.
+    const selfAttested = verifiers.filter(
+      (v) => v.selfAttested === true && v.requiresConfig?.() === undefined,
+    );
+    const independent = effective - selfAttested.length;
+    const canEverCertify = independent >= 2;
     let detail: string;
-    if (!canEverCertify && unmet.length > 0) {
+    if (!canEverCertify) {
+      // Name EVERY reason that applies, not the first one found. A domain can
+      // fall short because a verifier is inert, because a verifier is
+      // self-attested, or both — and reporting only "one is inert" implies that
+      // waking it would be sufficient when a self-attested co-voter still would
+      // not count.
+      const causes: string[] = [];
+      if (unmet.length > 0) {
+        causes.push(
+          `${unmet.length} registered but INERT here — ${unmet.map((u) => `${u.id}: ${u.reason}`).join("; ")}`,
+        );
+      }
+      if (selfAttested.length > 0) {
+        causes.push(
+          `${selfAttested.length} can vote but carr${selfAttested.length === 1 ? "ies" : "y"} no INDEPENDENT ` +
+            `evidence — ${selfAttested.map((v) => v.id).join(", ")} ` +
+            `${selfAttested.length === 1 ? "is" : "are"} self-attested (checks answerer-supplied material ` +
+            "against other answerer-supplied material, so the pass is reachable by whoever wrote the answer " +
+            "and is dropped before voters are counted)",
+        );
+      }
       detail =
-        `${registered} registered but only ${effective} can vote here — ` +
-        unmet.map((u) => `${u.id}: ${u.reason}`).join("; ");
-    } else if (!canEverCertify) {
-      detail =
-        `only ${registered} verifier(s) registered — every single-subject admit() is ` +
-        `"degraded-evidence" (a lone voter can never certify), so this domain cannot accept at all`;
+        `${registered} registered, ${effective} able to vote, ${independent} carrying independent evidence` +
+        (causes.length > 0 ? ` — ${causes.join(" | ")}` : "") +
+        `. Fewer than two independent voters means every single-subject admit() is "degraded-evidence", ` +
+        "so this domain cannot accept at all";
     } else if (domain === "tool") {
       detail =
         `${registered} registered, but each tool adapter claims only its own tool name — a subject ` +
         "reaches two contributing voters only when it also carries evidence.ledgerJSON";
     } else if (domain === "procedure") {
-      // The same honesty the `tool` branch above applies, for the same
-      // reason, and it is not a hypothetical: `verify.procedure-run` claims
-      // EVERY procedure subject via appliesTo but abstains inside verify()
-      // unless `evidence.declaredSteps` is present, and neither the eval
-      // harness nor `./swarm-bridge.ts` declares a step manifest (both
-      // deliberately — synthesizing one manufactures a signal nobody
-      // produced). So on the subjects this build actually produces, the
-      // T1-reference verifier votes alone, every admit() is
-      // "degraded-evidence", and the domain certifies nothing however it is
-      // calibrated. Reporting a flat "2 verifiers can co-vote" would hide
-      // that.
+      // Reached only when a T2-genrm grader IS configured — without one,
+      // `independent` is 1 (T1-reference; `verify.procedure-run` is
+      // self-attested) and the `!canEverCertify` branch above already said so
+      // by name. What used to be here was a prose caveat sitting beside a
+      // `canEverCertify: true` that contradicted it; the boolean now carries
+      // the truth and this branch only has to describe the live case.
+      //
+      // The rubric grader claims any subject carrying a RUBRIC: standard —
+      // a condition the CALLER controls, unlike the step manifest nothing
+      // produces — so with a grader wired the domain really can co-vote.
       detail =
-        `${effective} eligible, but they co-vote only on a subject that DECLARES A STEP MANIFEST — ` +
-        "verify.procedure-run abstains without evidence.declaredSteps, and the eval and swarm paths " +
-        "deliberately declare none, so in practice T1-reference votes alone and admit() reports " +
-        "degraded-evidence";
+        `${independent} independent voter(s) of ${effective} able to vote — a T2-genrm grader is ` +
+        "configured and co-votes with T1-reference on any subject whose request carries a RUBRIC: " +
+        "standard, so co-voting no longer depends on a step manifest. On a subject with neither a " +
+        "rubric nor a SPEC: reference nothing independent votes and admit() still reports " +
+        "degraded-evidence; verify.procedure-run is self-attested and never counts either way";
     } else {
       detail = `${effective} verifiers can co-vote on one subject`;
     }
-    return { domain, registered, effective, canEverCertify, detail };
+    // A domain can be certifiable AND still be carrying a verifier that cannot
+    // vote in this environment. The `!canEverCertify` branches above name the
+    // unmet requirement because it IS the reason for the failure; when the
+    // domain passes anyway the requirement is still unmet and still worth
+    // naming. Otherwise an operator reading "2 eligible" beside the three
+    // verifiers `hades trust verifiers` lists has to guess which one is inert
+    // and what would wake it up.
+    if (canEverCertify && unmet.length > 0) {
+      detail += ` — registered but inert here: ${unmet.map((u) => `${u.id}: ${u.reason}`).join("; ")}`;
+    }
+    if (canEverCertify && selfAttested.length > 0) {
+      detail += ` — not counted as a co-voter (self-attested): ${selfAttested.map((v) => v.id).join(", ")}`;
+    }
+    return { domain, registered, effective, independent, canEverCertify, detail };
   });
 }
 

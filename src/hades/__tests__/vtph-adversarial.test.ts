@@ -387,7 +387,11 @@ describe("5. cost accounting is arithmetic, not decoration", () => {
     let expectedUsd = 0;
     for (const c of calls) {
       const res = await mpc.chat({ model: c.model, messages: [{ role: "user", content: "x" }] });
-      expectedUsd += res.usd;
+      // Every model in this fixture is priced; a null here would mean the
+      // price table lost an entry, which is worth failing on explicitly
+      // rather than coercing to 0.
+      expect(res.usd).not.toBeNull();
+      expectedUsd += res.usd ?? 0;
     }
 
     const stats = mpc.stats();
@@ -509,10 +513,13 @@ describe("7. end-to-end composition is coherent and non-vacuous", () => {
       const res = await mpc.chat({ model, messages: [{ role: "user", content: task.prompt }] });
       return {
         output: res.text,
+        // AgentRunResult.usd is non-nullable: an unpriced call contributes no
+        // measured spend to the benchmark. The assertion above pins that this
+        // fixture's model is priced, so this coalesce is never load-bearing.
         claimedVerified: claimByPrompt.get(task.prompt) ?? false,
         tokensIn: res.tokensIn,
         tokensOut: res.tokensOut,
-        usd: res.usd,
+        usd: res.usd ?? 0,
         provenance: [`model:${res.model}`, `provider:${res.provider}`],
       };
     };

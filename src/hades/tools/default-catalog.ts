@@ -19,6 +19,17 @@
  *  - `file_ops` and `shell` are always real (root-jailed / allowlist-gated).
  * This module never overrides a factory's mode decision; it only supplies
  * (or, with `offline: true`, withholds) the real `fetch` transport.
+ *
+ * BEYOND THE NINE: MOUNTED MCP TOOLS. The catalog is also where tools this
+ * build did NOT write appear. When mounts exist (`hades tools mcp add`,
+ * persisted at `<dataDir>/mcp-servers.json`), their tools are added here as
+ * ordinary entries under namespaced ids (`mcp.<server>.<tool>`) — the strategy
+ * from `.plans/HADES_BEYOND_HERMES.md` Phase 1: inherit the ecosystem over one
+ * protocol instead of rebuilding ninety tools. Two properties are deliberate:
+ * building the catalog still spawns NOTHING (the entries dial out only when
+ * called, so `hades tools list` stays instant and side-effect-free), and a
+ * mounted tool has no mock mode at all — an unreachable server produces an
+ * honest error, never a stand-in (see `./mcp-catalog.ts` for why).
  */
 
 import { ToolCatalog, type CatalogEntry, type FetchLike } from "./catalog";
@@ -38,6 +49,13 @@ import { createHttpTool } from "./http";
 import { createImageGenTool } from "./image-gen";
 import { createTtsTool } from "./tts";
 import { createVisionDescribeTool } from "./vision";
+import {
+  JsonFileMcpMountStore,
+  mcpCatalogEntries,
+  type McpMountRecord,
+  type McpMountStore,
+} from "./mcp-catalog";
+import type { McpMountDeps } from "../mcp/mount";
 
 /** The nine shipped catalog tool ids, in catalog (name-sorted) order. */
 export const DEFAULT_CATALOG_TOOL_IDS = [
@@ -125,6 +143,20 @@ export interface DefaultCatalogOptions {
   browsersPath?: string;
   /** Override the `browser` tool's Chromium-installed probe (tests). */
   probeChromium?: (browsersPath: string) => boolean;
+  /** Mounted MCP servers to inherit tools from. Wins over `mcpMountStore`
+   *  and `mcpStatePath` (tests pass records directly). */
+  mcpServers?: McpMountRecord[];
+  /** Store the mounts are read from. Wins over `mcpStatePath`. */
+  mcpMountStore?: McpMountStore;
+  /** Durable mount file (e.g. `<dataDir>/mcp-servers.json`). Omitted =>
+   *  no mounts are read and the catalog is the shipped nine. */
+  mcpStatePath?: string;
+  /** Seams for MCP mount operations (spawn/fetch/env). Defaults to the real
+   *  `child_process.spawn` plus this catalog's own fetch transport — which
+   *  `offline: true` withholds, so an HTTP-mounted server then fails
+   *  honestly instead of pretending. A stdio-mounted server is a local
+   *  subprocess and keeps working offline, which is the truth. */
+  mcpMount?: McpMountDeps;
 }
 
 /**
@@ -144,9 +176,24 @@ function lazyBrowseRunner(): BrowseRunner {
 }
 
 /**
+ * Resolve the mounted-MCP-server records this catalog should inherit tools
+ * from, in precedence order: explicit records, then an explicit store, then a
+ * state file, then nothing. Reading is failure-tolerant by the store's own
+ * contract — an unreadable or corrupt mount file yields no mounts rather than
+ * breaking every `hades` invocation.
+ */
+function resolveMcpRecords(opts: DefaultCatalogOptions): McpMountRecord[] {
+  if (opts.mcpServers !== undefined) return opts.mcpServers;
+  if (opts.mcpMountStore !== undefined) return opts.mcpMountStore.load();
+  if (opts.mcpStatePath !== undefined) return new JsonFileMcpMountStore(opts.mcpStatePath).load();
+  return [];
+}
+
+/**
  * Build the canonical `ToolCatalog` containing all nine shipped tools
  * (the Phase 2 eight plus the Phase 3 `browser` tool, whose real mode
- * additionally requires an installed Chromium found by its own fs probe).
+ * additionally requires an installed Chromium found by its own fs probe),
+ * plus one entry per tool inherited from every mounted MCP server.
  * Every entry passes `ToolCatalog.add`'s id/name/duplicate validation on the
  * way in, so a factory drifting from its declared id fails loudly here.
  */
@@ -180,6 +227,22 @@ export function defaultToolCatalog(opts: DefaultCatalogOptions = {}): ToolCatalo
 
   const catalog = new ToolCatalog();
   for (const entry of entries) catalog.add(entry);
+
+  // Inherited MCP tools, added after the builtins. Their ids are namespaced
+  // (`mcp.<server>.<tool>`), so a collision with a builtin is structurally
+  // impossible; a collision BETWEEN two mounts of the same name would throw
+  // here, which is correct — two servers claiming one name is a real conflict,
+  // not something to resolve by silently picking one.
+  const mcpRecords = resolveMcpRecords(opts);
+  if (mcpRecords.length > 0) {
+    const mountDeps: McpMountDeps = {
+      env,
+      ...(fetchFn !== undefined ? { fetchFn } : {}),
+      ...(opts.mcpMount ?? {}),
+    };
+    for (const entry of mcpCatalogEntries(mcpRecords, mountDeps)) catalog.add(entry);
+  }
+
   return catalog;
 }
 

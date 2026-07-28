@@ -198,7 +198,7 @@ describe("help and dispatch", () => {
     expect(unknown.code).toBe(1);
     expect(noArgs.lines).toEqual(helpArgs.lines);
     expect(unknown.lines).toEqual(noArgs.lines);
-    expect(noArgs.lines[0]).toBe("Usage: hades skill <synth|refine|track|track-batch|trust|holdout> ...");
+    expect(noArgs.lines[0]).toBe("Usage: hades skill <forge|synth|refine|track|track-batch|trust|holdout> ...");
     expect(fs.files.size).toBe(0);
   });
 });

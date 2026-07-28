@@ -65,7 +65,8 @@ export function detectInference(
  * deterministic and fully offline (no network, no randomness, no clock).
  */
 export interface WorkerExecutor {
-  run(prompt: string): Promise<{ output: string; tokensIn: number; tokensOut: number; usd: number }>;
+  /** `usd` is `null` when the model carries no price entry — unmeasured, not free. */
+  run(prompt: string): Promise<{ output: string; tokensIn: number; tokensOut: number; usd: number | null }>;
 }
 
 /** Real executor: one `client.chat` call per prompt, real usage passed through. */

@@ -574,17 +574,21 @@ describe("hades trust doctor", () => {
     // `message` registers a second verifier (T3-agreement) but it is
     // conditional on provider keys, so the detail must report the EFFECTIVE
     // count and name what would enable it — never imply two working voters.
-    expect(byName.get('domain "message" can certify')!.detail).toContain("only 1 can vote here");
+    expect(byName.get('domain "message" can certify')!.detail).toContain("1 able to vote");
+    expect(byName.get('domain "message" can certify')!.detail).toContain("INERT here");
     expect(byName.get('domain "message" can certify')!.detail).toContain("ANTHROPIC_API_KEY");
     expect(byName.get('domain "memory" can certify')!.ok).toBe(true);
-    // `procedure` gained the T1-reference recompute verifier, so two voters
-    // CAN co-vote there and the structural check passes. But passing that
-    // check is not a clean bill of health and the detail must not read like
-    // one: `verify.procedure-run` abstains without a declared step manifest,
-    // and nothing this build produces declares one, so in practice the
-    // T1 verifier votes alone. The doctor has to say that out loud.
-    expect(byName.get('domain "procedure" can certify')!.ok).toBe(true);
-    expect(byName.get('domain "procedure" can certify')!.detail).toContain("declaredSteps");
+    // `procedure` registers three verifiers and this check used to PASS on the
+    // strength of two of them being able to vote — while the reachable outcome
+    // was always "degraded-evidence". Of the two that can vote here, the rubric
+    // grader is inert without a grader model and `verify.procedure-run` is
+    // self-attested (its pass is dropped before voters are counted), leaving
+    // exactly one independent voter. The prose used to carry that caveat next
+    // to a green tick; the tick itself now carries it.
+    expect(byName.get('domain "procedure" can certify')!.ok).toBe(false);
+    expect(byName.get('domain "procedure" can certify')!.detail).toContain("self-attested");
+    expect(byName.get('domain "procedure" can certify')!.detail).toContain("verify.procedure-run");
+    expect(byName.get('domain "procedure" can certify')!.detail).toContain("INERT here");
     expect(byName.get('domain "procedure" can certify')!.detail).toContain("degraded-evidence");
   });
 

@@ -218,7 +218,17 @@ function status(args: string[], deps: TrustCommandDeps): CliResult {
   if (stack.key.source === "ephemeral") {
     lines.push("                WARNING: ephemeral key — certificates will not verify in a later process.");
   }
-  lines.push(`verifiers       ${registered.length} registered`);
+  // Registered is a shelf count; effective is what would actually vote if a
+  // subject arrived right now. Reporting only the first makes an install look
+  // better protected than it is, which is the one direction this build is not
+  // allowed to round in.
+  const effectiveCount = registered.filter((v) => v.requiresConfig?.() === undefined).length;
+  lines.push(
+    `verifiers       ${registered.length} registered` +
+      (effectiveCount === registered.length
+        ? ""
+        : `, ${effectiveCount} able to vote here (${registered.length - effectiveCount} inert — see \`hades trust verifiers\`)`),
+  );
   if (stack.calibration.loadError) {
     lines.push(`calibration     UNREADABLE: ${stack.calibration.loadError}`);
   }
@@ -229,7 +239,14 @@ function status(args: string[], deps: TrustCommandDeps): CliResult {
     ...table(
       ["DOMAIN", "VERIFIERS", "CALIBRATED", "POINTS", "THRESHOLD", "EPSILON", "NOTE"],
       statuses.map((s) => {
-        const n = stack.registry.list(s.domain).length;
+        const inDomain = stack.registry.list(s.domain);
+        const n = inDomain.length;
+        // "3" under a column headed VERIFIERS, when only 2 of them can vote, is
+        // a number that flatters. Render `effective/registered` whenever they
+        // differ so the gap is impossible to miss at a glance; `hades trust
+        // verifiers` names which one is inert and why.
+        const nEffective = inDomain.filter((v) => v.requiresConfig?.() === undefined).length;
+        const verifierCell = nEffective === n ? String(n) : `${nEffective}/${n}`;
         const threshold =
           s.stats === null ? "-" : Number.isFinite(s.stats.threshold) ? s.stats.threshold.toFixed(4) : "+Inf";
         // A calibrated domain with a FINITE threshold used to render an empty
@@ -249,7 +266,7 @@ function status(args: string[], deps: TrustCommandDeps): CliResult {
                 : "uncalibrated — gate abstains";
         return [
           s.domain,
-          String(n),
+          verifierCell,
           s.calibrated ? "yes" : "no",
           String(s.points),
           threshold,
@@ -259,6 +276,12 @@ function status(args: string[], deps: TrustCommandDeps): CliResult {
       }),
     ),
   );
+  if (statuses.some((s) => stack.registry.list(s.domain).some((v) => v.requiresConfig?.() !== undefined))) {
+    lines.push(
+      "VERIFIERS reads effective/registered where they differ — a registered verifier that cannot vote",
+      "in this environment is counted out. `hades trust verifiers` names it and its unmet requirement.",
+    );
+  }
   lines.push("");
 
   lines.push("THIS SESSION");
@@ -287,28 +310,67 @@ function verifiers(args: string[], deps: TrustCommandDeps): CliResult {
   const stack = deps.stack();
   const list = stack.registry.list(domain.value);
 
+  // REGISTERED is not the same as ABLE TO VOTE, and this listing is one of the
+  // two places an operator goes to find out what is protecting them. A verifier
+  // whose `requiresConfig()` names an unmet requirement is inert here and now;
+  // printing its id, tier and prior beside the live ones — with no marker and
+  // without its own stated reason — is the inert-counted-as-working failure
+  // `trust doctor`'s effective-voter accounting exists to prevent. So the state
+  // is a column, and the reason is printed underneath.
+  const unmet = new Map<string, string>();
+  for (const v of list) {
+    const reason = v.requiresConfig?.();
+    if (typeof reason === "string") unmet.set(v.id, reason);
+  }
+
   if (hasFlag(args, "--json")) {
     return jsonResult(
-      list.map((v) => ({ id: v.id, version: v.version, domain: v.domain, tier: v.tier, prior: v.prior })),
+      list.map((v) => ({
+        id: v.id,
+        version: v.version,
+        domain: v.domain,
+        tier: v.tier,
+        prior: v.prior,
+        effective: !unmet.has(v.id),
+        selfAttested: v.selfAttested === true,
+        ...(unmet.has(v.id) ? { unmetRequirement: unmet.get(v.id) } : {}),
+      })),
     );
   }
   if (list.length === 0) {
     return { code: 0, lines: [`No verifiers registered${domain.value ? ` for domain "${domain.value}"` : ""}.`] };
   }
-  return {
-    code: 0,
-    lines: [
-      `REGISTERED VERIFIERS (${list.length})`,
+  const lines: string[] = [
+    `REGISTERED VERIFIERS (${list.length}${unmet.size > 0 ? `, ${list.length - unmet.size} able to vote here` : ""})`,
+    "",
+    ...table(
+      ["ID", "VERSION", "DOMAIN", "TIER", "PRIOR", "STATE"],
+      list.map((v) => [
+        v.id,
+        v.version,
+        v.domain,
+        v.tier,
+        v.prior.toFixed(2),
+        unmet.has(v.id) ? "INERT" : v.selfAttested === true ? "self-attested" : "effective",
+      ]),
+    ),
+    "",
+    "prior is a HARD ceiling: no verdict from a verifier may exceed it, and the fused tier",
+    "is always the WEAKEST tier that actually voted — a strong tier never leaks upward.",
+  ];
+  if (unmet.size > 0) {
+    lines.push("", "INERT here — registered but cannot vote in this environment:");
+    for (const [id, reason] of unmet) lines.push(`  ${id}: ${reason}`);
+  }
+  if (list.some((v) => v.selfAttested === true)) {
+    lines.push(
       "",
-      ...table(
-        ["ID", "VERSION", "DOMAIN", "TIER", "PRIOR"],
-        list.map((v) => [v.id, v.version, v.domain, v.tier, v.prior.toFixed(2)]),
-      ),
-      "",
-      "prior is a HARD ceiling: no verdict from a verifier may exceed it, and the fused tier",
-      "is always the WEAKEST tier that actually voted — a strong tier never leaks upward.",
-    ],
-  };
+      "self-attested: this verifier compares answerer-supplied material against other",
+      "answerer-supplied material. Its PASS is obtainable by whoever produced the answer, so it",
+      "does not count toward the two-independent-voter evidence bar. Its FAIL still counts.",
+    );
+  }
+  return { code: 0, lines };
 }
 
 // ---------------------------------------------------------------------------
@@ -567,6 +629,21 @@ async function admit(args: string[], deps: TrustCommandDeps): Promise<CliResult>
   lines.push("=".repeat(72));
   lines.push(`decision      ${admission.accepted ? "ACCEPTED" : "ABSTAINED"}`);
   lines.push(`fused score   ${admission.score.toFixed(6)}`);
+  // Single-subject fusion runs `WeakVerifierEnsemble.fitPredict` over ONE vote
+  // vector, which has no data to estimate reliabilities from — so a lone
+  // dissent among passes does not move the number, and an accepted subject with
+  // a dissenting voter can print a fused score bit-identical to a unanimous
+  // one. That is a real property of the arithmetic, not a bug to hide: an
+  // operator comparing two 1.000000 runs must be told the votes differed.
+  const dissenting = fused.verdicts.filter((v) => !v.abstained && !v.passed);
+  if (admission.accepted && dissenting.length > 0) {
+    lines.push(
+      `              ! accepted OVER A DISSENT — ${dissenting
+        .map((v) => `${v.verifierId}@${v.version} (${v.tier}) voted fail`)
+        .join(", ")}. Single-subject fusion cannot estimate reliability from one`,
+      "              vote vector, so this score does not reflect that disagreement; the VERDICTS table below does.",
+    );
+  }
   lines.push(`threshold     ${Number.isFinite(admission.threshold) ? admission.threshold.toFixed(6) : "+Infinity"}`);
   lines.push(`tier          ${admission.tier}  (weakest contributing)`);
   lines.push(`P(correct)    ${admission.pCorrect.toFixed(6)}   epsilon ${admission.epsilon}`);
@@ -590,18 +667,44 @@ async function admit(args: string[], deps: TrustCommandDeps): Promise<CliResult>
   if (fused.verdicts.length === 0) {
     lines.push("  (no verifier applied to this subject)");
   } else {
+    // COUNTED, not just VOTE. A verifier can vote and still be excluded from
+    // the evidence set: a SELF-ATTESTED verifier's pass is reachable by whoever
+    // wrote the answer, so it is dropped before voters are counted (see
+    // `../trust/registry.ts` UniversalVerifier.selfAttested). Printing "pass"
+    // with no further mark would be the same inert-counted-as-working failure
+    // the effective-voter accounting exists to prevent.
+    const notCounted = fused.verdicts.filter(
+      (v) => !v.abstained && v.passed && stack.registry.isSelfAttestedId(v.verifierId),
+    );
     lines.push(
       ...table(
-        ["VERIFIER", "TIER", "VOTE", "CONF", "REASONS"],
-        fused.verdicts.map((v) => [
-          `${v.verifierId}@${v.version}`,
-          v.tier,
-          v.abstained ? "abstain" : v.passed ? "pass" : "fail",
-          v.confidence.toFixed(3),
-          v.reasons.join(",") || "-",
-        ]),
+        ["VERIFIER", "TIER", "VOTE", "COUNTED", "CONF", "REASONS"],
+        fused.verdicts.map((v) => {
+          const counted = v.abstained
+            ? "no (abstained)"
+            : v.passed && stack.registry.isSelfAttestedId(v.verifierId)
+              ? "no (self-attested pass)"
+              : "yes";
+          return [
+            `${v.verifierId}@${v.version}`,
+            v.tier,
+            v.abstained ? "abstain" : v.passed ? "pass" : "fail",
+            counted,
+            v.confidence.toFixed(3),
+            v.reasons.join(",") || "-",
+          ];
+        }),
       ),
     );
+    if (notCounted.length > 0) {
+      lines.push(
+        "",
+        `${notCounted.length} passing verifier(s) did NOT count toward the evidence bar: ` +
+          notCounted.map((v) => `${v.verifierId}@${v.version}`).join(", "),
+        "A self-attested verifier compares answerer-supplied material against other answerer-supplied",
+        "material, so its pass is obtainable by whoever produced the answer. Its FAIL would still count.",
+      );
+    }
   }
   return { code: admission.accepted ? 0 : 2, lines };
 }

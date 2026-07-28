@@ -47,6 +47,13 @@ export type {
 // (GoalTrajectory/TaskTrajectory/ToolEvent are re-exported by synthesize.ts for
 // direct importers, but NOT here — the root barrel already exports them via
 // ../research/index and duplicating them would make `export *` ambiguous.)
+// Phase-10 skill evolution — the FORGE half of the closed learning loop:
+// gate-journal entries -> candidate SKILL.md, admitting ONLY `verified` runs.
+// (GateOutcome/JournaledRun are NOT re-exported here — the root barrel already
+// exports them via ../research/index and duplicating them would make
+// `export *` ambiguous.)
+export { admitForForge, forgeFromVerified, summarizeForge } from "./forge";
+export type { ForgeOptions, ForgeRefusal, ForgeRefusalCode, ForgeReport } from "./forge";
 // Phase-10 skill evolution — hash-chained, Brier/Wilson-scored track record.
 export { SkillTrackRecordStore, TrackRecordValidationError, brierScore, wilsonLowerBound } from "./track-record";
 export type {

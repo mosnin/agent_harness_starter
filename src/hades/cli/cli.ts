@@ -18,6 +18,7 @@ import { runSkillEvolveCommand } from "./skill-evolve-command";
 import { runTuiCommand } from "./tui-command";
 import { runExecCommand } from "./exec-command";
 import { runToolsCommand } from "./tools-command";
+import type { ToolsMcpCommandDeps } from "./tools-mcp-command";
 import { runMemoryCommand } from "./memory-command";
 import type { MemoryGuardDeps } from "./memory-command";
 import { runProfileCommand } from "./profile-command";
@@ -158,6 +159,11 @@ export interface HadesCliDeps {
    *  which probes this real machine and leaves the NETWORK version lookup
    *  OFF (so `hades update` is offline-honest unless a fetch is injected). */
   setup?: () => SetupDeps;
+  /** Run-cost journal path for `hades cost` (default
+   *  `<dataDir>/cost/runs.jsonl`, the same file `hades chat` appends its
+   *  measured run record to). Wired by `buildHadesCli` so the reader and the
+   *  writer can never disagree about where spend is recorded. */
+  costJournal?: string;
   /** Skill-library directory for `hades skills hub` (agentskills.io interop).
    *  Absent -> `$HADES_SKILLS_DIR`, else `<HADES_DATA_DIR|.hades>/skills` —
    *  the same convention `hades skill` uses. */
@@ -168,13 +174,21 @@ export interface HadesCliDeps {
   /** Tool catalog manager for `hades tools`; when present, `hades exec` also
    *  runs programs against the enabled catalog tools (+ builtins). */
   toolset?: ToolsetManager;
+  /** Mounted external MCP servers (`hades tools mcp add|list|remove`) — the
+   *  surface that lets Hades inherit the MCP tool ecosystem instead of
+   *  rebuilding it. A lazy factory so building the CLI never opens the mount
+   *  file, and cached after the first call so repeated subcommands in one
+   *  process share one store. Absent -> `hades tools mcp` reports honestly
+   *  that mounts are not configured in this build, rather than pretending to
+   *  mount into a store that will be thrown away. */
+  mcpMounts?: () => ToolsMcpCommandDeps;
   /** Launch the interactive chat REPL (long-running). */
   onChat?: (args: string[]) => Promise<CliResult> | CliResult;
   /** Launch the messaging gateway (long-running). */
   onGateway?: (args: string[]) => Promise<CliResult> | CliResult;
 }
 
-const SUBCOMMANDS = ["setup", "doctor", "update", "chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "cluster", "eval", "dataset", "gov", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
+const SUBCOMMANDS = ["setup", "doctor", "update", "chat", "tui", "gateway", "schedule", "state", "migrate", "install", "trust", "market", "route", "cost", "cluster", "eval", "dataset", "gov", "team", "model", "skills", "plugins", "memory", "profile", "backends", "showdown", "learn", "tools", "exec", "browser", "help", "version"] as const;
 
 /**
  * The unified `hades` command router — terminal-free so it unit-tests without a
@@ -196,6 +210,8 @@ export class HadesCli {
   private scheduleDeps?: ScheduleCommandDeps;
   /** Cached result of the lazy `deps.state` factory (see HadesCliDeps). */
   private stateDeps?: StateCommandDeps;
+  /** Cached result of the lazy `deps.mcpMounts` factory (see HadesCliDeps). */
+  private mcpMountDeps?: ToolsMcpCommandDeps;
   /** Cached result of the lazy `deps.migrate` factory (see HadesCliDeps). */
   private migrateDeps?: MigrateCommandDeps;
   /** Cached result of the lazy `deps.install` factory (see HadesCliDeps). */
@@ -284,6 +300,8 @@ export class HadesCli {
         return this.market(rest);
       case "route":
         return this.route(rest);
+      case "cost":
+        return this.cost(rest);
       case "cluster":
         return this.cluster(rest);
       case "eval":
@@ -339,13 +357,24 @@ export class HadesCli {
         "                       `ready` reports keyed-live readiness (exit 0 iff ready)",
         "  backends learn       Swarm learning-loop status (live or durable snapshot)",
         "  skill <sub>          Create/list/validate SKILL.md skills (new/list/show/validate)",
-        "                       + skill evolution: synth (SKILL.md from a GATE-VERIFIED",
+        "                       + skill evolution: forge (candidate SKILL.md from CAPTURED,",
+        "                       gate-CERTIFIED runs; declined/refuted runs are refused),",
+        "                       synth (SKILL.md from a GATE-VERIFIED",
         "                       trajectory), refine (fold verified uses back in), track",
         "                       (hash-chained Brier/Wilson record), track-batch (record",
         "                       gated verdicts in bulk, idempotent), trust (demotion",
         "                       policy; `trust show` = read-only fail-closed report),",
         "                       holdout (paired candidate-vs-incumbent exit gate)",
         "  tools <sub>          List/enable/disable the tool catalog (list/enable/disable/info)",
+        "                       + tools mcp <add|list|remove>: MOUNT an external MCP server and",
+        "                       inherit its tools as ordinary catalog entries (`mcp.<server>.<tool>`,",
+        "                       stdio or Streamable-HTTP, real subprocess/socket — there is no mock",
+        "                       mount). Secrets are stored by VARIABLE NAME, never by value; a tool",
+        "                       whose name the catalog id charset cannot represent is SKIPPED and",
+        "                       said so, and `list --probe` reconnects and exits non-zero if a mount",
+        "                       is dead or has drifted from what this install offers. Inherited",
+        "                       tools carry an UNREGISTERED verifier sentinel — no borrowed",
+        "                       calibration is ever attached to a third party's output",
         "  exec <run|bench>     Run one program that chains tools (JS/Python, STYX-traced)",
         "  browser <sub>        Real Chromium browsing: open <url> / bench / probe (STYX-traced)",
         "  schedule <sub>       Cron scheduler + verified delivery: add/list/remove/run/status/receipts",
@@ -389,6 +418,15 @@ export class HadesCli {
         "                       hash-chained routing ledger; an arm with no published",
         "                       price reports `unpriced`, never a $0 that reads as free,",
         "                       and `bench` refuses to run rather than simulate)",
+        "  cost <sub>           What runs ACTUALLY cost: last/session/runs/prices",
+        "                       (provider-REPORTED token counts read off real responses,",
+        "                       priced from a cited per-model list-price table, over a real",
+        "                       clock — every figure is measured or explicitly UNKNOWN.",
+        "                       A model with no published price is named and its spend",
+        "                       reported UNKNOWN, never counted as $0; a response with no",
+        "                       usage block is counted as a call whose tokens are unknown,",
+        "                       never as zero tokens. Totals are RECOMPUTED from the stored",
+        "                       calls, so an edited journal cannot become a reported number)",
         "  cluster <sub>        Run one swarm across many nodes: status/nodes/run/bench/chaos/",
         "                       autoscale",
         "                       (SWIM membership + leader election, fencing-token leases,",
@@ -497,6 +535,7 @@ export class HadesCli {
   private skill(args: string[]): Promise<CliResult> | CliResult {
     const [sub] = args;
     if (
+      sub === "forge" ||
       sub === "synth" ||
       sub === "refine" ||
       sub === "track" ||
@@ -509,7 +548,20 @@ export class HadesCli {
     return runSkillCommand(args);
   }
 
-  private tools(args: string[]): CliResult {
+  /** `hades tools <sub>`. The `mcp` subsurface (mounting external MCP servers)
+   *  is dispatched separately: it is async — mounting genuinely connects to
+   *  another process — and it acts on the MOUNT store rather than the
+   *  enable/disable state `runToolsCommand` owns. Its module is imported
+   *  lazily so `hades tools list` never pays for the MCP stack. */
+  private async tools(args: string[]): Promise<CliResult> {
+    if (args[0] === "mcp") {
+      if (!this.deps.mcpMounts) {
+        return { code: 1, lines: ["MCP mounts are not configured in this build."] };
+      }
+      if (!this.mcpMountDeps) this.mcpMountDeps = this.deps.mcpMounts();
+      const { runToolsMcpCommand } = await import("./tools-mcp-command");
+      return runToolsMcpCommand(args.slice(1), this.mcpMountDeps);
+    }
     if (!this.deps.toolset) return { code: 1, lines: ["The tool catalog is not configured in this build."] };
     return runToolsCommand(args, { manager: this.deps.toolset });
   }
@@ -684,6 +736,21 @@ export class HadesCli {
       this.routeDeps = this.deps.route ? this.deps.route() : defaultRouteDeps();
     }
     return runRouteCommand(args, this.routeDeps);
+  }
+
+  /** `hades cost [last|session|runs|prices]` — MEASURED spend: provider-reported
+   *  tokens off real responses, priced from the cited table in `../cost/prices.ts`,
+   *  over a real clock. Read from the run journal at `<dataDir>/cost/runs.jsonl`,
+   *  with every aggregate RECOMPUTED from the stored calls rather than trusted.
+   *  Lazy import so no other subcommand pays for the journal reader; not cached
+   *  because the command is a pure read with no lock and no shared handle. */
+  private async cost(args: string[]): Promise<CliResult> {
+    const { runCostCommand, defaultCostDeps } = await import("./cost-command");
+    const deps = defaultCostDeps(process.env);
+    return runCostCommand(
+      args,
+      this.deps.costJournal !== undefined ? { ...deps, journalPath: this.deps.costJournal } : deps,
+    );
   }
 
   /** `hades cluster status|nodes|run|bench|chaos|autoscale` — the multi-node surface.
