@@ -28,7 +28,7 @@ import {
   TRUST_BUDGET_FILE,
   TRUST_CALIBRATION_FILE,
 } from "../wiring";
-import { scriptedSolvers } from "../risk-eval";
+import { evalTrustSubject, scriptedSolvers } from "../risk-eval";
 import { EVAL_TASKS } from "../../bench/eval-suite";
 import { verifyCertificate, certifiesOutput } from "../../styx/certificate";
 import type { TrustSubject } from "../registry";
@@ -447,19 +447,45 @@ describe("collectEvalCalibration — REAL labeled points from the REAL corpus", 
     expect(Number.isFinite(stats.threshold)).toBe(true);
   });
 
-  it("does not overclaim on the mixed corpus: partial coverage buys partial separation", async () => {
-    // The honest headline for the whole 48-task corpus. Recomputation lowers
-    // the score of wrong answers it can decide, so AUC rises off 0.5 — but
-    // the tasks nothing can decide still score a structurally-perfect 1.0
-    // whether they are right or wrong, so a tight conformal fit STILL cannot
-    // find a threshold that excludes them. Extending coverage narrowed the
-    // gap; it did not close it, and this test refuses to pretend otherwise.
+  it("does not overclaim on the mixed corpus: a finite threshold that covers a tenth of it", async () => {
+    // The honest headline for the whole 48-task corpus, asserted at the REAL
+    // measured values rather than at an aspiration.
+    //
+    // A task the T1-reference verifier can decide produces a decisive point
+    // (1 for a verified-correct answer, 0 for a refuted one). A task it
+    // cannot decide draws NO contributing vote at all and lands on the
+    // registry's documented neutral 0.5 — right and wrong alike. So the
+    // corpus separates well (AUC well above 0.5) but nowhere near perfectly
+    // (strictly below 1), and the conformal fit can place a finite threshold
+    // ONLY by sitting above the neutral mass: it selects just the decided-
+    // correct points, about a tenth of the sample.
+    //
+    // Coverage is asserted as an upper bound on purpose. This is the number
+    // that must not be allowed to quietly become a headline: "finite
+    // threshold" here means the gate could certify a tenth of this corpus,
+    // not that it works.
     const stack = openTrustStack({ dataDir: tempDir(), env: noEnv, now: () => 0 });
     const result = await collectEvalCalibration({ registry: stack.registry });
-    expect(result.discrimination.auc as number).toBeGreaterThan(0.5);
+    expect(result.discrimination.auc as number).toBeGreaterThan(0.7);
     expect(result.discrimination.auc as number).toBeLessThan(1);
+
     const stats = stack.gate.calibrate("procedure", result.points);
-    expect(Number.isFinite(stats.threshold)).toBe(false);
+    expect(Number.isFinite(stats.threshold)).toBe(true);
+    // Nothing wrong is above the threshold — the fit is not buying coverage
+    // by admitting errors.
+    expect(stats.empiricalRiskAtThreshold).toBe(0);
+    expect(stats.coverageAtThreshold).toBeGreaterThan(0);
+    expect(stats.coverageAtThreshold).toBeLessThan(0.15);
+
+    // And the honest consequence the threshold alone does not show: the gate
+    // still admits NOTHING, because the T1-reference verifier votes alone on
+    // every subject this harness produces and a lone voter is refused as
+    // degraded evidence before the score is ever compared to the threshold.
+    const decidable = EVAL_TASKS.find((t) => t.reference)!;
+    const faithful = scriptedSolvers().find((s) => s.label === "faithful")!;
+    const admission = await stack.gate.admit(evalCalibrationSubject(decidable, faithful, faithful.answer(decidable)));
+    expect(admission.accepted).toBe(false);
+    expect(admission.abstention?.code).toBe("degraded-evidence");
   });
 
   it("drops an unanswerable task as an error rather than labelling it correct", async () => {
@@ -481,23 +507,68 @@ describe("collectEvalCalibration — REAL labeled points from the REAL corpus", 
     expect(result.solverErrors[0].message).toBe("cannot answer");
   });
 
-  it("evalCalibrationSubject builds a subject the REAL procedure verifier accepts", async () => {
+  it("calibrates on the SAME subject the admission path builds — byte for byte", () => {
+    // The exchangeability guard. Split-conformal's epsilon only bounds
+    // P(wrong | emitted) when the calibration draws and the test draws come
+    // from the same process; a calibration subject that differs from the
+    // admission subject silently voids the bound.
+    //
+    // This is not theoretical. `evalCalibrationSubject` used to add
+    // `declaredSteps`/`toolStepNames`/`stepProvenance` that `runRiskEval`
+    // never sets, and that single difference decided whether
+    // `verify.procedure-run` voted at all — it voted on 192/192 calibration
+    // subjects and 0/192 admission subjects. Both now call one builder, and
+    // this test fails the moment they diverge again.
+    const solvers = scriptedSolvers();
+    for (const solver of solvers) {
+      for (const task of EVAL_TASKS) {
+        const produced = solver.answer(task);
+        const calibrationSubject = evalCalibrationSubject(task, solver, produced);
+        const admissionSubject = evalTrustSubject(task, solver, solver.answer(task));
+        expect(calibrationSubject).toEqual(admissionSubject);
+      }
+    }
+  });
+
+  it("never synthesizes a step manifest, so the structural verifier abstains instead of rubber-stamping", async () => {
+    // `verify.procedure-run` checks a trace against a DECLARED step list. If
+    // the harness derives that list FROM the trace it is checking, every one
+    // of its checks holds by construction and its PASS is a constant — a
+    // verifier that cannot fail carries no information, yet its vote still
+    // raised the fused score of answers nothing had verified. The honest
+    // shape is the one `../swarm-bridge.ts` already uses: declare nothing,
+    // let the verifier abstain with its own documented reason code.
     const stack = openTrustStack({ dataDir: tempDir(), env: noEnv, now: () => 0 });
     const solver = scriptedSolvers().find((s) => s.label === "faithful")!;
     const task = EVAL_TASKS[0];
     const subject = evalCalibrationSubject(task, solver, solver.answer(task));
 
     expect(subject.domain).toBe("procedure");
-    // The contract the procedure verifier documents: output IS the last
-    // step's detail, and declaredSteps mirrors the trace's kinds in order.
-    expect(subject.output).toBe(subject.trace[subject.trace.length - 1].detail);
-    expect(subject.evidence.declaredSteps).toEqual(subject.trace.map((s) => s.kind));
+    expect(subject.evidence).not.toHaveProperty("declaredSteps");
+    expect(subject.evidence).not.toHaveProperty("toolStepNames");
+    expect(subject.evidence).not.toHaveProperty("stepProvenance");
 
     const fused = await stack.registry.verify(subject);
     const verdict = fused.verdicts.find((v) => v.verifierId === "verify.procedure-run");
     expect(verdict).toBeDefined();
-    expect(verdict!.abstained).toBe(false);
-    expect(verdict!.passed).toBe(true);
+    expect(verdict!.abstained).toBe(true);
+    expect(verdict!.reasons).toContain("DECLARED_STEPS_MISSING_OR_INVALID");
+  });
+
+  it("leaves an undecidable subject with NO contributing vote at the neutral score", async () => {
+    // The other half of the same honesty. With the always-passing structural
+    // vote gone, a task no verifier can decide produces a point with zero
+    // contributing verdicts, and the registry's documented neutral 0.5 — not
+    // a 1.0 that would read as "verified".
+    const stack = openTrustStack({ dataDir: tempDir(), env: noEnv, now: () => 0 });
+    const solver = scriptedSolvers().find((s) => s.label === "faithful")!;
+    const undecidable = EVAL_TASKS.find((t) => !t.reference)!;
+    const subject = evalCalibrationSubject(undecidable, solver, solver.answer(undecidable));
+
+    const fused = await stack.registry.verify(subject);
+    expect(fused.verdicts.filter((v) => !v.abstained)).toHaveLength(0);
+    expect(fused.score).toBe(0.5);
+    expect(fused.degradedReason).toBe("all-abstained");
   });
 });
 

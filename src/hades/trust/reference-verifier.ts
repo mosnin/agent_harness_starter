@@ -14,11 +14,35 @@
  * silent-wrong count equalled the self-trusting baseline's.
  *
  * This verifier closes that hole for the class of work where truth is
- * decidable: tasks whose prompt embeds a `SPEC:{json}` reference (see
- * `../styx/reference-spec.ts`). It parses the spec out of the REQUEST,
- * recomputes the answer with real code, and compares. A mismatch is a hard
- * fail with near-certain confidence — not a soft signal to be out-voted by
- * three consistency checks that liked the formatting.
+ * decidable: tasks whose REQUEST carries a machine-checkable reference —
+ * either an inline `SPEC:{json}` (see `../styx/reference-spec.ts`) or a
+ * declared `REF:{"rule":…}` transform recomputed against the request text
+ * (see `../styx/declared-rules.ts`). It resolves the reference out of the
+ * REQUEST, recomputes the answer with real code, and compares. A mismatch is
+ * a hard fail with near-certain confidence — not a soft signal to be out-voted
+ * by three consistency checks that liked the formatting.
+ *
+ * ## The boundary: this verifier reads the REQUEST and nothing else
+ *
+ * It is handed a `TrustSubject` — domain, subjectId, taskId, input, output,
+ * evidence, trace — and it reads exactly one field, `input`, plus the `output`
+ * it is judging. It never receives the task object, its expected value or its
+ * `grade()` closure, and there is no seam through which one could be passed:
+ * `resolveReference` takes a string and returns a judge that closes over that
+ * string alone.
+ *
+ * That boundary is the entire value of the check. A verifier that consulted
+ * the grader would agree with the grader by construction — it would certify
+ * nothing, because its verdict would carry no information the answer key did
+ * not already have, and on any subject with no answer key (i.e. all of
+ * production) it would have nothing to say. Recomputing from the request is
+ * what makes a PASS mean "this answer is right", auditable months later by
+ * anyone holding the request and the answer.
+ *
+ * The corollary, deliberately accepted: the reference must be carried by the
+ * REQUEST, never by `evidence` or `trace`. Those are authored by whoever
+ * produced the answer, and a verifier that let the answerer declare its own
+ * success criterion certifies nothing either.
  *
  * ## Why the tier and prior are what they are
  *
@@ -45,7 +69,7 @@
  * @module hades/trust/reference-verifier
  */
 
-import { extractReferenceSpec, matchesReference, computeSpec } from "../styx/reference-spec";
+import { resolveReference } from "../styx/reference-spec";
 import type { TrustSubject, UniversalVerdict, UniversalVerifier } from "./registry";
 
 /** Registered id — stable, because calibration records are keyed by it. */
@@ -79,14 +103,20 @@ export function referenceRecomputeVerifier(domain: TrustSubject["domain"] = "pro
     tier: "T1-reference",
     prior: REFERENCE_VERIFIER_PRIOR,
 
-    /** Only subjects whose REQUEST carries a well-formed reference spec. */
+    /**
+     * Only subjects whose REQUEST carries a reference that actually decides
+     * them. A declared rule that recomputes nothing from this request (an
+     * empty extraction, an item list it cannot parse) does NOT apply — see
+     * `resolveReference`, which returns `undefined` in that case rather than
+     * handing back an empty expectation any empty answer would match.
+     */
     appliesTo(subject: TrustSubject): boolean {
-      return extractReferenceSpec(subject.input) !== undefined;
+      return resolveReference(subject.input) !== undefined;
     },
 
     verify(subject: TrustSubject): UniversalVerdict {
-      const spec = extractReferenceSpec(subject.input);
-      if (!spec) {
+      const reference = resolveReference(subject.input);
+      if (!reference) {
         // Not decidable by recomputation — cast no vote.
         return {
           verifierId: REFERENCE_VERIFIER_ID,
@@ -94,13 +124,15 @@ export function referenceRecomputeVerifier(domain: TrustSubject["domain"] = "pro
           tier: "T1-reference",
           passed: false,
           confidence: 0,
-          reasons: ["abstain:no-reference-spec", "the request carries no machine-checkable SPEC: reference"],
+          reasons: [
+            "abstain:no-reference-spec",
+            "the request carries no machine-checkable SPEC:/REF: reference that decides it",
+          ],
           abstained: true,
         };
       }
 
-      const expected = computeSpec(spec);
-      const passed = matchesReference(spec, subject.output);
+      const passed = reference.matches(subject.output);
 
       return {
         verifierId: REFERENCE_VERIFIER_ID,
@@ -109,10 +141,14 @@ export function referenceRecomputeVerifier(domain: TrustSubject["domain"] = "pro
         passed,
         confidence: REFERENCE_VERIFIER_PRIOR,
         reasons: passed
-          ? [`reference-match:${spec.family}`, "recomputed the reference from the request; the answer matches exactly"]
+          ? [
+              `reference-match:${reference.label}`,
+              `recomputed ${reference.describe} from the request; the answer agrees`,
+            ]
           : [
-              `reference-mismatch:${spec.family}`,
-              `recomputed "${clip(expected)}" from the request, but the answer was "${clip(subject.output)}"`,
+              `reference-mismatch:${reference.label}`,
+              `recomputed "${clip(reference.expected)}" from the request (${reference.describe}), ` +
+                `but the answer was "${clip(subject.output)}"`,
             ],
         abstained: false,
       };

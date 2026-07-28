@@ -64,7 +64,7 @@ import { referenceRecomputeVerifier } from "./reference-verifier";
 import { crossModelAgreementVerifier, type AgreementJudge } from "./agreement-verifier";
 import { UnifiedTrustGate, type UnifiedGateConfig } from "./unified-gate";
 import { TrustBudgetLedger, type TrustBudgetConfig } from "./budget";
-import { scriptedSolvers, type ScriptedSolver } from "./risk-eval";
+import { evalTrustSubject, scriptedSolvers, type ScriptedSolver } from "./risk-eval";
 
 // ---------------------------------------------------------------------------
 // Layout
@@ -511,41 +511,60 @@ export interface EvalCalibrationResult {
 }
 
 /**
- * Build a `procedure`-domain `TrustSubject` for one scripted solver's answer
- * to one real eval task, using the exact conventions
- * `procedureRunVerifier()` documents: `trace[i].kind` is the step NAME,
- * `trace[i].detail` is that step's output, `evidence.declaredSteps` is the
- * declared name list, and `subject.output` must equal the last step's
- * detail.
+ * Build the `procedure`-domain `TrustSubject` for one scripted solver's
+ * answer to one real eval task.
  *
- * The trace is the solver's OWN reported trace with a terminating `answer`
- * step — it is not padded, reordered, or repaired to make the verifier
- * happy. A solver that reports an inconsistent trace fails the structural
- * check, which is the point.
+ * This is a thin, type-narrowing wrapper over {@link evalTrustSubject} — THE
+ * single eval-subject builder, which `runRiskEval` (the ADMISSION path) also
+ * calls. That sharing is the whole point and is asserted by a test: a
+ * calibration subject and the admission subject for the same (task, solver)
+ * must be identical, because split-conformal's ε bound only holds when the
+ * two are exchangeable draws.
+ *
+ * ## What is deliberately NOT here (this used to be a defect)
+ *
+ * This function previously synthesized three evidence fields the solver never
+ * produced — `declaredSteps` (derived from the trace it was about to be
+ * checked against), `toolStepNames: []` and `stepProvenance: []` — plus a
+ * terminating `answer` step whose detail was set equal to `output`. That made
+ * `verify.procedure-run` (`./emission-adapters.ts`) vote on every calibration
+ * subject and pass every one of them BY CONSTRUCTION: its phantom-step,
+ * step-count, step-order and claimed-output checks were all comparing the
+ * trace against a manifest built from that same trace. A verifier that cannot
+ * fail carries no information, but its constant PASS still moved the fused
+ * score — it pinned every task the T1-reference verifier could not decide at
+ * the maximum score whether the answer was right or wrong, which is exactly
+ * what made a finite conformal threshold unreachable.
+ *
+ * And it voted only here: `runRiskEval` and `./swarm-bridge.ts` never set
+ * `declaredSteps`, so at admission time that verifier abstains. Calibrating on
+ * a voter that does not vote in production is a calibration/deployment
+ * distribution shift introduced by the harness itself — the precise condition
+ * `../styx/gate.ts` documents as breaking the bound.
+ *
+ * The evidence is now the solver's own, verbatim. A solver that declares no
+ * step manifest yields a subject with none, and `verify.procedure-run`
+ * abstains with its documented `DECLARED_STEPS_MISSING_OR_INVALID` reason —
+ * the same honest outcome `./swarm-bridge.ts` already chose for real swarm
+ * results.
  */
 export function evalCalibrationSubject(
   task: EvalTask,
   solver: ScriptedSolver,
   produced: { output: string; evidence: Record<string, unknown>; trace: { seq: number; kind: string; detail: string }[] },
 ): TrustSubject {
-  const trace = [
-    ...produced.trace,
-    { seq: produced.trace.length + 1, kind: "answer", detail: produced.output },
-  ];
-  return {
-    domain: "procedure",
-    subjectId: `${solver.id}::${task.id}`,
-    taskId: task.id,
-    input: task.prompt,
-    output: produced.output,
-    evidence: Object.freeze({
-      ...produced.evidence,
-      declaredSteps: trace.map((s) => s.kind),
-      toolStepNames: [],
-      stepProvenance: [],
-    }),
-    trace,
-  };
+  const built = evalTrustSubject(task, solver, produced);
+  // `RiskEvalSubject` is a structural MIRROR of `TrustSubject` (risk-eval.ts
+  // declares it rather than importing it, to stay dependency-light), so its
+  // `domain` is a plain `string`. Re-check the literal instead of casting
+  // blindly: a builder that ever returned another domain must fail loudly
+  // here rather than be laundered into a `TrustSubject` by a cast.
+  if (built.domain !== "procedure") {
+    throw new Error(
+      `evalCalibrationSubject: expected a "procedure" subject from evalTrustSubject, got ${JSON.stringify(built.domain)}`,
+    );
+  }
+  return { ...built, domain: "procedure" };
 }
 
 /**
@@ -564,6 +583,18 @@ export function evalCalibrationSubject(
  * The result carries a {@link DiscriminationSummary} precisely so a caller
  * cannot mistake "we fitted a threshold" for "the threshold means
  * something".
+ *
+ * ## Who actually votes here (measured, not assumed)
+ *
+ * Subjects come from {@link evalCalibrationSubject}, i.e. from the SAME
+ * builder the admission path uses, so the voter set here is the voter set
+ * there. For this build that means exactly one verifier can decide anything:
+ * `verify.reference-recompute` (T1), on the corpus tasks whose request
+ * carries a machine-checkable reference. `verify.procedure-run` abstains on
+ * every one of these subjects because the scripted solvers declare no step
+ * manifest — so a task with no reference produces a point with NO
+ * contributing vote and the neutral 0.5 score the registry documents for
+ * that case, which is the honest encoding of "nothing here decided this".
  */
 export async function collectEvalCalibration(opts: {
   registry: VerifierRegistry;
@@ -706,6 +737,23 @@ export function domainCertifiability(stack: TrustStack): DomainCertifiability[] 
       detail =
         `${registered} registered, but each tool adapter claims only its own tool name — a subject ` +
         "reaches two contributing voters only when it also carries evidence.ledgerJSON";
+    } else if (domain === "procedure") {
+      // The same honesty the `tool` branch above applies, for the same
+      // reason, and it is not a hypothetical: `verify.procedure-run` claims
+      // EVERY procedure subject via appliesTo but abstains inside verify()
+      // unless `evidence.declaredSteps` is present, and neither the eval
+      // harness nor `./swarm-bridge.ts` declares a step manifest (both
+      // deliberately — synthesizing one manufactures a signal nobody
+      // produced). So on the subjects this build actually produces, the
+      // T1-reference verifier votes alone, every admit() is
+      // "degraded-evidence", and the domain certifies nothing however it is
+      // calibrated. Reporting a flat "2 verifiers can co-vote" would hide
+      // that.
+      detail =
+        `${effective} eligible, but they co-vote only on a subject that DECLARES A STEP MANIFEST — ` +
+        "verify.procedure-run abstains without evidence.declaredSteps, and the eval and swarm paths " +
+        "deliberately declare none, so in practice T1-reference votes alone and admit() reports " +
+        "degraded-evidence";
     } else {
       detail = `${effective} verifiers can co-vote on one subject`;
     }

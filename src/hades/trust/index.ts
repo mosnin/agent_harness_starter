@@ -101,7 +101,7 @@ export type {
 } from "./budget";
 
 // -- The checkpoint ---------------------------------------------------------
-export { runRiskEval, formatRiskEvalReport, scriptedSolvers } from "./risk-eval";
+export { runRiskEval, formatRiskEvalReport, scriptedSolvers, evalTrustSubject } from "./risk-eval";
 export type {
   RiskEvalSubject,
   RiskEvalAdmission,

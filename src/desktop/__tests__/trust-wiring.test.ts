@@ -200,13 +200,16 @@ describe("TrustService over the REAL stack", () => {
     expect(ev.result.correct).toBeGreaterThan(0);
     expect(ev.result.wrong).toBeGreaterThan(0);
     // Partial separation, honestly reported: the T1-reference verifier decides
-    // the corpus tasks whose answer is recomputable from their own prompt
-    // (AUC > 0.5), while the tasks nothing can decide still score the same
-    // whether right or wrong — so the fit remains infinite at this epsilon.
+    // the corpus tasks whose answer is recomputable from their own prompt,
+    // and the tasks nothing can decide draw no contributing vote at all and
+    // land on the neutral score. So AUC sits well above the 0.5 of a verifier
+    // set with no correctness signal, and strictly below 1 because most of
+    // the corpus stays undecided — and the fit is finite, sitting above that
+    // neutral mass.
     expect(ev.result.auc).not.toBeNull();
-    expect(ev.result.auc as number).toBeGreaterThan(0.5);
+    expect(ev.result.auc as number).toBeGreaterThan(0.7);
     expect(ev.result.auc as number).toBeLessThan(1);
-    expect(ev.result.thresholdIsInfinite).toBe(true);
+    expect(ev.result.thresholdIsInfinite).toBe(false);
     expect(ev.result.provenance).toContain("NOT model calls");
   });
 

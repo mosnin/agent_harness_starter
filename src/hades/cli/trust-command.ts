@@ -232,13 +232,21 @@ function status(args: string[], deps: TrustCommandDeps): CliResult {
         const n = stack.registry.list(s.domain).length;
         const threshold =
           s.stats === null ? "-" : Number.isFinite(s.stats.threshold) ? s.stats.threshold.toFixed(4) : "+Inf";
+        // A calibrated domain with a FINITE threshold used to render an empty
+        // note, which reads as "fine" next to an ADMIT count of 0. The number
+        // that makes it legible is the coverage: what fraction of the
+        // calibration sample actually clears the bar this domain was fitted
+        // for. It is measured, already computed by the real fit, and it
+        // travels here rather than being left for a reader to infer.
         const note = s.error
           ? `error: ${s.error}`
           : s.stats !== null && !Number.isFinite(s.stats.threshold)
             ? "abstains on everything (no score clears the bound)"
-            : s.calibrated
-              ? ""
-              : "uncalibrated — gate abstains";
+            : s.calibrated && s.stats !== null
+              ? `clears on ${(s.stats.coverageAtThreshold * 100).toFixed(2)}% of its calibration sample`
+              : s.calibrated
+                ? ""
+                : "uncalibrated — gate abstains";
         return [
           s.domain,
           String(n),
@@ -448,6 +456,15 @@ async function calibrate(args: string[], deps: TrustCommandDeps): Promise<CliRes
   );
   lines.push(`epsilon               ${stats!.epsilon}`);
   lines.push(`calibration size      ${stats!.calibrationSize}`);
+  // Coverage and the observed wrong-rate above the threshold are the two
+  // numbers that say what the threshold actually BUYS. A finite threshold
+  // that selects 10% of the sample and one that selects 90% are wildly
+  // different gates, and printing only the threshold hid that difference.
+  lines.push(
+    `coverage at threshold ${(stats!.coverageAtThreshold * 100).toFixed(2)}% ` +
+      `(${Math.round(stats!.coverageAtThreshold * stats!.calibrationSize)} of ${stats!.calibrationSize} points clear it)`,
+  );
+  lines.push(`observed wrong-rate   ${stats!.empiricalRiskAtThreshold.toFixed(6)} among the points above the threshold`);
   lines.push("");
   if (!Number.isFinite(stats!.threshold)) {
     lines.push("THRESHOLD IS +INFINITY: no score in this sample clears the bound, so the gate will");
@@ -456,6 +473,22 @@ async function calibrate(args: string[], deps: TrustCommandDeps): Promise<CliRes
     lines.push("bug to work around. Partial separation is not enough: if any subject the verifiers");
     lines.push("cannot decide scores as high as a verified-correct one, no finite threshold can");
     lines.push("exclude it at this epsilon. Calibrate a narrower slice, or widen verifier coverage.");
+    lines.push("");
+  } else {
+    // A finite threshold is necessary for the gate to certify anything. It is
+    // NOT sufficient, and saying only "threshold = 1.000000" would invite
+    // exactly that misreading. Two independent bars sit in front of every
+    // admission and this one is only the second of them: the registry refuses
+    // to certify a subject that drew a single contributing verifier
+    // ("degraded-evidence") before the score is ever compared to the
+    // threshold. Run `hades trust riskeval` for what the gate ACTUALLY
+    // admits end-to-end.
+    lines.push("THRESHOLD IS FINITE: scores at or above it clear the conformal bound on this sample.");
+    lines.push("That is necessary for the gate to certify anything — it is not sufficient. Clearing");
+    lines.push("the threshold is the SECOND bar: a subject that drew only one contributing verifier is");
+    lines.push('refused as "degraded-evidence" first, whatever it scored. Coverage above is measured on');
+    lines.push("the calibration sample, not a promise about admissions — `hades trust riskeval` measures");
+    lines.push("what this gate actually admits end-to-end.");
     lines.push("");
   }
   lines.push(persisted ? `persisted to          ${stack.root ?? "(in-memory)"}` : "DRY RUN — nothing persisted.");
@@ -746,6 +779,28 @@ async function doctor(args: string[], deps: TrustCommandDeps): Promise<CliResult
       // detail, so nobody reads "calibrated" as "working".
       ok: disc.auc !== null && disc.auc > 0.55,
       detail: `AUC ${disc.auc === null ? "undefined" : disc.auc.toFixed(4)} — ${disc.verdict}`,
+    });
+    // Separation and admissibility are DIFFERENT questions and the doctor
+    // used to answer only the first. A domain can carry real AUC and still
+    // fit a +Infinity threshold (partial separation: the sample contains
+    // wrong answers no verifier can decide, scoring as high as verified-
+    // correct ones), in which case the gate abstains on every subject in the
+    // domain while this report showed nothing but PASS lines. Report the
+    // fitted threshold itself, and FAIL when it admits nothing.
+    const stats = s.stats;
+    const finite = stats !== null && Number.isFinite(stats.threshold);
+    checks.push({
+      name: `domain "${s.domain}" threshold admits`,
+      ok: finite,
+      detail:
+        stats === null
+          ? "no fitted stats for a domain reported as calibrated — the gate and the store disagree"
+          : finite
+            ? `threshold ${stats.threshold.toFixed(6)}, clears on ${(stats.coverageAtThreshold * 100).toFixed(2)}% of the ` +
+              `calibration sample (observed wrong-rate ${stats.empiricalRiskAtThreshold.toFixed(6)} above it). ` +
+              "Clearing it is necessary, not sufficient — a single-voter subject is refused as degraded-evidence first."
+            : "+Infinity — no score in the calibration sample clears the bound, so the gate abstains on " +
+              "EVERY subject in this domain. Calibrated is not the same as working.",
     });
   }
 

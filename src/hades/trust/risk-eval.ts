@@ -519,6 +519,77 @@ function fabricateTransform(task: EvalTask, faithful: string): string {
   }
 }
 
+// ===========================================================================
+// The ONE eval-subject builder (shared by the calibration path)
+// ===========================================================================
+
+/**
+ * Build the `procedure`-domain subject for one scripted solver's answer to
+ * one real eval task.
+ *
+ * ## Why this is exported, and why there must be exactly one of it
+ *
+ * Split-conformal calibration (`../styx/gate.ts`) only bounds
+ * `P(wrong | emitted)` under EXCHANGEABILITY: the labeled (score, correct)
+ * pairs the threshold is fitted on and the subjects the threshold is later
+ * applied to must be draws from the same process. A threshold fitted on
+ * subjects that carry evidence the admission-time subjects do not carry is
+ * fitted on a different process, and the ε it advertises is not a guarantee
+ * about anything the gate will actually see.
+ *
+ * That is not hypothetical — it is a defect this function exists to make
+ * structurally impossible. `collectEvalCalibration` (`./wiring.ts`) used to
+ * build its own subject with three extra evidence fields
+ * (`declaredSteps` / `toolStepNames` / `stepProvenance`) that `runRiskEval`
+ * never sets. `verify.procedure-run` (`./emission-adapters.ts`) claims every
+ * `procedure` subject but ABSTAINS without `evidence.declaredSteps`, so that
+ * one difference decided whether it voted at all: it voted on 192/192
+ * calibration subjects and on 0/192 admission subjects. Worse, the
+ * `declaredSteps` list was derived FROM the very trace the verifier checks it
+ * against, so every one of its checks (phantom step / step count / step order)
+ * held by construction and its PASS was a constant carrying zero information —
+ * a constant that pinned every undecidable WRONG answer at the maximum fused
+ * score and made a finite threshold unreachable.
+ *
+ * So both paths call this, and `wiring.test.ts` asserts they produce identical
+ * subjects for the same (task, solver). The evidence is the solver's OWN,
+ * verbatim: nothing is synthesized on the solver's behalf. A solver that
+ * declares no step manifest gets a subject with no step manifest, and
+ * `verify.procedure-run` abstains with its own documented reason code —
+ * exactly the choice `./swarm-bridge.ts` already makes for real swarm results,
+ * and for the same reason (manufacturing a manifest nobody produced is
+ * manufacturing a signal nobody produced).
+ *
+ * @param clock Value folded into the terminal `harness-dispatch` step's text.
+ *   Defaults to 0 so the subject is deterministic, and no verifier's score
+ *   depends on it (`verify.procedure-run` abstains here; the T1-reference
+ *   verifier reads only `input` and `output`).
+ */
+export function evalTrustSubject(
+  task: EvalTask,
+  solver: ScriptedSolver,
+  produced: {
+    output: string;
+    evidence: Record<string, unknown>;
+    trace: { seq: number; kind: string; detail: string }[];
+  },
+  opts: { clock?: number } = {},
+): RiskEvalSubject {
+  const clock = opts.clock ?? 0;
+  return {
+    domain: "procedure",
+    subjectId: `${solver.id}::${task.id}`,
+    taskId: task.id,
+    input: task.prompt,
+    output: produced.output,
+    evidence: Object.freeze({ ...produced.evidence }),
+    trace: [
+      ...produced.trace,
+      { seq: produced.trace.length + 1, kind: "harness-dispatch", detail: `dispatched to admit() at clock=${clock}` },
+    ],
+  };
+}
+
 /** The four scripted, non-model, deterministic answer generators. */
 export function scriptedSolvers(): ScriptedSolver[] {
   return [
@@ -709,18 +780,10 @@ export async function runRiskEval(opts: RiskEvalOptions): Promise<RiskEvalReport
         continue;
       }
 
-      const subject: RiskEvalSubject = {
-        domain: "procedure",
-        subjectId: `${solver.id}::${task.id}`,
-        taskId: task.id,
-        input: task.prompt,
-        output: produced.output,
-        evidence: Object.freeze({ ...produced.evidence }),
-        trace: [
-          ...produced.trace,
-          { seq: produced.trace.length + 1, kind: "harness-dispatch", detail: `dispatched to admit() at clock=${now()}` },
-        ],
-      };
+      // The SAME builder the calibration path uses — see `evalTrustSubject`
+      // for why a second, subtly-different builder here would silently break
+      // the conformal exchangeability assumption.
+      const subject: RiskEvalSubject = evalTrustSubject(task, solver, produced, { clock: now() });
 
       let admission: RiskEvalAdmission;
       try {

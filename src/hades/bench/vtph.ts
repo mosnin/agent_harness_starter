@@ -66,6 +66,8 @@
  * exactly once. That makes V-TPH$ numbers reproducible and auditable.
  */
 
+import type { DeclaredReference } from "../styx/declared-rules";
+
 /** A single benchmark task with an independent ground-truth grader. */
 export interface EvalTask {
   id: string;
@@ -73,6 +75,21 @@ export interface EvalTask {
   category: string;
   /** Whether this task can be split into subtasks (used by later swarm strategies). */
   decomposable: boolean;
+  /**
+   * OPTIONAL declaration that this task's answer is decidable by a
+   * deterministic rule applied to its own prompt text
+   * (`../styx/declared-rules.ts`). Present only where that is genuinely true;
+   * absent on every task that needs judgement, world knowledge or prose
+   * understanding, so the T1-reference verifier abstains on those.
+   *
+   * This is a declaration of the TASK, not a lookup of its ANSWER: it names a
+   * transform, and the transform is recomputed from the prompt. It is
+   * deliberately NOT reachable from a verifier — a verifier sees a
+   * `TrustSubject`, never an `EvalTask` — and the only way it reaches one is
+   * by being rendered into the prompt as a `REF:` line, i.e. by becoming part
+   * of the request that both the agent and the verifier read.
+   */
+  reference?: DeclaredReference;
   /**
    * Ground-truth grader — MUST be pure & deterministic. Returns `true` iff
    * `output` is a correct answer to this task. This is the ONLY authority on

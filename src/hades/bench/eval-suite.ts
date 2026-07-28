@@ -14,17 +14,49 @@
  *   - a plausible WRONG answer  -> false
  *   - "" (empty string)         -> false
  *   - no Math.random, no clock, no network — pure functions of `output`.
+ *
+ * ## Reference annotations (`reference:`) — what they are and are NOT
+ *
+ * Some of these tasks are decidable from their own prompt: the emails to
+ * extract are in the sentence, the words to measure are in the list. Those
+ * carry a `reference` declaring WHICH deterministic rule
+ * (`../styx/declared-rules.ts`) computes their answer, and {@link EVAL_TASKS}
+ * renders that declaration into the prompt as a `REF:` line so it travels
+ * inside the REQUEST — the only channel a verifier is allowed to read.
+ *
+ * A `reference` is not an answer key. It names a transform; the transform is
+ * recomputed from the prompt text by code that has never seen `grade` and
+ * cannot reach it. The two are proved to agree by the corpus consistency test
+ * (`__tests__/declared-reference-corpus.test.ts`), which is the only place in
+ * the repo where a declared rule and a grader meet.
+ *
+ * Tasks that need judgement (sentiment, language, topic), prose reasoning, or
+ * world knowledge (which country a city is in) carry NO annotation, on purpose.
+ * The T1-reference verifier abstains on them, which is the honest outcome — a
+ * rule stretched to "decide" a task it cannot decide would certify guesses.
  */
 
 import type { EvalTask } from "./vtph";
+import {
+  EMAIL_RE,
+  HASHTAG_RE,
+  URL_RE,
+  formatDeclaredReference,
+  normalizeIntegerSetAscending,
+  normalizeTokenSet,
+  parseLabeledPairs,
+} from "../styx/declared-rules";
 
 // ---------------------------------------------------------------------------
 // Grading helpers (module-private, all pure)
+//
+// The token patterns and set/pair normalizers are IMPORTED from
+// `../styx/declared-rules` rather than declared here, so the grader and the
+// T1-reference verifier share exactly one definition of "what an email address
+// looks like" and one definition of set equality. A second copy could drift,
+// and a drifted copy would make the two disagree about a correct answer —
+// which would show up as a verifier false alarm and be blamed on the model.
 // ---------------------------------------------------------------------------
-
-const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
-const HASHTAG_RE = /#[A-Za-z0-9_]+/g;
-const URL_RE = /https?:\/\/[^\s,]+/g;
 
 /** All numbers in `s` (thousands separators tolerated, decimals kept). */
 function numbersIn(s: string): number[] {
@@ -72,18 +104,10 @@ function gradeLabel(labels: readonly string[], expected: string) {
   };
 }
 
-/** Normalize a set of extracted tokens: lowercase, unique, lexicographic sort. */
-function normSet(tokens: string[]): string {
-  return Array.from(new Set(tokens.map((t) => t.toLowerCase()))).sort().join(",");
-}
-
 /** Grade an extraction task against an expected normalized token set. */
 function gradeTokenSet(re: RegExp, expected: string, lowercase = true) {
   return (output: string): boolean => {
-    const found = output.match(re) ?? [];
-    const norm = lowercase
-      ? normSet(found)
-      : Array.from(new Set(found)).sort().join(",");
+    const norm = normalizeTokenSet(output.match(re) ?? [], lowercase);
     return norm === expected && expected.length > 0;
   };
 }
@@ -92,9 +116,7 @@ function gradeTokenSet(re: RegExp, expected: string, lowercase = true) {
 function gradeIntSetAscending(expected: number[]) {
   const want = expected.join(",");
   return (output: string): boolean => {
-    const found = (output.match(/\d+/g) ?? []).map(Number);
-    const uniq = Array.from(new Set(found)).sort((a, b) => a - b).join(",");
-    return uniq === want && expected.length > 0;
+    return normalizeIntegerSetAscending(output) === want && expected.length > 0;
   };
 }
 
@@ -151,20 +173,6 @@ function gradeJson(expected: unknown) {
 }
 
 /**
- * Parse `key:value` pairs from output into a map (keys/values lowercased). Used
- * by the decomposable multi-part tasks.
- */
-function parsePairs(s: string): Map<string, string> {
-  const map = new Map<string, string>();
-  const re = /([A-Za-z0-9]+)\s*:\s*([A-Za-z0-9]+)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(s)) !== null) {
-    map.set(m[1].toLowerCase(), m[2].toLowerCase());
-  }
-  return map;
-}
-
-/**
  * Grade a multi-part task: every expected key must be present with the expected
  * value. A missing key or any wrong value fails; "" yields an empty map -> fail.
  */
@@ -173,7 +181,7 @@ function gradePairs(expected: Record<string, string | number>) {
     ([k, v]) => [k.toLowerCase(), String(v).toLowerCase()] as const,
   );
   return (output: string): boolean => {
-    const map = parsePairs(output);
+    const map = parseLabeledPairs(output);
     if (map.size === 0) return false;
     return entries.every(([k, v]) => map.get(k) === v);
   };
@@ -200,7 +208,7 @@ const TOPIC = ["sports", "politics", "technology"] as const;
 // Tasks
 // ---------------------------------------------------------------------------
 
-export const EVAL_TASKS: EvalTask[] = [
+const RAW_EVAL_TASKS: EvalTask[] = [
   // ---- extraction (6) -----------------------------------------------------
   {
     id: "extract-01-emails",
@@ -209,6 +217,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "Extract all email addresses from: Contact alice@example.com or bob@test.org for details. Return comma-separated, sorted.",
     grade: gradeTokenSet(EMAIL_RE, "alice@example.com,bob@test.org"),
+    reference: { rule: "extract-emails" },
   },
   {
     id: "extract-02-emails-url-distractor",
@@ -217,6 +226,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "Extract all email addresses from: Email sales@acme.io. Visit www.acme.io (not an email). Reach carol@acme.io too. Return comma-separated, sorted.",
     grade: gradeTokenSet(EMAIL_RE, "carol@acme.io,sales@acme.io"),
+    reference: { rule: "extract-emails" },
   },
   {
     id: "extract-03-emails-case-mailto",
@@ -225,6 +235,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "Extract all email addresses from: From: john.doe@work.net, cc: JANE@WORK.NET. Also mailto:admin@work.net. Return comma-separated, sorted, lowercased.",
     grade: gradeTokenSet(EMAIL_RE, "admin@work.net,jane@work.net,john.doe@work.net"),
+    reference: { rule: "extract-emails" },
   },
   {
     id: "extract-04-hashtags",
@@ -233,6 +244,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "Extract all hashtags from: Love #Coding and #AI but #coding again. Return unique, lowercased, comma-separated, sorted.",
     grade: gradeTokenSet(HASHTAG_RE, "#ai,#coding"),
+    reference: { rule: "extract-hashtags" },
   },
   {
     id: "extract-05-numbers",
@@ -241,6 +253,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "Extract all numbers from: I have 3 cats, 12 dogs, and 3 birds. Return unique integers ascending, comma-separated.",
     grade: gradeIntSetAscending([3, 12]),
+    reference: { rule: "extract-integers-ascending" },
   },
   {
     id: "extract-06-urls",
@@ -249,6 +262,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "Extract all URLs from: See https://a.com and http://b.org for info. Return comma-separated, sorted.",
     grade: gradeTokenSet(URL_RE, "http://b.org,https://a.com", false),
+    reference: { rule: "extract-urls" },
   },
 
   // ---- classification (7) -------------------------------------------------
@@ -488,6 +502,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each word, give its length: apple, kiwi, banana. Return as `word:length`, comma-separated.",
     grade: gradePairs({ apple: 5, kiwi: 4, banana: 6 }),
+    reference: { rule: "per-item-length" },
   },
   {
     id: "multi-02-first-letter",
@@ -496,6 +511,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each word, give its first letter: dog, cat, fish. Return as `word:letter`, comma-separated.",
     grade: gradePairs({ dog: "d", cat: "c", fish: "f" }),
+    reference: { rule: "per-item-first-letter" },
   },
   {
     id: "multi-03-double",
@@ -504,6 +520,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each number, give its double: 3, 8, 10. Return as `number:double`, comma-separated.",
     grade: gradePairs({ 3: 6, 8: 16, 10: 20 }),
+    reference: { rule: "per-item-double" },
   },
   {
     id: "multi-04-parity",
@@ -512,6 +529,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each number, is it even or odd? 4, 7, 12. Return as `number:parity`, comma-separated.",
     grade: gradePairs({ 4: "even", 7: "odd", 12: "even" }),
+    reference: { rule: "per-item-parity" },
   },
   {
     id: "multi-05-word-length-2",
@@ -520,6 +538,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each word, give its length: hello, hi, world. Return as `word:length`, comma-separated.",
     grade: gradePairs({ hello: 5, hi: 2, world: 5 }),
+    reference: { rule: "per-item-length" },
   },
   {
     id: "multi-06-square",
@@ -528,6 +547,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each number, give its square: 2, 5, 9. Return as `number:square`, comma-separated.",
     grade: gradePairs({ 2: 4, 5: 25, 9: 81 }),
+    reference: { rule: "per-item-square" },
   },
   {
     id: "multi-07-capital",
@@ -544,6 +564,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each word, count its vowels (a, e, i, o, u): apple, sky, ocean. Return as `word:count`, comma-separated.",
     grade: gradePairs({ apple: 2, sky: 0, ocean: 3 }),
+    reference: { rule: "per-item-vowel-count" },
   },
   {
     id: "multi-09-plus-ten",
@@ -552,6 +573,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each number, add 10: 5, 15, 100. Return as `number:sum`, comma-separated.",
     grade: gradePairs({ 5: 15, 15: 25, 100: 110 }),
+    reference: { rule: "per-item-plus-ten" },
   },
   {
     id: "multi-10-word-length-3",
@@ -560,6 +582,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each word, give its length: sun, moon, star, comet. Return as `word:length`, comma-separated.",
     grade: gradePairs({ sun: 3, moon: 4, star: 4, comet: 5 }),
+    reference: { rule: "per-item-length" },
   },
   {
     id: "multi-11-is-prime",
@@ -568,6 +591,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each number, is it prime (yes/no)? 7, 8, 11. Return as `number:answer`, comma-separated.",
     grade: gradePairs({ 7: "yes", 8: "no", 11: "yes" }),
+    reference: { rule: "per-item-is-prime" },
   },
   {
     id: "multi-12-celsius-fahrenheit",
@@ -576,6 +600,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each temperature in Celsius, give it in Fahrenheit: 0, 100. Return as `celsius:fahrenheit`, comma-separated.",
     grade: gradePairs({ 0: 32, 100: 212 }),
+    reference: { rule: "per-item-celsius-to-fahrenheit" },
   },
   {
     id: "multi-13-color-length",
@@ -584,6 +609,7 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each word, give the number of letters: red, green, blue. Return as `word:length`, comma-separated.",
     grade: gradePairs({ red: 3, green: 5, blue: 4 }),
+    reference: { rule: "per-item-length" },
   },
   {
     id: "multi-14-half",
@@ -592,8 +618,44 @@ export const EVAL_TASKS: EvalTask[] = [
     prompt:
       "For each number, give its half: 10, 30, 8. Return as `number:half`, comma-separated.",
     grade: gradePairs({ 10: 5, 30: 15, 8: 4 }),
+    reference: { rule: "per-item-half" },
   },
 ];
+
+/**
+ * Render an annotated task's declaration into its own prompt as a `REF:` line.
+ *
+ * The declaration has to reach the verifier somehow, and the request is the
+ * only honest carrier: `evidence` and `trace` are written by whoever produced
+ * the ANSWER, so a rule carried there would let the answerer choose the
+ * criterion it is judged by. Putting it in the prompt also keeps agent and
+ * verifier reading the SAME request — nobody is judged against a question they
+ * were not asked.
+ *
+ * Deriving the line from the field (rather than typing it into both places)
+ * is what makes drift impossible: there is one declaration per task and the
+ * prompt is a projection of it.
+ *
+ * The line does not make the task easier. It is a machine-readable restatement
+ * of normalization the prose already demands ("Return unique, lowercased,
+ * comma-separated, sorted"), and it names a transform rather than an answer —
+ * a solver that reads it still has to do the extraction itself.
+ */
+function withDeclaredReferenceLine(task: EvalTask): EvalTask {
+  if (!task.reference) return task;
+  return { ...task, prompt: `${task.prompt}\n${formatDeclaredReference(task.reference)}` };
+}
+
+/**
+ * The corpus. Annotated tasks carry their declaration in the prompt; the rest
+ * are passed through untouched, so the T1-reference verifier abstains on them.
+ */
+export const EVAL_TASKS: EvalTask[] = RAW_EVAL_TASKS.map(withDeclaredReferenceLine);
+
+/** Tasks whose answer a declared rule decides (see the module note). */
+export function referenceAnnotatedTasks(): EvalTask[] {
+  return EVAL_TASKS.filter((t) => t.reference !== undefined);
+}
 
 // ---------------------------------------------------------------------------
 // Query helpers

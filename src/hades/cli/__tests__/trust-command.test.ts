@@ -232,24 +232,34 @@ describe("hades trust calibrate", () => {
     expect(res.lines[0]).toContain("not both");
   });
 
-  it("--from-eval fits the REAL corpus and reports PARTIAL separation honestly", async () => {
+  it("--from-eval fits the REAL corpus and reports a FINITE threshold with its real coverage", async () => {
     const { deps, dataDir } = realDeps();
     const res = await runTrustCommand(["calibrate", "--from-eval"], deps);
     expect(res.code).toBe(0);
     const out = text(res.lines);
     expect(out).toContain('domain "procedure"');
     // The T1-reference verifier decides the corpus tasks whose answer is
-    // recomputable from their own prompt, so AUC is no longer the 0.5 of a
-    // purely structural verifier set. It is also not 1.0: on every task
-    // nothing can decide, a wrong answer still scores structurally perfect —
-    // so the conformal fit STILL cannot place a finite threshold at this
-    // epsilon, and the report must keep saying so.
+    // recomputable from their own prompt; every other task draws no
+    // contributing vote and sits on the neutral score. So AUC is well above
+    // the 0.5 of a verifier set that carries no correctness signal, and
+    // strictly below 1 because most of the corpus is undecided.
     const auc = /AUC \(correct > wrong\) ([0-9.]+)/.exec(out);
     expect(auc).not.toBeNull();
-    expect(Number(auc?.[1])).toBeGreaterThan(0.5);
+    expect(Number(auc?.[1])).toBeGreaterThan(0.7);
     expect(Number(auc?.[1])).toBeLessThan(1);
-    expect(out).toContain("+Infinity");
-    expect(out).toContain("THRESHOLD IS +INFINITY");
+    expect(out).not.toContain("+Infinity");
+
+    // The threshold alone would be a flattering headline, so the report must
+    // carry what it actually buys: the coverage it clears on, and the fact
+    // that clearing it is not what gets a subject certified.
+    const coverage = /coverage at threshold ([0-9.]+)%/.exec(out);
+    expect(coverage).not.toBeNull();
+    expect(Number(coverage?.[1])).toBeGreaterThan(0);
+    expect(Number(coverage?.[1])).toBeLessThan(15);
+    expect(out).toContain("THRESHOLD IS FINITE");
+    expect(out).toContain("not sufficient");
+    expect(out).toContain("degraded-evidence");
+
     // Provenance must state the solvers are not model calls.
     expect(out).toContain("NOT model calls");
     expect(out).toContain(trustRoot(dataDir));
@@ -567,10 +577,15 @@ describe("hades trust doctor", () => {
     expect(byName.get('domain "message" can certify')!.detail).toContain("only 1 can vote here");
     expect(byName.get('domain "message" can certify')!.detail).toContain("ANTHROPIC_API_KEY");
     expect(byName.get('domain "memory" can certify')!.ok).toBe(true);
-    // `procedure` gained the T1-reference recompute verifier, so it now has
-    // two co-voters and is structurally certifiable — the doctor must report
-    // that change rather than keep failing a domain that was fixed.
+    // `procedure` gained the T1-reference recompute verifier, so two voters
+    // CAN co-vote there and the structural check passes. But passing that
+    // check is not a clean bill of health and the detail must not read like
+    // one: `verify.procedure-run` abstains without a declared step manifest,
+    // and nothing this build produces declares one, so in practice the
+    // T1 verifier votes alone. The doctor has to say that out loud.
     expect(byName.get('domain "procedure" can certify')!.ok).toBe(true);
+    expect(byName.get('domain "procedure" can certify')!.detail).toContain("declaredSteps");
+    expect(byName.get('domain "procedure" can certify')!.detail).toContain("degraded-evidence");
   });
 
   it("FAILS a calibrated-but-non-discriminating domain rather than calling it healthy", async () => {
@@ -588,6 +603,54 @@ describe("hades trust doctor", () => {
     expect(sep.ok).toBe(false);
     expect(sep.detail).toContain("NO discrimination");
     expect(parsed.ok).toBe(false);
+  });
+
+  it("FAILS a calibrated domain whose fitted threshold admits nothing", async () => {
+    // Separation and admissibility are different questions, and the doctor
+    // used to answer only the first. These points DO separate (every correct
+    // one outscores every wrong one, AUC 1.0) yet the conservative
+    // (wrong+1)/(n+1) correction cannot certify 0.05 on so few points above
+    // any candidate threshold, so the real fit returns +Infinity and the gate
+    // abstains on everything in the domain. A report that showed only the
+    // AUC would call that healthy.
+    // 3 correct at the top score, 17 wrong at the bottom. Perfectly ordered
+    // (AUC 1.0), but the top candidate threshold selects only 3 points and
+    // (0 + 1) / (3 + 1) = 0.25 exceeds this stack's epsilon of 0.2 — the
+    // finite-sample correction refuses to certify that risk on so little
+    // evidence, and the next threshold down sweeps in all 17 wrong ones.
+    const { deps, stack } = realDeps();
+    const points = Array.from({ length: 20 }, (_, i) => ({ score: i < 3 ? 1 : 0, correct: i < 3 }));
+    stack.calibration.record("memory", points, "separating but too few points above any threshold");
+    const stats = stack.gate.calibrate("memory", points);
+    expect(Number.isFinite(stats.threshold)).toBe(false);
+
+    const res = await runTrustCommand(["doctor", "--json"], deps);
+    const parsed = JSON.parse(text(res.lines)) as { ok: boolean; checks: { name: string; ok: boolean; detail: string }[] };
+    const byName = new Map(parsed.checks.map((c) => [c.name, c]));
+    // Separation itself is genuinely fine here — that is the whole point.
+    expect(byName.get('domain "memory" separation')!.ok).toBe(true);
+    // ...and the admissibility check is what catches the inert gate.
+    const admits = byName.get('domain "memory" threshold admits')!;
+    expect(admits.ok).toBe(false);
+    expect(admits.detail).toContain("+Infinity");
+    expect(admits.detail).toContain("abstains on");
+    expect(parsed.ok).toBe(false);
+  });
+
+  it("reports a FINITE threshold with the coverage it clears on, not just the number", async () => {
+    const { deps, stack } = realDeps();
+    stack.calibration.record("memory", separatingPoints(), "operator-supplied, genuinely separating");
+    const stats = stack.gate.calibrate("memory", stack.calibration.points("memory"));
+    expect(Number.isFinite(stats.threshold)).toBe(true);
+
+    const res = await runTrustCommand(["doctor", "--json"], deps);
+    const parsed = JSON.parse(text(res.lines)) as { checks: { name: string; ok: boolean; detail: string }[] };
+    const admits = parsed.checks.find((c) => c.name === 'domain "memory" threshold admits')!;
+    expect(admits.ok).toBe(true);
+    expect(admits.detail).toContain("threshold");
+    expect(admits.detail).toContain("% of the");
+    // A finite threshold must never be allowed to read as "the gate works".
+    expect(admits.detail).toContain("necessary, not sufficient");
   });
 
   it("reports an in-memory stack's ephemeral key as a FAILURE", async () => {
