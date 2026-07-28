@@ -35,11 +35,15 @@ interface CliRun {
 
 /** Run the CLI source through tsx and capture exit code + both streams. */
 function runCli(args: string[]): Promise<CliRun> {
-  // Strip provider keys so `plannerFromEnv` always yields the deterministic
-  // planner — a test must never depend on (or spend) a real model key.
+  // Strip provider keys AND engine config so `plannerFromEnv` yields the
+  // deterministic planner and `resolveRunEngine` can never auto-select a real
+  // engine — a test must never depend on (or spend) a real model key.
   const env = { ...process.env };
   delete env.SWARM_API_KEY;
   delete env.OPENAI_API_KEY;
+  delete env.ANTHROPIC_API_KEY;
+  delete env.SWARM_PROVIDER;
+  delete env.SWARM_MODEL;
   return new Promise((resolve, reject) => {
     execFile(
       TSX_BIN,

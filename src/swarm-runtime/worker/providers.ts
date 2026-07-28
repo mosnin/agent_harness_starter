@@ -1,4 +1,4 @@
-import { createOpenAICompatibleChat, type ChatFn, type ChatMessage } from "./llm-executor";
+import { chatTransportError, createOpenAICompatibleChat, type ChatFn, type ChatMessage } from "./llm-executor";
 
 export type ProviderName =
   | "openai"
@@ -43,6 +43,11 @@ export interface CreateChatOptions {
   temperature?: number;
   /** Max tokens (Anthropic requires this; OpenAI-style ignores it here). */
   maxTokens?: number;
+  /**
+   * Abort the HTTP request after this many ms so a dead endpoint fails fast
+   * with a clear error instead of hanging. Unset = no timeout.
+   */
+  timeoutMs?: number;
   /** Injectable fetch for testing. */
   fetchImpl?: typeof fetch;
 }
@@ -67,6 +72,7 @@ export function createChat(opts: CreateChatOptions): ChatFn {
     model: opts.model,
     baseUrl,
     temperature: opts.temperature,
+    timeoutMs: opts.timeoutMs,
   });
 }
 
@@ -81,6 +87,7 @@ function anthropicChat(opts: {
   model: string;
   temperature?: number;
   maxTokens?: number;
+  timeoutMs?: number;
   fetchImpl?: typeof fetch;
 }): ChatFn {
   const doFetch = opts.fetchImpl ?? fetch;
@@ -93,21 +100,27 @@ function anthropicChat(opts: {
       .filter((m) => m.role !== "system")
       .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content }));
 
-    const res = await doFetch(`${opts.baseUrl}/v1/messages`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": opts.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: opts.model,
-        max_tokens: opts.maxTokens ?? 1024,
-        temperature: opts.temperature ?? 0.2,
-        ...(system ? { system } : {}),
-        messages: turns,
-      }),
-    });
+    let res: Response;
+    try {
+      res = await doFetch(`${opts.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": opts.apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: opts.model,
+          max_tokens: opts.maxTokens ?? 1024,
+          temperature: opts.temperature ?? 0.2,
+          ...(system ? { system } : {}),
+          messages: turns,
+        }),
+        ...(opts.timeoutMs !== undefined ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
+      });
+    } catch (e) {
+      throw chatTransportError(e, `${opts.baseUrl}/v1/messages`, opts.timeoutMs);
+    }
     if (!res.ok) throw new Error(`anthropic messages failed: ${res.status} ${await res.text()}`);
     const data = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
     return (data.content ?? [])

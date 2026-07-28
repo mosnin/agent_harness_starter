@@ -10,6 +10,7 @@ import { createInlineSwarm } from "../factory";
 import { LLMPlanner } from "../manager/planner";
 import { createOpenAICompatibleChat, chatToPlannerComplete } from "../worker/llm-executor";
 import type { GuardrailPolicy } from "../verification/guardrails";
+import type { TaskExecutor } from "../worker/executor";
 import type { ContainerProvider, ResourceLimits } from "../types";
 
 /**
@@ -35,6 +36,15 @@ export interface BuildSwarmOptions {
   capabilities?: string[];
   poolSize?: number;
   planner?: Planner;
+  /**
+   * Executor every worker runs — **inline mode only**. Process/docker workers
+   * live in their own process/container and select an executor from the worker
+   * environment (`SWARM_MODEL` + `SWARM_API_KEY`/`OPENAI_API_KEY`; see
+   * `worker/entrypoint.ts`), so an injected executor cannot reach them:
+   * passing one with a non-inline mode throws rather than being silently
+   * ignored.
+   */
+  executor?: TaskExecutor;
   model?: string;
   maxAttempts?: number;
   guardrailPolicy?: GuardrailPolicy;
@@ -109,6 +119,7 @@ export async function buildSwarm(opts: BuildSwarmOptions): Promise<BuiltSwarm> {
       capabilities,
       poolSize: opts.poolSize,
       planner: opts.planner ?? plannerFromEnv(opts.model),
+      executor: opts.executor,
       guardrailPolicy: opts.guardrailPolicy,
       maxAttempts: opts.maxAttempts,
       model: opts.model,
@@ -123,6 +134,16 @@ export async function buildSwarm(opts: BuildSwarmOptions): Promise<BuiltSwarm> {
         await manager.shutdown();
       },
     };
+  }
+
+  // Never silently drop an injected executor: outside inline mode the workers
+  // are separate processes/containers and would run something else entirely.
+  if (opts.executor) {
+    throw new Error(
+      `executor injection is inline-only: ${opts.mode} workers run in their own ` +
+        `${opts.mode === "docker" ? "container" : "process"} and select an executor from the worker ` +
+        `environment (SWARM_MODEL + SWARM_API_KEY/OPENAI_API_KEY)`,
+    );
   }
 
   const port = opts.controlPort ?? 8787;

@@ -105,6 +105,27 @@ export class LLMExecutor implements TaskExecutor {
 }
 
 /**
+ * Turn a pre-response `fetch` rejection (DNS failure, connection refused,
+ * abort/timeout) into an actionable error naming the endpoint and the
+ * underlying cause code, instead of undici's bare "fetch failed". Used by both
+ * chat transports so a run against a dead endpoint (e.g. `--provider local`
+ * with no Ollama running) fails fast with a message a user can act on. Never
+ * includes headers or request bodies, so nothing secret can leak into logs.
+ */
+export function chatTransportError(e: unknown, url: string, timeoutMs?: number): Error {
+  if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+    return new Error(`chat request to ${url} timed out after ${timeoutMs}ms with no response`);
+  }
+  const cause = (e as { cause?: { code?: string; errors?: Array<{ code?: string }>; message?: string } }).cause;
+  const code =
+    cause?.code ??
+    cause?.errors?.find((err) => err?.code)?.code ??
+    cause?.message ??
+    (e instanceof Error ? e.message : String(e));
+  return new Error(`chat request to ${url} failed before any response: ${code}`);
+}
+
+/**
  * Build a {@link ChatFn} that calls any OpenAI-compatible /chat/completions
  * endpoint using global fetch (no SDK dependency — safe for the lean worker
  * bundle).
@@ -114,22 +135,34 @@ export function createOpenAICompatibleChat(opts: {
   model: string;
   baseUrl?: string;
   temperature?: number;
+  /**
+   * Abort the whole HTTP request (connect + response) after this many ms so a
+   * dead endpoint fails fast instead of hanging a worker. Unset = no timeout
+   * (previous behaviour, preserved for existing callers).
+   */
+  timeoutMs?: number;
 }): ChatFn {
   const base = (opts.baseUrl ?? "https://api.openai.com/v1").replace(/\/$/, "");
   return async (messages) => {
-    const res = await fetch(`${base}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${opts.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: opts.model,
-        messages,
-        temperature: opts.temperature ?? 0.2,
-        response_format: { type: "json_object" },
-      }),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${base}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${opts.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: opts.model,
+          messages,
+          temperature: opts.temperature ?? 0.2,
+          response_format: { type: "json_object" },
+        }),
+        ...(opts.timeoutMs !== undefined ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
+      });
+    } catch (e) {
+      throw chatTransportError(e, base, opts.timeoutMs);
+    }
     if (!res.ok) throw new Error(`chat completion failed: ${res.status} ${await res.text()}`);
     const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     return data.choices?.[0]?.message?.content ?? "";

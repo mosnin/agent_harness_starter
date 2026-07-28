@@ -16,6 +16,16 @@
  *   --host H                       Bind host (default: 127.0.0.1)
  *   --json                         Machine-readable output for `run`
  *   -h, --help                     Print usage and exit 0 (anywhere in argv)
+ *
+ * Engine flags (run; see run-engine.ts for the full decision table):
+ *   --provider NAME                LLM provider (env fallback: SWARM_PROVIDER)
+ *   --model ID                     Model id (env fallback: SWARM_MODEL)
+ *   --base-url URL                 Endpoint override (custom Ollama/vLLM host)
+ *   --offline                      Force the deterministic offline executor
+ *
+ * API keys are NEVER flags: each provider reads its documented env var
+ * (OPENAI_API_KEY, ANTHROPIC_API_KEY, …) so keys never land in shell history
+ * or `ps` output.
  */
 import { buildSwarm, type SwarmMode } from "./server/build-swarm";
 import { SwarmServer } from "./server/swarm-server";
@@ -23,6 +33,10 @@ import { DockerProvider } from "./providers/docker";
 import { LocalProcessProvider } from "./providers/local-process";
 import { renderTui } from "./tui/render";
 import { installGracefulShutdown } from "./lifecycle/shutdown";
+import { describeRunEngine, formatEngineLine, resolveRunEngine, type RunEngineDecision } from "./run-engine";
+import { createChat } from "./worker/providers";
+import { LLMExecutor } from "./worker/llm-executor";
+import type { TaskExecutor } from "./worker/executor";
 
 interface Flags {
   mode: SwarmMode;
@@ -37,6 +51,14 @@ interface Flags {
   authToken?: string;
   json: boolean;
   help: boolean;
+  /** --provider (run): LLM provider name; env fallback SWARM_PROVIDER. */
+  provider?: string;
+  /** --model (run): model id; env fallback SWARM_MODEL. */
+  model?: string;
+  /** --base-url (run): provider endpoint override. */
+  baseUrl?: string;
+  /** --offline (run): force the deterministic executor even when keys exist. */
+  offline: boolean;
   _: string[];
 }
 
@@ -50,6 +72,7 @@ function parseArgs(argv: string[]): Flags {
     host: "127.0.0.1",
     json: false,
     help: false,
+    offline: false,
     _: [],
   };
   for (let i = 0; i < argv.length; i++) {
@@ -66,6 +89,10 @@ function parseArgs(argv: string[]): Flags {
       case "--docker-network": f.dockerNetwork = next(); break;
       case "--host": f.host = next(); break;
       case "--auth-token": f.authToken = next(); break;
+      case "--provider": f.provider = next(); break;
+      case "--model": f.model = next(); break;
+      case "--base-url": f.baseUrl = next(); break;
+      case "--offline": f.offline = true; break;
       case "--json": f.json = true; break;
       // A flag, not a positional: pushing "help" onto `_` here once made
       // `run --help` execute a swarm goal literally named "help".
@@ -93,16 +120,51 @@ FLAGS
   --image NAME                   worker docker image (docker mode)
   --host H                       bind host (default 127.0.0.1)
   --json                         machine-readable run output
-  -h, --help                     print usage and exit`;
+  -h, --help                     print usage and exit
 
-async function cmdDoctor(): Promise<void> {
+ENGINE FLAGS (run)
+  --provider NAME                openai|anthropic|nous|openrouter|together|groq|local
+                                 (env fallback: SWARM_PROVIDER)
+  --model ID                     model id (env fallback: SWARM_MODEL)
+  --base-url URL                 endpoint override, e.g. a custom Ollama/vLLM host
+  --offline                      force the deterministic offline executor
+
+ENGINE
+  run prints one honest "engine:" line before starting. With no flags it
+  auto-selects from ANTHROPIC_API_KEY, then OPENAI_API_KEY; with neither it
+  runs the deterministic offline executor and says so. A named provider whose
+  key env var is unset is a hard error (never a silent mock). API keys are
+  read ONLY from each provider's env var (e.g. OPENAI_API_KEY) — never from
+  flags — so keys stay out of shell history and ps output. --provider local
+  (Ollama/vLLM) needs no key. Model-backed runs are inline-mode only;
+  process/docker workers pick their executor from the worker environment.`;
+
+async function cmdDoctor(f: Flags): Promise<void> {
   const docker = await new DockerProvider({ image: "x" }).isAvailable();
   const proc = await new LocalProcessProvider({ workerEntry: "x" }).isAvailable();
   console.log("hermes-swarm doctor");
   console.log(`  inline   : ✓ always available`);
   console.log(`  process  : ${proc ? "✓" : "✗"} child-process isolation`);
   console.log(`  docker   : ${docker ? "✓ daemon reachable" : "✗ docker not found / daemon down"}`);
+  // Same pure decision table `run` uses — reported without building anything,
+  // and without aborting doctor when the engine config is broken.
+  try {
+    const decision = resolveRunEngine(
+      { provider: f.provider, model: f.model, baseUrl: f.baseUrl, offline: f.offline },
+      process.env,
+    );
+    console.log(`  engine   : ${describeRunEngine(decision)}`);
+  } catch (e) {
+    console.log(`  engine   : ✗ misconfigured — ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
+
+/**
+ * Cap on one chat HTTP round-trip for CLI-built engines, so a dead or
+ * misconfigured endpoint fails fast with a clear transport error instead of
+ * hanging a worker (generous enough for a real long completion).
+ */
+const CHAT_TIMEOUT_MS = 120_000;
 
 async function cmdRun(f: Flags): Promise<void> {
   const objective = f._.slice(1).join(" ").trim();
@@ -111,6 +173,50 @@ async function cmdRun(f: Flags): Promise<void> {
     console.log(HELP);
     process.exit(1);
   }
+
+  // Decide the engine BEFORE building anything. A misconfigured real engine
+  // (named provider, missing key env var) is a hard error naming the exact
+  // variable — never a silent fallback to the offline executor.
+  let decision: RunEngineDecision;
+  try {
+    decision = resolveRunEngine(
+      { provider: f.provider, model: f.model, baseUrl: f.baseUrl, offline: f.offline },
+      process.env,
+    );
+  } catch (e) {
+    console.error(`error: ${e instanceof Error ? e.message : String(e)}`);
+    process.exit(1);
+  }
+  if (decision.kind === "real" && f.mode !== "inline") {
+    console.error(
+      `error: --provider/--model configure the inline engine only; --mode ${f.mode} workers select ` +
+        "their executor from the worker environment (SWARM_MODEL + SWARM_API_KEY/OPENAI_API_KEY). " +
+        "Rerun with --mode inline, or pass --offline.",
+    );
+    process.exit(1);
+  }
+
+  // The ONE honest engine line, printed before the run starts. It names env
+  // VARIABLE NAMES only, never values, and goes to stderr with the rest of
+  // the progress output so --json stdout stays machine-readable.
+  console.error(formatEngineLine(decision));
+
+  let executor: TaskExecutor | undefined;
+  if (decision.kind === "real") {
+    // Mirror engine-select.ts's real path exactly: a ChatFn wrapped in
+    // `new LLMExecutor(chat)` and handed to the inline swarm factory. Like
+    // that path, there is NO LLM-backed planning here — engine-select wires
+    // no planner — which is also why `model` is deliberately not forwarded to
+    // buildSwarm (its plannerFromEnv would otherwise add an LLMPlanner).
+    const chat = createChat({
+      provider: decision.provider,
+      model: decision.model,
+      baseUrl: decision.baseUrl,
+      timeoutMs: CHAT_TIMEOUT_MS,
+    });
+    executor = new LLMExecutor(chat);
+  }
+
   const swarm = await buildSwarm({
     mode: f.mode,
     capabilities: f.caps,
@@ -120,13 +226,22 @@ async function cmdRun(f: Flags): Promise<void> {
     workerImage: f.image,
     managerUrl: f.managerUrl,
     dockerNetwork: f.dockerNetwork,
+    executor,
   });
   const m = swarm.manager;
   if (!f.json) {
     m.on("worker:spawned", (r) => console.error(`  · worker ${r.workerId} spawned (${swarm.mode})`));
     m.on("worker:killed", (r, reason) => console.error(`  ⚠ worker ${r.workerId} KILLED: ${reason}`));
     m.on("task:verified", (t) => console.error(`  ✓ verified: ${t.description.slice(0, 60)}`));
-    m.on("task:rejected", (t) => console.error(`  ✗ rejected: ${t.description.slice(0, 60)}`));
+    // Surface the failing checks' details (e.g. the worker's actual transport
+    // error against a dead endpoint), not just that a rejection happened.
+    m.on("task:rejected", (t, report) => {
+      const detail = (report?.checks ?? [])
+        .filter((c) => !c.passed && c.detail)
+        .map((c) => c.detail)
+        .join("; ");
+      console.error(`  ✗ rejected: ${t.description.slice(0, 60)}${detail ? ` — ${detail.slice(0, 200)}` : ""}`);
+    });
     m.on("task:failed", (t, reason) => console.error(`  ✗ failed: ${t.id.slice(0, 8)} — ${reason}`));
   }
   await swarm.start();
@@ -137,7 +252,10 @@ async function cmdRun(f: Flags): Promise<void> {
     console.log(JSON.stringify({ status: goal.status, synthesis: goal.synthesis, goalId: goal.id }, null, 2));
   } else {
     console.log(`\n=== goal ${goal.status.toUpperCase()} ===`);
-    console.log(typeof goal.synthesis === "string" ? goal.synthesis : JSON.stringify(goal.synthesis, null, 2));
+    const synthesis =
+      typeof goal.synthesis === "string" ? goal.synthesis : JSON.stringify(goal.synthesis, null, 2);
+    // JSON.stringify(undefined) is undefined — a failed goal has no synthesis.
+    console.log(synthesis ?? "(no synthesis — goal did not complete)");
   }
   process.exit(goal.status === "completed" ? 0 : 1);
 }
@@ -189,7 +307,7 @@ async function main(): Promise<void> {
     case "run": return cmdRun(f);
     case "serve": return cmdServe(f);
     case "tui": return cmdTui(f);
-    case "doctor": return cmdDoctor();
+    case "doctor": return cmdDoctor(f);
     default:
       console.error(`unknown command: ${cmd}\n`);
       console.log(HELP);
