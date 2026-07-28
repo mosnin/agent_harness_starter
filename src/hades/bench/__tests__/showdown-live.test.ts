@@ -11,6 +11,7 @@ import {
 import type { LiveShowdownFsDeps } from "../showdown-live";
 import { runShowdown, verifyAuditChain } from "../showdown";
 import type { ShowdownResult } from "../showdown";
+import { sha256Hex } from "../../styx/certificate";
 
 // ---------------------------------------------------------------------------
 // Fixture: a GENUINE ShowdownResult from the REAL runShowdown, mode:
@@ -352,6 +353,12 @@ describe("runLiveShowdown + verifyLiveArtifacts — full round trip (fake fs)", 
     expect(manifest.files.length).toBe(3);
     expect(files.length).toBe(4); // report.md, audit.jsonl, result.json, manifest.json
 
+    // The trust-adjusted verified-yield figures are copied verbatim from the
+    // run's reports into the manifest.
+    expect(manifest.vtph.swarmVerifiedYield).toBe(result.swarmReport.verifiedYield);
+    expect(manifest.vtph.baselineVerifiedYield).toBe(result.baselineReport.verifiedYield);
+    expect(typeof manifest.vtph.swarmVerifiedYield).toBe("number");
+
     const outcome = await verifyLiveArtifacts(dir, fs);
     expect(outcome.findings).toEqual([]);
     expect(outcome.ok).toBe(true);
@@ -456,6 +463,53 @@ describe("verifyLiveArtifacts — adversarial tamper detection", () => {
     const outcome = await verifyLiveArtifacts(dir, fs);
     expect(outcome.ok).toBe(false);
     expect(outcome.findings.some((f) => /sha256 mismatch for result\.json/.test(f))).toBe(true);
+  }, 30000);
+
+  it("verifies a PRE-verifiedYield artifact dir clean (backward compat: the field is optional-on-read)", async () => {
+    // Simulate a directory published BEFORE the trust-adjusted metric
+    // existed: strip verifiedYield from every report in result.json and the
+    // yield fields from manifest.vtph, then re-point the manifest's
+    // result.json sha256 at the stripped bytes (exactly what an old
+    // publisher would have written). live-verify must still pass.
+    const { fs, files, dir } = await freshRoundTrip(108, 4);
+
+    const resultPath = join(dir, "result.json");
+    const parsed = JSON.parse(files.get(resultPath) ?? "{}") as ShowdownResult;
+    delete (parsed.swarmReport as Partial<ShowdownResult["swarmReport"]>).verifiedYield;
+    delete (parsed.baselineReport as Partial<ShowdownResult["baselineReport"]>).verifiedYield;
+    for (const rep of parsed.comparison.reports) {
+      delete (rep as Partial<ShowdownResult["swarmReport"]>).verifiedYield;
+    }
+    const strippedResultRaw = JSON.stringify(parsed, null, 2) + "\n";
+    files.set(resultPath, strippedResultRaw);
+
+    const manifestPath = join(dir, "manifest.json");
+    const manifest = JSON.parse(files.get(manifestPath) ?? "{}") as {
+      files: Array<{ name: string; sha256: string }>;
+      vtph: Record<string, number>;
+    };
+    delete manifest.vtph.swarmVerifiedYield;
+    delete manifest.vtph.baselineVerifiedYield;
+    const resultEntry = manifest.files.find((f) => f.name === "result.json");
+    expect(resultEntry).toBeDefined();
+    resultEntry!.sha256 = sha256Hex(strippedResultRaw);
+    files.set(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+
+    const outcome = await verifyLiveArtifacts(dir, fs);
+    expect(outcome.findings).toEqual([]);
+    expect(outcome.ok).toBe(true);
+  }, 30000);
+
+  it("edits manifest.vtph.swarmVerifiedYield to lie about the yield — caught by the copy-consistency check", async () => {
+    const { fs, files, dir } = await freshRoundTrip(109, 4);
+    const manifestPath = join(dir, "manifest.json");
+    const manifest = JSON.parse(files.get(manifestPath) ?? "{}") as { vtph: { swarmVerifiedYield: number } };
+    manifest.vtph.swarmVerifiedYield = manifest.vtph.swarmVerifiedYield + 1234;
+    files.set(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+
+    const outcome = await verifyLiveArtifacts(dir, fs);
+    expect(outcome.ok).toBe(false);
+    expect(outcome.findings.some((f) => /swarmVerifiedYield/.test(f))).toBe(true);
   }, 30000);
 
   it("regenerates manifest.vtph.multiple to lie about the multiple — caught by a fresh compareVtph recomputation", async () => {

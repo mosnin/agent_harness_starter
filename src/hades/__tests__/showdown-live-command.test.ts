@@ -45,7 +45,15 @@ function fakeManifest(overrides: Partial<Parameters<typeof runLiveShowdown>[0]> 
       { name: "audit.jsonl" as const, sha256: "b".repeat(64) },
       { name: "result.json" as const, sha256: "c".repeat(64) },
     ],
-    vtph: { swarm: 120.5, baseline: 12.25, multiple: 9.84, swarmVerified: 6, baselineVerified: 5 },
+    vtph: {
+      swarm: 120.5,
+      baseline: 12.25,
+      multiple: 9.84,
+      swarmVerified: 6,
+      baselineVerified: 5,
+      swarmVerifiedYield: 88.75,
+      baselineVerifiedYield: -14.5, // negative: baseline paid the silent-wrong penalty
+    },
   };
 }
 
@@ -157,7 +165,23 @@ describe("runShowdownLiveCommand live — success path", () => {
     expect(lines.some((l) => l.includes("mode=real"))).toBe(true);
     expect(lines.some((l) => l.includes("V-TPH$"))).toBe(true);
     expect(lines.some((l) => l.includes("9.84x"))).toBe(true);
+    // The trust-adjusted headline is surfaced beside V-TPH$ — negative
+    // baseline yield included, and (live = real mode) never labeled (modeled).
+    expect(lines.some((l) => l.includes("Verified-yield — swarm=88.75 baseline=-14.50"))).toBe(true);
+    expect(lines.join("\n")).not.toContain("(modeled)");
     expect(lines.some((l) => l.includes("/o/manifest.json"))).toBe(true);
+  });
+
+  it("prints an honest n/a verified-yield for a pre-verifiedYield manifest (never a fabricated 0)", async () => {
+    const legacy = fakeManifest();
+    delete (legacy.vtph as { swarmVerifiedYield?: number }).swarmVerifiedYield;
+    delete (legacy.vtph as { baselineVerifiedYield?: number }).baselineVerifiedYield;
+    const { deps, lines } = makeDeps({
+      run: (async () => ({ result: {} as never, manifest: legacy, files: [] })) as typeof runLiveShowdown,
+    });
+    const code = await runShowdownLiveCommand(["live", "--out", "/o"], deps);
+    expect(code).toBe(0);
+    expect(lines.some((l) => l.includes("Verified-yield — swarm=n/a baseline=n/a"))).toBe(true);
   });
 
   it("defaults --seed and passes undefined --tasks/--max-wall-ms through to run()", async () => {

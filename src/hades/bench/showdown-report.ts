@@ -62,6 +62,10 @@ function laneSummary(mode: ShowdownMode, label: string, r: VtphReport): string[]
     `  spend:              ${usd(mode, r.totalUsd)}`,
     `  V-TPH:              ${num(mode, r.vtph)}`,
     `  V-TPH$ (north star): ${Number.isFinite(r.vtphPerDollar) ? num(mode, r.vtphPerDollar) : fig(mode, "n/a (zero spend)")}`,
+    // Trust-adjusted headline: (verifiedCorrect - 10·silentWrong)/max($, 1e-9)
+    // — negative when the lane lied; rendered recomputed-safe (n/a, never a
+    // fabricated 0) for a report that predates the field.
+    `  verified-yield ($): ${Number.isFinite(r.verifiedYield) ? num(mode, r.verifiedYield) : fig(mode, "n/a")}`,
     `  provenance-complete: ${fig(mode, `${(r.provenanceCompleteRate * 100).toFixed(0)}%`)}`,
   ];
 }
@@ -136,8 +140,8 @@ export function renderShowdownMarkdown(r: ShowdownResult): string {
   lines.push(`- audit records: \`${r.audit.length}\` (hash chain independently re-verified OK)`);
   lines.push("");
 
-  lines.push("| Lane | Tasks | Verified✓ | Silent✗ | Declined | V-TPH | Spend | V-TPH$/$ |");
-  lines.push("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| Lane | Tasks | Verified✓ | Silent✗ | Declined | V-TPH | Spend | V-TPH$/$ | Yield$ |");
+  lines.push("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const [label, rep] of [
     ["swarm", r.swarmReport],
     ["baseline", r.baselineReport],
@@ -145,7 +149,8 @@ export function renderShowdownMarkdown(r: ShowdownResult): string {
     lines.push(
       `| ${escapeCell(label)} | ${int(r.mode, rep.tasks)} | ${int(r.mode, rep.verifiedCorrect)} | ` +
         `${int(r.mode, rep.silentWrong)} | ${int(r.mode, rep.declined)} | ${num(r.mode, rep.vtph)} | ` +
-        `${usd(r.mode, rep.totalUsd)} | ${Number.isFinite(rep.vtphPerDollar) ? num(r.mode, rep.vtphPerDollar) : fig(r.mode, "n/a")} |`
+        `${usd(r.mode, rep.totalUsd)} | ${Number.isFinite(rep.vtphPerDollar) ? num(r.mode, rep.vtphPerDollar) : fig(r.mode, "n/a")} | ` +
+        `${Number.isFinite(rep.verifiedYield) ? num(r.mode, rep.verifiedYield) : fig(r.mode, "n/a")} |`
     );
   }
   lines.push("");

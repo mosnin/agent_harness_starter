@@ -157,6 +157,11 @@ describe("1. a liar who always claims verified scores ZERO", () => {
     expect(report.vtph).toBe(0);
     expect(report.vtphPerDollar).toBe(0);
 
+    // Trust-adjusted headline: NEGATIVE. Every lie costs 10x on the numerator,
+    // so a liar scores strictly below an agent that simply declined everything.
+    expect(report.verifiedYield).toBeLessThan(0);
+    expect(report.verifiedYield).toBeCloseTo((0 - 10 * EVAL_TASKS.length) / report.totalUsd, 6);
+
     // Trust-failure counter: MAX. Every claimed-verified answer was wrong.
     expect(report.silentWrong).toBe(EVAL_TASKS.length);
     expect(report.silentWrong).toBe(report.tasks);
@@ -207,6 +212,10 @@ describe("2. cost-efficiency only counts when the work is actually correct", () 
     // Only the money differs: cheap spends 50x less, so earns 50x more per dollar.
     expect(ra.vtphPerDollar).toBeCloseTo(50 * rb.vtphPerDollar, 6);
     expect(cmp.vtphPerDollarSpeedup).toBeCloseTo(50, 6);
+
+    // Same 50x split on the trust-adjusted yield (no silent-wrong on either side).
+    expect(ra.verifiedYield).toBeCloseTo(50 * rb.verifiedYield, 6);
+    expect(ra.verifiedYield).toBeGreaterThan(0);
   });
 });
 
@@ -258,6 +267,13 @@ describe("3. silentWrong separates the truthful runner from the confidently-wron
     expect(rc.vtph).toBeCloseTo(rightCount, 9);
     expect(rd.vtph).toBeCloseTo(rightCount, 9);
     expect(rc.vtph).toBeCloseTo(rd.vtph, 9);
+
+    // The trust-adjusted yield is where the lying finally COSTS: C's three
+    // badge-wearing lies each carry a 10x penalty, dragging C negative, while
+    // D (same spend, same correct answers, honest declines) stays positive.
+    expect(rc.verifiedYield).toBeLessThan(0);
+    expect(rd.verifiedYield).toBeGreaterThan(0);
+    expect(rc.verifiedYield).toBeLessThan(rd.verifiedYield);
   });
 });
 

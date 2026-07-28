@@ -135,6 +135,14 @@ function validateManifestShape(obj: Record<string, unknown> | undefined): string
     for (const key of ["swarm", "baseline", "multiple", "swarmVerified", "baselineVerified"] as const) {
       if (typeof obj.vtph[key] !== "number") errors.push(`vtph.${key} must be a number.`);
     }
+    // Trust-adjusted verified-yield fields are OPTIONAL (absent in manifests
+    // published before the metric existed — absence is never a shape error),
+    // but when present they must be numbers.
+    for (const key of ["swarmVerifiedYield", "baselineVerifiedYield"] as const) {
+      if (obj.vtph[key] !== undefined && typeof obj.vtph[key] !== "number") {
+        errors.push(`vtph.${key}, when present, must be a number.`);
+      }
+    }
   }
 
   return errors;

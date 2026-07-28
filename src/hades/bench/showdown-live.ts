@@ -139,7 +139,20 @@ export interface LiveRunManifest {
   finishedAt: number;
   wallMs: number;
   files: Array<{ name: "report.md" | "audit.jsonl" | "result.json"; sha256: string }>;
-  vtph: { swarm: number; baseline: number; multiple: number; swarmVerified: number; baselineVerified: number };
+  /** Headline figures copied verbatim from the run's `VtphReport`s. The
+   *  `swarmVerifiedYield`/`baselineVerifiedYield` fields (trust-adjusted
+   *  verified-yield, see `vtph.ts`) are OPTIONAL for backward compatibility:
+   *  manifests published before the metric existed lack them, and a verifier
+   *  must treat their absence as "not recorded", never as a failure. */
+  vtph: {
+    swarm: number;
+    baseline: number;
+    multiple: number;
+    swarmVerified: number;
+    baselineVerified: number;
+    swarmVerifiedYield?: number;
+    baselineVerifiedYield?: number;
+  };
 }
 
 // ===========================================================================
@@ -361,6 +374,8 @@ export async function runLiveShowdown(
       multiple: result.comparison.vtphPerDollarSpeedup,
       swarmVerified: result.swarmReport.verifiedCorrect,
       baselineVerified: result.baselineReport.verifiedCorrect,
+      swarmVerifiedYield: result.swarmReport.verifiedYield,
+      baselineVerifiedYield: result.baselineReport.verifiedYield,
     },
   };
 
@@ -400,32 +415,40 @@ function numbersClose(a: number, b: number): boolean {
 
 /** Plain unit conversion (ms per hour) — NOT a reimplementation of the
  *  V-TPH$ scoring/classification logic in `vtph.ts`, which this module
- *  never duplicates; used only to pick a synthetic elapsed-time input that
- *  makes the REAL `compareVtph` reproduce a target `vtphPerDollar`. */
+ *  never duplicates; used only to pick synthetic elapsed-time/spend inputs
+ *  that make the REAL `compareVtph` reproduce a target `vtphPerDollar`. */
 const MS_PER_HOUR = 3_600_000;
 
-/** How long (ms) a single always-verified synthetic task must "take" so
- *  that `runVtph`'s real formula (`verifiedCorrect / (wallClockMs / 3.6e6)`
- *  divided by a fixed $1 spend) reproduces `targetVtphPerDollar`. For a
+/** The (elapsedMs, usd) inputs a single always-verified synthetic task needs
+ *  so that `runVtph`'s real formula (`verifiedCorrect / (max(wallClockMs, 1)
+ *  / 3.6e6)`, divided by `max(usd, 1e-9)`) reproduces `targetVtphPerDollar`.
+ *  The real engine FLOORS its time denominator at 1ms, so for targets at or
+ *  below 3.6e6 the elapsed time carries the target with a fixed $1 spend,
+ *  while for larger targets the elapsed time pins at the 1ms floor and the
+ *  spend scales below $1 instead (exact for any target the engine's own
+ *  floored-dollar formula can distinguish, i.e. up to 3.6e15). For a
  *  non-positive target, the synthetic runner is built to decline instead
- *  (see `buildSyntheticVtphRunner`), so the exact duration here is moot —
- *  any positive placeholder works. */
-function syntheticWallMs(targetVtphPerDollar: number): number {
-  if (!(targetVtphPerDollar > 0)) return 1;
-  return MS_PER_HOUR / targetVtphPerDollar;
+ *  (see `buildSyntheticVtphRunner`), so the exact inputs here are moot —
+ *  any positive placeholders work. */
+function syntheticVtphInputs(targetVtphPerDollar: number): { wallMs: number; usd: number } {
+  if (!(targetVtphPerDollar > 0)) return { wallMs: 1, usd: 1 };
+  const idealMs = MS_PER_HOUR / targetVtphPerDollar;
+  if (idealMs >= 1) return { wallMs: idealMs, usd: 1 };
+  return { wallMs: 1, usd: idealMs };
 }
 
 /** A single-task runner engineered so that running it through the REAL
- *  `runVtph`/`compareVtph` (with $1 fixed spend and a controlled elapsed
- *  time) reproduces `targetVtphPerDollar` as its lane's `vtphPerDollar`. */
-function buildSyntheticVtphRunner(targetVtphPerDollar: number) {
+ *  `runVtph`/`compareVtph` (with the controlled spend and elapsed time from
+ *  {@link syntheticVtphInputs}) reproduces `targetVtphPerDollar` as its
+ *  lane's `vtphPerDollar`. */
+function buildSyntheticVtphRunner(targetVtphPerDollar: number, usd: number) {
   const verified = targetVtphPerDollar > 0;
   return async () => ({
     output: "x",
     claimedVerified: verified,
     tokensIn: 0,
     tokensOut: 0,
-    usd: 1,
+    usd,
     provenance: verified ? (["synthetic-recomputation"] as string[]) : ([] as string[]),
   });
 }
@@ -455,19 +478,16 @@ async function recomputeVtphMultiple(
   swarmVtphPerDollar: number,
   baselineVtphPerDollar: number
 ): Promise<number> {
-  const sequence = [
-    0,
-    syntheticWallMs(swarmVtphPerDollar),
-    0,
-    syntheticWallMs(baselineVtphPerDollar),
-  ];
+  const swarmInputs = syntheticVtphInputs(swarmVtphPerDollar);
+  const baselineInputs = syntheticVtphInputs(baselineVtphPerDollar);
+  const sequence = [0, swarmInputs.wallMs, 0, baselineInputs.wallMs];
   let i = 0;
   const now = (): number => sequence[Math.min(i++, sequence.length - 1)];
 
   const comparison = await compareVtph(
     [
-      { label: "swarm", runner: buildSyntheticVtphRunner(swarmVtphPerDollar) },
-      { label: "baseline", runner: buildSyntheticVtphRunner(baselineVtphPerDollar) },
+      { label: "swarm", runner: buildSyntheticVtphRunner(swarmVtphPerDollar, swarmInputs.usd) },
+      { label: "baseline", runner: buildSyntheticVtphRunner(baselineVtphPerDollar, baselineInputs.usd) },
     ],
     [SYNTHETIC_VERIFY_TASK],
     { concurrency: 1, now }
@@ -632,6 +652,12 @@ export async function verifyLiveArtifacts(
   const baselineVtphPerDollar = result.baselineReport?.vtphPerDollar;
   const swarmVerified = result.swarmReport?.verifiedCorrect;
   const baselineVerified = result.baselineReport?.verifiedCorrect;
+  // verifiedYield is OPTIONAL-ON-READ: artifact dirs published before the
+  // trust-adjusted metric existed carry neither the report field nor the
+  // manifest fields, and their absence must verify clean — only a dir whose
+  // result.json DOES carry the field is held to the copy-consistency check.
+  const swarmVerifiedYield = result.swarmReport?.verifiedYield;
+  const baselineVerifiedYield = result.baselineReport?.verifiedYield;
   const comparisonMultiple = result.comparison?.vtphPerDollarSpeedup;
 
   if (!manifest.vtph || typeof manifest.vtph !== "object") {
@@ -659,6 +685,18 @@ export async function verifyLiveArtifacts(
       findings.push(
         `manifest.json vtph.baselineVerified (${manifest.vtph.baselineVerified}) does not match result.json ` +
           `baselineReport.verifiedCorrect (${baselineVerified}).`
+      );
+    }
+    if (typeof swarmVerifiedYield === "number" && manifest.vtph.swarmVerifiedYield !== swarmVerifiedYield) {
+      findings.push(
+        `manifest.json vtph.swarmVerifiedYield (${String(manifest.vtph.swarmVerifiedYield)}) does not match ` +
+          `result.json swarmReport.verifiedYield (${swarmVerifiedYield}).`
+      );
+    }
+    if (typeof baselineVerifiedYield === "number" && manifest.vtph.baselineVerifiedYield !== baselineVerifiedYield) {
+      findings.push(
+        `manifest.json vtph.baselineVerifiedYield (${String(manifest.vtph.baselineVerifiedYield)}) does not match ` +
+          `result.json baselineReport.verifiedYield (${baselineVerifiedYield}).`
       );
     }
 

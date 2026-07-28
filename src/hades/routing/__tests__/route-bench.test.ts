@@ -546,22 +546,33 @@ describe("runRouteBench: adversarial robustness", () => {
   });
 
   it("beatsAllBaselines uses strict inequality: an exact tie is NOT a win", async () => {
-    // A constant clock forces every report's wallClockMs to 0, which
-    // forces vtph (and therefore vtphPerDollar) to exactly 0 for every
-    // runner via runVtph's own divide-by-zero guard -- a real,
-    // reproducible tie, not a fabricated one.
+    // A constant clock pins every lane's raw wallClockMs to 0, so runVtph
+    // clamps both time denominators identically to MIN_WALL_CLOCK_MS (1ms).
+    // With the SAME per-task spend and the SAME verified-correct count on
+    // both lanes, the two vtphPerDollar computations are arithmetically
+    // identical (same numerator, same summation order, same floored
+    // denominators) -- a real, reproducible, NONZERO tie, not a fabricated
+    // one.
     const zeroClock = () => 0;
+    const usdPerTask = 0.001;
     const result = await runRouteBench({
-      router: perfectRouter("openai/gpt-best", 0.001),
-      baselines: [{ label: "gpt-baseline", armId: "openai/gpt-baseline", runner: perfectBaseline(0.01) }],
+      router: perfectRouter("openai/gpt-best", usdPerTask),
+      baselines: [
+        { label: "gpt-baseline", armId: "openai/gpt-baseline", runner: perfectBaseline(usdPerTask) },
+      ],
       tasks: FIXTURE_TASKS,
       provenance: "model",
       now: zeroClock,
       concurrency: 1,
     });
 
-    expect(result.routerReport.vtphPerDollar).toBe(0);
-    expect(result.bestBaseline!.vtphPerDollar).toBe(0);
+    // The 1ms floor keeps the 0ms batch from collapsing the score to 0...
+    expect(result.routerReport.vtphPerDollar).toBeGreaterThan(0);
+    // ...and the two lanes tie EXACTLY: same verified count, same spend,
+    // same floored denominator.
+    expect(result.bestBaseline!.vtphPerDollar).toBe(result.routerReport.vtphPerDollar);
+    expect(result.marginVsBestBaseline).toBe(0);
+    // Strict inequality: the exact tie is NOT a win.
     expect(result.beatsAllBaselines).toBe(false);
   });
 

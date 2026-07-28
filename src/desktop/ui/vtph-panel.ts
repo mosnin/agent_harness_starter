@@ -100,8 +100,9 @@ function insufficient(input: VtphInput, reason: VtphReason): VtphComputed {
  *     second; `runVtph` samples the clock exactly once before and once after the
  *     batch, so its `wallClockMs` is exactly `elapsedMs`.
  *
- * Given those three, `runVtph` computes `vtph = verifiedCorrect / (wallClockMs /
- * 3_600_000)` and `vtphPerDollar = vtph / max(totalUsd, 1e-9)` — precisely the
+ * Given those three, `runVtph` computes `vtph = verifiedCorrect /
+ * (max(wallClockMs, 1) / 3_600_000)` (the harness floors its time denominator
+ * at 1ms) and `vtphPerDollar = vtph / max(totalUsd, 1e-9)` — precisely the
  * North Star, straight from the harness.
  */
 async function deriveReport(

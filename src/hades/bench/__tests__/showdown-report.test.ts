@@ -53,6 +53,7 @@ function emptyReport(label: string): VtphReport {
     totalUsd: 0,
     vtph: 0,
     vtphPerDollar: 0,
+    verifiedYield: 0,
     provenanceCompleteRate: 0,
   };
 }
@@ -147,6 +148,43 @@ describe("mode labeling", () => {
     const text = renderShowdownText(result);
     const figureLines = text.filter((l) => /:\s+\S/.test(l) && !l.startsWith("SHOWDOWN") && !l.startsWith("seed"));
     expect(figureLines.some((l) => l.includes("(modeled)"))).toBe(true);
+    // The trust-adjusted verified-yield line is present and carries the label.
+    expect(text.some((l) => l.includes("verified-yield") && l.includes("(modeled)"))).toBe(true);
+  });
+
+  it("renders verifiedYield in both renderers — negative values included, labeled (modeled)", async () => {
+    const audit = buildChain([
+      { taskId: "t0", lane: "swarm", verdict: "verified", elapsedMs: 5, usd: 0.01, mode: "modeled" },
+      { taskId: "t0", lane: "baseline", verdict: "verified", elapsedMs: 5, usd: 0.01, mode: "modeled" },
+    ]);
+    const swarmReport: VtphReport = {
+      ...emptyReport("swarm"),
+      tasks: 1,
+      verifiedCorrect: 1,
+      vtph: 12,
+      totalUsd: 0.01,
+      vtphPerDollar: 1200,
+      verifiedYield: 100, // (1 - 0) / 0.01
+    };
+    const baselineReport: VtphReport = {
+      ...emptyReport("baseline"),
+      tasks: 1,
+      silentWrong: 1,
+      vtph: 0,
+      totalUsd: 0.01,
+      vtphPerDollar: 0,
+      verifiedYield: -1000, // (0 - 10) / 0.01 — a lie drags the lane negative
+    };
+    const result = makeResult({ mode: "modeled", audit, swarmReport, baselineReport, taskCount: 1 });
+
+    const md = renderShowdownMarkdown(result);
+    expect(md).toContain("Yield$");
+    expect(md).toContain("100.00 (modeled)");
+    expect(md).toContain("-1000.00 (modeled)");
+
+    const text = renderShowdownText(result).join("\n");
+    expect(text).toContain("verified-yield ($): 100.00 (modeled)");
+    expect(text).toContain("verified-yield ($): -1000.00 (modeled)");
   });
 
   it("never adds a (modeled) suffix on a real run", () => {

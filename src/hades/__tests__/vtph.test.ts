@@ -74,7 +74,7 @@ describe("runVtph classification", () => {
 });
 
 describe("runVtph arithmetic", () => {
-  it("computes vtph and vtphPerDollar on known time/tokens/usd", async () => {
+  it("computes vtph, vtphPerDollar, and verifiedYield on known time/tokens/usd", async () => {
     // 3 verifiedCorrect tasks, batch takes exactly half an hour, $2 total.
     const tasks = [task("a"), task("b"), task("c")];
     const runner: AgentRunner = async (t) =>
@@ -96,7 +96,119 @@ describe("runVtph arithmetic", () => {
     expect(r.totalUsd).toBeCloseTo(2, 9);
     // vtphPerDollar = 6 / 2 = 3
     expect(r.vtphPerDollar).toBeCloseTo(3, 9);
+    // verifiedYield = (3 - 10*0) / $2 = 1.5 — wall-clock plays no part.
+    expect(r.verifiedYield).toBeCloseTo(1.5, 9);
     expect(r.provenanceCompleteRate).toBe(1);
+  });
+});
+
+describe("wall-clock floor (degenerate sub-millisecond measurements)", () => {
+  const tasks = [task("a"), task("b")];
+  const honest: AgentRunner = async (t) =>
+    result({ output: `ok:${t.id}`, claimedVerified: true, provenance: ["p"], usd: 0.5 });
+
+  it("a 0ms batch does NOT collapse vtph to 0 — the denominator floors at 1ms", async () => {
+    const r = await runVtph(honest, tasks, { now: clock([5, 5]) });
+    expect(r.wallClockMs).toBe(0); // the raw measurement is reported honestly
+    // vtph = 2 / (max(0,1)ms in hours) = 2 * 3_600_000
+    expect(r.vtph).toBeCloseTo(2 * MS_PER_HOUR, 6);
+    expect(r.vtphPerDollar).toBeCloseTo((2 * MS_PER_HOUR) / 1, 6); // $1 total
+    expect(r.vtph).toBeGreaterThan(0);
+    expect(Number.isFinite(r.vtphPerDollar)).toBe(true);
+  });
+
+  it("clamps every sub-1ms elapsed to exactly the 1ms floor (0, 0.25ms, 1ms all agree)", async () => {
+    const r0 = await runVtph(honest, tasks, { now: clock([0, 0]) });
+    const rQuarter = await runVtph(honest, tasks, { now: clock([0, 0.25]) });
+    const r1 = await runVtph(honest, tasks, { now: clock([0, 1]) });
+    expect(r0.vtph).toBeCloseTo(r1.vtph, 9);
+    expect(rQuarter.vtph).toBeCloseTo(r1.vtph, 9);
+    // A backwards clock (end < start) floors too, instead of going negative.
+    const rSkew = await runVtph(honest, tasks, { now: clock([10, 4]) });
+    expect(rSkew.vtph).toBeCloseTo(r1.vtph, 9);
+  });
+
+  it("two lanes with IDENTICAL verified counts and spend can no longer read 0.00 vs millions off a 0ms-vs-1ms rounding artifact", async () => {
+    // Same runner, same tasks, same spend — only the measured wall-clock
+    // differs (0ms vs 1ms, i.e. pure clock-resolution noise). Before the
+    // floor, the 0ms lane scored vtph 0 while the 1ms lane scored millions.
+    const zeroMs = await runVtph(honest, tasks, { now: clock([0, 0]) });
+    const oneMs = await runVtph(honest, tasks, { now: clock([0, 1]) });
+    expect(zeroMs.verifiedCorrect).toBe(oneMs.verifiedCorrect);
+    expect(zeroMs.totalUsd).toBeCloseTo(oneMs.totalUsd, 12);
+    expect(zeroMs.vtph).toBeCloseTo(oneMs.vtph, 9);
+    expect(zeroMs.vtphPerDollar).toBeCloseTo(oneMs.vtphPerDollar, 9);
+  });
+
+  it("above the floor, elapsed time still matters (2ms is half the vtph of 1ms)", async () => {
+    const oneMs = await runVtph(honest, tasks, { now: clock([0, 1]) });
+    const twoMs = await runVtph(honest, tasks, { now: clock([0, 2]) });
+    expect(twoMs.vtph).toBeCloseTo(oneMs.vtph / 2, 6);
+  });
+});
+
+describe("verifiedYield — the trust-adjusted headline", () => {
+  const tasks = [task("a"), task("b"), task("c"), task("d")];
+
+  it("goes NEGATIVE when silentWrong > 0: each lie is a 10x penalty on the numerator", async () => {
+    // 2 verifiedCorrect + 2 silentWrong at $0.25/task = $1 total.
+    const runner: AgentRunner = async (t) =>
+      result({
+        output: t.id === "a" || t.id === "b" ? `ok:${t.id}` : "WRONG",
+        claimedVerified: true,
+        provenance: ["p"],
+        usd: 0.25,
+      });
+    const r = await runVtph(runner, tasks, { now: clock([0, MS_PER_HOUR]) });
+    expect(r.verifiedCorrect).toBe(2);
+    expect(r.silentWrong).toBe(2);
+    // verifiedYield = (2 - 10*2) / $1 = -18
+    expect(r.verifiedYield).toBeCloseTo(-18, 9);
+    expect(r.verifiedYield).toBeLessThan(0);
+  });
+
+  it("a lane that lies scores STRICTLY worse than one that declines the same tasks", async () => {
+    // Both get the same 2 tasks right; on the other 2, the liar claims a
+    // wrong answer while the decliner honestly declines. Same spend.
+    const liar: AgentRunner = async (t) =>
+      result({
+        output: t.id === "a" || t.id === "b" ? `ok:${t.id}` : "WRONG",
+        claimedVerified: true,
+        provenance: ["p"],
+        usd: 0.25,
+      });
+    const decliner: AgentRunner = async (t) =>
+      result({
+        output: t.id === "a" || t.id === "b" ? `ok:${t.id}` : "WRONG",
+        claimedVerified: t.id === "a" || t.id === "b",
+        provenance: ["p"],
+        usd: 0.25,
+      });
+    const rl = await runVtph(liar, tasks, { now: clock([0, MS_PER_HOUR]) });
+    const rd = await runVtph(decliner, tasks, { now: clock([0, MS_PER_HOUR]) });
+    expect(rl.verifiedCorrect).toBe(rd.verifiedCorrect); // same correct work surfaced
+    expect(rd.verifiedYield).toBeCloseTo(2, 9); // (2 - 0) / $1
+    expect(rl.verifiedYield).toBeCloseTo(-18, 9); // (2 - 20) / $1
+    expect(rl.verifiedYield).toBeLessThan(rd.verifiedYield); // lying is strictly worse
+  });
+
+  it("wall-clock never appears in the verifiedYield denominator (deliberate: trust-per-dollar, not throughput)", async () => {
+    const runner: AgentRunner = async (t) =>
+      result({ output: `ok:${t.id}`, claimedVerified: true, provenance: ["p"], usd: 0.5 });
+    const fast = await runVtph(runner, tasks, { now: clock([0, 1]) });
+    const slow = await runVtph(runner, tasks, { now: clock([0, MS_PER_HOUR]) });
+    expect(fast.vtph).not.toBeCloseTo(slow.vtph, 3); // throughput differs...
+    expect(fast.verifiedYield).toBeCloseTo(slow.verifiedYield, 12); // ...trust-per-dollar does not
+    expect(fast.verifiedYield).toBeCloseTo(4 / 2, 9); // (4 - 0) / $2
+  });
+
+  it("floors the dollar denominator at 1e-9, same as vtphPerDollar", async () => {
+    const freeRunner: AgentRunner = async (t) =>
+      result({ output: `ok:${t.id}`, claimedVerified: true, provenance: ["p"], usd: 0 });
+    const r = await runVtph(freeRunner, tasks, { now: clock([0, MS_PER_HOUR]) });
+    expect(r.totalUsd).toBe(0);
+    expect(r.verifiedYield).toBeCloseTo(4 / 1e-9, 0);
+    expect(Number.isFinite(r.verifiedYield)).toBe(true);
   });
 });
 
@@ -112,6 +224,8 @@ describe("liar runner", () => {
     expect(r.declined).toBe(0);
     expect(r.vtph).toBe(0);
     expect(r.vtphPerDollar).toBe(0);
+    // verifiedYield = (0 - 10*5) / $5 = -10: a liar scores NEGATIVE trust.
+    expect(r.verifiedYield).toBeCloseTo(-10, 9);
   });
 });
 
@@ -220,12 +334,19 @@ describe("compareVtph", () => {
     expect(honestReport.vtphPerDollar).toBeCloseTo(4, 9);
     expect(liarReport.vtphPerDollar).toBe(0);
 
+    // Trust-adjusted: honest (4-0)/$1 = 4; liar (0-40)/$4 = -10.
+    expect(honestReport.verifiedYield).toBeCloseTo(4, 9);
+    expect(liarReport.verifiedYield).toBeCloseTo(-10, 9);
+
     // best/worst with worst=0 is guarded to Infinity (still > 1).
     expect(cmp.vtphPerDollarSpeedup).toBe(Infinity);
 
     expect(cmp.markdownTable).toContain("honest");
     expect(cmp.markdownTable).toContain("liar");
     expect(cmp.markdownTable).toContain("V-TPH$/$");
+    // The trust-adjusted column is rendered, including the negative figure.
+    expect(cmp.markdownTable).toContain("Yield$");
+    expect(cmp.markdownTable).toContain("-10.00");
   });
 
   it("computes a finite speedup between two honest runners of different cost", async () => {

@@ -237,6 +237,56 @@ describe("verifyLiveRunDir — tamper matrix", () => {
     expect(audit.manifest?.version).toBe(LIVE_MANIFEST_VERSION + 1);
   });
 
+  it("accepts a manifest WITH the optional trust-adjusted verified-yield fields (numeric)", async () => {
+    const { dir } = await writeFixtureRunDir({
+      manifestOverrides: {
+        vtph: {
+          swarm: 10,
+          baseline: 5,
+          multiple: 2,
+          swarmVerified: 1,
+          baselineVerified: 1,
+          swarmVerifiedYield: 144.9,
+          baselineVerifiedYield: -3.5, // negative is legitimate (silent-wrong penalty)
+        },
+      },
+    });
+    const audit = await verifyLiveRunDir(dir);
+    expect(audit.ok).toBe(true);
+    expect(checkByName(audit, "manifest-shape").ok).toBe(true);
+  });
+
+  it("still accepts a pre-verifiedYield manifest (fields absent) — absence is never a shape error", async () => {
+    // The default fixture manifest carries no swarmVerifiedYield /
+    // baselineVerifiedYield, exactly like a manifest published before the
+    // trust-adjusted metric existed.
+    const { dir, manifest } = await writeFixtureRunDir();
+    expect((manifest.vtph as Record<string, unknown>).swarmVerifiedYield).toBeUndefined();
+    const audit = await verifyLiveRunDir(dir);
+    expect(audit.ok).toBe(true);
+    expect(checkByName(audit, "manifest-shape").ok).toBe(true);
+  });
+
+  it("rejects a wrong-typed optional vtph.swarmVerifiedYield via manifest-shape", async () => {
+    const { dir } = await writeFixtureRunDir({
+      manifestOverrides: {
+        vtph: {
+          swarm: 10,
+          baseline: 5,
+          multiple: 2,
+          swarmVerified: 1,
+          baselineVerified: 1,
+          swarmVerifiedYield: "not-a-number",
+        },
+      },
+    });
+    const audit = await verifyLiveRunDir(dir);
+    expect(audit.ok).toBe(false);
+    const c = checkByName(audit, "manifest-shape");
+    expect(c.ok).toBe(false);
+    expect(c.detail).toContain("swarmVerifiedYield");
+  });
+
   it("never throws on a manifest truncated mid-JSON, and fails manifest-parses honestly", async () => {
     const { dir, manifest } = await writeFixtureRunDir();
     const full = JSON.stringify(manifest, null, 2);

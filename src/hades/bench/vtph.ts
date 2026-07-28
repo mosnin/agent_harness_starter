@@ -43,6 +43,23 @@
  * efficient. This is the number that decides whether a verification-gated swarm
  * actually beats a single agent per unit of money.
  *
+ * Both denominators are FLOORED so the metric cannot be gamed (or nuked) by a
+ * degenerate measurement: elapsed wall-clock is clamped to at least
+ * {@link MIN_WALL_CLOCK_MS} (1ms) before converting to hours, and spend is
+ * clamped to at least $1e-9. Without the time floor, a batch whose wall-clock
+ * rounds to 0ms would collapse `vtph`/`vtphPerDollar` to 0 while a 1ms batch
+ * prints hundreds of millions — an absurd comparison between two lanes that
+ * may have IDENTICAL verified-correct counts. The floor makes sub-millisecond
+ * runs saturate at a comparable ceiling instead of jumping between 0 and ∞.
+ *
+ * ## The trust-adjusted headline: {@link VtphReport.verifiedYield}
+ *
+ * `verifiedYield = (verifiedCorrect - 10·silentWrong) / max(totalUsd, 1e-9)` —
+ * trust per dollar. Each silent-wrong carries a 10× penalty, so a lane that
+ * lies scores strictly worse than one that declines the same tasks. Wall-clock
+ * deliberately never appears in this denominator: throughput lives in `vtph`;
+ * `verifiedYield` answers "how much *trustworthy* work did each dollar buy".
+ *
  * Everything is deterministic under an injected `now` and a deterministic
  * runner: wall-clock is sampled with `now()` exactly once before and once after
  * the batch, there is no `Math.random`, and each task's `grade` is invoked
@@ -96,19 +113,38 @@ export interface VtphReport {
   declined: number;
   /** claimedVerified===false && grade===true — right but not claimed (a subset of declined). */
   correctButUnclaimed: number;
+  /** Raw measured elapsed ms (NOT floored — the floor applies only to the
+   *  `vtph` denominator, mirroring how `totalUsd` stays raw while the
+   *  `vtphPerDollar` denominator is floored). */
   wallClockMs: number;
   totalTokens: number;
   totalUsd: number;
-  /** verifiedCorrect / (wallClockMs / 3_600_000). */
+  /** verifiedCorrect / (max(wallClockMs, MIN_WALL_CLOCK_MS) / 3_600_000).
+   *  The 1ms floor keeps a batch whose wall-clock rounds to 0ms from
+   *  collapsing to 0 (or dividing by zero) — sub-millisecond runs saturate
+   *  at a sane ceiling instead. */
   vtph: number;
   /** vtph / max(totalUsd, 1e-9) — THE NORTH STAR. */
   vtphPerDollar: number;
+  /** (verifiedCorrect - 10·silentWrong) / max(totalUsd, 1e-9) — the
+   *  TRUST-ADJUSTED headline. Each silent-wrong carries a 10× penalty, so a
+   *  lane that lies scores strictly worse than one that declines (a decline
+   *  merely fails to earn; a lie costs tenfold), and can go NEGATIVE.
+   *  Wall-clock deliberately never appears in this denominator: this is a
+   *  trust-per-dollar metric — throughput lives in `vtph`. */
+  verifiedYield: number;
   /** fraction of claimedVerified results whose provenance is non-empty. */
   provenanceCompleteRate: number;
 }
 
 /** One millisecond-hour: how many ms are in an hour. */
 const MS_PER_HOUR = 3_600_000;
+
+/** Floor for the `vtph` time denominator: elapsed wall-clock is clamped to at
+ *  least this many ms before converting to hours, exactly as `totalUsd` is
+ *  clamped to 1e-9 in the dollar denominators. 1ms is the resolution of a
+ *  `Date.now` clock — anything below it is measurement noise, not speed. */
+export const MIN_WALL_CLOCK_MS = 1;
 
 /**
  * Run every task in `tasks` through `runner` with **bounded concurrency**
@@ -178,9 +214,13 @@ export async function runVtph(
   const end = now();
 
   const wallClockMs = end - start;
-  const hours = wallClockMs / MS_PER_HOUR;
-  const vtph = hours > 0 ? verifiedCorrect / hours : 0;
+  // Floored denominators (see the module header): time clamps to ≥1ms before
+  // the hour conversion, dollars clamp to ≥$1e-9 — so neither a 0ms clock nor
+  // a $0 ledger can zero out (or blow up) the scores.
+  const hours = Math.max(wallClockMs, MIN_WALL_CLOCK_MS) / MS_PER_HOUR;
+  const vtph = verifiedCorrect / hours;
   const vtphPerDollar = vtph / Math.max(totalUsd, 1e-9);
+  const verifiedYield = (verifiedCorrect - 10 * silentWrong) / Math.max(totalUsd, 1e-9);
   const provenanceCompleteRate = claimedWithProvenance / Math.max(1, claimedCount);
 
   return {
@@ -195,6 +235,7 @@ export async function runVtph(
     totalUsd,
     vtph,
     vtphPerDollar,
+    verifiedYield,
     provenanceCompleteRate,
   };
 }
@@ -234,7 +275,7 @@ export interface VtphComparison {
  * Run several runners over the SAME task suite and render a comparison.
  *
  * The markdown table has columns:
- * `label | tasks | verifiedCorrect | silentWrong | vtph | $ | vtphPerDollar`.
+ * `label | tasks | verifiedCorrect | silentWrong | vtph | $ | vtphPerDollar | verifiedYield`.
  * `vtphPerDollarSpeedup` is the best runner's `vtphPerDollar` divided by the
  * worst's — how many times more verified work per dollar the winner delivers.
  * Runners are executed sequentially and each is handed the same injected `now`,
@@ -265,16 +306,18 @@ export async function compareVtph(
   return { reports, markdownTable, vtphPerDollarSpeedup };
 }
 
-/** Render the comparison table. The `$` column is total USD spent. */
+/** Render the comparison table. The `$` column is total USD spent; `Yield$`
+ *  is {@link VtphReport.verifiedYield} (trust-adjusted, may be negative). */
 function renderTable(reports: VtphReport[]): string {
   const header =
-    "| Runner | Tasks | Verified✓ | Silent✗ | V-TPH | $ | **V-TPH$/$** |\n" +
-    "| --- | ---: | ---: | ---: | ---: | ---: | ---: |";
+    "| Runner | Tasks | Verified✓ | Silent✗ | V-TPH | $ | **V-TPH$/$** | Yield$ |\n" +
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |";
   const body = reports
     .map(
       (r) =>
         `| ${r.label} | ${r.tasks} | ${r.verifiedCorrect} | ${r.silentWrong} | ` +
-        `${r.vtph.toFixed(2)} | ${r.totalUsd.toFixed(4)} | ${r.vtphPerDollar.toFixed(2)} |`
+        `${r.vtph.toFixed(2)} | ${r.totalUsd.toFixed(4)} | ${r.vtphPerDollar.toFixed(2)} | ` +
+        `${r.verifiedYield.toFixed(2)} |`
     )
     .join("\n");
   return `${header}\n${body}`;

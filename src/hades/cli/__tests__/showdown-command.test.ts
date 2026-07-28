@@ -79,6 +79,8 @@ describe("runShowdownCommand — run", () => {
     expect(text).toMatch(/SHOWDOWN — mode: MODELED/);
     expect(text).toMatch(/Swarm \(verification-gated\)/);
     expect(text).toMatch(/Baseline \(self-trusting single agent\)/);
+    // The trust-adjusted headline is printed for both lanes, labeled (modeled).
+    expect(text).toMatch(/verified-yield \(\$\): -?[\d.]+ \(modeled\)/);
   }, 30000);
 
   it("rejects an invalid --mode", async () => {

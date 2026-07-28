@@ -84,6 +84,15 @@ function parseInteger(raw: string | undefined, flag: string): { value?: number; 
   return { value: n };
 }
 
+/** Render an optional verified-yield figure. `undefined` (a manifest that
+ *  predates the trust-adjusted metric) renders as an honest "n/a", never a
+ *  fabricated 0; non-finite numbers render verbatim (same policy as the
+ *  V-TPH$ multiple above). */
+function yieldStr(value: number | undefined): string {
+  if (value === undefined) return "n/a";
+  return Number.isFinite(value) ? value.toFixed(2) : String(value);
+}
+
 async function liveSub(rest: string[], deps: ShowdownLiveCommandDeps): Promise<number> {
   const tasksParsed = parsePositiveInt(readFlag(rest, "--tasks"), "--tasks");
   if (tasksParsed.error) {
@@ -136,6 +145,13 @@ async function liveSub(rest: string[], deps: ShowdownLiveCommandDeps): Promise<n
       `V-TPH$ — swarm=${manifest.vtph.swarm.toFixed(2)} baseline=${manifest.vtph.baseline.toFixed(2)} ` +
         `multiple=${multipleStr} (swarmVerified=${manifest.vtph.swarmVerified} ` +
         `baselineVerified=${manifest.vtph.baselineVerified})`
+    );
+    // Trust-adjusted headline (verified-yield/$, silent-wrong penalized 10x).
+    // Live figures are real-mode by construction, so no "(modeled)" label —
+    // and a manifest predating the metric prints an honest n/a, never 0.
+    deps.write(
+      `Verified-yield — swarm=${yieldStr(manifest.vtph.swarmVerifiedYield)} ` +
+        `baseline=${yieldStr(manifest.vtph.baselineVerifiedYield)}`
     );
     deps.write("Artifacts written:");
     for (const f of files) deps.write(`  ${f}`);
