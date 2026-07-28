@@ -147,6 +147,18 @@ export interface UniversalVerifier {
   /** must return true only for subjects this verifier is actually equipped to judge */
   appliesTo(subject: TrustSubject): boolean;
   verify(subject: TrustSubject): UniversalVerdict | Promise<UniversalVerdict>;
+  /**
+   * Optional. Returns a human-readable reason when this verifier CANNOT vote
+   * in the current environment (e.g. it needs a provider key), or `undefined`
+   * when it is fully operational.
+   *
+   * This exists so surfaces can count EFFECTIVE voters rather than registered
+   * ones. A verifier that is registered but inert would otherwise make a
+   * domain look certifiable when it is not — `hades trust doctor` reports the
+   * gap and names what would close it. Reasons must name environment variable
+   * NAMES only, never values.
+   */
+  requiresConfig?(): string | undefined;
 }
 
 /** Many verdicts on one subject, collapsed into one calibrated signal. */

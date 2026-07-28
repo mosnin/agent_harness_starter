@@ -478,8 +478,15 @@ describe("structural certifiability of what this build actually ships", () => {
     // is structurally certifiable. `message` is still the lone-voter case
     // this test was originally written to pin.
     expect(byDomain.get("procedure")!.registered).toBe(2);
+    expect(byDomain.get("procedure")!.effective).toBe(2);
     expect(byDomain.get("procedure")!.canEverCertify).toBe(true);
-    expect(byDomain.get("message")!.registered).toBe(1);
+    // `message` registers the T3-agreement verifier too, but that one is
+    // CONDITIONAL: with no judges configured it declares an unmet
+    // requirement, so only one voter is effective and the domain still
+    // cannot certify. Counting registrations instead of effective voters
+    // here would turn a keyless build into a false PASS.
+    expect(byDomain.get("message")!.registered).toBe(2);
+    expect(byDomain.get("message")!.effective).toBe(1);
     expect(byDomain.get("message")!.canEverCertify).toBe(false);
     expect(byDomain.get("memory")!.canEverCertify).toBe(true);
     // `tool` registers eleven, but each adapter claims only its own tool

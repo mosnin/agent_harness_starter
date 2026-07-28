@@ -61,6 +61,7 @@ import { VerifierRegistry, type TrustDomain, type TrustSubject } from "./registr
 import { actionVerifiers } from "./action-adapters";
 import { emissionVerifiers } from "./emission-adapters";
 import { referenceRecomputeVerifier } from "./reference-verifier";
+import { crossModelAgreementVerifier, type AgreementJudge } from "./agreement-verifier";
 import { UnifiedTrustGate, type UnifiedGateConfig } from "./unified-gate";
 import { TrustBudgetLedger, type TrustBudgetConfig } from "./budget";
 import { scriptedSolvers, type ScriptedSolver } from "./risk-eval";
@@ -302,6 +303,14 @@ export interface TrustStackOptions {
   perDomainCaps?: Record<string, number>;
   /** Skip the budget entirely (the gate then has no `TrustBudgetPort`). */
   noBudget?: boolean;
+  /**
+   * Independent judges for the T3-agreement verifier (`message` domain).
+   * Omitted, that verifier registers but reports an unmet requirement, so
+   * `domainCertifiability` counts it out and the doctor reports `message` as
+   * still uncertifiable — naming the keys that would enable it. Supplying two
+   * or more judges makes the domain genuinely certifiable.
+   */
+  agreementJudges?: readonly AgreementJudge[];
 }
 
 export interface TrustStack {
@@ -358,6 +367,19 @@ export function openTrustStack(opts: TrustStackOptions = {}): TrustStack {
   // request carries no SPEC: reference, so adding it can only ever ADD
   // information to a fused verdict — never dilute one.
   registry.register(referenceRecomputeVerifier("procedure"));
+  // T3-agreement for `message` — the remaining lone-voter domain, and the one
+  // where nothing can be recomputed (there is no ground truth for an outbound
+  // message, only whether it follows from the request). It is CONDITIONAL:
+  // with no judges configured it reports an unmet requirement through
+  // `requiresConfig()`, so `domainCertifiability` counts it out and the doctor
+  // says the domain still cannot certify, naming the keys that would fix it.
+  // `opts.agreementJudges` lets callers (and tests) supply real judges.
+  registry.register(
+    crossModelAgreementVerifier({
+      domain: "message",
+      ...(opts.agreementJudges ? { judges: opts.agreementJudges } : {}),
+    }),
+  );
 
   const key = resolveTrustSigningKey({ root: root ?? undefined, env });
   const issuer = new CertificateAuthority(key.privateKeyHex);
@@ -647,17 +669,36 @@ export interface TrustDomainStatus {
 export interface DomainCertifiability {
   domain: TrustDomain;
   registered: number;
-  /** False when fewer than two verifiers exist — `admit()` can never accept. */
+  /**
+   * Verifiers that can actually vote in THIS environment — `registered`
+   * minus any whose `requiresConfig()` reports an unmet requirement. This is
+   * the number that decides `canEverCertify`, because a registered-but-inert
+   * verifier cannot co-vote on anything.
+   */
+  effective: number;
+  /** False when fewer than two EFFECTIVE verifiers exist — `admit()` can never accept. */
   canEverCertify: boolean;
   detail: string;
 }
 
 export function domainCertifiability(stack: TrustStack): DomainCertifiability[] {
   return TRUST_DOMAINS.map((domain) => {
-    const registered = stack.registry.list(domain).length;
-    const canEverCertify = registered >= 2;
+    const verifiers = stack.registry.list(domain);
+    const registered = verifiers.length;
+    // Count only verifiers that are operational right now. A verifier that
+    // needs a provider key is registered but silent without one; counting it
+    // would make this domain look certifiable when nothing can be certified.
+    const unmet = verifiers
+      .map((v) => ({ id: v.id, reason: v.requiresConfig?.() }))
+      .filter((x): x is { id: string; reason: string } => typeof x.reason === "string");
+    const effective = registered - unmet.length;
+    const canEverCertify = effective >= 2;
     let detail: string;
-    if (!canEverCertify) {
+    if (!canEverCertify && unmet.length > 0) {
+      detail =
+        `${registered} registered but only ${effective} can vote here — ` +
+        unmet.map((u) => `${u.id}: ${u.reason}`).join("; ");
+    } else if (!canEverCertify) {
       detail =
         `only ${registered} verifier(s) registered — every single-subject admit() is ` +
         `"degraded-evidence" (a lone voter can never certify), so this domain cannot accept at all`;
@@ -666,9 +707,9 @@ export function domainCertifiability(stack: TrustStack): DomainCertifiability[] 
         `${registered} registered, but each tool adapter claims only its own tool name — a subject ` +
         "reaches two contributing voters only when it also carries evidence.ledgerJSON";
     } else {
-      detail = `${registered} verifiers can co-vote on one subject`;
+      detail = `${effective} verifiers can co-vote on one subject`;
     }
-    return { domain, registered, canEverCertify, detail };
+    return { domain, registered, effective, canEverCertify, detail };
   });
 }
 

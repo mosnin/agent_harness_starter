@@ -555,7 +555,11 @@ describe("hades trust doctor", () => {
     // `message` is the remaining lone-voter domain and must still be failed
     // loudly rather than reported healthy.
     expect(byName.get('domain "message" can certify')!.ok).toBe(false);
-    expect(byName.get('domain "message" can certify')!.detail).toContain("lone voter can never certify");
+    // `message` registers a second verifier (T3-agreement) but it is
+    // conditional on provider keys, so the detail must report the EFFECTIVE
+    // count and name what would enable it — never imply two working voters.
+    expect(byName.get('domain "message" can certify')!.detail).toContain("only 1 can vote here");
+    expect(byName.get('domain "message" can certify')!.detail).toContain("ANTHROPIC_API_KEY");
     expect(byName.get('domain "memory" can certify')!.ok).toBe(true);
     // `procedure` gained the T1-reference recompute verifier, so it now has
     // two co-voters and is structurally certifiable — the doctor must report
