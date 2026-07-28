@@ -1,5 +1,71 @@
 # Changelog
 
+## Product-hardening pass (audit remediation)
+
+An end-to-end product audit ran the shipped binary rather than the source and
+found a set of defects a green unit-test suite could not see. This pass fixes
+them and adds the CI that would have caught them.
+
+### The verification gate now gates
+- **First verifiers above the T4 floor.** Every one of the 15 shipped verifiers
+  sat at `T4-consistency`, which can only judge an answer's SHAPE — so on a live
+  run the swarm lane certified four confidently-formatted WRONG answers,
+  scoring the same silent-wrong count as the self-trusting baseline it exists
+  to beat. Added `T1-reference` (recompute the answer from the reference
+  embedded in the request; a mismatch is a hard fail) and a conditional
+  `T3-agreement` (independent cross-model judges; a split blocks, and a judge
+  that errors or stays silent is dropped rather than counted as a yes).
+- Measured on the same live run that produced the failure:
+  `silent-wrong 4 → 0`, `declined 0 → 4`. Control, same harness with a model
+  that actually solves the tasks: `verified 4/4` — a gate, not a wall.
+- **Effective-voter accounting.** A verifier that cannot vote here (no provider
+  key) now declares an unmet requirement, and `hades trust doctor` counts
+  effective voters rather than registrations — so adding a conditional verifier
+  can never turn a keyless build into a false PASS. `procedure` is genuinely
+  certifiable now; `message` still fails, naming the variable that would fix it.
+
+### The agent is reachable
+- **`hades chat` is real.** It was a one-line stub pointing at "the Hades REPL
+  API", so the agent could not be talked to at all. It now drives the existing
+  REPL with a real brain: interactive, piped stdin, and a scriptable
+  `--once "…"`. Keyed → real inference; keyless → a self-announcing `[mock]`
+  echo. It shares one guarded memory store with `hades memory`.
+- **The swarm CLI can reach a model.** `hermes-swarm run` never constructed an
+  LLM executor. Added `--model/--provider/--base-url/--offline` (plus
+  `SWARM_MODEL`/`SWARM_PROVIDER`) over a pure decision table: `--offline` always
+  wins, a configured provider with a missing key is a hard error naming the
+  exact variable, and keys are read only from the environment — never flags.
+
+### Honest numbers
+- **V-TPH$ zero-hours artifact.** A lane whose wall-clock rounded to 0 ms
+  collapsed to `0.00`, making an identical-verified-count comparison look
+  absurdly one-sided. The time denominator is now floored at 1 ms.
+- **Verified Yield** — `(verified − 10 × silent-wrong) / $` — added alongside
+  V-TPH$, so lying scores strictly worse than declining and wall-clock never
+  enters a trust metric's denominator.
+- **`Infinity` ratios no longer break published artifacts.** When the
+  comparison lane scores zero the ratio is undefined; it was `Infinity`, which
+  `JSON.stringify` writes as `null`, so every freshly published run failed its
+  own `live-verify`. It is now explicitly `number | null` end to end, and an
+  unmeasurable comparison is treated as NO-GO rather than a pass.
+
+### Ship blockers
+- The CJS bundle crashed on `hades gov airgap` (`import.meta.url` is empty in
+  CJS) while the tsx path was fine — fixed with a dual-format-safe guard.
+- `npm run build:lib` had been failing for 250+ commits (unlisted
+  `playwright-core`/`chromium-bidi` externals) because CI never ran it.
+- `hermes-swarm run --help` executed a swarm goal literally named "help".
+- `ANTHROPIC_BASE_URL` is now honored wherever `OPENAI_BASE_URL` was.
+
+### CI that runs the shipped binary
+- `scripts/stub-llm.mjs` (a loopback OpenAI-compatible endpoint with `solve`
+  and `wrong` modes) and `scripts/smoke-bundle.sh` exercise the real
+  `dist-hades/hades.js`: the library build, the bundle-only crash paths, the
+  doctor's non-zero exit, chat in both modes, the gate declining wrong answers
+  AND accepting right ones, and `live-verify` catching a one-byte tamper.
+- New `bundle-smoke` and `cargo test` CI jobs. No API key, no external network.
+
+
 ## Hermes-Swarm runtime (`src/swarm-runtime/`)
 
 A lightweight, Hermes-inspired swarm harness added on top of the agent library: a

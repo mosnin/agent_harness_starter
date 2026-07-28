@@ -338,8 +338,13 @@ describe("compareVtph", () => {
     expect(honestReport.verifiedYield).toBeCloseTo(4, 9);
     expect(liarReport.verifiedYield).toBeCloseTo(-10, 9);
 
-    // best/worst with worst=0 is guarded to Infinity (still > 1).
-    expect(cmp.vtphPerDollarSpeedup).toBe(Infinity);
+    // best/worst with worst=0 is an UNDEFINED ratio, reported as null rather
+    // than Infinity: these comparisons get persisted into published run
+    // artifacts, and JSON.stringify turns Infinity into null — so a manifest
+    // written with Infinity could never be re-verified against a fresh
+    // recomputation. null round-trips, and "a lane verified nothing" is the
+    // more honest reading than "infinitely better".
+    expect(cmp.vtphPerDollarSpeedup).toBeNull();
 
     expect(cmp.markdownTable).toContain("honest");
     expect(cmp.markdownTable).toContain("liar");

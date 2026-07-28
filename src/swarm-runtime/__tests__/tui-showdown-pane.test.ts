@@ -8,6 +8,18 @@ import {
   type ShowdownPaneResult,
 } from "../tui/showdown-pane";
 
+/**
+ * `ShowdownPaneResult.multiple` is `number | null` — null means the best/worst
+ * V-TPH$ ratio is undefined because a lane verified nothing. These fixtures
+ * deliberately carry a real ratio, so this narrows with an assertion rather
+ * than a cast: if a fixture ever loses its multiple, the test says so instead
+ * of throwing on `.toFixed`.
+ */
+function definedMultiple(result: { multiple: number | null }): number {
+  expect(result.multiple).not.toBeNull();
+  return result.multiple as number;
+}
+
 const allLinesExactly = (s: string, width: number) =>
   s.split("\n").every((l) => [...l].length === width);
 const maxLineLen = (s: string) => Math.max(...s.split("\n").map((l) => [...l].length));
@@ -262,7 +274,7 @@ describe("renderShowdownPane — done (mode honesty)", () => {
     const figures = [
       modeledResult.swarmVtph.toFixed(2),
       modeledResult.baselineVtph.toFixed(2),
-      `${modeledResult.multiple.toFixed(2)}x`,
+      `${definedMultiple(modeledResult).toFixed(2)}x`,
       String(modeledResult.swarmVerified),
       String(modeledResult.baselineVerified),
       String(modeledResult.swarmSilentWrong),
@@ -274,7 +286,7 @@ describe("renderShowdownPane — done (mode honesty)", () => {
     }
     // No numeric figure escapes without the suffix: every occurrence of the
     // multiple's raw number is inside a "(modeled)"-suffixed token.
-    const bareMultiple = new RegExp(`${modeledResult.multiple.toFixed(2)}x(?! \\(modeled\\))`);
+    const bareMultiple = new RegExp(`${definedMultiple(modeledResult).toFixed(2)}x(?! \\(modeled\\))`);
     expect(out).not.toMatch(bareMultiple);
   });
 
@@ -283,7 +295,7 @@ describe("renderShowdownPane — done (mode honesty)", () => {
     expect(out).not.toContain("(modeled)");
     expect(out).toContain(realResult.swarmVtph.toFixed(2));
     expect(out).toContain(realResult.baselineVtph.toFixed(2));
-    expect(out).toContain(`${realResult.multiple.toFixed(2)}x`);
+    expect(out).toContain(`${definedMultiple(realResult).toFixed(2)}x`);
     expect(out).toContain(String(realResult.swarmVerified));
     expect(out).toContain(String(realResult.baselineSilentWrong));
   });

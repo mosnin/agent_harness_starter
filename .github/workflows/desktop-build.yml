@@ -8,11 +8,10 @@
 # docs/DESKTOP_APP.md), which is exactly why it lives in its own workflow here
 # and is gated to explicit triggers rather than every push.
 #
-# NOTE: `--features gui` assumes the `gui` Cargo feature on `src-tauri`
-# (real `tauri` dependency + window/webview bootstrap). That feature is being
-# added to src-tauri/Cargo.toml in parallel; until it lands, the final
-# `cargo tauri build` step will fail with an unknown-feature error — the
-# bundle halves (Node sidecar + webview) above still succeed.
+# NOTE: `--features gui` maps to the `gui` Cargo feature on `src-tauri`
+# (real `tauri` dependency + window/webview bootstrap), which IS present in
+# src-tauri/Cargo.toml. The default feature set stays empty, so the plain
+# `cargo test` run by the main CI workflow remains std-only and offline.
 name: Desktop Build
 
 # Gated so it never runs on ordinary pushes/PRs: only a manual dispatch or a
