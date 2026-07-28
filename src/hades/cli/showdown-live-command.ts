@@ -133,9 +133,11 @@ async function liveSub(rest: string[], deps: ShowdownLiveCommandDeps): Promise<n
       }
     );
 
-    const multipleStr = Number.isFinite(manifest.vtph.multiple)
-      ? `${manifest.vtph.multiple.toFixed(2)}x`
-      : String(manifest.vtph.multiple);
+    // null = the comparison lane verified nothing, so the ratio is undefined.
+    const multipleStr =
+      manifest.vtph.multiple !== null && Number.isFinite(manifest.vtph.multiple)
+        ? `${manifest.vtph.multiple.toFixed(2)}x`
+        : "n/a (a lane verified nothing)";
 
     deps.write(
       `Live showdown complete — mode=real provider=${manifest.provider} model=${manifest.model} ` +

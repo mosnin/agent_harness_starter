@@ -438,7 +438,16 @@ interface DetectedProvider {
 
 function detectProviderEnv(env: Record<string, string | undefined>): DetectedProvider | null {
   if (env.ANTHROPIC_API_KEY) {
-    return { name: "anthropic", apiKey: env.ANTHROPIC_API_KEY, baseUrl: "https://api.anthropic.com", model: "claude-sonnet-5" };
+    // ANTHROPIC_BASE_URL is honored for the same reason OPENAI_BASE_URL is
+    // below: a live run must be pointable at a proxy, a gateway, or a local
+    // OpenAI-compatible server. Hardcoding one path and overriding the other
+    // made the two providers gratuitously unequal.
+    return {
+      name: "anthropic",
+      apiKey: env.ANTHROPIC_API_KEY,
+      baseUrl: env.ANTHROPIC_BASE_URL ?? "https://api.anthropic.com",
+      model: "claude-sonnet-5",
+    };
   }
   if (env.OPENAI_API_KEY) {
     return {

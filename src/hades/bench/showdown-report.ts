@@ -92,7 +92,9 @@ export function renderShowdownText(r: ShowdownResult): string[] {
   lines.push("");
   lines.push(
     `V-TPH$ spread (best/worst): ${
-      Number.isFinite(r.comparison.vtphPerDollarSpeedup) ? num(r.mode, r.comparison.vtphPerDollarSpeedup) + "x" : fig(r.mode, "n/a")
+      r.comparison.vtphPerDollarSpeedup !== null && Number.isFinite(r.comparison.vtphPerDollarSpeedup)
+        ? num(r.mode, r.comparison.vtphPerDollarSpeedup) + "x"
+        : fig(r.mode, "n/a")
     }`
   );
   lines.push(
@@ -156,7 +158,9 @@ export function renderShowdownMarkdown(r: ShowdownResult): string {
   lines.push("");
   lines.push(
     `**V-TPH$ spread (best/worst): ${
-      Number.isFinite(r.comparison.vtphPerDollarSpeedup) ? num(r.mode, r.comparison.vtphPerDollarSpeedup) + "x" : fig(r.mode, "n/a")
+      r.comparison.vtphPerDollarSpeedup !== null && Number.isFinite(r.comparison.vtphPerDollarSpeedup)
+        ? num(r.mode, r.comparison.vtphPerDollarSpeedup) + "x"
+        : fig(r.mode, "n/a")
     }**`
   );
   lines.push("");

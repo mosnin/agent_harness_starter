@@ -267,8 +267,19 @@ async function runWithConcurrency<T>(
 export interface VtphComparison {
   reports: VtphReport[];
   markdownTable: string;
-  /** best vtphPerDollar / worst vtphPerDollar (guarded against divide-by-zero). */
-  vtphPerDollarSpeedup: number;
+  /**
+   * best vtphPerDollar / worst vtphPerDollar, or `null` when the ratio is
+   * undefined because the worst lane scored zero verified work per dollar.
+   *
+   * `null` rather than `Infinity` is load-bearing, not cosmetic: these
+   * comparisons are persisted into published run artifacts, and `Infinity`
+   * is not representable in JSON — `JSON.stringify` turns it into `null`, so
+   * a manifest written with `Infinity` could never be re-verified against a
+   * fresh recomputation. Modelling "undefined ratio" explicitly makes the
+   * value round-trip, and is also the more honest reading: a lane that
+   * verified nothing is not infinitely worse, it is simply not comparable.
+   */
+  vtphPerDollarSpeedup: number | null;
 }
 
 /**
@@ -295,12 +306,15 @@ export async function compareVtph(
 
   const markdownTable = renderTable(reports);
 
-  let vtphPerDollarSpeedup = 1;
+  let vtphPerDollarSpeedup: number | null = 1;
   if (reports.length > 0) {
     const values = reports.map((r) => r.vtphPerDollar);
     const best = Math.max(...values);
     const worst = Math.min(...values);
-    vtphPerDollarSpeedup = worst > 0 ? best / worst : best > 0 ? Infinity : 1;
+    // worst > 0            → a real ratio.
+    // worst === 0, best > 0→ undefined (see the field docs: null, not Infinity).
+    // both zero            → nothing to compare; the lanes are equivalent.
+    vtphPerDollarSpeedup = worst > 0 ? best / worst : best > 0 ? null : 1;
   }
 
   return { reports, markdownTable, vtphPerDollarSpeedup };

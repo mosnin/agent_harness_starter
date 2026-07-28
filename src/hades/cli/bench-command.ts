@@ -43,7 +43,9 @@ export function buildClientFromEnv(env: Record<string, string | undefined> = pro
     const cfg: ProviderConfig = {
       name: "anthropic",
       kind: "anthropic",
-      baseUrl: "https://api.anthropic.com",
+      // Overridable for the same reason OPENAI_BASE_URL is below — proxies,
+      // gateways and local OpenAI-compatible servers.
+      baseUrl: env.ANTHROPIC_BASE_URL ?? "https://api.anthropic.com",
       apiKey: env.ANTHROPIC_API_KEY,
       models: ["claude-haiku-4-5-20251001", "claude-sonnet-5", "claude-opus-4-1"],
     };
@@ -281,9 +283,15 @@ export async function runBenchCommand(
     );
     const swarmReport = reports.find((r) => r.label === "verified-swarm");
     const singleReport = reports.find((r) => r.label === "single-agent (self-trust)");
-    const gate = vtphPerDollarSpeedup >= 3
-      ? `GO — verified swarm is ${vtphPerDollarSpeedup.toFixed(2)}x the single agent on V-TPH$ (≥3x gate cleared).`
-      : `NO-GO (yet) — ${vtphPerDollarSpeedup.toFixed(2)}x, below the 3x go/no-go gate. Re-plan or tune (cheaper workers / stronger gate).`;
+    // A null spread means the comparison lane scored ZERO verified work per
+    // dollar, so the ratio is undefined (see VtphComparison). That is not a
+    // pass: an unmeasurable comparison must never clear a go/no-go gate.
+    const gate =
+      vtphPerDollarSpeedup === null
+        ? "NO-GO (unmeasurable) — the comparison lane verified nothing, so the V-TPH$ ratio is undefined. Fix the baseline before reading a multiple."
+        : vtphPerDollarSpeedup >= 3
+          ? `GO — verified swarm is ${vtphPerDollarSpeedup.toFixed(2)}x the single agent on V-TPH$ (≥3x gate cleared).`
+          : `NO-GO (yet) — ${vtphPerDollarSpeedup.toFixed(2)}x, below the 3x go/no-go gate. Re-plan or tune (cheaper workers / stronger gate).`;
     return {
       code: 0,
       lines: [
@@ -337,7 +345,7 @@ export async function runBenchCommand(
         ...markdownTable.split("\n"),
         "",
         `STYX silent-wrong: ${styxReport?.silentWrong ?? "?"} (the bound the conformal gate enforces).`,
-        `Best-vs-worst V-TPH$ spread: ${vtphPerDollarSpeedup.toFixed(2)}x.`,
+        `Best-vs-worst V-TPH$ spread: ${vtphPerDollarSpeedup === null ? "n/a (a lane verified nothing)" : `${vtphPerDollarSpeedup.toFixed(2)}x`}.`,
       ],
     };
   }

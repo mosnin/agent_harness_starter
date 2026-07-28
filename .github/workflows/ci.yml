@@ -77,3 +77,47 @@ jobs:
         run: npm test --if-present
         env:
           OPENAI_API_KEY: sk-dummy
+
+  # ---------------------------------------------------------------------------
+  # Bundle smoke — run the SHIPPED BINARY, not the source.
+  #
+  # Every defect the product audit found survived a green unit-test suite,
+  # because nothing in CI ever executed dist-hades/hades.js or `npm run
+  # build:lib`. The CJS bundle crashed on `gov airgap` while the tsx path was
+  # fine; build:lib had been broken for 250+ commits; `hades chat` was a stub;
+  # and the verification gate certified four wrong answers on the first live
+  # run. This job exercises exactly those paths, with no API key and no
+  # external network (the live lanes talk to scripts/stub-llm.mjs on
+  # loopback).
+  # ---------------------------------------------------------------------------
+  bundle-smoke:
+    name: Bundle Smoke (shipped binary)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --prefer-offline --no-audit --no-fund
+
+      - name: Smoke the shipped CLI, the library build, and the trust gate
+        run: bash scripts/smoke-bundle.sh
+
+  # The Rust half of the desktop shell. `cargo test` with no --features pulls
+  # no external crates (see src-tauri/Cargo.toml), so the supervisor logic is
+  # verifiable in headless CI even though the real installer build is not.
+  rust:
+    name: Desktop supervisor (cargo test)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run cargo test
+        working-directory: src-tauri
+        run: cargo test

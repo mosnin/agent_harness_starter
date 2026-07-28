@@ -147,7 +147,11 @@ export interface LiveRunManifest {
   vtph: {
     swarm: number;
     baseline: number;
-    multiple: number;
+    /** best/worst V-TPH$ ratio, or `null` when the comparison lane scored
+     *  zero and the ratio is undefined. Never `Infinity`: that is not
+     *  representable in JSON, so a manifest carrying it could never be
+     *  re-verified against a fresh recomputation. */
+    multiple: number | null;
     swarmVerified: number;
     baselineVerified: number;
     swarmVerifiedYield?: number;
@@ -477,7 +481,7 @@ const SYNTHETIC_VERIFY_TASK = {
 async function recomputeVtphMultiple(
   swarmVtphPerDollar: number,
   baselineVtphPerDollar: number
-): Promise<number> {
+): Promise<number | null> {
   const swarmInputs = syntheticVtphInputs(swarmVtphPerDollar);
   const baselineInputs = syntheticVtphInputs(baselineVtphPerDollar);
   const sequence = [0, swarmInputs.wallMs, 0, baselineInputs.wallMs];
@@ -708,16 +712,30 @@ export async function verifyLiveArtifacts(
         );
       } else {
         const freshMultiple = await recomputeVtphMultiple(swarmVtphPerDollar, baselineVtphPerDollar);
-        if (typeof manifest.vtph.multiple !== "number" || !numbersClose(freshMultiple, manifest.vtph.multiple)) {
+        // An undefined ratio (null) is a legitimate outcome — it means the
+        // comparison lane verified nothing. It must match null-to-null; only
+        // a defined ratio is compared numerically.
+        const multipleMatches =
+          freshMultiple === null
+            ? manifest.vtph.multiple === null
+            : typeof manifest.vtph.multiple === "number" && numbersClose(freshMultiple, manifest.vtph.multiple);
+        if (!multipleMatches) {
           findings.push(
             `manifest.json vtph.multiple (${String(manifest.vtph.multiple)}) does not match a fresh compareVtph ` +
               `recomputation from the persisted per-lane V-TPH$ figures (${freshMultiple}).`
           );
         }
-        if (typeof comparisonMultiple === "number" && !numbersClose(freshMultiple, comparisonMultiple)) {
+        // Same null-aware rule as the manifest check above: an undefined
+        // ratio must agree as null-to-null, and only a defined ratio is
+        // compared numerically.
+        const resultMultipleMismatch =
+          freshMultiple === null
+            ? comparisonMultiple !== null && comparisonMultiple !== undefined
+            : typeof comparisonMultiple === "number" && !numbersClose(freshMultiple, comparisonMultiple);
+        if (resultMultipleMismatch) {
           findings.push(
-            `result.json comparison.vtphPerDollarSpeedup (${comparisonMultiple}) does not match a fresh ` +
-              `compareVtph recomputation from the persisted per-lane V-TPH$ figures (${freshMultiple}).`
+            `result.json comparison.vtphPerDollarSpeedup (${String(comparisonMultiple)}) does not match a fresh ` +
+              `compareVtph recomputation from the persisted per-lane V-TPH$ figures (${String(freshMultiple)}).`
           );
         }
       }

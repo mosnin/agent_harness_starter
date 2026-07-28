@@ -33,8 +33,9 @@ export interface ShowdownPaneResult {
   swarmVtph: number;
   /** Baseline (self-trusting single agent) lane's V-TPH$. */
   baselineVtph: number;
-  /** swarmVtph / baselineVtph (or whatever multiple the harness reports). */
-  multiple: number;
+  /** swarmVtph / baselineVtph (or whatever multiple the harness reports), or
+   *  `null` when the ratio is undefined because a lane verified nothing. */
+  multiple: number | null;
   /** Swarm lane's verified-correct task count. */
   swarmVerified: number;
   /** Baseline lane's verified-correct task count. */
@@ -275,7 +276,7 @@ export function renderShowdownPane(state: ShowdownPaneState, width = DEFAULT_WID
       rows.push("V-TPH$ (verified tasks / hour / dollar)");
       rows.push(`  swarm:      ${num(mode, r.swarmVtph)}`);
       rows.push(`  baseline:   ${num(mode, r.baselineVtph)}`);
-      rows.push(`  multiple:   ${fig(mode, `${r.multiple.toFixed(2)}x`)}`);
+      rows.push(`  multiple:   ${fig(mode, r.multiple === null ? "n/a (a lane verified nothing)" : `${r.multiple.toFixed(2)}x`)}`);
       rows.push("");
       rows.push(`  swarm    verified=${int(mode, r.swarmVerified)}  silent-wrong=${int(mode, r.swarmSilentWrong)}`);
       rows.push(`  baseline verified=${int(mode, r.baselineVerified)}  silent-wrong=${int(mode, r.baselineSilentWrong)}`);
