@@ -34,7 +34,7 @@ export interface WindowsHostProbe {
   userProfile: string;
   localAppData?: string;
   appData?: string;
-  env: NodeJS.ProcessEnv;
+  env: Record<string, string | undefined>;
   nodeVersion?: string;
   userPath: string[];
   psVersion?: string;

@@ -1,4 +1,4 @@
-import { describe, it } from "vitest";
+import { describe, it, expect } from "vitest";
 
 import { assertConnectorContract } from "../gateway/connector-contract";
 import type { ConnectorContractHarness } from "../gateway/connector-contract";

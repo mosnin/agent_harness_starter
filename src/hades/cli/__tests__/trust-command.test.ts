@@ -232,16 +232,22 @@ describe("hades trust calibrate", () => {
     expect(res.lines[0]).toContain("not both");
   });
 
-  it("--from-eval fits the REAL corpus and reports NO separation honestly", async () => {
+  it("--from-eval fits the REAL corpus and reports PARTIAL separation honestly", async () => {
     const { deps, dataDir } = realDeps();
     const res = await runTrustCommand(["calibrate", "--from-eval"], deps);
     expect(res.code).toBe(0);
     const out = text(res.lines);
     expect(out).toContain('domain "procedure"');
-    // This build's only procedure verifier is structural, so the honest
-    // answer is no discrimination and an admit-nothing threshold.
-    expect(out).toContain("AUC (correct > wrong) 0.5000");
-    expect(out).toContain("NO discrimination");
+    // The T1-reference verifier decides the corpus tasks whose answer is
+    // recomputable from their own prompt, so AUC is no longer the 0.5 of a
+    // purely structural verifier set. It is also not 1.0: on every task
+    // nothing can decide, a wrong answer still scores structurally perfect —
+    // so the conformal fit STILL cannot place a finite threshold at this
+    // epsilon, and the report must keep saying so.
+    const auc = /AUC \(correct > wrong\) ([0-9.]+)/.exec(out);
+    expect(auc).not.toBeNull();
+    expect(Number(auc?.[1])).toBeGreaterThan(0.5);
+    expect(Number(auc?.[1])).toBeLessThan(1);
     expect(out).toContain("+Infinity");
     expect(out).toContain("THRESHOLD IS +INFINITY");
     // Provenance must state the solvers are not model calls.

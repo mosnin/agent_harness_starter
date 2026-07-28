@@ -135,7 +135,7 @@ const DEFAULT_PARAMS: LatencyParams = { sendMs: 1, linkMs: 1, taskMs: 10, aggMs:
  */
 export function compareMakespan(
   opts: {
-    workerCounts?: number[];
+    readonly workerCounts?: readonly number[];
     branching?: number;
     params?: Partial<LatencyParams>;
   } = {}

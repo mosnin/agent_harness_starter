@@ -63,7 +63,7 @@ export interface ScheduleCommandDeps {
   clock: Clock;
   executor: JobExecutor;
   deliverer: JobDeliverer;
-  env?: NodeJS.ProcessEnv;
+  env?: Record<string, string | undefined>;
   /** Path of the hash-chained delivery-receipt ledger
    *  (`../schedule/receipt-ledger`). When set, `run` appends every delivery
    *  receipt to it (through `LedgeredDeliverer` — the delivery outcome is
@@ -135,7 +135,7 @@ const ZERO_SENDER_ROUTERS = new WeakSet<object>();
  * executor; this factory's job is only to give the CLI something real and
  * safe to run against out of the box.
  */
-export function defaultScheduleDeps(env: NodeJS.ProcessEnv = process.env): ScheduleCommandDeps {
+export function defaultScheduleDeps(env: Record<string, string | undefined> = process.env): ScheduleCommandDeps {
   const dataDir = env.HADES_DATA_DIR ?? ".hades";
   const storePath = join(dataDir, "schedule.json");
   const clock: Clock = systemClock;

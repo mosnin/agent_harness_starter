@@ -26,6 +26,8 @@
  * @module
  */
 
+import type { SetTimeoutFn, ClearTimeoutFn } from "./timers";
+
 export type BreakerState = "closed" | "open" | "half-open";
 
 /** Thrown by {@link CircuitBreaker.exec} when a call is short-circuited (breaker not passing). */
@@ -195,8 +197,8 @@ export function withTimeout<T>(
   fn: () => Promise<T>,
   ms: number,
   opts: {
-    setTimeoutFn?: (cb: () => void, ms: number) => ReturnType<typeof setTimeout>;
-    clearTimeoutFn?: (t: ReturnType<typeof setTimeout>) => void;
+    setTimeoutFn?: SetTimeoutFn;
+    clearTimeoutFn?: ClearTimeoutFn;
   } = {},
 ): Promise<T> {
   if (ms <= 0) {

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { TimerHandle } from "../hierarchy/timers";
 import {
   CircuitBreaker,
   CircuitOpenError,
@@ -181,14 +182,16 @@ describe("withTimeout", () => {
     let id = 0;
     const scheduled = new Map<number, { cb: () => void; ms: number }>();
     return {
-      setTimeoutFn: ((cb: () => void, ms: number) => {
+      // No casts: TimerHandle admits a plain numeric id, which is exactly
+      // what a fake timer wants to hand back and be given again on clear.
+      setTimeoutFn: (cb: () => void, ms: number): TimerHandle => {
         const t = ++id;
         scheduled.set(t, { cb, ms });
-        return t as unknown as ReturnType<typeof setTimeout>;
-      }) as (cb: () => void, ms: number) => ReturnType<typeof setTimeout>,
-      clearTimeoutFn: ((t: ReturnType<typeof setTimeout>) => {
-        scheduled.delete(t as unknown as number);
-      }) as (t: ReturnType<typeof setTimeout>) => void,
+        return t;
+      },
+      clearTimeoutFn: (t: TimerHandle): void => {
+        scheduled.delete(Number(t));
+      },
       fire: () => {
         for (const { cb } of scheduled.values()) cb();
       },

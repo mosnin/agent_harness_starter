@@ -6,6 +6,7 @@ import {
   withTimeout,
 } from "../hierarchy/circuit-breaker";
 import type { BreakerState } from "../hierarchy/circuit-breaker";
+import type { TimerHandle } from "../hierarchy/timers";
 
 /**
  * ADVERSARIAL contract tests for the circuit breaker + timeout + registry.
@@ -49,7 +50,11 @@ function makeFakeEnv() {
     return timer.id;
   };
 
-  const clearTimeoutFn = (id: number): void => {
+  // Honors the seam's declared handle type (TimerHandle) rather than only
+  // this fake's own numeric ids — a fake that narrows the contract can drift
+  // from the real implementation without the compiler noticing.
+  const clearTimeoutFn = (handle: TimerHandle): void => {
+    const id = Number(handle);
     clearCalls += 1;
     const timer = timers.find((x) => x.id === id);
     if (timer) timer.cleared = true;

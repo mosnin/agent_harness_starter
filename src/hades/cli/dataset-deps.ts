@@ -81,7 +81,7 @@ import type { DatasetCliDeps } from "./dataset-command";
 const TRAINER_ENV_VAR = "HADES_FINETUNE_TRAINER";
 
 export interface DatasetDepsOptions {
-  env?: NodeJS.ProcessEnv;
+  env?: Record<string, string | undefined>;
   /** Overrides the computed `dataDir` (same override semantics as
    *  `$HADES_DATA_DIR`) — the corpus root is always `<dataDir>/dataset/corpus`
    *  and the default dataset directory `<dataDir>/dataset/export`. Primarily
@@ -150,7 +150,7 @@ export function nodeSpawnPort(): SpawnPort {
   };
 }
 
-function resolveSpawnPort(opts: DatasetDepsOptions, env: NodeJS.ProcessEnv): SpawnPort | undefined {
+function resolveSpawnPort(opts: DatasetDepsOptions, env: Record<string, string | undefined>): SpawnPort | undefined {
   if (opts.spawnPort !== undefined) return opts.spawnPort ?? undefined;
   const trainer = env[TRAINER_ENV_VAR];
   if (typeof trainer !== "string" || trainer.trim().length === 0) return undefined;

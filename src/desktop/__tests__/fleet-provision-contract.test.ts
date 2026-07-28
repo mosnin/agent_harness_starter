@@ -144,7 +144,11 @@ describe("kind tuples exactly match their unions", () => {
   // narrows to something other than `never` in the default branch and this
   // file fails to type-check — the actual break-the-build mechanism the
   // comprehensiveness bar asks for, exercised at runtime too below.
-  function assertNeverCommand(x: never): string {
+  /** Narrows the DISCRIMINANT, not the whole object: exhausting a literal
+  * union member leaves `cmd.kind` as `never`, whereas the object itself
+  * is not narrowed away — so the previous form never actually enforced
+  * the coverage it advertised. */
+function assertNeverCommand(x: never): string {
     throw new Error(`uncovered FleetProvisionCommand kind: ${JSON.stringify(x)}`);
   }
   function classifyCommand(cmd: FleetProvisionCommand): string {
@@ -152,7 +156,7 @@ describe("kind tuples exactly match their unions", () => {
       case "fleet.provision":
         return "provision";
       default:
-        return assertNeverCommand(cmd);
+        return assertNeverCommand(cmd.kind);
     }
   }
 

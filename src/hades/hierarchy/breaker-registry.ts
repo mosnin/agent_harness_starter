@@ -29,6 +29,8 @@
  * @module
  */
 
+import type { SetTimeoutFn, ClearTimeoutFn } from "./timers";
+
 import {
   CircuitBreaker,
   type BreakerState,
@@ -45,9 +47,9 @@ export interface BreakerRegistryOptions {
   /** ms clock. Default () => Date.now(). Forwarded to each breaker. */
   now?: () => number;
   /** Injectable timer for per-hop timeouts. Forwarded to {@link withTimeout}. */
-  setTimeoutFn?: (cb: () => void, ms: number) => ReturnType<typeof setTimeout>;
+  setTimeoutFn?: SetTimeoutFn;
   /** Injectable timer clear for per-hop timeouts. Forwarded to {@link withTimeout}. */
-  clearTimeoutFn?: (t: ReturnType<typeof setTimeout>) => void;
+  clearTimeoutFn?: ClearTimeoutFn;
   /** Observability hook fired on every state transition, tagged with the subtree id. */
   onStateChange?: (id: string, from: BreakerState, to: BreakerState) => void;
 }

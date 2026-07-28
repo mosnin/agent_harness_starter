@@ -66,6 +66,17 @@ export const BUNDLE_TARGETS = Object.freeze([
  * child process (no `which`/`where` shell-out). Pure w.r.t. its inputs: feed it
  * a fake `env`/`platform` and it becomes fully deterministic. Returns the
  * resolved absolute path, or null if the command isn't found.
+ *
+ * @param {string} cmd
+ * @param {object} [opts]
+ * @param {Record<string,string|undefined>} [opts.env] PATH-like environment.
+ *   Typed as a plain readonly bag (not `NodeJS.ProcessEnv`) for the same
+ *   reason `detectPrerequisites` below is: this function only READS `PATH`,
+ *   so demanding the full `ProcessEnv` shape — which `@types/node` augments
+ *   to require `NODE_ENV` — would force every caller and test to supply a
+ *   variable it never looks at.
+ * @param {NodeJS.Platform} [opts.platform]
+ * @returns {string|null}
  */
 export function lookupOnPath(cmd, { env = process.env, platform = process.platform } = {}) {
   const pathVar = env.PATH ?? env.Path ?? "";
@@ -171,15 +182,22 @@ function defaultRunTauri({ log } = { log: console.log }) {
  * @param {boolean} [options.dryRun] force dry-run; default = auto (dry-run when
  *        prerequisites are absent)
  * @param {typeof buildSidecar} [options.buildSidecarFn]
- * @param {typeof buildDesktop} [options.buildUiFn]
+ * @param {() => Promise<{ok?:boolean, reason?:string, outdir?:string, config?:object}>} [options.buildUiFn]
+ *   The UI-bundling seam. Declared by CONTRACT rather than as
+ *   `typeof buildDesktop`: tying it to the real implementation pins every
+ *   injected fake to esbuild's full inferred config shape, so a test double
+ *   could not supply the two fields this function actually reads (`ok`,
+ *   `reason`/`outdir`) without reproducing the entire build config.
  * @param {(cmd:string)=>string|null} [options.lookup]
  * @param {Record<string,string|undefined>} [options.env]
  * @param {NodeJS.Platform} [options.platform]
  * @param {(...a:any[])=>void} [options.log]
  * @param {(...a:any[])=>void} [options.logError]
  * @param {(ctx:{log:Function})=>{status:number,error?:Error}} [options.runTauri]
- * @returns {Promise<{ok:boolean, dryRun:boolean, plan:object, sidecar:object,
- *          ui:object, prerequisites:object, tauriRan:boolean, failedStep?:string}>}
+ * @returns {Promise<{ok:boolean, dryRun:boolean,
+ *          plan:ReturnType<typeof planPackage>,
+ *          sidecar:object, ui:object, prerequisites:object, tauriRan:boolean,
+ *          failedStep?:string}>}
  */
 export async function packageDesktop(options = {}) {
   const {

@@ -99,7 +99,7 @@ export function routerRoot(dataDir: string): string {
 export interface RouterStackOptions {
   /** `$HADES_DATA_DIR` or `.hades` when omitted. Pass `null` for a fully in-memory stack. */
   dataDir?: string | null;
-  env?: NodeJS.ProcessEnv;
+  env?: Record<string, string | undefined>;
   /** Defaults to the real shipped `defaultModelRegistry()`. */
   registry?: ModelRegistry;
   /** Defaults to the real shipped `DEFAULT_PRICES`. */

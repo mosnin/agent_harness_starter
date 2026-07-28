@@ -69,7 +69,7 @@ export function marketRoot(dataDir: string): string {
 export interface MarketStackOptions {
   /** `$HADES_DATA_DIR` or `.hades` when omitted. Pass `null` for a fully in-memory stack. */
   dataDir?: string | null;
-  env?: NodeJS.ProcessEnv;
+  env?: Record<string, string | undefined>;
   /**
    * Additional hex ed25519 public keys accepted as certificate issuers, on
    * top of this install's own trust-gate identity. Anything unparseable is
@@ -83,7 +83,7 @@ export interface MarketStackOptions {
   economyPolicy?: Partial<EconomyPolicy>;
   shrinkage?: ShrinkageOptions;
   /** Injected for tests; defaults to the real `process.env`-driven trust key resolution. */
-  trustedIssuerResolver?: (dataDir: string | null, env: NodeJS.ProcessEnv) => { publicKeyHex: string; source: string };
+  trustedIssuerResolver?: (dataDir: string | null, env: Record<string, string | undefined>) => { publicKeyHex: string; source: string };
 }
 
 export interface MarketStack {
@@ -130,7 +130,7 @@ function normalizeIssuerKey(raw: string): string | null {
  */
 export function resolveMarketIssuer(
   dataDir: string | null,
-  env: NodeJS.ProcessEnv,
+  env: Record<string, string | undefined>,
 ): { publicKeyHex: string; source: string } {
   const fromEnv = env.HADES_STYX_KEY;
   if (typeof fromEnv === "string" && fromEnv.trim().length > 0) {

@@ -81,7 +81,7 @@ export interface StateCommandDeps {
  * absent rather than backed by a throwaway empty store that would export
  * "the engine has no sessions" as if it were a fact.
  */
-export function defaultStateDeps(env: NodeJS.ProcessEnv = process.env): StateCommandDeps {
+export function defaultStateDeps(env: Record<string, string | undefined> = process.env): StateCommandDeps {
   const dataDir = env.HADES_DATA_DIR ?? ".hades";
   const root = workspaceRoot(dataDir);
   const actor = resolveWorkspaceActor({ root, kind: "cli", env });

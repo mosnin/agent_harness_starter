@@ -39,6 +39,7 @@
 
 import { runChaosHierarchy } from "../hierarchy/chaos";
 import type { ChaosConfig, ChaosOutcome, ChaosTimerOpts } from "../hierarchy/chaos";
+import type { TimerHandle } from "../hierarchy/timers";
 
 /** Per-scenario tally after classifying every run's {@link ChaosOutcome}. */
 export interface ChaosScenarioResult {
@@ -94,7 +95,9 @@ export function makeInstantTimer(): Required<ChaosTimerOpts> {
     });
     return id as unknown as Handle;
   };
-  const clearTimeoutFn = (t: Handle): void => {
+  // Accepts the seam's declared handle type (a fake may be handed either a
+  // real timer or a numeric id); the cast is the same one the setter makes.
+  const clearTimeoutFn = (t: TimerHandle): void => {
     cancelled.add(t as unknown as number);
   };
   return { setTimeoutFn, clearTimeoutFn };

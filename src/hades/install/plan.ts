@@ -49,7 +49,7 @@ export interface HostProbe {
   platform: NodeJS.Platform;
   arch: string;
   home: string;
-  env: NodeJS.ProcessEnv;
+  env: Record<string, string | undefined>;
   /** Raw `node --version`-style output, e.g. "v20.11.0". Undefined = node not found. */
   nodeVersion?: string;
   /** Path to the user's login shell, e.g. "/bin/zsh" or "/usr/bin/fish". */

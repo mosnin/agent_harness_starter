@@ -170,7 +170,7 @@ export interface KeystoreOptions {
   dir: string;
   now?: () => number;
   rng?: (n: number) => Uint8Array;
-  env?: NodeJS.ProcessEnv;
+  env?: Record<string, string | undefined>;
 }
 
 export type IdentitySource = "env" | "persisted" | "generated";
@@ -195,12 +195,12 @@ export class GovKeystore {
   private readonly dir: string;
   private readonly nowFn: () => number;
   private readonly rngFn: ((n: number) => Uint8Array) | undefined;
-  private readonly env: NodeJS.ProcessEnv;
+  private readonly env: Record<string, string | undefined>;
 
   private loaded: LoadedIdentity | null = null;
   private lastPermissionWarning: string | null = null;
 
-  private constructor(dir: string, nowFn: () => number, rngFn: ((n: number) => Uint8Array) | undefined, env: NodeJS.ProcessEnv) {
+  private constructor(dir: string, nowFn: () => number, rngFn: ((n: number) => Uint8Array) | undefined, env: Record<string, string | undefined>) {
     this.dir = dir;
     this.nowFn = nowFn;
     this.rngFn = rngFn;

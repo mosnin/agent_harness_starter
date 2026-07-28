@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { BreakerRegistry } from "../hierarchy/breaker-registry";
+import type { TimerHandle } from "../hierarchy/timers";
 import {
   CircuitBreaker,
   CircuitOpenError,
@@ -25,7 +26,7 @@ function makeFakeTimers(now: () => number) {
     timers.push(t);
     return t.id as unknown as ReturnType<typeof setTimeout>;
   };
-  const clearTimeoutFn = (handle: ReturnType<typeof setTimeout>) => {
+  const clearTimeoutFn = (handle: TimerHandle) => {
     const id = handle as unknown as number;
     const t = timers.find((x) => x.id === id);
     if (t) t.cleared = true;

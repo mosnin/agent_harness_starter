@@ -66,7 +66,7 @@ import { defaultModelRegistry } from "../models/defaults";
 // ---------------------------------------------------------------------------
 
 export interface MigrateCommandDeps {
-  env: NodeJS.ProcessEnv;
+  env: Record<string, string | undefined>;
   cwd: string;
   home: string;
   platform: NodeJS.Platform;
@@ -78,7 +78,7 @@ export interface MigrateCommandDeps {
 }
 
 /** Env-driven defaults, matching every other `default*Deps` in `src/hades/cli`. */
-export function defaultMigrateDeps(env: NodeJS.ProcessEnv = process.env): MigrateCommandDeps {
+export function defaultMigrateDeps(env: Record<string, string | undefined> = process.env): MigrateCommandDeps {
   return {
     env,
     cwd: process.cwd(),
@@ -102,7 +102,7 @@ function resolveDataDir(deps: MigrateCommandDeps): string {
  * `dataDir` — the same shape of wiring `../cli/build.ts` uses for the rest
  * of the CLI, so `hades migrate` reads/writes the SAME live install.
  */
-function realApplyDeps(dataDir: string, env: NodeJS.ProcessEnv, now: () => number): ApplyDeps & { knownModelIds: string[] } {
+function realApplyDeps(dataDir: string, env: Record<string, string | undefined>, now: () => number): ApplyDeps & { knownModelIds: string[] } {
   const memoryPath = join(dataDir, "memory.json");
   const baseMemory = new FileMemoryStore(memoryPath);
   const memory = new GuardedMemoryStore(baseMemory, { now });

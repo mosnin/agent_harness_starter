@@ -501,7 +501,7 @@ export const SOURCE_LAYOUTS: readonly SourceLayout[] = Object.freeze([
 export interface DiscoveryOptions {
   platform: NodeJS.Platform;
   home: string;
-  env: NodeJS.ProcessEnv;
+  env: Record<string, string | undefined>;
   explicitRoots?: Array<{ root: string; vendor?: MigrateVendor }>;
   maxDepth?: number;
 }
@@ -522,7 +522,7 @@ const DEFAULT_MAX_WALK_DEPTH = 8;
 /** Total (across all artifact rules of one source) file-entry cap for inventory walks. */
 const MAX_WALK_ENTRIES = 5000;
 
-function resolveTemplateVar(name: TemplateVar, ctx: { home: string; env: NodeJS.ProcessEnv }): string | undefined {
+function resolveTemplateVar(name: TemplateVar, ctx: { home: string; env: Record<string, string | undefined> }): string | undefined {
   switch (name) {
     case "HOME":
       return ctx.home;
@@ -551,7 +551,7 @@ function joinPlatform(platform: NodeJS.Platform, ...segments: string[]): string 
 }
 
 /** Resolves a `"$VAR/segments"` template to an absolute path, or `undefined` if the variable is unset with no fallback. */
-function resolveTemplate(template: string, platform: NodeJS.Platform, ctx: { home: string; env: NodeJS.ProcessEnv }): string | undefined {
+function resolveTemplate(template: string, platform: NodeJS.Platform, ctx: { home: string; env: Record<string, string | undefined> }): string | undefined {
   const parts = template.split("/");
   const varToken = parts[0];
   if (!varToken.startsWith("$")) {

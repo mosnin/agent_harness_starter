@@ -100,7 +100,7 @@ export function registryLatestVersion(
 
 export interface BuildSetupDepsOptions {
   repoRoot?: string;
-  env?: NodeJS.ProcessEnv;
+  env?: Record<string, string | undefined>;
   /** Enables the network version lookup. Off by default — `update` stays offline unless asked. */
   fetchImpl?: typeof fetch;
 }

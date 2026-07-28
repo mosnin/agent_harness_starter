@@ -101,6 +101,12 @@ function realFixture(): { deps: MigrateCommandDeps; sourceRoot: string; dataDir:
 
 const noopFactory: SwarmFactory = () => ({
   swarm: undefined,
+  // `dispatchGoal` is REQUIRED by SwarmHandle; the stub omitted it, so it never
+  // actually satisfied the interface it claims to stand in for. These tests
+  // never dispatch, so it throws rather than silently returning a fake goal id.
+  dispatchGoal: (): { goalId: string } => {
+    throw new Error("noopFactory: dispatchGoal is not used by the migrate-wiring tests");
+  },
   snapshot: () => ({ workers: [], tasks: [], runs: [], metrics: undefined }),
   on: () => () => {},
   stop: async () => {},

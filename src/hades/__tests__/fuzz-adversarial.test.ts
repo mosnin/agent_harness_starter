@@ -9,7 +9,8 @@ import {
 import type { ReductionName, FuzzTreeSpec, FuzzCase } from "../hierarchy/fuzz";
 import { buildBalancedHierarchy } from "../hierarchy/tree";
 import { HierarchyOrchestrator } from "../hierarchy/orchestrator";
-import type { HierarchyExec, HierarchyNodeInfo } from "../hierarchy/orchestrator";
+import type { HierarchyExec,  } from "../hierarchy/orchestrator";
+import type { HierarchyNodeInfo } from "../hierarchy/tree";
 
 /**
  * ADVERSARIAL VERIFIER for the property-based fuzzer (`../hierarchy/fuzz`).

@@ -68,7 +68,7 @@ function actorFilePath(root: string, kind: ActorKind): string {
 /**
  * The subset of an environment this module reads. Deliberately the same
  * shape `loadConfig`/`configFromEnv` accept (`Record<string, string |
- * undefined>`) rather than `NodeJS.ProcessEnv`, so a caller can pass a small
+ * undefined>`) rather than `Record<string, string | undefined>`, so a caller can pass a small
  * literal for a deterministic test without having to fabricate `NODE_ENV`.
  */
 export type WorkspaceEnv = Record<string, string | undefined>;

@@ -6,9 +6,9 @@ describe("pipeline", () => {
     const { results, byStage } = await pipeline<number>(
       [1, 2, 3],
       [
-        { role: "researcher", handle: async (n: number) => n + 1 },
-        { role: "coder", handle: async (n: number) => n * 10 },
-        { role: "reviewer", handle: async (n: number) => n - 1 },
+        { role: "researcher", handle: async (n: unknown) => Number(n) + 1 },
+        { role: "coder", handle: async (n: unknown) => Number(n) * 10 },
+        { role: "reviewer", handle: async (n: unknown) => Number(n) - 1 },
       ]
     );
     expect(results).toEqual([19, 29, 39]); // ((n+1)*10)-1
@@ -22,7 +22,7 @@ describe("pipeline", () => {
       [
         {
           name: "s1",
-          handle: async (n: number) => {
+          handle: async (n: unknown) => {
             timeline.push(`s1-start-${n}`);
             await new Promise((r) => setTimeout(r, 5));
             timeline.push(`s1-end-${n}`);
@@ -31,7 +31,7 @@ describe("pipeline", () => {
         },
         {
           name: "s2",
-          handle: async (n: number) => {
+          handle: async (n: unknown) => {
             timeline.push(`s2-start-${n}`);
             return n;
           },
@@ -53,7 +53,7 @@ describe("pipeline", () => {
         {
           name: "bounded",
           concurrency: 2,
-          handle: async (n: number) => {
+          handle: async (n: unknown) => {
             inStage++;
             maxInStage = Math.max(maxInStage, inStage);
             await new Promise((r) => setTimeout(r, 2));
@@ -68,7 +68,7 @@ describe("pipeline", () => {
 
   it("rejects on a stage error by default, collects with continueOnError", async () => {
     const stages = [
-      { name: "s", handle: async (n: number) => {
+      { name: "s", handle: async (n: unknown) => {
         if (n === 2) throw new Error("bad n");
         return n;
       } },

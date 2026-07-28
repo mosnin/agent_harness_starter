@@ -4,6 +4,15 @@ import type { CommandRunner } from "../backends/singularity";
 import type { ExecResult } from "../backends/ssh";
 import type { RemoteSpec } from "../backends/backend";
 
+/** The serverless-only lifecycle a persistent backend deliberately omits.
+ *  Declared here so the "these are absent" assertions below are typed
+ *  rather than cast through `any`. */
+interface ServerlessCapabilities {
+  hibernate: unknown;
+  wake: unknown;
+}
+
+
 /** Fake apptainer CLI: a tiny instance table driven by parsed argv. */
 function fakeRunner(): CommandRunner & { calls: string[][] } {
   const calls: string[][] = [];
@@ -96,7 +105,7 @@ describe("SingularityBackend", () => {
 
   it("has no hibernate/wake (persistent HPC node)", () => {
     const be = new SingularityBackend(fakeRunner());
-    expect(be.hibernate).toBeUndefined();
-    expect(be.wake).toBeUndefined();
+    expect((be as Partial<ServerlessCapabilities>).hibernate).toBeUndefined();
+    expect((be as Partial<ServerlessCapabilities>).wake).toBeUndefined();
   });
 });

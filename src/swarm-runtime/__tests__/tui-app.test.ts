@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, type Mock } from "vitest";
 import { TuiApp, type TuiController } from "../tui/app";
 import { keyToAction } from "../tui/keymap";
 import type { TuiState } from "../tui/render";
@@ -25,14 +25,17 @@ const sample: TuiState = {
 };
 
 function fakeController(): TuiController & {
-  dispatchGoal: ReturnType<typeof vi.fn>;
-  scalePool: ReturnType<typeof vi.fn>;
-  cancel: ReturnType<typeof vi.fn>;
+  // Typed mocks: `vi.fn<Signature>()` keeps the spy assignable to the real
+  // callback type. A bare `vi.fn()` widens to `Mock<Procedure>`, which no
+  // longer satisfies the concrete handler signatures these stand in for.
+  dispatchGoal: Mock<(objective: string) => void>;
+  scalePool: Mock<(delta: number) => void>;
+  cancel: Mock<() => void>;
 } {
   return {
-    dispatchGoal: vi.fn(),
-    scalePool: vi.fn(),
-    cancel: vi.fn(),
+    dispatchGoal: vi.fn<(objective: string) => void>(),
+    scalePool: vi.fn<(delta: number) => void>(),
+    cancel: vi.fn<() => void>(),
   };
 }
 

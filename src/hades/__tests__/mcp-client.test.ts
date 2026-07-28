@@ -70,7 +70,7 @@ function fakeClock() {
   };
 }
 
-function makeClient(extra?: Partial<Parameters<typeof McpClient>[1]>) {
+function makeClient(extra?: Partial<ConstructorParameters<typeof McpClient>[1]>) {
   const transport = new MockTransport();
   const clock = fakeClock();
   const client = new McpClient(transport, {

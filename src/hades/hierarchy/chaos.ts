@@ -68,6 +68,7 @@ import type { HierarchyNode } from "./tree";
 import { HierarchyOrchestrator } from "./orchestrator";
 import type { HierarchyExec } from "./orchestrator";
 import { reduceRef, mulberry32 } from "./fuzz";
+import type { SetTimeoutFn, ClearTimeoutFn } from "./timers";
 
 /** Knobs controlling how much chaos is injected. All probabilities are in `[0,1]`. */
 export interface ChaosConfig {
@@ -107,8 +108,8 @@ export type ChaosOutcome =
 
 /** Injectable timers so tests drive a virtual clock instead of waiting on wall-time. */
 export interface ChaosTimerOpts {
-  setTimeoutFn?: (cb: () => void, ms: number) => ReturnType<typeof setTimeout>;
-  clearTimeoutFn?: (t: ReturnType<typeof setTimeout>) => void;
+  setTimeoutFn?: SetTimeoutFn;
+  clearTimeoutFn?: ClearTimeoutFn;
 }
 
 /** Smallest balanced binary tree (branching 2) whose leaf count can hold `n` values. */

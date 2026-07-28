@@ -165,7 +165,11 @@ describe("kind tuples exactly match their unions", () => {
   // does anything other than funnel into `never`. If a kind is ever added to
   // `LearningCommand`/`LearningEvent` without a case here, this file fails to
   // type-check.
-  function assertNeverCommand(x: never): string {
+  /** Narrows the DISCRIMINANT, not the whole object: exhausting a literal
+  * union member leaves `cmd.kind` as `never`, whereas the object itself
+  * is not narrowed away — so the previous form never actually enforced
+  * the coverage it advertised. */
+function assertNeverCommand(x: never): string {
     throw new Error(`uncovered LearningCommand kind: ${JSON.stringify(x)}`);
   }
   function classifyCommand(cmd: LearningCommand): string {
@@ -173,7 +177,7 @@ describe("kind tuples exactly match their unions", () => {
       case "learning.get":
         return "get";
       default:
-        return assertNeverCommand(cmd);
+        return assertNeverCommand(cmd.kind);
     }
   }
 

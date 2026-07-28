@@ -57,7 +57,7 @@ export type { HostProbe, InstallPlan };
 export interface InstallCommandDeps {
   repoRoot: string;
   version: string;
-  env: NodeJS.ProcessEnv;
+  env: Record<string, string | undefined>;
   host?: HostProbe;
   now?: () => number;
 }
@@ -83,7 +83,7 @@ function readPackageVersion(repoRoot: string): string {
  *  `hades` launcher both invoke from); `version` is read from the real
  *  `package.json` at that root rather than a hardcoded, easily-stale
  *  literal duplicated here. */
-export function defaultInstallDeps(env: NodeJS.ProcessEnv = process.env): InstallCommandDeps {
+export function defaultInstallDeps(env: Record<string, string | undefined> = process.env): InstallCommandDeps {
   const repoRoot = env.HADES_REPO_ROOT ?? process.cwd();
   return { repoRoot, version: readPackageVersion(repoRoot), env };
 }
@@ -115,7 +115,7 @@ function probeWritable(dir: string): boolean {
  *  writability of the resolved bin/data dirs, and a real scan for an
  *  existing launcher (parsing the real `HADES_INSTALL_VERSION=` line
  *  `plan.ts`'s `launcherScript` writes, rather than guessing). */
-export function probeHost(env: NodeJS.ProcessEnv): HostProbe {
+export function probeHost(env: Record<string, string | undefined>): HostProbe {
   const home = homedir();
   const platform = process.platform;
   const arch = process.arch;

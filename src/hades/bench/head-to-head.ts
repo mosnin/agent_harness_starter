@@ -136,7 +136,7 @@ function coordinatorLevelsFor(n: number, branching: number): number {
  * Defaults are tuned to complete in well under a few seconds.
  */
 export async function runHeadToHead(opts?: {
-  workerCounts?: number[];
+  readonly workerCounts?: readonly number[];
   branching?: number;
   perTaskMs?: number;
   aggCostPerItem?: number;

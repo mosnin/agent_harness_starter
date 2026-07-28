@@ -87,7 +87,7 @@ export interface RouteCommandDeps {
    * from environment keys.
    */
   bench?: (stack: RouterStack) => RouteBenchWiring | null;
-  env?: NodeJS.ProcessEnv;
+  env?: Record<string, string | undefined>;
 }
 
 /**
@@ -97,7 +97,7 @@ export interface RouteCommandDeps {
  */
 export function defaultBenchWiring(
   stack: RouterStack,
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): RouteBenchWiring | null {
   const built = buildClientFromEnv(env as Record<string, string | undefined>);
   if (!built) return null;
@@ -124,7 +124,7 @@ export function defaultBenchWiring(
 }
 
 export function defaultRouteDeps(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
   overrides: RouterStackOptions = {},
 ): RouteCommandDeps {
   let cached: RouterStack | undefined;

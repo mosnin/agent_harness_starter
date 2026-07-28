@@ -158,7 +158,9 @@ describe("FIFO credit fairness", () => {
     const ps: Promise<void>[] = [];
     for (let i = 0; i < 5; i++) {
       const id = i;
-      ps.push(cc.acquire().then(() => order.push(id)));
+      ps.push(cc.acquire().then(() => {
+        order.push(id);
+      }));
     }
     await microtasks(3);
     expect(cc.waiting()).toBe(5);

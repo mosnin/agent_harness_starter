@@ -378,7 +378,7 @@ describe("wrap(): /whoami", () => {
 // ── /unlink ──────────────────────────────────────────────────────────────
 
 describe("wrap(): /unlink", () => {
-  async function pairAndLink(guard: PairingGuard, handler: ReturnType<typeof vi.fn>) {
+  async function pairAndLink(guard: PairingGuard, handler: (msg: InboundMessage) => Promise<OutboundReply>) {
     const wrapped = guard.wrap(handler);
     const { code: pairCode } = guard.issuePairingCode();
     await wrapped(inbound("telegram", "1", `/pair ${pairCode}`));

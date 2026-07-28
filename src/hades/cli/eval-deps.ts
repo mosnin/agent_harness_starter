@@ -51,7 +51,7 @@ import type { ScorecardRevision, EvalScorecard } from "../eval/scorecard";
 import type { EvalCliDeps } from "./eval-command";
 
 export interface EvalDepsOptions {
-  env?: NodeJS.ProcessEnv;
+  env?: Record<string, string | undefined>;
   /** Overrides the computed `dataDir` (same override semantics as
    *  `HADES_DATA_DIR`) — the resolved eval root is always `<dataDir>/eval`.
    *  Primarily for tests that want a real, isolated temp directory without

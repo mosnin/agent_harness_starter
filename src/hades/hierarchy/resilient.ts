@@ -1,5 +1,6 @@
 import type { HierarchyNode } from "./tree";
 import type { HierarchyExec } from "./orchestrator";
+import type { SetTimeoutFn, ClearTimeoutFn } from "./timers";
 
 /** Options tuning how aggressively the orchestrator recovers from failures. */
 export interface ResilientOptions {
@@ -9,8 +10,8 @@ export interface ResilientOptions {
   deadAfter?: number;
   /** Optional per-subtask timeout (ms). Uses injectable setTimeoutFn for tests. */
   timeoutMs?: number;
-  setTimeoutFn?: (cb: () => void, ms: number) => ReturnType<typeof setTimeout>;
-  clearTimeoutFn?: (t: ReturnType<typeof setTimeout>) => void;
+  setTimeoutFn?: SetTimeoutFn;
+  clearTimeoutFn?: ClearTimeoutFn;
   onEvent?: (e: ResilientEvent) => void;
 }
 
@@ -72,8 +73,8 @@ export class ResilientHierarchyOrchestrator<T, R> {
   private readonly maxReassignments: number;
   private readonly deadAfter: number;
   private readonly timeoutMs: number | undefined;
-  private readonly setTimeoutFn: (cb: () => void, ms: number) => ReturnType<typeof setTimeout>;
-  private readonly clearTimeoutFn: (t: ReturnType<typeof setTimeout>) => void;
+  private readonly setTimeoutFn: SetTimeoutFn;
+  private readonly clearTimeoutFn: ClearTimeoutFn;
   private readonly onEvent: ((e: ResilientEvent) => void) | undefined;
 
   private failures = new Map<string, number>();

@@ -42,7 +42,7 @@ export function defaultConfig(): ResolvedConfig {
 }
 
 /** Extract config overrides from environment variables. */
-export function configFromEnv(env: NodeJS.ProcessEnv = process.env): Partial<SwarmConfigFile> {
+export function configFromEnv(env: Record<string, string | undefined> = process.env): Partial<SwarmConfigFile> {
   const out: Partial<SwarmConfigFile> = {};
   if (env.SWARM_MODE) out.mode = env.SWARM_MODE as SwarmMode;
   if (env.SWARM_CAPABILITIES) out.capabilities = env.SWARM_CAPABILITIES.split(",").map((s) => s.trim()).filter(Boolean);
@@ -80,7 +80,7 @@ export function loadConfigFile(path: string): SwarmConfigFile | null {
 }
 
 /** Convenience: load `swarm.config.json` (or a given path) and apply env overrides. */
-export function loadSwarmConfig(opts: { file?: string; env?: NodeJS.ProcessEnv } = {}): ResolvedConfig {
+export function loadSwarmConfig(opts: { file?: string; env?: Record<string, string | undefined> } = {}): ResolvedConfig {
   const file = loadConfigFile(opts.file ?? "swarm.config.json");
   return resolveConfig(file, configFromEnv(opts.env));
 }

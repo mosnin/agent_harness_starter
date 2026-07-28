@@ -118,7 +118,7 @@ const KEY_HEX_RE = /^[0-9a-f]{64}$/i;
  */
 export function resolveTrustSigningKey(opts: {
   root?: string;
-  env?: NodeJS.ProcessEnv;
+  env?: Record<string, string | undefined>;
 }): TrustKeyResolution {
   const env = opts.env ?? process.env;
   const fromEnv = env.HADES_STYX_KEY?.trim();
@@ -291,7 +291,7 @@ export class TrustCalibrationStore {
 export interface TrustStackOptions {
   /** `$HADES_DATA_DIR` or `.hades` when omitted. Pass `null` for a fully in-memory stack. */
   dataDir?: string | null;
-  env?: NodeJS.ProcessEnv;
+  env?: Record<string, string | undefined>;
   /** Injected clock. Defaults to `Date.now` — the ONLY ambient clock in this subsystem. */
   now?: () => number;
   /** Global default target bound on `P(wrong | emitted)`. */

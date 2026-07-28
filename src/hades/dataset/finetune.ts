@@ -222,7 +222,7 @@ function probeFile(path: string, size: number, io: Required<ProbeIo>): LocalMode
  * detection rules. Never throws — every failure mode is a typed
  * `{ present: false, reason }`.
  */
-export function probeLocalModel(opts: { path?: string; env?: NodeJS.ProcessEnv; io?: ProbeIo } = {}): LocalModelProbe {
+export function probeLocalModel(opts: { path?: string; env?: Record<string, string | undefined>; io?: ProbeIo } = {}): LocalModelProbe {
   const io = resolveIo(opts.io);
 
   const explicit = typeof opts.path === "string" ? opts.path.trim() : "";

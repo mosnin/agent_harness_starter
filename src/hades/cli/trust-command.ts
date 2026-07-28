@@ -68,7 +68,7 @@ export interface TrustCommandDeps {
 }
 
 export function defaultTrustDeps(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
   overrides: TrustStackOptions = {},
 ): TrustCommandDeps {
   let cached: TrustStack | undefined;
@@ -451,8 +451,11 @@ async function calibrate(args: string[], deps: TrustCommandDeps): Promise<CliRes
   lines.push("");
   if (!Number.isFinite(stats!.threshold)) {
     lines.push("THRESHOLD IS +INFINITY: no score in this sample clears the bound, so the gate will");
-    lines.push("abstain on every subject in this domain. That is the honest conformal answer for a");
-    lines.push("verifier set with no correct-vs-wrong separation — not a wiring bug to work around.");
+    lines.push("abstain on every subject in this domain. That is the honest conformal answer when the");
+    lines.push("verifier set cannot separate correct from wrong across the WHOLE sample — not a wiring");
+    lines.push("bug to work around. Partial separation is not enough: if any subject the verifiers");
+    lines.push("cannot decide scores as high as a verified-correct one, no finite threshold can");
+    lines.push("exclude it at this epsilon. Calibrate a narrower slice, or widen verifier coverage.");
     lines.push("");
   }
   lines.push(persisted ? `persisted to          ${stack.root ?? "(in-memory)"}` : "DRY RUN — nothing persisted.");

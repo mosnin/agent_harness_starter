@@ -402,14 +402,18 @@ describe("collectEvalCalibration — REAL labeled points from the REAL corpus", 
     expect(expected.slice(EVAL_TASKS.length).every((c) => !c)).toBe(true);
   });
 
-  it("reports NO discrimination honestly when only structural verifiers are registered", async () => {
-    // This build ships exactly one `procedure` verifier, and it is a
-    // STRUCTURAL check (trace-vs-declared-steps + provenance hashes). It
+  it("reports NO discrimination honestly on the tasks no verifier can decide", async () => {
+    // On a task whose answer cannot be recomputed from its prompt (sentiment,
+    // topic, world knowledge, prose reasoning), the only voters left are
+    // STRUCTURAL checks (trace-vs-declared-steps + provenance hashes). They
     // cannot see whether an answer is right, so correct and wrong outputs
-    // must score identically — and the summary must say so rather than
-    // dressing it up.
+    // score identically — and the summary must say so rather than dressing
+    // it up.
     const stack = openTrustStack({ dataDir: tempDir(), env: noEnv, now: () => 0 });
-    const result = await collectEvalCalibration({ registry: stack.registry });
+    const undecidable = EVAL_TASKS.filter((t) => !t.reference);
+    expect(undecidable.length).toBeGreaterThan(0);
+
+    const result = await collectEvalCalibration({ registry: stack.registry, tasks: undecidable });
     expect(result.discrimination.auc).toBe(0.5);
     expect(result.discrimination.verdict).toMatch(/NO discrimination/);
 
@@ -419,10 +423,43 @@ describe("collectEvalCalibration — REAL labeled points from the REAL corpus", 
     const admission = await stack.gate.admit(procedureSubject("p", "anything"));
     expect(admission.accepted).toBe(false);
     expect(admission.certificate).toBeUndefined();
-    // `procedure` ships exactly ONE verifier, so the lone-voter rule fires
+    // A subject with one non-abstaining voter trips the lone-voter rule
     // before the threshold ever gets a say. Both bars independently refuse
     // this subject; the gate reports the first one it hits.
     expect(admission.abstention?.code).toBe("degraded-evidence");
+  });
+
+  it("separates correct from wrong on the tasks a declared rule DOES decide", async () => {
+    // The other half of the same honesty: where the T1-reference verifier can
+    // recompute the answer from the request, it must actually move the score —
+    // otherwise "we registered a T1 verifier" would be a label with no effect.
+    const stack = openTrustStack({ dataDir: tempDir(), env: noEnv, now: () => 0 });
+    const decidable = EVAL_TASKS.filter((t) => t.reference);
+    expect(decidable.length).toBeGreaterThan(0);
+
+    const result = await collectEvalCalibration({ registry: stack.registry, tasks: decidable });
+    expect(result.discrimination.auc).not.toBeNull();
+    expect(result.discrimination.auc as number).toBeGreaterThan(0.55);
+    expect(result.discrimination.meanScoreWrong).toBeLessThan(result.discrimination.meanScoreCorrect);
+    // Separation on this slice is what buys a FINITE threshold — i.e. a gate
+    // that can certify something instead of abstaining on everything.
+    const stats = stack.gate.calibrate("procedure", result.points);
+    expect(Number.isFinite(stats.threshold)).toBe(true);
+  });
+
+  it("does not overclaim on the mixed corpus: partial coverage buys partial separation", async () => {
+    // The honest headline for the whole 48-task corpus. Recomputation lowers
+    // the score of wrong answers it can decide, so AUC rises off 0.5 — but
+    // the tasks nothing can decide still score a structurally-perfect 1.0
+    // whether they are right or wrong, so a tight conformal fit STILL cannot
+    // find a threshold that excludes them. Extending coverage narrowed the
+    // gap; it did not close it, and this test refuses to pretend otherwise.
+    const stack = openTrustStack({ dataDir: tempDir(), env: noEnv, now: () => 0 });
+    const result = await collectEvalCalibration({ registry: stack.registry });
+    expect(result.discrimination.auc as number).toBeGreaterThan(0.5);
+    expect(result.discrimination.auc as number).toBeLessThan(1);
+    const stats = stack.gate.calibrate("procedure", result.points);
+    expect(Number.isFinite(stats.threshold)).toBe(false);
   });
 
   it("drops an unanswerable task as an error rather than labelling it correct", async () => {

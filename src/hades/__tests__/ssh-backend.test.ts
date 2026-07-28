@@ -3,6 +3,15 @@ import { SshBackend, createSshCliTransport } from "../backends/ssh";
 import type { SshTransport, ExecResult } from "../backends/ssh";
 import type { RemoteSpec } from "../backends/backend";
 
+/** The serverless-only lifecycle a persistent backend deliberately omits.
+ *  Declared here so the "these are absent" assertions below are typed
+ *  rather than cast through `any`. */
+interface ServerlessCapabilities {
+  hibernate: unknown;
+  wake: unknown;
+}
+
+
 /** A fake remote host: a tiny process table + log store driven by parsed commands. */
 function fakeHost(): SshTransport & { commands: string[]; kill(pid: string): void } {
   const commands: string[] = [];
@@ -105,8 +114,8 @@ describe("SshBackend", () => {
 
   it("has no hibernate/wake (not serverless)", () => {
     const be = new SshBackend(fakeHost());
-    expect(be.hibernate).toBeUndefined();
-    expect(be.wake).toBeUndefined();
+    expect((be as Partial<ServerlessCapabilities>).hibernate).toBeUndefined();
+    expect((be as Partial<ServerlessCapabilities>).wake).toBeUndefined();
   });
 });
 

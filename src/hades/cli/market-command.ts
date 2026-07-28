@@ -65,7 +65,7 @@ export interface MarketCommandDeps {
 }
 
 export function defaultMarketDeps(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
   overrides: MarketStackOptions = {},
 ): MarketCommandDeps {
   let cached: MarketStack | undefined;
