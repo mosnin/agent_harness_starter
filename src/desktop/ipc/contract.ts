@@ -74,6 +74,8 @@ import {
   isTrustEvent,
 } from "./trust-contract";
 import type { TrustCommand, TrustEvent } from "./trust-contract";
+import { GOV_COMMAND_KINDS, GOV_EVENT_KINDS, isGovCommand, isGovEvent } from "./gov-contract";
+import type { GovCommand, GovEvent } from "./gov-contract";
 import {
   MARKET_COMMAND_KINDS,
   MARKET_EVENT_KINDS,
@@ -228,6 +230,28 @@ export {
   TRUST_COMMAND_KINDS,
   TRUST_EVENT_KINDS,
 } from "./trust-contract";
+export type {
+  GovCommand,
+  GovEvent,
+  GovIdentityView,
+  GovAuditView,
+  GovPolicyView,
+  GovPolicyRuleView,
+  GovTokenView,
+  GovAirgapView,
+} from "./gov-contract";
+export {
+  isGovCommand,
+  isGovEvent,
+  isGovIdentityView,
+  isGovAuditView,
+  isGovPolicyView,
+  isGovPolicyRuleView,
+  isGovTokenView,
+  isGovAirgapView,
+  GOV_COMMAND_KINDS,
+  GOV_EVENT_KINDS,
+} from "./gov-contract";
 export type {
   MarketCommand,
   MarketEvent,
@@ -395,7 +419,8 @@ export type Command =
   | TrustCommand
   | MarketCommand
   | RouteCommand
-  | ClusterCommand;
+  | ClusterCommand
+  | GovCommand;
 
 export type AppEvent =
   | { kind: "runtime.status"; running: boolean; mode: string; poolSize: number }
@@ -420,7 +445,8 @@ export type AppEvent =
   | TrustEvent
   | MarketEvent
   | RouteEvent
-  | ClusterEvent;
+  | ClusterEvent
+  | GovEvent;
 
 const COMMAND_KINDS = [
   "runtime.start",
@@ -442,6 +468,7 @@ const COMMAND_KINDS = [
   ...MARKET_COMMAND_KINDS,
   ...ROUTE_COMMAND_KINDS,
   ...CLUSTER_COMMAND_KINDS,
+  ...GOV_COMMAND_KINDS,
 ] as const;
 
 const EVENT_KINDS = [
@@ -465,6 +492,7 @@ const EVENT_KINDS = [
   ...MARKET_EVENT_KINDS,
   ...ROUTE_EVENT_KINDS,
   ...CLUSTER_EVENT_KINDS,
+  ...GOV_EVENT_KINDS,
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -668,7 +696,8 @@ export function isCommand(x: unknown): x is Command {
         isTrustCommand(x) ||
         isMarketCommand(x) ||
         isRouteCommand(x) ||
-        isClusterCommand(x)
+        isClusterCommand(x) ||
+        isGovCommand(x)
       );
   }
 }
@@ -711,7 +740,8 @@ export function isAppEvent(x: unknown): x is AppEvent {
         isTrustEvent(x) ||
         isMarketEvent(x) ||
         isRouteEvent(x) ||
-        isClusterEvent(x)
+        isClusterEvent(x) ||
+        isGovEvent(x)
       );
   }
 }

@@ -242,6 +242,19 @@ export function reduce(state: AppState, ev: AppEvent): AppState {
     case "cluster.error":
       return state;
 
+    // Governance events are read-only reports about identity, the audit
+    // chain, policy and air-gap (`./gov-service.ts`). Like cluster events
+    // they deliberately do not touch swarm app state — the renderer's own
+    // gov surface consumes them, with `verified`/`brokenAtIndex` intact so a
+    // broken chain can never be flattened into a reassuring summary here.
+    case "gov.identity":
+    case "gov.audit":
+    case "gov.policy":
+    case "gov.tokens":
+    case "gov.airgap":
+    case "gov.error":
+      return state;
+
     default: {
       // Exhaustiveness guard: if a new AppEvent kind is added upstream and
       // not handled here, this branch fails to compile.

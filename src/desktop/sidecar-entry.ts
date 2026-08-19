@@ -39,6 +39,7 @@ import {
   type MarketHandler,
   type RouteHandler,
   type ClusterHandler,
+  type GovHandler,
   type InferenceInfo,
 } from "./core/sidecar";
 import { StateService } from "./core/state-service";
@@ -47,6 +48,7 @@ import { TrustService } from "./core/trust-service";
 import { MarketService } from "./core/market-service";
 import { RouteService } from "./core/route-service";
 import { ClusterService } from "./core/cluster-service";
+import { createRealGovService } from "./core/gov-wiring";
 import { defaultMigrateDeps } from "../hades/cli/migrate-command";
 import type { StateEvent } from "./ipc/state-contract";
 import { createWorkspaceStack } from "../hades/state/wiring";
@@ -161,6 +163,14 @@ export interface RunSidecarOptions {
    *  concurrent requests, so a renderer cannot wedge the machine, and the lane
    *  carries no `cluster.bench` command. */
   cluster?: ClusterHandler;
+  /** Real governance backend for `gov.*`; defaults to a lazily-constructed
+   *  service over the SAME `<dataDir>/gov` stack `hades gov` opens, so the
+   *  desktop, the TUI and the terminal report one identity, one audit chain
+   *  and one policy. Lazy for a security-relevant reason, not just cost:
+   *  opening the stack MINTS an identity on a virgin data dir, so merely
+   *  starting the sidecar must never do it — only an actual `gov.*` command
+   *  does. Read-only: this lane cannot mint, rotate, revoke or write policy. */
+  gov?: GovHandler;
 }
 
 /**
@@ -589,6 +599,38 @@ export async function runSidecar(
     };
   }
 
+  // Real governance lane: the same `<dataDir>/gov` stack `hades gov` opens,
+  // through the same defaultGovDeps() factory. Lazy — the keystore is not
+  // touched (and no key is minted on a virgin data dir) until a `gov.*`
+  // command actually arrives. Read-only by contract.
+  let gov = opts.gov;
+  if (!gov) {
+    let govService: ReturnType<typeof createRealGovService> | undefined;
+    gov = {
+      handle: async (cmd) => {
+        try {
+          if (!govService) {
+            const [{ defaultGovDeps }, { probeAirgap }] = await Promise.all([
+              import("../hades/cli/gov-command"),
+              import("../hades/gov/airgap"),
+            ]);
+            const deps = defaultGovDeps();
+            govService = createRealGovService({
+              root: () => deps.root() as never,
+              probeAirgap,
+            });
+          }
+          return await govService.handle(cmd);
+        } catch (err) {
+          // Only fires if constructing the stack throws (locked keystore,
+          // unwritable dataDir). Report the REAL reason — never a synthesized
+          // healthy identity or a "verified" chain we never read.
+          return [{ kind: "gov.error", op: cmd.kind, message: errMsg(err), at: now() }];
+        }
+      },
+    };
+  }
+
   const sidecar = new Sidecar({
     factory,
     now,
@@ -612,6 +654,7 @@ export async function runSidecar(
     market,
     route,
     cluster,
+    gov,
   });
 
   try {
