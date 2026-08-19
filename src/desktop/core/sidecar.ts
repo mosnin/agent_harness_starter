@@ -40,6 +40,8 @@ import type {
   RouteEvent,
   ClusterCommand,
   ClusterEvent,
+  GovCommand,
+  GovEvent,
   StateEvent,
   MetricsView,
   RunView,
@@ -156,6 +158,21 @@ export interface GatewayHandler {
  */
 export interface ScheduleHandler {
   handle(cmd: ScheduleCommand): Promise<ScheduleEvent>;
+}
+
+/**
+ * Handles `gov.*` commands over the REAL governance stack
+ * (`src/hades/gov/**`), resolving to the `GovEvent`s to emit. Structurally
+ * matches `GovService.handle` (`./gov-service.ts`) so central wiring can pass
+ * a real service rooted at the same `<dataDir>/gov` the `hades gov` CLI uses.
+ *
+ * Every command on this lane is a QUERY — minting, rotation, revocation and
+ * policy edits are deliberately not reachable from the desktop app (see
+ * `../ipc/gov-contract.ts`). Left undefined, a gov command reports an honest
+ * `gov.error` rather than hanging the caller.
+ */
+export interface GovHandler {
+  handle(cmd: GovCommand): Promise<GovEvent[]>;
 }
 
 /**
@@ -360,6 +377,12 @@ export interface SidecarOptions {
    * renderer would read as "the cluster is healthy and idle".
    */
   cluster?: ClusterHandler;
+  /** Real governance backend for `gov.*` — read-only reporting of identity,
+   *  the tamper-evident audit chain, policy, capability tokens and the
+   *  air-gap verdict, rooted at the SAME `<dataDir>/gov` the `hades gov` CLI
+   *  uses. Left undefined, a gov command answers `gov.error` rather than
+   *  silence; it never synthesizes a reassuring "verified" it did not read. */
+  gov?: GovHandler;
 }
 
 /**
@@ -405,6 +428,7 @@ export class Sidecar {
   private readonly market?: MarketHandler;
   private readonly route?: RouteHandler;
   private readonly cluster?: ClusterHandler;
+  private readonly gov?: GovHandler;
   private stateUnsubscribe?: () => void;
   /** Guards {@link Sidecar.dispose}'s one-shot teardown of the state lane. */
   private disposed = false;
@@ -438,6 +462,7 @@ export class Sidecar {
     this.market = opts.market;
     this.route = opts.route;
     this.cluster = opts.cluster;
+    this.gov = opts.gov;
 
     // Live workspace deltas are PUSHED, not polled: subscribe once, up
     // front, so a write made by another process (a `hades state set` in a
@@ -695,6 +720,26 @@ export class Sidecar {
               kind: "cluster.error",
               op: cmd.kind,
               message: "the multi-node cluster layer is not configured in this build",
+              at: this.now(),
+            });
+          }
+          return;
+        case "gov.identity":
+        case "gov.audit":
+        case "gov.policy":
+        case "gov.tokens":
+        case "gov.airgap":
+          // Central wiring hands us a real GovService (gov-service.ts over the
+          // same governance stack `hades gov` opens). Without one we answer an
+          // explicit gov.error: a missing backend must never be rendered as a
+          // healthy identity, a verified chain, or unblocked egress.
+          if (this.gov) {
+            for (const ev of await this.gov.handle(cmd)) this.safeEmit(ev);
+          } else {
+            this.safeEmit({
+              kind: "gov.error",
+              op: cmd.kind,
+              message: "the governance layer is not configured in this build",
               at: this.now(),
             });
           }
