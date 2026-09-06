@@ -49,5 +49,17 @@
   ],
   "provider_calls": "No live provider; deterministic in-memory and localhost HTTP fixtures",
   "native_installers": "not built or launched",
-  "competitor_evaluation": "not performed"
+  "competitor_evaluation": "not performed",
+  "tested_revision": "d70bdc4ff52c4049d022ddf9e376e64438fbdc40",
+  "followup": {
+    "scope": "Federation shutdown and late reconnect cleanup",
+    "targeted_tests": {
+      "files_passed": 8,
+      "tests_passed": 233,
+      "tests_failed": 0
+    },
+    "typecheck": "passed",
+    "test_log_sha256": "ce8561de434801b91d797d79b6d5ae611e73856fe1d0480ef6ce1134161938fa",
+    "full_platform_validation": "See Agent CI for the commit containing this receipt"
+  }
 }

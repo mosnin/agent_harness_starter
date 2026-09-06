@@ -578,8 +578,9 @@ describe("FederationLink protocol", () => {
     const { linkA, linkB } = await connectedPair();
     // B never replies (no serve() handler registered) so the request would hang forever.
     const pending = linkA.request("offer", "B", {});
+    const rejected = expect(pending).rejects.toThrow();
     await linkA.close();
-    await expect(pending).rejects.toThrow();
+    await rejected;
 
     // Idempotent: closing again must not throw or double-emit side effects.
     await expect(linkA.close()).resolves.toBeUndefined();
@@ -686,6 +687,28 @@ describe("FederationLink fuzzing", () => {
 // ---------------------------------------------------------------------------
 
 describe("FederationLink end-to-end over real TCP", () => {
+  it("closes a reconnect wire that arrives after the link was shut down", async () => {
+    const node = await makeIdentity("late-reconnect");
+    let disconnect!: () => void;
+    let finishDial!: (wire: Wire) => void;
+    let dialStarted!: () => void;
+    const started = new Promise<void>((resolve) => { dialStarted = resolve; });
+    const dial = new Promise<Wire>((resolve) => { finishDial = resolve; });
+    let lateCloses = 0;
+    let lateAttachments = 0;
+    const initial = { send() {}, onFrame() {}, onClose(fn: () => void) { disconnect = fn; }, close() {} };
+    const late = { send() {}, onFrame() { lateAttachments++; }, close() { lateCloses++; } };
+    const link = track(new FederationLink({ identity: node.identity, trust: pinnedTrust(), wire: initial,
+      reconnect: { attempts: 1, baseDelayMs: 0, maxDelayMs: 0, reconnectWire: () => { dialStarted(); return dial; } } }));
+    disconnect();
+    await started;
+    await link.close();
+    finishDial(late);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(lateCloses).toBe(1);
+    expect(lateAttachments).toBe(0);
+  });
+
   it("handshakes, does request/response, and resumes cleanly after a real mid-stream reconnect", async () => {
     const nodeA = await makeIdentity("node-a");
     const nodeB = await makeIdentity("node-b");
@@ -784,6 +807,9 @@ describe("FederationLink end-to-end over real TCP", () => {
     await delay(150);
     expect(receivedOnB).toEqual([1, 2, 3]);
 
+    // Subscribe before any asynchronous sends: a fast reconnect can finish
+    // while message signing yields, before the send promises resolve.
+    const upAgain = new Promise<void>((resolve) => linkA.once("peer:up", () => resolve()));
     // Simulate a real network partition: destroy the raw sockets on both ends.
     for (const s of clientSockets) s.destroy();
     for (const s of serverSockets) s.destroy();
@@ -795,7 +821,6 @@ describe("FederationLink end-to-end over real TCP", () => {
     }
 
     // Wait for heartbeat-driven degrade + automatic reconnect to complete on both sides.
-    const upAgain = new Promise<void>((resolve) => linkA.once("peer:up", () => resolve()));
     await upAgain;
     await delay(300); // let the resumed flush actually land
 
@@ -811,7 +836,7 @@ describe("FederationLink end-to-end over real TCP", () => {
     await linkB.close();
     await linkA.close();
 
-    await new Promise<void>((resolve) => server.close(() => resolve()));
     for (const s of [...clientSockets, ...serverSockets]) s.destroy();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
   }, 20_000);
 });

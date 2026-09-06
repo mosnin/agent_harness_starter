@@ -505,6 +505,7 @@ export class FederationLink extends EventEmitter {
   async request<TReq, TRes>(kind: FederatedKind, to: string, payload: TReq): Promise<TRes> {
     if (this.closed) throw new Error("FederationLink: link is closed");
     const envelope = await this.sendReliable(kind, to, payload);
+    if (this.closed) throw new Error("FederationLink: link is closed");
     return new Promise<TRes>((resolve, reject) => {
       const timer = this.schedule(() => {
         this.pendingRequests.delete(envelope.id);
@@ -536,6 +537,10 @@ export class FederationLink extends EventEmitter {
 
   async close(): Promise<void> {
     if (this.closed) return;
+    // Close admission before signing yields; concurrent close/reconnect work
+    // must not attach another wire while shutdown is in progress.
+    this.closed = true;
+    this.reconnecting = false;
 
     const peer = this.peerNodeId;
     if (peer !== undefined) {
@@ -547,9 +552,6 @@ export class FederationLink extends EventEmitter {
         // best-effort — the peer may already be unreachable
       }
     }
-
-    this.closed = true;
-    this.reconnecting = false;
 
     for (const resolve of [...this.pendingSleepResolvers]) resolve();
     this.pendingSleepResolvers.clear();
@@ -582,12 +584,13 @@ export class FederationLink extends EventEmitter {
 
   private attachWire(wire: Wire): void {
     wire.onFrame((frame) => {
+      if (this.closed || wire !== this.wire) return;
       void this.onFrame(frame);
     });
     const hooked = wire as Partial<SocketWireExtras>;
     if (typeof hooked.onClose === "function") {
       hooked.onClose(() => {
-        if (this.closed) return;
+        if (this.closed || wire !== this.wire) return;
         this.handleLinkDown();
       });
     }
@@ -946,7 +949,13 @@ export class FederationLink extends EventEmitter {
       }
       try {
         const newWire = await reconnectWire();
+        if (this.closed) {
+          (newWire as Partial<SocketWireExtras>).close?.();
+          return;
+        }
+        const previousWire = this.wire;
         this.wire = newWire;
+        if (previousWire !== newWire) (previousWire as Partial<SocketWireExtras>).close?.();
         this.attachWire(newWire);
         const resumed = await this.resumeHandshake();
         if (resumed.ok) {

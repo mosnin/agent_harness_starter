@@ -32,6 +32,9 @@ Repository: `mosnin/agent_harness_starter`. Development branch:
 - Fixed macOS path aliases, browser discovery across platform cache layouts,
   installer chmod compatibility, test typing, a TCP fixture connection race,
   and a truncated skill-import message that hid the overwrite instruction.
+  Federation shutdown now closes late reconnect sockets, ignores events from
+  replaced wires and refuses to register requests after shutdown. A regression
+  that failed against the prior implementation verifies late-socket cleanup.
   CI now checks CLI/swarm/desktop JavaScript on Linux and macOS using locked
   installs, rather than treating the legacy Next.js app as the product.
 
@@ -50,7 +53,13 @@ checks; the type checker produced 83 diagnostics. After remediation:
 | Packaged CLI smoke | Real file edit, session resume in a second process, clear missing-credential failure |
 | Packaged swarm smoke | Inline and actual child-process execution, two goals restored across processes, token accounting retained |
 | Original audit probes | Both fabricated/uncovered-answer cases rejected; wrong gateway answer receives no certificate |
+| Federation shutdown follow-up | 233 distributed-runtime tests pass; type checking passes |
 | Original macOS file-root probe | Both `/tmp` alias and canonical root read the fixture successfully |
+
+The full local run above was performed for `d70bdc4`. Its clean Linux GitHub
+run also passed tests, builds and both smoke tests. A macOS hosted reconnect
+timeout led to the additional shutdown regression and fix. Full clean-platform
+results for subsequent commits are recorded in [Agent CI](https://github.com/mosnin/agent_harness_starter/actions/workflows/ci.yml).
 
 The new workflow tests use deterministic model transports. The packaged tests
 use real localhost HTTP, actual CLI/worker processes and temporary files. They
