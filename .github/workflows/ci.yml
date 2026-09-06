@@ -1,4 +1,4 @@
-name: CI
+name: Agent CI
 
 on:
   push:
@@ -6,74 +6,31 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
-  lint-and-type-check:
-    name: Lint & Type Check
-    runs-on: ubuntu-latest
-
+  agent:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install --prefer-offline --no-audit --no-fund
-
-      - name: Type check
-        run: npx tsc --noEmit
-        env:
-          # Provide dummy values so type-check doesn't fail on optional imports
-          OPENAI_API_KEY: sk-dummy
-          DB_PROVIDER: memory
-          AUTH_PROVIDER: none
-
-      - name: Lint
-        run: npx eslint . --ext .ts,.tsx --max-warnings 0
-        continue-on-error: true  # remove once lint is fully clean
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: lint-and-type-check
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install --prefer-offline --no-audit --no-fund
-
-      - name: Build Next.js app
-        run: npm run build
-        env:
-          OPENAI_API_KEY: sk-dummy
-          DB_PROVIDER: memory
-          AUTH_PROVIDER: none
-          NEXT_PUBLIC_APP_URL: http://localhost:3000
-
-  test:
-    name: Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install --prefer-offline --no-audit --no-fund
-
-      - name: Run tests
-        run: npm test --if-present
-        env:
-          OPENAI_API_KEY: sk-dummy
+          node-version: "22"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install browser for real local browser tests
+        run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - run: npm run type-check
+      - run: npm test -- --maxWorkers=4
+      - run: npm run build:hades
+      - run: npm run build:swarm
+      - run: npm run desktop:build
+      - name: Exercise packaged CLI with a local HTTP fixture
+        run: npm run test:smoke

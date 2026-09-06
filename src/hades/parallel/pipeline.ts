@@ -47,17 +47,17 @@ export interface PipelineOptions {
  * input order.
  */
 export async function pipeline<R = unknown>(
-  items: unknown[],
-  stages: PipelineStage[],
+  items: R[],
+  stages: PipelineStage<R, R>[],
   opts: PipelineOptions = {}
 ): Promise<PipelineResult<R>> {
   if (stages.length === 0) throw new Error("pipeline needs at least one stage");
   const sems = stages.map((s) => new Semaphore(s.concurrency ?? Infinity));
   const byStage: Record<string, number> = {};
-  const label = (s: PipelineStage, i: number) => s.name ?? s.role ?? `stage${i}`;
+  const label = (s: PipelineStage<R, R>, i: number) => s.name ?? s.role ?? `stage${i}`;
 
-  const runChain = async (item: unknown, index: number): Promise<{ ok: true; value: R } | { ok: false; error: string }> => {
-    let current: unknown = item;
+  const runChain = async (item: R, index: number): Promise<{ ok: true; value: R } | { ok: false; error: string }> => {
+    let current: R = item;
     for (let s = 0; s < stages.length; s++) {
       await sems[s].acquire();
       try {

@@ -1020,13 +1020,14 @@ export class Sidecar {
  * - `close` -> `built.stop()`, which calls `manager.shutdown()`.
  */
 export function realSwarmFactory(opts: {
+  demo?: boolean;
   /** Threaded through to `buildSwarm`'s provider-decoration seam (process/
    *  docker modes): central wiring passes `RealFleet.decorateProvider` so
    *  every actually-spawned worker gets real backend attribution. */
   decorateProvider?: (provider: ContainerProvider, mode: "process" | "docker") => ContainerProvider;
 } = {}): SwarmFactory {
   return async ({ mode, poolSize }) => {
-    const built = await buildSwarm({ mode, poolSize, decorateProvider: opts.decorateProvider });
+    const built = await buildSwarm({ mode, poolSize, demo: opts.demo, decorateProvider: opts.decorateProvider });
     await built.start();
     const manager = built.manager;
     const emitter = manager as unknown as EventEmitter;

@@ -34,6 +34,8 @@ export type ConversationBrain = (
 
 export interface ConversationalAgentDeps {
   brain: ConversationBrain;
+  /** Resume an existing persisted session; unknown ids fail explicitly. */
+  sessionId?: string;
   memory?: MemoryStore;
   sessions?: SessionStore;
   /** Anything that can render a prose profile of the user — the legacy
@@ -72,7 +74,8 @@ export class ConversationalAgent {
   constructor(private readonly deps: ConversationalAgentDeps) {
     this.memoryLimit = deps.memoryLimit ?? 5;
     this.historyLimit = deps.historyLimit ?? 10;
-    this.sessionId = deps.sessions?.create({ title: "REPL session" }).id ?? randomUUID();
+    if (deps.sessionId && !deps.sessions?.get(deps.sessionId)) throw new Error(`Unknown session: ${deps.sessionId}`);
+    this.sessionId = deps.sessionId ?? deps.sessions?.create({ title: "REPL session" }).id ?? randomUUID();
     this.commands = this.buildCommands();
   }
 

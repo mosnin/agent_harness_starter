@@ -1,6 +1,6 @@
 /**
  * Picks the gateway's {@link GatewayAgentEngine} from environment — and picks
- * *honestly*: the real, ed25519-certified swarm engine
+ * *honestly*: the real, ed25519-tool-using swarm engine (correctness certification requires independent admission)
  * ({@link verifiedSwarmEngine}) is built ONLY behind an explicit opt-in
  * (`HADES_GATEWAY_ENGINE=swarm`) AND a real provider key
  * (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`). Every other combination —
@@ -11,7 +11,7 @@
  * There is no code path in this module that builds a swarm over the
  * `swarm-runtime` default `DemoExecutor` (see `worker/executor.ts`) and
  * calls it `mode: "real"` — `mode: "real"` is reachable ONLY through the
- * key-gated branch, which always wires a real {@link LLMExecutor}.
+ * key-gated branch, which always wires a real {@link AgentTaskExecutor}.
  *
  * @module hades/gateway/engine-select
  */
@@ -20,9 +20,13 @@ import { echoEngine, type GatewayAgentEngine } from "./agent-handler";
 import { verifiedSwarmEngine } from "./verified-engine";
 import { ConformalGate } from "../styx/gate";
 import { CertificateAuthority, generatePrivateKeyHex } from "../styx/certificate";
-import { defaultCalibration } from "../styx/runner";
+import { AgentTaskExecutor } from "../runtime/task-executor";
+import { resolveModel } from "../runtime/model";
+import { workspaceTools } from "../runtime/tools";
+import type { TaskExecutor } from "../../swarm-runtime/worker/executor";
+import { FileSessionStore, InMemorySessionStore } from "../memory/session-store";
 import { createInlineSwarm } from "../../swarm-runtime/factory";
-import { LLMExecutor, createOpenAICompatibleChat, type ChatFn } from "../../swarm-runtime/worker/llm-executor";
+import { LLMExecutor, type ChatFn } from "../../swarm-runtime/worker/llm-executor";
 
 /** The manager type {@link verifiedSwarmEngine} needs — named without an
  * extra import: `GatewayManager` (swarm-runtime/gateway/gateway) is exactly
@@ -49,7 +53,7 @@ export interface ResolveGatewayEngineDeps {
   /** Injected chat transport — bypasses `createOpenAICompatibleChat`'s real fetch. Tests only. */
   chat?: ChatFn;
   /** Injected manager factory — bypasses the real `createInlineSwarm`. Tests only. */
-  createManager?: (executor: LLMExecutor) => Promise<{ manager: Manager; shutdown: () => Promise<void> }>;
+  createManager?: (executor: TaskExecutor) => Promise<{ manager: Manager; shutdown: () => Promise<void> }>;
   /** Certificate `issuedAt` source, forwarded to `verifiedSwarmEngine`. */
   now?: () => number;
 }
@@ -67,49 +71,33 @@ const MISSING_KEY_DETAIL = "missing ANTHROPIC_API_KEY, OPENAI_API_KEY";
 
 const ECHO_OPT_IN_DETAIL =
   "using the mock echo engine; set HADES_GATEWAY_ENGINE=swarm and ANTHROPIC_API_KEY or OPENAI_API_KEY " +
-  "to opt into the real, certified swarm engine";
+  "to opt into the real, tool-using swarm engine (correctness certification requires independent admission)";
 
 interface DetectedKey {
   /** The exact environment variable NAME that supplied the key — never the key value. */
   variable: "ANTHROPIC_API_KEY" | "OPENAI_API_KEY";
-  apiKey: string;
-  defaultModel: string;
-  /**
-   * Default base URL for this provider's OpenAI-compatible endpoint.
-   * Anthropic's native wire dialect is `/v1/messages`, not OpenAI's
-   * `/chat/completions` — but Anthropic also serves a real OpenAI SDK
-   * compatibility endpoint at this exact base
-   * (https://docs.anthropic.com/en/api/openai-sdk), which is what
-   * `createOpenAICompatibleChat` (an OpenAI-dialect-only `ChatFn`) needs.
-   * `undefined` lets `createOpenAICompatibleChat` fall back to its own
-   * default (`https://api.openai.com/v1`).
-   */
-  defaultBaseUrl: string | undefined;
+  defaultModel?: string;
 }
 
 function detectKey(env: Record<string, string | undefined>): DetectedKey | undefined {
-  if (env.ANTHROPIC_API_KEY) {
+  if (env.ANTHROPIC_API_KEY && env.HADES_PROVIDER !== "openai") {
     return {
       variable: "ANTHROPIC_API_KEY",
-      apiKey: env.ANTHROPIC_API_KEY,
-      defaultModel: "claude-sonnet-5",
-      defaultBaseUrl: "https://api.anthropic.com/v1",
+      defaultModel: env.HADES_MODEL,
     };
   }
-  if (env.OPENAI_API_KEY) {
+  if (env.OPENAI_API_KEY && env.HADES_PROVIDER !== "anthropic") {
     return {
       variable: "OPENAI_API_KEY",
-      apiKey: env.OPENAI_API_KEY,
       defaultModel: "gpt-4o-mini",
-      defaultBaseUrl: undefined,
     };
   }
   return undefined;
 }
 
 /** Real default: a genuine inline swarm wrapping `shutdown` into the `{manager, shutdown}` shape. */
-async function defaultCreateManager(executor: LLMExecutor): Promise<{ manager: Manager; shutdown: () => Promise<void> }> {
-  const manager = await createInlineSwarm({ executor });
+async function defaultCreateManager(executor: TaskExecutor): Promise<{ manager: Manager; shutdown: () => Promise<void> }> {
+  const manager = await createInlineSwarm({ executor, maxAttempts: 2, planner: { async plan(objective) { return [{ description: objective, input: {}, requiredCapabilities: ["general"], dependsOn: [], priority: 5 }]; } } });
   return { manager, shutdown: () => manager.shutdown() };
 }
 
@@ -143,11 +131,12 @@ export function probeGatewayEngine(env: Record<string, string | undefined>): Eng
     if (!key) {
       return { requested: "swarm", mode: "mock", detail: MISSING_KEY_DETAIL };
     }
-    const model = env.HADES_GATEWAY_MODEL ?? key.defaultModel;
+    const model = env.HADES_GATEWAY_MODEL ?? env.HADES_MODEL ?? key.defaultModel;
+    if (!model) return { requested: "swarm", mode: "mock", detail: "set HADES_GATEWAY_MODEL or HADES_MODEL for the selected provider" };
     return {
       requested: "swarm",
       mode: "real",
-      detail: `real verified swarm engine configured via ${key.variable}, model "${model}"`,
+      detail: `real tool-using swarm engine configured via ${key.variable}, model "${model}"`,
     };
   }
 
@@ -203,28 +192,32 @@ export async function resolveGatewayEngine(
       };
     }
 
-    const model = env.HADES_GATEWAY_MODEL ?? key.defaultModel;
-    const baseUrl = env.HADES_GATEWAY_BASE_URL ?? key.defaultBaseUrl;
+    const model = env.HADES_GATEWAY_MODEL ?? env.HADES_MODEL ?? key.defaultModel;
 
-    const chat: ChatFn = deps?.chat ?? createOpenAICompatibleChat({ apiKey: key.apiKey, model, baseUrl });
-    const executor = new LLMExecutor(chat);
+    if (!model && !deps?.chat) {
+      return { engine: echoEngine(), probe: probeGatewayEngine(env), shutdown: NOOP_SHUTDOWN };
+    }
+    const selected = deps?.chat ? undefined : resolveModel({ ...env, HADES_PROVIDER: key.variable === "ANTHROPIC_API_KEY" ? "anthropic" : "openai", ...(env.HADES_GATEWAY_BASE_URL ? { HADES_BASE_URL: env.HADES_GATEWAY_BASE_URL, ANTHROPIC_BASE_URL: env.HADES_GATEWAY_BASE_URL } : {}) }, { model });
+    const executor: TaskExecutor = deps?.chat ? new LLMExecutor(deps.chat)
+      : new AgentTaskExecutor(selected!.client, selected!.model, workspaceTools(env.HADES_GATEWAY_WORKSPACE ?? process.cwd()));
 
     const createManager = deps?.createManager ?? defaultCreateManager;
     const { manager, shutdown } = await createManager(executor);
 
     const gate = new ConformalGate({ epsilon: 0.1 });
-    gate.calibrate(defaultCalibration());
+    // No deployment calibration has been supplied. Never seed real admission
+    // with synthetic fixture labels. The engine abstains from certification.
 
     const authority = new CertificateAuthority(env.HADES_STYX_KEY ?? generatePrivateKeyHex());
 
-    const engine = verifiedSwarmEngine(manager, { gate, authority, now: deps?.now });
+    const engine = verifiedSwarmEngine(manager, { gate, authority, now: deps?.now, sessions: deps?.chat ? new InMemorySessionStore() : new FileSessionStore(`${env.HADES_DATA_DIR ?? ".hades"}/gateway-sessions.json`) });
 
     return {
       engine,
       probe: {
         requested: "swarm",
         mode: "real",
-        detail: `real verified swarm engine active via ${key.variable}, model "${model}"`,
+        detail: `real tool-using swarm engine active via ${key.variable}, model "${model}"`,
       },
       shutdown,
     };

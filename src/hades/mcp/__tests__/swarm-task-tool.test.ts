@@ -176,7 +176,7 @@ describe("swarm_run_verified — real end-to-end", () => {
     expect(result.note).toMatch(/verification/i);
   }, 20_000);
 
-  it("a goal that fails without ever being rejected by the gate is reported as 'failed'", async () => {
+  it("missing evidence is rejected rather than treated as borderline", async () => {
     // Score lands in the "revise" band every attempt (never an outright reject),
     // so after max attempts the goal fails without a single reject verdict.
     const tool = createSwarmTaskTool(
@@ -187,8 +187,8 @@ describe("swarm_run_verified — real end-to-end", () => {
 
     expect(res.isError).toBe(false);
     const result = parse(res.text);
-    expect(result.status).toBe("failed");
-    expect(result.verifications.every((v) => v.verdict === "revise")).toBe(true);
+    expect(result.status).toBe("rejected");
+    expect(result.verifications.every((v) => v.verdict === "reject")).toBe(true);
     expect(result.note).toBeTruthy();
   }, 20_000);
 

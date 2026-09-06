@@ -10,7 +10,7 @@ describe("buildProvenance", () => {
       taskId: "t1",
       workerId: "w1",
       output: "42 lines",
-      claims: [{ statement: "file has 42 lines", evidence: ["wc: 42 a.txt"], confidence: 0.9 }],
+      claims: [{ statement: "file has 42 lines", evidence: ["42 a.txt"], confidence: 0.9 }],
       toolTrace: [{ tool: "wc", args: {}, ok: true, output: "42 a.txt", at: 0 }],
       startedAt: 0,
       finishedAt: 1,

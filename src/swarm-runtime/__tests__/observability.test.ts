@@ -53,7 +53,7 @@ describe("structured logging", () => {
 
 describe("/metrics endpoint", () => {
   it("serves Prometheus text", async () => {
-    const built = await buildSwarm({ mode: "inline", capabilities: ["research"], poolSize: 1 });
+    const built = await buildSwarm({ demo: true, mode: "inline", capabilities: ["research"], poolSize: 1 });
     const port = 39290;
     const server = new SwarmServer(built, { port });
     try {

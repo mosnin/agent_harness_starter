@@ -241,6 +241,7 @@ export async function verifyTrajectoryForSynthesis(
 
   const { pCorrect, epsilon } = certificate.payload;
   if (
+    certificate.payload.scope === "integrity" ||
     typeof epsilon !== "number" ||
     !Number.isFinite(epsilon) ||
     epsilon <= 0 ||

@@ -1,3 +1,4 @@
+import { realpathSync } from "node:fs";
 /**
  * Tests for `src/hades/migrate/discovery.ts`.
  *
@@ -555,7 +556,7 @@ describe("nodeFsProbe (real filesystem)", () => {
     const st = probe.stat(filePath);
     expect(st?.size).toBe("hello world".length);
     expect(st?.isSymlink).toBe(false);
-    expect(probe.realpath(filePath)).toBe(filePath);
+    expect(probe.realpath(filePath)).toBe(realpathSync(filePath));
   });
 
   it("returns [] rather than throwing for a nonexistent directory", () => {
@@ -608,7 +609,7 @@ describe("nodeFsProbe (real filesystem)", () => {
     const link = path.join(dir, "link.txt");
     symlinkSync(target, link);
     expect(probe.stat(link)?.isSymlink).toBe(true);
-    expect(probe.realpath(link)).toBe(target);
+    expect(probe.realpath(link)).toBe(realpathSync(target));
   });
 
   it("returns undefined realpath for a real symlink loop instead of throwing/hanging", () => {

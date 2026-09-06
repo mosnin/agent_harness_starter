@@ -35,13 +35,16 @@ export interface AgentLoopOptions {
   /** Extra system guidance appended after the always-injected protocol. */
   system?: string;
   temperature?: number;
+  signal?: AbortSignal;
+  history?: ChatMessage[];
+  onTool?: (call: ToolCall, result: string) => void;
 }
 
 export interface AgentLoopResult {
   answer: string;
   /** Number of model turns (calls to `client.chat`) taken. */
   steps: number;
-  toolCalls: Array<{ call: ToolCall; result: string }>;
+  toolCalls: Array<{ call: ToolCall; result: string; ok?: boolean }>;
   tokensIn: number;
   tokensOut: number;
   usd: number;
@@ -49,6 +52,8 @@ export interface AgentLoopResult {
   transcript: ChatMessage[];
   /** True iff the loop stopped on `maxSteps` without a final answer. */
   hitStepLimit: boolean;
+  error?: string;
+  costMeasured?: boolean;
 }
 
 const DEFAULT_MAX_STEPS = 6;
@@ -76,36 +81,41 @@ export class AgentLoop {
   async run(task: string): Promise<AgentLoopResult> {
     const messages: ChatMessage[] = [
       { role: "system", content: this.buildSystemPrompt() },
+      ...(this.opts.history ?? []),
       { role: "user", content: task },
     ];
 
-    const toolCalls: Array<{ call: ToolCall; result: string }> = [];
+    const toolCalls: Array<{ call: ToolCall; result: string; ok?: boolean }> = [];
     let steps = 0;
     let tokensIn = 0;
     let tokensOut = 0;
     let usd = 0;
-    let lastText = "";
+    let error: string | undefined;
+    let costMeasured = true;
 
     while (steps < this.maxSteps) {
+      if (this.opts.signal?.aborted) { error = "Run cancelled"; break; }
       let reply: string;
       try {
         const res = await this.client.chat({
           model: this.opts.model,
           messages,
           temperature: this.opts.temperature,
+          signal: this.opts.signal,
         });
         reply = res.text ?? "";
         tokensIn += res.tokensIn ?? 0;
         tokensOut += res.tokensOut ?? 0;
         usd += res.usd ?? 0;
-      } catch {
-        // The loop must never throw. An infrastructure failure ends the
-        // run with the best-effort answer collected so far.
+        costMeasured = costMeasured && res.costMeasured !== false;
+      } catch (err) {
+        costMeasured = false;
+        error = this.opts.signal?.aborted ? "Run cancelled" : `Model request failed: ${err instanceof Error ? err.message : String(err)}`;
         break;
       }
+      if (this.opts.signal?.aborted) { error = "Run cancelled"; break; }
 
       steps++;
-      lastText = reply;
       // The raw model turn is always part of the transcript.
       messages.push({ role: "assistant", content: reply });
 
@@ -121,6 +131,7 @@ export class AgentLoop {
           usd,
           transcript: messages,
           hitStepLimit: false,
+          costMeasured,
         };
       }
 
@@ -128,7 +139,8 @@ export class AgentLoop {
         // `tools.run` is total — it never throws — so a bad tool becomes
         // a TOOL_ERROR observation the model can react to on the next turn.
         const result = await this.tools.run(parsed.call);
-        toolCalls.push({ call: parsed.call, result: result.output });
+        toolCalls.push({ call: parsed.call, result: result.output, ok: result.ok });
+        this.opts.onTool?.(parsed.call, result.output);
         const observation = result.ok
           ? `TOOL_RESULT: ${result.output}`
           : `TOOL_ERROR: ${result.output}`;
@@ -147,19 +159,22 @@ export class AgentLoop {
         usd,
         transcript: messages,
         hitStepLimit: false,
+        costMeasured,
       };
     }
 
     // Fell out of the loop on the step cap while still tool-calling.
     return {
-      answer: stripFences(lastText),
+      answer: error ?? "Step limit reached before a final answer. Resume with a narrower task.",
       steps,
       toolCalls,
       tokensIn,
       tokensOut,
       usd,
       transcript: messages,
-      hitStepLimit: true,
+      hitStepLimit: !error,
+      error,
+      costMeasured,
     };
   }
 

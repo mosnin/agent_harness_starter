@@ -42,7 +42,7 @@ export type LatestVersionLookup = () => Promise<string | null> | string | null;
 
 export interface SetupDeps {
   config: HadesConfig;
-  env: NodeJS.ProcessEnv;
+  env: Record<string, string | undefined>;
   fs: SetupFs;
   /** Version of the running install (from package.json). */
   version: string;
@@ -81,7 +81,7 @@ function majorOf(version: string): number {
 }
 
 /** Which provider key variables are present. Returns NAMES, never values. */
-export function detectProviderKeys(env: NodeJS.ProcessEnv): string[] {
+export function detectProviderKeys(env: Record<string, string | undefined>): string[] {
   return PROVIDER_KEY_VARS.filter((name) => {
     const v = env[name];
     return typeof v === "string" && v.trim().length > 0;

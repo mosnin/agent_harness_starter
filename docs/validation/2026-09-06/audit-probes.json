@@ -1,0 +1,17 @@
+[
+  {
+    "probe": "fabricated_claim_without_trace",
+    "verdict": "reject",
+    "certificate_emitted": false
+  },
+  {
+    "probe": "wrong_output_with_unrelated_true_claim",
+    "verdict": "reject",
+    "certificate_emitted": false
+  },
+  {
+    "probe": "gateway_wrong_answer_certificate",
+    "verdict": null,
+    "certificate_emitted": false
+  }
+]

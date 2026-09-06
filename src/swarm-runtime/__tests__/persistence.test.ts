@@ -13,6 +13,18 @@ afterEach(async () => {
 });
 
 describe("FileStateStore", () => {
+  it("serializes overlapping saves and captures values when save is called", async () => {
+    const path = join(tmpdir(), `swarm-concurrent-${process.pid}-${performance.now()}.json`);
+    const store = new FileStateStore(path);
+    try {
+      const first = store.save({ version: 1, savedAt: 1, goals: [], tasks: [], usage: {} });
+      const snapshot = { version: 1 as const, savedAt: 2, goals: [], tasks: [], usage: {} };
+      const second = store.save(snapshot);
+      snapshot.savedAt = 99;
+      await Promise.all([first, second]);
+      expect((await store.load())?.savedAt).toBe(2);
+    } finally { await rm(path, { force: true }); }
+  });
   it("round-trips a snapshot atomically", async () => {
     const path = join(tmpdir(), `swarm-state-${process.pid}-${Math.floor(performance.now())}.json`);
     const store = new FileStateStore(path);

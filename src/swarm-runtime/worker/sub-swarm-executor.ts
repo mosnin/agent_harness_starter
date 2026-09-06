@@ -77,8 +77,8 @@ export class SubSwarmExecutor implements TaskExecutor {
         output: goal.synthesis,
         claims: [
           {
-            statement: `A child sub-swarm resolved the delegated objective across ${subResults.length} verified sub-result(s).`,
-            evidence: [`sub_swarm produced ${subResults.length} verified sub-result(s)`, evidenceBlob.slice(0, 200)],
+            statement: typeof goal.synthesis === "string" ? goal.synthesis : JSON.stringify(goal.synthesis),
+            evidence: [evidenceBlob.slice(0, 200)],
             confidence: 0.85,
           },
         ],

@@ -262,6 +262,7 @@ export class StyxOrchestrator {
         this.panel.vote(task, output).map((v) => v.verifierId),
       );
       const certificate = await this.cfg.ca.issue({
+        scope: "correctness",
         outputSha256: sha256Hex(output),
         taskId: task.id,
         verifierTier: tier,

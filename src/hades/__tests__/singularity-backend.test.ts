@@ -96,7 +96,7 @@ describe("SingularityBackend", () => {
 
   it("has no hibernate/wake (persistent HPC node)", () => {
     const be = new SingularityBackend(fakeRunner());
-    expect(be.hibernate).toBeUndefined();
-    expect(be.wake).toBeUndefined();
+    expect("hibernate" in be).toBe(false);
+    expect("wake" in be).toBe(false);
   });
 });

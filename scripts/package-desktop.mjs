@@ -67,6 +67,8 @@ export const BUNDLE_TARGETS = Object.freeze([
  * a fake `env`/`platform` and it becomes fully deterministic. Returns the
  * resolved absolute path, or null if the command isn't found.
  */
+/** @param {string} cmd
+ * @param {{env?:Record<string,string|undefined>, platform?:NodeJS.Platform}} [options] */
 export function lookupOnPath(cmd, { env = process.env, platform = process.platform } = {}) {
   const pathVar = env.PATH ?? env.Path ?? "";
   if (!pathVar) return null;
@@ -171,14 +173,14 @@ function defaultRunTauri({ log } = { log: console.log }) {
  * @param {boolean} [options.dryRun] force dry-run; default = auto (dry-run when
  *        prerequisites are absent)
  * @param {typeof buildSidecar} [options.buildSidecarFn]
- * @param {typeof buildDesktop} [options.buildUiFn]
+ * @param {()=>Promise<{ok:boolean,outdir:string,reason?:string,config?:object}>} [options.buildUiFn]
  * @param {(cmd:string)=>string|null} [options.lookup]
  * @param {Record<string,string|undefined>} [options.env]
  * @param {NodeJS.Platform} [options.platform]
  * @param {(...a:any[])=>void} [options.log]
  * @param {(...a:any[])=>void} [options.logError]
  * @param {(ctx:{log:Function})=>{status:number,error?:Error}} [options.runTauri]
- * @returns {Promise<{ok:boolean, dryRun:boolean, plan:object, sidecar:object,
+ * @returns {Promise<{ok:boolean, dryRun:boolean, plan:ReturnType<typeof planPackage>, sidecar:object,
  *          ui:object, prerequisites:object, tauriRan:boolean, failedStep?:string}>}
  */
 export async function packageDesktop(options = {}) {

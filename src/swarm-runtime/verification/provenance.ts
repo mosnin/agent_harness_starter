@@ -41,7 +41,7 @@ export function buildProvenance(
       confidence: c.confidence,
       evidence: c.evidence,
       tracedEvidence: traced,
-      grounded: traced.length > 0 || (result.toolTrace.length === 0 && c.evidence.length > 0),
+      grounded: traced.length > 0 && traced.length === c.evidence.length,
     };
   });
   return {

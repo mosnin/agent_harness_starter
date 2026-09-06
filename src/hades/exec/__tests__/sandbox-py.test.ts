@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execSync, execFileSync } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { readFileSync } from "node:fs";
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
@@ -26,8 +26,9 @@ function sleep(ms: number): Promise<void> {
  * spuriously self-match on the search pattern embedded in their own argv. */
 function isRealPython3Process(pid: number): boolean {
   try {
-    const comm = readFileSync(`/proc/${pid}/comm`, "utf8").trim();
-    return comm === "python3";
+    const comm = process.platform === "linux" ? readFileSync(`/proc/${pid}/comm`, "utf8").trim()
+      : execFileSync("ps", ["-p", String(pid), "-o", "comm="], { encoding: "utf8" }).trim().split("/").at(-1)!;
+    return /^python(?:3(?:\.\d+)?)?$/i.test(comm);
   } catch {
     // Process already gone, or /proc unavailable — not a live python3.
     return false;

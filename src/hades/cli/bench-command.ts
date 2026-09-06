@@ -102,7 +102,7 @@ function formatReport(r: VtphReport): string[] {
     `  tokens:           ${r.totalTokens}`,
     `  spend:            $${r.totalUsd.toFixed(4)}`,
     `  V-TPH (verified tasks/hour):        ${r.vtph.toFixed(2)}`,
-    `  V-TPH$ (verified tasks/hour/$):     ${Number.isFinite(r.vtphPerDollar) ? r.vtphPerDollar.toFixed(2) : "n/a (zero spend)"}`,
+    `  V-TPH$ (verified tasks/hour/$):     ${r.costMeasured !== false && Number.isFinite(r.vtphPerDollar) ? r.vtphPerDollar.toFixed(2) : "n/a (zero spend)"}`,
     `  provenance-complete:                ${(r.provenanceCompleteRate * 100).toFixed(0)}%`,
   ];
 }

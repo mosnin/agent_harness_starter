@@ -170,6 +170,7 @@ export interface WorkerResult {
   error?: string;
   /** Optional USD cost the worker incurred (LLM tokens, tool fees). */
   costUsd?: number;
+  usage?: { tokensIn: number; tokensOut: number; costMeasured: boolean };
 }
 
 /** Resource ceilings for a goal. A breach aborts the goal. */
@@ -186,6 +187,7 @@ export interface BudgetSpec {
 
 /** Live accounting for a running/finished goal. */
 export interface GoalUsage {
+  providerUsage?: { tokensIn: number; tokensOut: number; costMeasured: boolean };
   workerRuns: number;
   toolCalls: number;
   costUsd: number;

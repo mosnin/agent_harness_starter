@@ -100,6 +100,7 @@ function realFixture(): { deps: MigrateCommandDeps; sourceRoot: string; dataDir:
 }
 
 const noopFactory: SwarmFactory = () => ({
+  dispatchGoal: () => ({ goalId: "unused" }),
   swarm: undefined,
   snapshot: () => ({ workers: [], tasks: [], runs: [], metrics: undefined }),
   on: () => () => {},

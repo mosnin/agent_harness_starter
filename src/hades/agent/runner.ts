@@ -1,27 +1,7 @@
-/* ------------------------------------------------------------------ *
- * AgentRunners — the adapters that turn the tool-calling agent loop into
- * V-TPH$ {@link AgentRunner}s that plug straight into `hades bench vtph`.
- *
- * Two strategies, one interface:
- *
- *   1. {@link verifiedSwarmRunner} — the Hades bet. A worker answers via
- *      the tool loop, then a SEPARATE verifier model call independently
- *      judges the answer and decides `claimedVerified`. Because the gate
- *      is a distinct call (and can be a stronger model), a worker that
- *      confidently hallucinates gets CAUGHT: the gate replies FAIL, the
- *      result is declined, and `silentWrong` stays 0. The gate costs
- *      money, and that money is counted in the V-TPH$ math.
- *
- *   2. {@link singleAgentRunner} — the Hermes-style baseline. One model
- *      answers and TRUSTS ITSELF: `claimedVerified` is always `true`. No
- *      second opinion, so a confident wrong answer is delivered wearing a
- *      "verified" badge — exactly the trust failure V-TPH$ measures.
- *
- * Everything here is deterministic given a deterministic client: no
- * Math.random, no clock, no network, no fs. Both runners are TOTAL — they
- * never throw. Any internal failure is turned into a zero-cost declined
- * result so `runVtph` never crashes on a bad task.
- * ------------------------------------------------------------------ */
+/** Evaluation adapters for a tool-using worker and an optional model judge.
+ * A judge pass is an evaluation claim, not proof; the single-agent surrogate
+ * does not claim verification. Preserve incurred usage even if judging fails.
+ */
 
 import type { AgentRunner, EvalTask, AgentRunResult } from "../bench/vtph";
 import type { ModelClient } from "../models/client";
@@ -51,6 +31,7 @@ function errorResult(message: string): AgentRunResult {
     tokensIn: 0,
     tokensOut: 0,
     usd: 0,
+    costMeasured: false,
     provenance: [`error:${message}`],
   };
 }
@@ -86,6 +67,7 @@ interface Verdict {
   tokensIn: number;
   tokensOut: number;
   usd: number;
+  costMeasured: boolean;
 }
 
 const VERDICT_RE = /VERDICT:\s*(PASS|FAIL)\b[ \t]*([^\n\r]*)/i;
@@ -138,6 +120,7 @@ async function verify(
     tokensIn: res.tokensIn ?? 0,
     tokensOut: res.tokensOut ?? 0,
     usd: res.usd ?? 0,
+    costMeasured: res.costMeasured !== false,
   };
 }
 
@@ -160,6 +143,7 @@ export function verifiedSwarmRunner(
   const verifierModel = opts.verifierModel ?? opts.workerModel;
 
   return async (task: EvalTask): Promise<AgentRunResult> => {
+    let loop: AgentLoopResult | undefined;
     try {
       const worker = new AgentLoop(client, tools, {
         model: opts.workerModel,
@@ -167,7 +151,8 @@ export function verifiedSwarmRunner(
         temperature: 0,
       });
 
-      const loop: AgentLoopResult = await worker.run(task.prompt);
+      loop = await worker.run(task.prompt);
+      if (loop.error || loop.hitStepLimit) return { ...errorResult(loop.error ?? "step limit reached"), tokensIn: loop.tokensIn, tokensOut: loop.tokensOut, usd: loop.usd };
       const answer = loop.answer;
 
       const verdict = await verify(client, verifierModel, task, answer);
@@ -183,10 +168,11 @@ export function verifiedSwarmRunner(
         tokensIn: loop.tokensIn + verdict.tokensIn,
         tokensOut: loop.tokensOut + verdict.tokensOut,
         usd: loop.usd + verdict.usd,
+        costMeasured: loop.costMeasured !== false && verdict.costMeasured,
         provenance,
       };
     } catch (err) {
-      return errorResult(messageOf(err));
+      return { ...errorResult(messageOf(err)), tokensIn: loop?.tokensIn ?? 0, tokensOut: loop?.tokensOut ?? 0, usd: loop?.usd ?? 0 };
     }
   };
 }
@@ -195,12 +181,7 @@ export function verifiedSwarmRunner(
  * singleAgentRunner — one model that trusts itself
  * ------------------------------------------------------------------ */
 
-/**
- * One model answers and trusts itself: `claimedVerified` is ALWAYS `true`.
- * Provenance is the worker's tool calls (may be empty). Tokens/usd come
- * from the loop only — there is no verification gate to pay for. This is
- * the single-agent baseline whose `silentWrong` V-TPH$ exposes.
- */
+/** Local single-agent evaluation surrogate; no independent verification claim. */
 export function singleAgentRunner(
   client: ModelClient,
   opts: SingleAgentOptions,
@@ -219,10 +200,11 @@ export function singleAgentRunner(
 
       return {
         output: loop.answer,
-        claimedVerified: true, // self-trust: always claimed
+        claimedVerified: false, // A local agent loop has no independent correctness checker.
         tokensIn: loop.tokensIn,
         tokensOut: loop.tokensOut,
         usd: loop.usd,
+        costMeasured: loop.costMeasured,
         provenance: loop.toolCalls.map(toolProvenance),
       };
     } catch (err) {

@@ -70,7 +70,7 @@ export class HarnessExecutor implements TaskExecutor {
     // A summary claim for the final answer, grounded in the same tool outputs.
     if (result.finalOutput.trim()) {
       claims.push({
-        statement: result.finalOutput.slice(0, 200),
+        statement: result.finalOutput,
         evidence:
           toolTrace.length > 0
             ? toolTrace.map((t) => t.output.slice(0, 120))

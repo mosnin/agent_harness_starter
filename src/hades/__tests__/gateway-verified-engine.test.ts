@@ -71,18 +71,19 @@ describe("verifiedSwarmEngine", () => {
   it("is mode:real", () => {
     const engine = verifiedSwarmEngine(fakeManager(async () => ({ goalId: "g", done: Promise.resolve(fakeGoal()) })), {
       gate: calibratedGate(),
+      checkOutcome: async () => true,
       authority: realAuthority(),
     });
     expect(engine.mode).toBe("real");
   });
 
-  it("a completed, contradiction-free, fully-verified goal clears the real gate and issues a certificate that binds EXACTLY the returned text — the first live-path 'verified' proof", async () => {
+  it("an explicitly checked result clears the calibrated gate and binds the exact returned text", async () => {
     const manager = fakeManager(async (objective) => ({
       goalId: "g-high",
       done: Promise.resolve(fakeGoal({ synthesis: `synthesized: ${objective}` })),
     }));
     const gate = calibratedGate();
-    const engine = verifiedSwarmEngine(manager, { gate, authority: realAuthority() });
+    const engine = verifiedSwarmEngine(manager, { gate, checkOutcome: async () => true, authority: realAuthority() });
 
     const result = await engine.respond(turnFixture);
 
@@ -107,7 +108,7 @@ describe("verifiedSwarmEngine", () => {
     expect(stamped.certFingerprint).toBeTruthy();
 
     // The certificate's correctness leg matches what the engine actually computed.
-    expect(cert.payload.verifierTier).toBe("T4-goal-consistency");
+    expect(cert.payload.verifierTier).toBe("independent-outcome-check");
     expect(cert.payload.ensembleScore).toBe(1);
     expect(cert.payload.pCorrect).toBe(result.decision?.pCorrectEstimate);
     expect(cert.payload.epsilon).toBe(gate.stats().epsilon);
@@ -118,6 +119,7 @@ describe("verifiedSwarmEngine", () => {
     const manager = fakeManager(async () => ({ goalId: "g-ignored", done: Promise.resolve(fakeGoal()) }));
     const engine = verifiedSwarmEngine(manager, {
       gate: calibratedGate(),
+      checkOutcome: async () => true,
       authority: realAuthority(),
       taskIdFor: (turn) => `custom:${turn.sessionId}`,
     });
@@ -127,7 +129,8 @@ describe("verifiedSwarmEngine", () => {
 
   it("issuedAt honors an injected `now`, never the real wall clock, when provided", async () => {
     const manager = fakeManager(async () => ({ goalId: "g-time", done: Promise.resolve(fakeGoal()) }));
-    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(), authority: realAuthority(), now: () => 123_456 });
+    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(),
+      checkOutcome: async () => true, authority: realAuthority(), now: () => 123_456 });
     const result = await engine.respond(turnFixture);
     expect(result.certificate?.payload.issuedAt).toBe(123_456);
   });
@@ -150,7 +153,7 @@ describe("verifiedSwarmEngine", () => {
       ),
     }));
     const gate = calibratedGate();
-    const engine = verifiedSwarmEngine(manager, { gate, authority: realAuthority() });
+    const engine = verifiedSwarmEngine(manager, { gate, checkOutcome: async () => true, authority: realAuthority() });
 
     const result = await engine.respond(turnFixture);
     expect(result.decision).toBeDefined();
@@ -167,7 +170,8 @@ describe("verifiedSwarmEngine", () => {
       goalId: "g-failed",
       done: Promise.resolve(fakeGoal({ status: "failed", synthesis: undefined, taskIds: ["t1"] })),
     }));
-    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(), authority: realAuthority() });
+    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(),
+      checkOutcome: async () => true, authority: realAuthority() });
 
     const result = await engine.respond(turnFixture);
     expect(result.decision).toBeDefined();
@@ -185,7 +189,8 @@ describe("verifiedSwarmEngine", () => {
       goalId: "g-aborted",
       done: Promise.resolve(fakeGoal({ status: "aborted", synthesis: undefined })),
     }));
-    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(), authority: realAuthority() });
+    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(),
+      checkOutcome: async () => true, authority: realAuthority() });
 
     const result = await engine.respond(turnFixture);
     expect(result.decision?.emit).toBe(false);
@@ -198,7 +203,8 @@ describe("verifiedSwarmEngine", () => {
     const manager = fakeManager(async () => {
       throw new Error("manager is at capacity");
     });
-    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(), authority: realAuthority() });
+    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(),
+      checkOutcome: async () => true, authority: realAuthority() });
 
     const result = await engine.respond(turnFixture);
     expect(result.decision).toBeDefined();
@@ -210,7 +216,8 @@ describe("verifiedSwarmEngine", () => {
 
   it("a rejected `done` promise yields a non-emitting decision, no certificate, and the real error reason", async () => {
     const manager = fakeManager(async () => ({ goalId: "g-reject", done: Promise.reject(new Error("worker crashed mid-execution")) }));
-    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(), authority: realAuthority() });
+    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(),
+      checkOutcome: async () => true, authority: realAuthority() });
 
     const result = await engine.respond(turnFixture);
     expect(result.decision?.emit).toBe(false);
@@ -223,7 +230,8 @@ describe("verifiedSwarmEngine", () => {
       // eslint-disable-next-line no-throw-literal
       throw "raw string failure";
     });
-    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(), authority: realAuthority() });
+    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(),
+      checkOutcome: async () => true, authority: realAuthority() });
     const result = await engine.respond(turnFixture);
     expect(result.text).toContain("raw string failure");
     expect(result.decision?.emit).toBe(false);
@@ -234,7 +242,8 @@ describe("verifiedSwarmEngine", () => {
       goalId: "g-running",
       done: Promise.resolve(fakeGoal({ status: "running", synthesis: undefined })),
     }));
-    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(), authority: realAuthority() });
+    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(),
+      checkOutcome: async () => true, authority: realAuthority() });
     const result = await engine.respond(turnFixture);
     expect(result.text.toLowerCase()).toContain("could not produce a verified answer");
     expect(result.text).toContain("running");
@@ -247,14 +256,16 @@ describe("verifiedSwarmEngine", () => {
       seen.push(opts?.timeoutMs);
       return { goalId: "g-t", done: Promise.resolve(fakeGoal()) };
     });
-    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(), authority: realAuthority(), timeoutMs: 12_345 });
+    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(),
+      checkOutcome: async () => true, authority: realAuthority(), timeoutMs: 12_345 });
     await engine.respond(turnFixture);
     expect(seen).toEqual([12_345]);
   });
 
   it("a certificate replayed onto different reply text renders 'unverified', never 'verified'", async () => {
     const manager = fakeManager(async () => ({ goalId: "g-replay", done: Promise.resolve(fakeGoal()) }));
-    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(), authority: realAuthority() });
+    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(),
+      checkOutcome: async () => true, authority: realAuthority() });
     const result = await engine.respond(turnFixture);
     expect(result.certificate).toBeDefined();
 
@@ -267,7 +278,8 @@ describe("verifiedSwarmEngine", () => {
 
   it("a certificate whose payload was tampered after issuance fails certifiesOutput and renders 'unverified'", async () => {
     const manager = fakeManager(async () => ({ goalId: "g-tamper", done: Promise.resolve(fakeGoal()) }));
-    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(), authority: realAuthority() });
+    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(),
+      checkOutcome: async () => true, authority: realAuthority() });
     const result = await engine.respond(turnFixture);
     const cert = result.certificate as VerificationCertificate;
 
@@ -283,7 +295,8 @@ describe("verifiedSwarmEngine", () => {
 
   it("AgentGatewayHandler's channel-switch continuity prefix mutates the certified text — the badge honestly demotes to 'unverified' (documented fail-closed behavior, not a bug)", async () => {
     const manager = fakeManager(async () => ({ goalId: "g-switch", done: Promise.resolve(fakeGoal({ synthesis: "the grounded answer" })) }));
-    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(), authority: realAuthority() });
+    const engine = verifiedSwarmEngine(manager, { gate: calibratedGate(),
+      checkOutcome: async () => true, authority: realAuthority() });
     const handler = new AgentGatewayHandler({ engine });
     const stamper = new BadgeStamper();
 

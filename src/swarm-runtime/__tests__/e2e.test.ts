@@ -22,7 +22,7 @@ describe("Hermes-Swarm end-to-end", () => {
   });
 
   it("runs a goal via REST, gateway, and scheduler with verification + observability", async () => {
-    const built = await buildSwarm({ mode: "inline", capabilities: ["research", "code"], poolSize: 3 });
+    const built = await buildSwarm({ demo: true, mode: "inline", capabilities: ["research", "code"], poolSize: 3 });
 
     // Observability: capture structured lifecycle logs.
     const logs: StructuredLogRecord[] = [];

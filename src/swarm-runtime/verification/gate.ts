@@ -111,7 +111,7 @@ export class VerificationGate {
         checks.push({
           name: "llm-judge",
           passed: false,
-          weight: 0, // don't punish grounding for a judge outage
+          weight: 2, // unavailable required second opinion must abstain
           detail: `judge unavailable: ${e instanceof Error ? e.message : String(e)}`,
         });
       }
@@ -141,7 +141,7 @@ export class VerificationGate {
     if (claims.length === 0) {
       return { name: "evidence-present", passed: false, weight: 2, detail: "no claims to back" };
     }
-    const unbacked = claims.filter((c) => c.evidence.length === 0);
+    const unbacked = claims.filter((c) => c.evidence.length === 0 || c.evidence.some((e) => !e.trim()));
     const passed = unbacked.length === 0;
     return {
       name: "evidence-present",
@@ -167,10 +167,7 @@ export class VerificationGate {
     if (claims.length === 0) {
       return { name: "evidence-traceable", passed: false, weight: 3, detail: "no claims" };
     }
-    const haystack = toolTrace
-      .map((t) => `${t.tool} ${JSON.stringify(t.args)} ${t.output}`)
-      .join("\n")
-      .toLowerCase();
+    const haystack = buildTraceHaystack(toolTrace);
 
     let traceable = 0;
     let total = 0;
@@ -185,10 +182,9 @@ export class VerificationGate {
         }
       }
     }
-    // If there were no tool calls at all, we can't disprove evidence, but we
-    // also can't confirm it — treat as weakly passing only if claims are few.
+    // Every quote must be traceable; missing observations never pass.
     const ratio = total === 0 ? 0 : traceable / total;
-    const passed = toolTrace.length === 0 ? claims.length <= 1 : ratio >= 0.5;
+    const passed = toolTrace.some((t) => t.ok) && total > 0 && ratio === 1;
     return {
       name: "evidence-traceable",
       passed,
@@ -234,7 +230,10 @@ export class VerificationGate {
 
   private checkOutputSupported(output: unknown, claims: Claim[]): VerificationCheck {
     const hasOutput = output !== undefined && output !== null && String(output).trim().length > 0;
-    const passed = hasOutput && claims.length > 0;
+    const text = typeof output === "string" ? output.trim() : JSON.stringify(output);
+    // This checks that the answer is represented by a claim, not that it is
+    // true. Correctness certification requires a separate outcome checker.
+    const passed = hasOutput && claims.some((c) => c.statement.trim() === text);
     return {
       name: "output-supported",
       passed,
@@ -243,7 +242,7 @@ export class VerificationGate {
         ? "empty output"
         : claims.length === 0
           ? "output has no backing claims"
-          : "output is accompanied by backing claims",
+          : passed ? "output matches a cited claim (not a truth guarantee)" : "final output is not covered by a matching claim",
     };
   }
 
@@ -253,7 +252,7 @@ export class VerificationGate {
     // A failed high-weight grounding check is an automatic reject regardless of
     // the aggregate score — you cannot average your way past a fabrication.
     const criticalFail = checks.some(
-      (c) => !c.passed && c.weight >= 3 && c.name === "evidence-traceable"
+      (c) => !c.passed && ["evidence-traceable", "evidence-present", "output-supported", "llm-judge"].includes(c.name)
     );
     if (criticalFail) return "reject";
     if (score >= this.acceptThreshold) return "accept";
@@ -308,7 +307,8 @@ function truncate(s: string, n = 80): string {
 /** Lower-cased concatenation of a tool trace — the searchable evidence corpus. */
 export function buildTraceHaystack(toolTrace: ToolCallRecord[]): string {
   return toolTrace
-    .map((t) => `${t.tool} ${JSON.stringify(t.args)} ${t.output}`)
+    .filter((t) => t.ok)
+    .map((t) => t.output)
     .join("\n")
     .toLowerCase();
 }
@@ -323,13 +323,6 @@ function isTraceable(evidence: string, haystackLower: string): boolean {
   if (ev.length === 0) return false;
   // Direct substring hit.
   if (haystackLower.includes(ev)) return true;
-  // Token-overlap heuristic for paraphrased evidence: require a majority of the
-  // evidence's distinctive tokens to appear in the trace. Keep words of length
-  // ≥3 plus any pure-numeric token (numbers are high-signal evidence).
-  const tokens = ev
-    .split(/[^a-z0-9]+/)
-    .filter((t) => t.length >= 3 || /^\d+$/.test(t));
-  if (tokens.length === 0) return false;
-  const hits = tokens.filter((t) => haystackLower.includes(t)).length;
-  return hits / tokens.length >= 0.6;
+  // A paraphrase, changed number or tool argument is not an observed quote.
+  return false;
 }

@@ -39,13 +39,19 @@ export class MemoryStateStore implements StateStore {
  * crash mid-write can never corrupt the persisted state. No dependencies.
  */
 export class FileStateStore implements StateStore {
+  private pending: Promise<void> = Promise.resolve();
   constructor(private readonly path: string) {}
 
-  async save(snapshot: SwarmSnapshot): Promise<void> {
-    await mkdir(dirname(this.path), { recursive: true }).catch(() => undefined);
-    const tmp = `${this.path}.tmp`;
-    await writeFile(tmp, JSON.stringify(snapshot), "utf8");
-    await rename(tmp, this.path);
+  save(snapshot: SwarmSnapshot): Promise<void> {
+    const serialized = JSON.stringify(snapshot);
+    const write = this.pending.catch(() => undefined).then(async () => {
+      await mkdir(dirname(this.path), { recursive: true });
+      const tmp = `${this.path}.tmp`;
+      await writeFile(tmp, serialized, { encoding: "utf8", mode: 0o600 });
+      await rename(tmp, this.path);
+    });
+    this.pending = write;
+    return write;
   }
 
   async load(): Promise<SwarmSnapshot | null> {

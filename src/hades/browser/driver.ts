@@ -30,6 +30,7 @@
 import { chromium, type Browser, type BrowserContext, type Page, type Response as PwResponse } from "playwright-core";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { homedir } from "node:os";
 
 // ---------------------------------------------------------------------------
 // Small internal helpers
@@ -124,7 +125,11 @@ function pickHighest(candidates: Candidate[]): Candidate | undefined {
  * found, it reports why and stops.
  */
 export function resolveChromiumExecutable(browsersPath?: string): ResolveExecutableResult {
-  const base = browsersPath ?? process.env.PLAYWRIGHT_BROWSERS_PATH ?? "/opt/pw-browsers";
+  const explicit = browsersPath ?? process.env.PLAYWRIGHT_BROWSERS_PATH;
+  if (!explicit && fs.existsSync(chromium.executablePath())) {
+    return { ok: true, path: chromium.executablePath(), kind: "chromium", version: "playwright-managed" };
+  }
+  const base = explicit ?? (process.platform === "darwin" ? path.join(homedir(), "Library/Caches/ms-playwright") : process.platform === "win32" ? path.join(process.env.LOCALAPPDATA ?? homedir(), "ms-playwright") : path.join(process.env.XDG_CACHE_HOME ?? path.join(homedir(), ".cache"), "ms-playwright"));
 
   let entries: fs.Dirent[];
   try {
@@ -133,12 +138,12 @@ export function resolveChromiumExecutable(browsersPath?: string): ResolveExecuta
     return { ok: false, reason: `cannot read Playwright browsers directory "${base}": ${messageOf(err)}` };
   }
 
-  const headlessShellBest = pickHighest(findCandidates(entries, base, HEADLESS_SHELL_DIR_RE, HEADLESS_SHELL_RELATIVE));
+  const headlessShellBest = pickHighest([HEADLESS_SHELL_RELATIVE, ["chrome-headless-shell-linux64", "chrome-headless-shell"], ["chrome-headless-shell-mac-arm64", "chrome-headless-shell"], ["chrome-headless-shell-mac-x64", "chrome-headless-shell"], ["chrome-mac", "headless_shell"], ["chrome-headless-shell-win64", "chrome-headless-shell.exe"]].flatMap((parts) => findCandidates(entries, base, HEADLESS_SHELL_DIR_RE, parts)));
   if (headlessShellBest) {
     return { ok: true, path: headlessShellBest.execPath, kind: "headless-shell", version: headlessShellBest.version };
   }
 
-  const chromiumBest = pickHighest(findCandidates(entries, base, CHROMIUM_DIR_RE, CHROMIUM_RELATIVE));
+  const chromiumBest = pickHighest([CHROMIUM_RELATIVE, ["chrome-linux64", "chrome"], ["chrome-mac-arm64", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"], ["chrome-mac-x64", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"], ["chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"], ["chrome-win", "chrome.exe"], ["chrome-win64", "chrome.exe"]].flatMap((parts) => findCandidates(entries, base, CHROMIUM_DIR_RE, parts)));
   if (chromiumBest) {
     return { ok: true, path: chromiumBest.execPath, kind: "chromium", version: chromiumBest.version };
   }
@@ -665,7 +670,7 @@ export class BrowserDriver {
 
     let executablePath = opts.executablePath;
     if (!executablePath) {
-      const browsersPath = opts.browsersPath ?? env.PLAYWRIGHT_BROWSERS_PATH ?? "/opt/pw-browsers";
+      const browsersPath = opts.browsersPath ?? env.PLAYWRIGHT_BROWSERS_PATH;
       const resolved = resolveChromiumExecutable(browsersPath);
       if (!resolved.ok) {
         throw new Error(resolved.reason);

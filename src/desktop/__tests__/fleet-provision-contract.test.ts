@@ -152,7 +152,7 @@ describe("kind tuples exactly match their unions", () => {
       case "fleet.provision":
         return "provision";
       default:
-        return assertNeverCommand(cmd);
+        return assertNeverCommand(cmd.kind);
     }
   }
 

@@ -66,6 +66,8 @@ export interface ManagerConfig {
   poolSize?: number;
   /** Docker image for workers (docker provider). */
   workerImage?: string;
+  /** Explicit configuration forwarded to process/container workers. Never log values. */
+  workerEnv?: Record<string, string>;
   /** Per-worker resource ceilings. */
   workerLimits?: ResourceLimits;
   /** Per-worker anti-rogue policy. */
@@ -161,7 +163,7 @@ export class SwarmManager extends EventEmitter {
   private shuttingDown = false;
   private readonly defaultBudget?: BudgetSpec;
   private goalBudgets = new Map<string, BudgetSpec>();
-  private goalUsage = new Map<string, { workerRuns: number; toolCalls: number; costUsd: number; startedAt: number }>();
+  private goalUsage = new Map<string, { workerRuns: number; toolCalls: number; costUsd: number; startedAt: number; providerUsage?: { tokensIn: number; tokensOut: number; costMeasured: boolean } }>();
   private readonly stateStore?: StateStore;
   private readonly persistDebounceMs: number;
   private persistTimer?: ReturnType<typeof setTimeout>;
@@ -283,6 +285,12 @@ export class SwarmManager extends EventEmitter {
     u.workerRuns += 1;
     u.toolCalls += result.toolTrace.length;
     u.costUsd += result.costUsd ?? 0;
+    const previous = u.providerUsage;
+    u.providerUsage = {
+      tokensIn: (previous?.tokensIn ?? 0) + (result.usage?.tokensIn ?? 0),
+      tokensOut: (previous?.tokensOut ?? 0) + (result.usage?.tokensOut ?? 0),
+      costMeasured: (previous?.costMeasured ?? true) && result.usage?.costMeasured === true,
+    };
   }
 
   /** Returns true (and aborts the goal) if a budget ceiling has been breached. */
@@ -303,6 +311,7 @@ export class SwarmManager extends EventEmitter {
       toolCalls: u.toolCalls,
       costUsd: u.costUsd,
       wallClockMs: Date.now() - u.startedAt,
+      ...(u.providerUsage ? { providerUsage: { ...u.providerUsage } } : {}),
     };
   }
 
@@ -362,6 +371,7 @@ export class SwarmManager extends EventEmitter {
         toolCalls: u.toolCalls,
         costUsd: u.costUsd,
         startedAt: Date.now() - u.wallClockMs,
+        providerUsage: u.providerUsage,
       });
     }
     return true;
@@ -588,6 +598,7 @@ export class SwarmManager extends EventEmitter {
       authToken: this.authToken,
       model: this.config.model,
       image: this.config.workerImage,
+      env: this.config.workerEnv,
       limits: this.config.workerLimits,
     });
     rec.handle = handle;

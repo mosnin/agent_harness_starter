@@ -3,7 +3,7 @@
  *
  * Every other `src/desktop/__tests__/sidecar.test.ts` test scripts a fake
  * `SwarmHandle` so `Sidecar`'s own logic is deterministic and isolated. This
- * file is the opposite: it wires `Sidecar` to `realSwarmFactory()`, which
+ * file is the opposite: it wires `Sidecar` to `realSwarmFactory({ demo: true })`, which
  * builds an actual `SwarmManager` (`src/swarm-runtime/manager/manager.ts`)
  * via `buildSwarm({ mode: "inline" })` (`src/swarm-runtime/server/build-swarm.ts`).
  * No mocks of the engine anywhere in this file.
@@ -57,13 +57,13 @@ describe("e2e: sidecar drives the real inline swarm headlessly (no display, no k
   });
 
   it(
-    "runtime.start -> goal.dispatch -> runtime.stop against realSwarmFactory() produces a coherent AppEvent stream and reduces to sane AppState",
+    "runtime.start -> goal.dispatch -> runtime.stop against realSwarmFactory({ demo: true }) produces a coherent AppEvent stream and reduces to sane AppState",
     async () => {
       const events: AppEvent[] = [];
       sidecar = new Sidecar({
         // The real engine factory — not a scripted fake. This is the crux of
         // the "does it actually work" proof.
-        factory: realSwarmFactory(),
+        factory: realSwarmFactory({ demo: true }),
         emit: (e) => events.push(e),
       });
 
@@ -189,7 +189,7 @@ describe("e2e: sidecar drives the real inline swarm headlessly (no display, no k
 
   it("runtime.stop before any goal is dispatched still cleanly tears down the real swarm (no hang, no leaked handle)", async () => {
     const events: AppEvent[] = [];
-    sidecar = new Sidecar({ factory: realSwarmFactory(), emit: (e) => events.push(e) });
+    sidecar = new Sidecar({ factory: realSwarmFactory({ demo: true }), emit: (e) => events.push(e) });
 
     await sidecar.handle({ kind: "runtime.start", mode: "inline", poolSize: 1 });
     await waitFor(() => events.some((e) => e.kind === "worker.upsert"), { timeoutMs: 5000 });

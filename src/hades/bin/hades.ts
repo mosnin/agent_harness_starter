@@ -11,7 +11,7 @@ import { buildHadesCli } from "../cli/build";
 export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
   const config = loadConfig({ env: process.env });
   const cli = buildHadesCli(config, {
-    onChat: () => ({ code: 0, lines: ["Interactive chat is available via the Hades REPL API (see docs)."] }),
+    onChat: async (args) => (await import("../cli/chat-command")).runChatCommand(args, config),
     // The real multi-platform messaging gateway (`hades gateway start|status|
     // pair|send|bench`). Loaded lazily so `hades help` never pays for the
     // gateway stack; composed by buildGatewayDepsFromEnv from this process's

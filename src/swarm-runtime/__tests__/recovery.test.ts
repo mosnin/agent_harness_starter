@@ -32,7 +32,7 @@ describe("task requeue on a hung worker", () => {
         const angle = String((task.input as { angle?: string }).angle ?? "x");
         return {
           output: `analysis ${angle}`,
-          claims: [{ statement: `angle ${angle} analyzed`, evidence: [`obs ${angle}`], confidence: 0.85 }],
+          claims: [{ statement: `analysis ${angle}`, evidence: [`obs ${angle}`], confidence: 0.85 }],
           toolTrace: [{ tool: "obs", args: {}, ok: true, output: `obs ${angle}`, at: 0 }],
         };
       },

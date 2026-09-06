@@ -30,7 +30,7 @@ describe("LLMExecutor", () => {
       JSON.stringify({
         answer: "The config sets retries=5 with exponential backoff.",
         claims: [
-          { statement: "retries is 5", evidence: ["retries=5"], confidence: 0.9 },
+          { statement: "The config sets retries=5 with exponential backoff.", evidence: ["retries=5"], confidence: 0.9 },
           { statement: "backoff is exponential", evidence: ["backoff=exponential"], confidence: 0.9 },
         ],
       });

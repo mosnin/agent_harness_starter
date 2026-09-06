@@ -2,101 +2,101 @@
   "name": "hades-agent",
   "version": "0.1.0",
   "private": false,
-  "description": "hades - a verifiable AI agent harness. CLI, TUI and native desktop app: task orchestration with a STYX verification gate, ed25519 certificates and conformal abstention, so every accepted result can be proven.",
+  "description": "Hades agent harness: CLI conversations, workspace tools, persistent sessions, swarm execution and evidence checks.",
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./security": {
+      "types": "./dist/security/index.d.ts",
       "import": "./dist/security/index.mjs",
-      "require": "./dist/security/index.js",
-      "types": "./dist/security/index.d.ts"
+      "require": "./dist/security/index.js"
     },
     "./governance": {
+      "types": "./dist/governance/index.d.ts",
       "import": "./dist/governance/index.mjs",
-      "require": "./dist/governance/index.js",
-      "types": "./dist/governance/index.d.ts"
+      "require": "./dist/governance/index.js"
     },
     "./workflow": {
+      "types": "./dist/workflow/index.d.ts",
       "import": "./dist/workflow/index.mjs",
-      "require": "./dist/workflow/index.js",
-      "types": "./dist/workflow/index.d.ts"
+      "require": "./dist/workflow/index.js"
     },
     "./memory": {
+      "types": "./dist/memory/index.d.ts",
       "import": "./dist/memory/index.mjs",
-      "require": "./dist/memory/index.js",
-      "types": "./dist/memory/index.d.ts"
+      "require": "./dist/memory/index.js"
     },
     "./errors": {
+      "types": "./dist/errors/index.d.ts",
       "import": "./dist/errors/index.mjs",
-      "require": "./dist/errors/index.js",
-      "types": "./dist/errors/index.d.ts"
+      "require": "./dist/errors/index.js"
     },
     "./runtime": {
+      "types": "./dist/runtime.d.ts",
       "import": "./dist/runtime.mjs",
-      "require": "./dist/runtime.js",
-      "types": "./dist/runtime.d.ts"
+      "require": "./dist/runtime.js"
     },
     "./guardrails": {
+      "types": "./dist/guardrails/index.d.ts",
       "import": "./dist/guardrails/index.mjs",
-      "require": "./dist/guardrails/index.js",
-      "types": "./dist/guardrails/index.d.ts"
+      "require": "./dist/guardrails/index.js"
     },
     "./tools": {
+      "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.mjs",
-      "require": "./dist/tools/index.js",
-      "types": "./dist/tools/index.d.ts"
+      "require": "./dist/tools/index.js"
     },
     "./cache": {
+      "types": "./dist/cache/index.d.ts",
       "import": "./dist/cache/index.mjs",
-      "require": "./dist/cache/index.js",
-      "types": "./dist/cache/index.d.ts"
+      "require": "./dist/cache/index.js"
     },
     "./providers": {
+      "types": "./dist/providers/index.d.ts",
       "import": "./dist/providers/index.mjs",
-      "require": "./dist/providers/index.js",
-      "types": "./dist/providers/index.d.ts"
+      "require": "./dist/providers/index.js"
     },
     "./guidance": {
+      "types": "./dist/guidance/index.d.ts",
       "import": "./dist/guidance/index.mjs",
-      "require": "./dist/guidance/index.js",
-      "types": "./dist/guidance/index.d.ts"
+      "require": "./dist/guidance/index.js"
     },
     "./swarm": {
+      "types": "./dist/swarm/index.d.ts",
       "import": "./dist/swarm/index.mjs",
-      "require": "./dist/swarm/index.js",
-      "types": "./dist/swarm/index.d.ts"
+      "require": "./dist/swarm/index.js"
     },
     "./claims": {
+      "types": "./dist/claims/index.d.ts",
       "import": "./dist/claims/index.mjs",
-      "require": "./dist/claims/index.js",
-      "types": "./dist/claims/index.d.ts"
+      "require": "./dist/claims/index.js"
     },
     "./embeddings": {
+      "types": "./dist/embeddings/index.d.ts",
       "import": "./dist/embeddings/index.mjs",
-      "require": "./dist/embeddings/index.js",
-      "types": "./dist/embeddings/index.d.ts"
+      "require": "./dist/embeddings/index.js"
     },
     "./federation": {
+      "types": "./dist/federation/index.d.ts",
       "import": "./dist/federation/index.mjs",
-      "require": "./dist/federation/index.js",
-      "types": "./dist/federation/index.d.ts"
+      "require": "./dist/federation/index.js"
     },
     "./codex": {
+      "types": "./dist/codex/index.d.ts",
       "import": "./dist/codex/index.mjs",
-      "require": "./dist/codex/index.js",
-      "types": "./dist/codex/index.d.ts"
+      "require": "./dist/codex/index.js"
     },
     "./swarm-runtime": {
+      "types": "./dist/swarm-runtime/index.d.ts",
       "import": "./dist/swarm-runtime/index.mjs",
-      "require": "./dist/swarm-runtime/index.js",
-      "types": "./dist/swarm-runtime/index.d.ts"
+      "require": "./dist/swarm-runtime/index.js"
     }
   },
   "files": [
@@ -196,7 +196,8 @@
     "package:desktop": "node scripts/package-desktop.mjs",
     "build:hades": "node scripts/build-hades.mjs",
     "setup": "tsx src/hades/bin/hades.ts setup",
-    "doctor": "tsx src/hades/bin/hades.ts doctor"
+    "doctor": "tsx src/hades/bin/hades.ts doctor",
+    "test:smoke": "node scripts/smoke-agent.mjs && node scripts/smoke-swarm.mjs"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",

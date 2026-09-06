@@ -78,7 +78,7 @@ describe("runShowdownCommand — run", () => {
     const text = res.lines.join("\n");
     expect(text).toMatch(/SHOWDOWN — mode: MODELED/);
     expect(text).toMatch(/Swarm \(verification-gated\)/);
-    expect(text).toMatch(/Baseline \(self-trusting single agent\)/);
+    expect(text).toMatch(/Baseline \(local single-agent surrogate\)/);
   }, 30000);
 
   it("rejects an invalid --mode", async () => {

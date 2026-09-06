@@ -1,74 +1,10 @@
 /**
- * STYX primitive #5 — the conformal risk-controlled abstention gate.
- *
- * "Never deliver an unverified result" as math, not vibes.
- *
- * ## What this does
- *
- * Given a calibration set of `(verifierScore, wasActuallyCorrect)` pairs drawn
- * from the same process as future results, the gate computes a score threshold
- * τ such that emitting only results whose verifier score is ≥ τ bounds the
- * *silent-wrong* risk — the probability that an emitted result is wrong — at a
- * user-chosen ε. Everything below τ is abstained on (escalate the verifier
- * tier, or refuse to answer), never silently delivered.
- *
- * ## Split-conformal risk control
- *
- * This is split-conformal calibration specialized to a monotone selection
- * rule: the "nonconformity" ordering is the verifier score itself, and the
- * risk being controlled is the 0/1 loss "emitted AND wrong". The guarantee is
- * *distribution-free*: it needs no model of the score distribution, only
- * **exchangeability** — the calibration pairs and the future test pair must be
- * exchangeable draws (i.i.d. is sufficient). Under that assumption, selecting
- * τ so that the *conservative* empirical wrong-rate above τ is ≤ ε yields
- * `P(wrong | emitted) ≤ ε` marginally over calibration draws.
- *
- * ## The (+1)/(+1) finite-sample correction
- *
- * The naive empirical wrong-rate `wrong / n_selected` on a finite calibration
- * set is an unbiased-looking but *optimistic* plug-in: with small selected
- * sets it can read 0 while the true risk is far above ε. The conformal
- * correction scores each candidate threshold with
- *
- *     riskUpperBound(t) = (wrong(t) + 1) / (n_selected(t) + 1)
- *
- * i.e. it acts as if one additional, adversarially-wrong exchangeable point
- * sat just above the threshold. This is the standard finite-sample adjustment
- * from split-conformal prediction (the same `(k+1)/(n+1)` quantile shift):
- * the "+1" in the numerator accounts for the yet-unseen test point being
- * wrong, and the "+1" in the denominator accounts for it being selected.
- * Consequence: a threshold that selects only n calibration points can never
- * certify a risk below `1/(n+1)`, so tiny selected sets cannot fake
- * confidence — exactly the honest behavior we want.
- *
- * ## Why smallest-t-subject-to-bound maximizes coverage
- *
- * Emission is monotone in the threshold: lowering t only *adds* points to the
- * selected set, so coverage (the fraction of results emitted rather than
- * abstained on) is non-increasing in t. Among all thresholds whose
- * conservative risk is ≤ ε, the **smallest** one therefore emits the most —
- * abstention is minimized *subject to* the risk bound, never traded against
- * it. Likewise, a looser ε only enlarges the feasible set of thresholds, so
- * τ(ε) is non-increasing in ε and coverage is non-decreasing in ε — the
- * monotonicity holds structurally, not numerically by luck.
- *
- * ## Caveats (read before trusting the number)
- *
- * - The bound is **marginal**: it holds on average over draws of the
- *   calibration set, not conditionally on the particular calibration set you
- *   happened to get, and not per-slice of the input space.
- * - The bound **breaks under distribution shift**: if deployment-time tasks,
- *   verifier behavior, or the score→correctness relationship drift from the
- *   calibration distribution, exchangeability fails and ε is no longer a
- *   guarantee. Recalibrate on fresh data whenever the verifier ensemble, the
- *   generator, or the task mix changes.
- * - Calibration labels (`correct`) must come from ground truth or a verifier
- *   with an information edge — calibrating on a gamed verifier launders the
- *   gaming into a fake certificate (see STYX design constraints #1 and #3).
- *
- * Pure and deterministic: no randomness, no clock, no I/O.
- *
- * @module hades/styx/gate
+ * Empirical abstention gate (legacy name: ConformalGate).
+ * Fits the lowest observed threshold satisfying (wrong + 1)/(selected + 1)
+ * <= epsilon. This is a selection heuristic, not an established distribution-
+ * free bound on P(wrong | emitted). pCorrectEstimate is a calibration-set
+ * frequency, not a probability that an individual answer is correct.
+ * Use held-out outcome checks and measure deployment error under drift.
  */
 
 /** One labeled calibration example: a verifier score and its ground truth. */
@@ -81,7 +17,7 @@ export interface CalibrationPoint {
 
 /** Configuration for a {@link ConformalGate}. */
 export interface GateConfig {
-  /** Target bound on P(wrong | emitted), e.g. 0.05. Must lie strictly in (0, 1). */
+  /** Target smoothed empirical error rate, e.g. 0.05. Must lie strictly in (0, 1). */
   epsilon: number;
   /** Minimum number of calibration points required to calibrate. Default 20. */
   minCalibration?: number;
@@ -176,12 +112,12 @@ export function conformalThreshold(
 }
 
 /**
- * A split-conformal risk-controlled abstention gate.
+ * An empirical threshold selection gate.
  *
  * Lifecycle: construct with a target ε, {@link calibrate} on labeled
  * (score, correct) pairs, then {@link decide} on fresh scores. Recalibrate
  * whenever the upstream verifier ensemble or task distribution changes —
- * the ε guarantee only holds under exchangeability with the calibration set.
+ * the observed calibration error does not guarantee deployment error.
  */
 export class ConformalGate {
   private readonly config: GateConfig;
@@ -198,6 +134,7 @@ export class ConformalGate {
    *   fewer than `minCalibration` (default 20) points are supplied.
    */
   calibrate(points: CalibrationPoint[]): GateStats {
+    this.lastStats = null;
     const { epsilon } = this.config;
     if (typeof epsilon !== "number" || !Number.isFinite(epsilon) || epsilon <= 0 || epsilon >= 1) {
       throw new RangeError(
@@ -209,6 +146,11 @@ export class ConformalGate {
       throw new RangeError(
         `ConformalGate: need at least ${minCalibration} calibration points; got ${points.length}`,
       );
+    }
+
+    if (points.some((p) => !Number.isFinite(p.score) || typeof p.correct !== "boolean")) {
+      this.lastStats = null;
+      throw new RangeError("ConformalGate: calibration requires finite scores and boolean labels");
     }
 
     const threshold = conformalThreshold(points, epsilon);
@@ -250,7 +192,7 @@ export class ConformalGate {
     const { threshold, empiricalRiskAtThreshold, coverageAtThreshold } =
       this.lastStats;
     const emit =
-      coverageAtThreshold > 0 && Number.isFinite(threshold) && score >= threshold;
+      coverageAtThreshold > 0 && Number.isFinite(threshold) && Number.isFinite(score) && score >= threshold;
     return {
       emit,
       score,

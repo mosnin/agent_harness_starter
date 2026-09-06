@@ -6,10 +6,13 @@ export interface ExecutionOutput {
   toolTrace: ToolCallRecord[];
   /** Optional USD cost incurred (LLM tokens, tool fees) for budget accounting. */
   costUsd?: number;
+  usage?: { tokensIn: number; tokensOut: number; costMeasured: boolean };
+  error?: string;
 }
 
 export interface WorkerContext {
   workerId: string;
+  signal?: AbortSignal;
   model?: string;
   log: (line: string) => void;
 }
@@ -25,11 +28,8 @@ export interface TaskExecutor {
 }
 
 /**
- * Deterministic executor used for inline/dev runs and tests. It does *real*
- * grounded work — every claim it emits cites an actual recorded tool call — so
- * it exercises the full verification pipeline without any API keys. This is
- * also the reference implementation showing how a well-behaved worker must
- * ground its output: observe via tools, then cite what it observed.
+ * Deterministic orchestration fixture. It counts prompt words and combines
+ * fixture outputs; it does not solve the requested real-world task.
  */
 export class DemoExecutor implements TaskExecutor {
   async execute(task: WorkerTask, ctx: WorkerContext): Promise<ExecutionOutput> {
@@ -53,7 +53,6 @@ export class DemoExecutor implements TaskExecutor {
     const deps = (task.input as { _dependencies?: Array<{ output: unknown }> })._dependencies ?? [];
 
     let output: string;
-    const claims: Claim[] = [];
 
     if (isSynthesis) {
       trace.push({
@@ -64,20 +63,13 @@ export class DemoExecutor implements TaskExecutor {
         at: Date.now(),
       });
       output = `Synthesis for "${objective}": integrated ${deps.length} verified sub-result(s).`;
-      claims.push({
-        statement: `Synthesis integrates ${deps.length} verified upstream result(s).`,
-        evidence: [`collect_dependencies returned ${deps.length}`, `angle=${angle} tokens=${wordCount}`],
-        confidence: deps.length > 0 ? 0.9 : 0.6,
-      });
+
     } else {
       output = `Analysis (${angle}): objective has ${wordCount} tokens; angle "${angle}" applied.`;
-      claims.push({
-        statement: `The objective contains ${wordCount} tokens when analyzed from the "${angle}" angle.`,
-        evidence: [`analyze_objective output: angle=${angle} tokens=${wordCount}`],
-        confidence: 0.85,
-      });
+
     }
 
-    return { output, claims, toolTrace: trace };
+    trace.push({ tool: "demo.computation", args: {}, ok: true, output, at: Date.now() });
+    return { output, claims: [{ statement: output, evidence: [output], confidence: 0.5 }], toolTrace: trace, costUsd: 0 };
   }
 }

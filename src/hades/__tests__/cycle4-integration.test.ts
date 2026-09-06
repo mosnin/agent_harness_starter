@@ -340,7 +340,7 @@ describe("buildSwarm decorateProvider seam", () => {
   it("process mode hands the REAL LocalProcessProvider to the decorator; inline never calls it", async () => {
     const seen: Array<{ inner: ContainerProvider; mode: string }> = [];
     const registry = new WorkerAttributionRegistry();
-    const built = await buildSwarm({
+    const built = await buildSwarm({ demo: true,
       mode: "process",
       poolSize: 0,
       controlPort: 0, // never started in this test
@@ -354,7 +354,7 @@ describe("buildSwarm decorateProvider seam", () => {
     expect(seen[0].inner).toBeInstanceOf(LocalProcessProvider);
     await built.stop();
 
-    const inline = await buildSwarm({
+    const inline = await buildSwarm({ demo: true,
       mode: "inline",
       poolSize: 1,
       decorateProvider: () => {

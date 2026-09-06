@@ -23,6 +23,7 @@ export interface ChatRequest {
   messages: ChatMessage[];
   maxTokens?: number;
   temperature?: number;
+  signal?: AbortSignal;
 }
 
 export interface ChatResponse {
@@ -32,6 +33,8 @@ export interface ChatResponse {
   usd: number;
   model: string;
   provider: string;
+  /** False when token usage or model pricing was unavailable. */
+  costMeasured?: boolean;
 }
 
 export interface ModelClient {
@@ -176,6 +179,7 @@ export class HttpModelClient implements ModelClient {
       method: "POST",
       headers,
       body: JSON.stringify(body),
+      signal: req.signal ? AbortSignal.any([req.signal, AbortSignal.timeout(120_000)]) : AbortSignal.timeout(120_000),
     });
     if (!res.ok) {
       const detail = await this.safeText(res);
@@ -187,7 +191,7 @@ export class HttpModelClient implements ModelClient {
     const text = data.choices?.[0]?.message?.content ?? "";
     const tokensIn = data.usage?.prompt_tokens ?? 0;
     const tokensOut = data.usage?.completion_tokens ?? 0;
-    return this.finalize(req.model, text, tokensIn, tokensOut);
+    return this.finalize(req.model, text, tokensIn, tokensOut, data.usage !== undefined);
   }
 
   private async chatAnthropic(req: ChatRequest): Promise<ChatResponse> {
@@ -225,6 +229,7 @@ export class HttpModelClient implements ModelClient {
       method: "POST",
       headers,
       body: JSON.stringify(body),
+      signal: req.signal ? AbortSignal.any([req.signal, AbortSignal.timeout(120_000)]) : AbortSignal.timeout(120_000),
     });
     if (!res.ok) {
       const detail = await this.safeText(res);
@@ -239,7 +244,7 @@ export class HttpModelClient implements ModelClient {
       .join("");
     const tokensIn = data.usage?.input_tokens ?? 0;
     const tokensOut = data.usage?.output_tokens ?? 0;
-    return this.finalize(req.model, text, tokensIn, tokensOut);
+    return this.finalize(req.model, text, tokensIn, tokensOut, data.usage !== undefined);
   }
 
   private finalize(
@@ -247,6 +252,7 @@ export class HttpModelClient implements ModelClient {
     text: string,
     tokensIn: number,
     tokensOut: number,
+    hasUsage: boolean,
   ): ChatResponse {
     return {
       text,
@@ -255,6 +261,7 @@ export class HttpModelClient implements ModelClient {
       usd: computeCost(model, tokensIn, tokensOut, this.prices),
       model,
       provider: this.provider.name,
+      costMeasured: hasUsage && this.prices.some((p) => p.model === model),
     };
   }
 

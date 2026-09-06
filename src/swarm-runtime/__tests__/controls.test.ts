@@ -37,7 +37,7 @@ describe("live controls (manager)", () => {
 
 describe("live controls (REST)", () => {
   it("exposes kill and scale over HTTP", async () => {
-    const built = await buildSwarm({ mode: "inline", capabilities: ["research"], poolSize: 3 });
+    const built = await buildSwarm({ demo: true, mode: "inline", capabilities: ["research"], poolSize: 3 });
     const port = 39260;
     server = new SwarmServer(built, { port });
     await server.listen();

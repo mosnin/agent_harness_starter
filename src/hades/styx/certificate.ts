@@ -40,6 +40,8 @@ if (!ed.hashes.sha512) {
 // ---------------------------------------------------------------------------
 
 export interface CertificatePayload {
+  /** What the issuer attests. An integrity receipt makes no correctness claim. */
+  scope?: "integrity" | "correctness";
   /** hex sha256 of the delivered output text */
   outputSha256: string;
   taskId: string;
@@ -47,9 +49,9 @@ export interface CertificatePayload {
   verifierTier: string;
   /** raw calibrated ensemble score in [0,1] */
   ensembleScore: number;
-  /** calibrated P(correct) at emission */
+  /** Empirical calibration estimate; zero for integrity-only receipts. */
   pCorrect: number;
-  /** the conformal bound the abstention gate enforced */
+  /** Requested empirical risk target; not a per-answer correctness guarantee. */
   epsilon: number;
   /** hex sha256 of the full execution trace (JSON) */
   traceSha256: string;

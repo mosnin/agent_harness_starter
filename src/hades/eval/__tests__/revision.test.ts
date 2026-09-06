@@ -64,7 +64,7 @@ describe("resolveRevision against a REAL git repo", () => {
   it("reports source:'git' with the real sha, branch, commit time, and subject", () => {
     initRepo(repo);
     writeFileSync(join(repo, "a.txt"), "one\n", "utf8");
-    const sha1 = commit(repo, "first commit", "2020-01-01T00:00:00");
+    const sha1 = commit(repo, "first commit", "2020-01-01T00:00:00Z");
 
     const ref = resolveRevision({ cwd: repo, paths: [join(repo, "a.txt")] });
     assertAssignable(ref);
@@ -82,7 +82,7 @@ describe("resolveRevision against a REAL git repo", () => {
   it("marks a real dirty working tree as dirty:true", () => {
     initRepo(repo);
     writeFileSync(join(repo, "a.txt"), "one\n", "utf8");
-    commit(repo, "first commit", "2020-01-01T00:00:00");
+    commit(repo, "first commit", "2020-01-01T00:00:00Z");
 
     const clean = resolveRevision({ cwd: repo });
     expect(clean.dirty).toBe(false);
@@ -96,9 +96,9 @@ describe("resolveRevision against a REAL git repo", () => {
   it("reports branch:null on a real detached HEAD, while sha/subject still resolve", () => {
     initRepo(repo);
     writeFileSync(join(repo, "a.txt"), "one\n", "utf8");
-    const sha1 = commit(repo, "first commit", "2020-01-01T00:00:00");
+    const sha1 = commit(repo, "first commit", "2020-01-01T00:00:00Z");
     writeFileSync(join(repo, "a.txt"), "two\n", "utf8");
-    commit(repo, "second commit", "2020-01-02T00:00:00");
+    commit(repo, "second commit", "2020-01-02T00:00:00Z");
 
     execFileSync("git", ["checkout", "-q", sha1], { cwd: repo });
     const ref = resolveRevision({ cwd: repo });
@@ -112,9 +112,9 @@ describe("resolveRevision against a REAL git repo", () => {
   it("resolves real ancestry with isAncestor and real topo order with revisionOrder", () => {
     initRepo(repo);
     writeFileSync(join(repo, "a.txt"), "one\n", "utf8");
-    const sha1 = commit(repo, "first commit", "2020-01-01T00:00:00");
+    const sha1 = commit(repo, "first commit", "2020-01-01T00:00:00Z");
     writeFileSync(join(repo, "a.txt"), "two\n", "utf8");
-    const sha2 = commit(repo, "second commit", "2020-01-02T00:00:00");
+    const sha2 = commit(repo, "second commit", "2020-01-02T00:00:00Z");
     writeFileSync(join(repo, "a.txt"), "three\n", "utf8");
     const sha3 = commit(repo, "third commit", "2020-01-03T00:00:00");
 
@@ -133,7 +133,7 @@ describe("resolveRevision against a REAL git repo", () => {
   it("revisionOrder returns the original order untouched when every sha is unknown", () => {
     initRepo(repo);
     writeFileSync(join(repo, "a.txt"), "one\n", "utf8");
-    commit(repo, "first commit", "2020-01-01T00:00:00");
+    commit(repo, "first commit", "2020-01-01T00:00:00Z");
 
     const bogus = ["deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", "0000000000000000000000000000000000000000"];
     expect(revisionOrder(bogus, { cwd: repo })).toEqual(bogus);

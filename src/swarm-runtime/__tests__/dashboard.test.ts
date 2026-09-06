@@ -23,7 +23,7 @@ describe("dashboard is served", () => {
   });
 
   it("serves the dashboard at /", async () => {
-    const swarm = await buildSwarm({ mode: "inline", capabilities: ["research"], poolSize: 1 });
+    const swarm = await buildSwarm({ demo: true, mode: "inline", capabilities: ["research"], poolSize: 1 });
     const port = 39240;
     server = new SwarmServer(swarm, { port });
     await server.listen();

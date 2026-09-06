@@ -215,7 +215,7 @@ describe("resolveChromiumExecutable", () => {
   });
 
   it("resolves a real installed executable under /opt/pw-browsers", () => {
-    const result = resolveChromiumExecutable("/opt/pw-browsers");
+    const result = resolveChromiumExecutable();
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(fs.existsSync(result.path)).toBe(true);

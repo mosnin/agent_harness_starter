@@ -39,8 +39,8 @@ describe("SemanticGroundingJudge", () => {
 
   it("scores semantically supported evidence highly", async () => {
     const r = await judge.assess({
-      output: "ok",
-      claims: [{ statement: "retries five", evidence: ["the config sets retries to five"], confidence: 0.9 }],
+      output: "retries five",
+      claims: [{ statement: "retries five", evidence: ["config sets retries to five"], confidence: 0.9 }],
       toolTrace: [{ tool: "read_config", args: {}, ok: true, output: "config sets retries to five", at: 0 }],
     });
     expect(r.score).toBeGreaterThan(0.5);
@@ -48,7 +48,7 @@ describe("SemanticGroundingJudge", () => {
 
   it("scores unrelated evidence low", async () => {
     const r = await judge.assess({
-      output: "ok",
+      output: "retries five",
       claims: [{ statement: "x", evidence: ["quarterly revenue projections for the marketing team"], confidence: 0.9 }],
       toolTrace: [{ tool: "read_config", args: {}, ok: true, output: "retries backoff timeout ports", at: 0 }],
     });
@@ -59,7 +59,7 @@ describe("SemanticGroundingJudge", () => {
     const gate = new VerificationGate({ judge });
     const result: WorkerResult = {
       taskId: "t", workerId: "w",
-      output: "retries are five",
+      output: "retries five",
       claims: [{ statement: "retries five", evidence: ["config sets retries to five"], confidence: 0.9 }],
       toolTrace: [{ tool: "read_config", args: {}, ok: true, output: "config sets retries to five", at: 0 }],
       startedAt: 0, finishedAt: 1,

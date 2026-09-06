@@ -1,3 +1,4 @@
+import { resolveChromiumExecutable } from "./driver";
 /* ------------------------------------------------------------------ *
  * browse-bench.ts — the Phase 3 real-browsing checkpoint.
  *
@@ -564,13 +565,13 @@ export async function runBrowseBenchDetailed(opts: BrowseBenchOptions = {}): Pro
     }
     execPath = opts.executablePath;
   } else {
-    const browsersPath = opts.browsersPath ?? process.env.PLAYWRIGHT_BROWSERS_PATH ?? "/opt/pw-browsers";
-    const resolved = resolveBenchChromium(browsersPath);
+    const browsersPath = opts.browsersPath ?? process.env.PLAYWRIGHT_BROWSERS_PATH;
+    const resolved = resolveChromiumExecutable(browsersPath);
     if (!resolved.ok) {
       failures.push(`chromium-not-found: ${resolved.reason}`);
       return emptyDetailReport(clock, startedAt, { found: false }, failures);
     }
-    execPath = resolved.execPath;
+    execPath = resolved.path;
   }
 
   const chromiumInfo = { found: true, path: execPath };

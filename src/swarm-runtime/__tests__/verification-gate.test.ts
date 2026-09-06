@@ -20,12 +20,12 @@ describe("VerificationGate — anti-hallucination", () => {
 
   it("accepts a well-grounded result whose evidence traces to the tool log", async () => {
     const result = baseResult({
-      output: "The file has 42 lines.",
+      output: "The file a.txt has 42 lines.",
       toolTrace: [
         { tool: "wc", args: { file: "a.txt" }, ok: true, output: "42 a.txt", at: 0 },
       ],
       claims: [
-        { statement: "The file a.txt has 42 lines.", evidence: ["wc output: 42 a.txt"], confidence: 0.9 },
+        { statement: "The file a.txt has 42 lines.", evidence: ["42 a.txt"], confidence: 0.9 },
       ],
     });
     const report = await gate.verify(result);

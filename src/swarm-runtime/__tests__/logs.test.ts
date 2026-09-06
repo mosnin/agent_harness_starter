@@ -27,7 +27,7 @@ describe("live worker log streaming", () => {
   });
 
   it("serves logs over REST and includes them in the snapshot", async () => {
-    const built = await buildSwarm({ mode: "inline", capabilities: ["research"], poolSize: 2 });
+    const built = await buildSwarm({ demo: true, mode: "inline", capabilities: ["research"], poolSize: 2 });
     const port = 39230;
     server = new SwarmServer(built, { port });
     await server.listen();

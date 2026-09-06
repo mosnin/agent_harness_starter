@@ -169,9 +169,11 @@ async function resolveInJail(root: string, requestedPath: string): Promise<strin
     : path.normalize(path.join(rootAbs, requestedPath));
 
   const rootReal = await realpathOfExistingAncestor(rootAbs);
-  const relFromRoot = path.relative(rootReal, resolved);
+  const relFromRoot = path.relative(rootAbs, resolved);
+  const canonicalRelative = path.relative(rootReal, resolved);
   const lexicallyInside =
-    relFromRoot === "" || (!relFromRoot.startsWith("..") && !path.isAbsolute(relFromRoot));
+    relFromRoot === "" || (!relFromRoot.startsWith("..") && !path.isAbsolute(relFromRoot)) ||
+    canonicalRelative === "" || (!canonicalRelative.startsWith("..") && !path.isAbsolute(canonicalRelative));
   if (!lexicallyInside) {
     throw new JailViolation(`path escapes root: ${requestedPath}`);
   }

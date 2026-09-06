@@ -63,7 +63,7 @@ describe("MemoryAugmentedExecutor", () => {
           const hasCtx = !!(t.input as { _memoryContext?: unknown })._memoryContext;
           return {
             output: `done (augmented=${hasCtx})`,
-            claims: [{ statement: `augmented=${hasCtx}`, evidence: [`observed augmented=${hasCtx}`], confidence: 0.85 }],
+            claims: [{ statement: `done (augmented=${hasCtx})`, evidence: [`observed augmented=${hasCtx}`], confidence: 0.85 }],
             toolTrace: [{ tool: "obs", args: {}, ok: true, output: `observed augmented=${hasCtx}`, at: 0 }],
           };
         },

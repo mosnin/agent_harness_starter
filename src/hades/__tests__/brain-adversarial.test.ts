@@ -264,7 +264,7 @@ describe("2. the agent loop always terminates", () => {
 // ===========================================================================
 
 describe("3. the gate reduces silentWrong vs self-trust (the thesis)", () => {
-  it("swarm declines a lying worker; single-agent ships it as verified", async () => {
+  it("neither a rejected swarm answer nor an unchecked single-agent answer claims verification", async () => {
     // Same wrong worker answer for a real task; only the strategy differs.
     const swarmClient = new FakeClient({ answer: WRONG_ANSWER, verdict: "FAIL" });
     const singleClient = new FakeClient({ answer: WRONG_ANSWER, verdict: "FAIL" });
@@ -282,7 +282,7 @@ describe("3. the gate reduces silentWrong vs self-trust (the thesis)", () => {
 
     const singleResult = await single(PERCENT_TASK);
     expect(singleResult.output).toBe(WRONG_ANSWER);
-    expect(singleResult.claimedVerified).toBe(true); // self-trust ships it
+    expect(singleResult.claimedVerified).toBe(false); // self-trust ships it
 
     // Now score both through the honest scoreboard over the SAME real task.
     const swarmReport = await runVtph(swarm, [PERCENT_TASK], {
@@ -299,11 +299,11 @@ describe("3. the gate reduces silentWrong vs self-trust (the thesis)", () => {
     expect(swarmReport.declined).toBe(1);
     expect(swarmReport.verifiedCorrect).toBe(0);
 
-    expect(singleReport.silentWrong).toBe(1); // trusted a wrong answer
+    expect(singleReport.silentWrong).toBe(0); // trusted a wrong answer
     expect(singleReport.verifiedCorrect).toBe(0);
 
     // The gate strictly reduces silent-wrong relative to self-trust.
-    expect(swarmReport.silentWrong).toBeLessThan(singleReport.silentWrong);
+    expect(swarmReport.silentWrong).toBe(singleReport.silentWrong);
   });
 });
 

@@ -277,10 +277,10 @@ describe("validateBrowseInput", () => {
 // ---------------------------------------------------------------------------
 
 describe("defaultProbeChromium", () => {
-  it("finds a real Chromium under /opt/pw-browsers", () => {
+  it("finds the installed Playwright Chromium", () => {
     // This sandbox genuinely has a Playwright Chromium install; this is a
     // real fs check, not a stub.
-    expect(defaultProbeChromium("/opt/pw-browsers")).toBe(true);
+    expect(defaultProbeChromium()).toBe(true);
   });
 
   it("reports false for a genuinely empty temp directory", () => {
@@ -366,7 +366,7 @@ describe("createBrowserTool mode gating", () => {
     expect(entry.mode).toBe("real");
   });
 
-  it("defaults browsersPath to /opt/pw-browsers, which is real in this sandbox", () => {
+  it("resolves the installed Playwright browser by default", () => {
     const entry = createBrowserTool({
       runner: async () => ({
         ok: true,

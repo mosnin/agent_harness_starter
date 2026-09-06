@@ -15,7 +15,7 @@ afterEach(async () => {
 
 describe("/healthz liveness probe", () => {
   it("returns 200 without auth even when the API is token-guarded", async () => {
-    const built = await buildSwarm({ mode: "inline", capabilities: ["research"], poolSize: 1 });
+    const built = await buildSwarm({ demo: true, mode: "inline", capabilities: ["research"], poolSize: 1 });
     const port = 39300;
     server = new SwarmServer(built, { port, authToken: "secret" });
     await server.listen();

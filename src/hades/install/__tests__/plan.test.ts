@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 /**
  * Tests for `src/hades/install/plan.ts` (the pure install planner) AND, in
  * the same file (these are the only files this build owns), integration
@@ -581,7 +582,7 @@ describe("install.sh -- static shape", () => {
 
   it("--help exits 0 and documents every flag", () => {
     const r = runInstall(["--help"]);
-    expect(r.status).toBe(0);
+    expect(r.status, r.stderr).toBe(0);
     for (const flag of INSTALL_SH_FLAGS) {
       expect(r.stdout).toContain(flag);
     }
@@ -589,7 +590,7 @@ describe("install.sh -- static shape", () => {
 
   it("--version exits 0 and prints a version string", () => {
     const r = runInstall(["--version"]);
-    expect(r.status).toBe(0);
+    expect(r.status, r.stderr).toBe(0);
     expect(r.stdout.trim().length).toBeGreaterThan(0);
   });
 
@@ -611,7 +612,7 @@ describe("install.sh -- dry run touches nothing", () => {
     const before = listTree(home);
 
     const r = runInstall(["--dry-run", "--prefix", prefix], { HOME: home });
-    expect(r.status).toBe(0);
+    expect(r.status, r.stderr).toBe(0);
 
     const after = listTree(home);
     expect(after).toEqual(before);
@@ -626,7 +627,7 @@ describe("install.sh -- dry run touches nothing", () => {
 
     const before = listTree(home);
     const r = runInstall(["--dry-run", "--uninstall", "--prefix", prefix], { HOME: home });
-    expect(r.status).toBe(0);
+    expect(r.status, r.stderr).toBe(0);
     const after = listTree(home);
     expect(after).toEqual(before);
   });
@@ -638,7 +639,7 @@ describe("install.sh -- real install end to end", () => {
     const prefix = path.join(home, "install");
 
     const r = runInstall(["--prefix", prefix, "--no-modify-path"], { HOME: home, SHELL: "/bin/bash" });
-    expect(r.status).toBe(0);
+    expect(r.status, r.stderr).toBe(0);
 
     const launcherPath = path.join(prefix, "bin", "hades");
     const stat = statSync(launcherPath);
@@ -649,7 +650,7 @@ describe("install.sh -- real install end to end", () => {
       host({ home, env: { PATH: FULL_PATH }, shellPath: "/bin/bash" }),
       opts({ repoRoot: REPO_ROOT, prefix, modifyPath: false })
     );
-    const actualSha = execFileSync("sha256sum", [launcherPath], { encoding: "utf8" }).split(/\s+/)[0];
+    const actualSha = createHash("sha256").update(readFileSync(launcherPath)).digest("hex");
     expect(actualSha).toBe(plan.launcherSha256);
 
     // The honest end-to-end proof: actually execute the installed launcher.
@@ -691,7 +692,7 @@ describe("install.sh -- real install end to end", () => {
     );
 
     const r = runInstall(["--prefix", prefix, "--no-modify-path"], { HOME: home });
-    expect(r.status).toBe(0);
+    expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toContain("mode: upgrade");
   });
 });
@@ -804,7 +805,7 @@ describe("install.sh -- JSON output matches the pure planner field-by-field", ()
     const prefix = path.join(home, "install");
 
     const r = runInstall(["--prefix", prefix, "--json", "--dry-run"], { HOME: home, SHELL: "/bin/bash" });
-    expect(r.status).toBe(0);
+    expect(r.status, r.stderr).toBe(0);
     const bashPlan = JSON.parse(r.stdout);
 
     const tsPlan = buildInstallPlan(
@@ -850,7 +851,7 @@ describe("install.sh -- paths with spaces and unicode; profile idempotence", () 
     const home = mkScratch("hades-unicode-");
     const prefix = path.join(home, "install dir café", "日本語");
     const r = runInstall(["--prefix", prefix, "--no-modify-path"], { HOME: home, SHELL: "/bin/bash" });
-    expect(r.status).toBe(0);
+    expect(r.status, r.stderr).toBe(0);
 
     const launcherPath = path.join(prefix, "bin", "hades");
     const run = spawnSync(launcherPath, ["--version"], { encoding: "utf8" });
@@ -867,7 +868,7 @@ describe("install.sh -- paths with spaces and unicode; profile idempotence", () 
       SHELL: "/bin/bash",
       PATH: `${binDir}:${FULL_PATH}`,
     });
-    expect(r.status).toBe(0);
+    expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toContain("already on PATH");
     const profilePath = path.join(home, ".bashrc");
     try {

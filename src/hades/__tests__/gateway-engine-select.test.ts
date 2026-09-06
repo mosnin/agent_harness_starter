@@ -1,3 +1,5 @@
+import { AgentTaskExecutor } from "../runtime/task-executor";
+import type { TaskExecutor } from "../../swarm-runtime/worker/executor";
 import { describe, it, expect, vi } from "vitest";
 
 import { resolveGatewayEngine, type EngineProbe } from "../gateway/engine-select";
@@ -119,9 +121,9 @@ describe("resolveGatewayEngine — swarm requested without a key", () => {
 // ---------------------------------------------------------------------------
 
 describe("resolveGatewayEngine — swarm requested with a key (mode: real)", () => {
-  it("ANTHROPIC_API_KEY present -> mode:real, probe names ANTHROPIC_API_KEY, engine issues a certificate that verifies over the exact reply text (fake manager, no real swarm spin-up)", async () => {
+  it("ANTHROPIC_API_KEY present -> mode:real, probe names ANTHROPIC_API_KEY, engine abstains from correctness certification (fake manager, no real swarm spin-up)", async () => {
     const fake = fakeManagerFactory();
-    const createManager = vi.fn(async (_executor: LLMExecutor) => ({ manager: fake.manager, shutdown: fake.shutdown }));
+    const createManager = vi.fn(async (_executor: TaskExecutor) => ({ manager: fake.manager, shutdown: fake.shutdown }));
 
     const { engine, probe, shutdown } = await resolveGatewayEngine(
       { HADES_GATEWAY_ENGINE: "swarm", ANTHROPIC_API_KEY: "sk-ant-test-key" },
@@ -136,10 +138,9 @@ describe("resolveGatewayEngine — swarm requested with a key (mode: real)", () 
 
     const reply = await engine.respond(turnFixture);
     expect(reply.text).toBe(`mock synthesis for: ${turnFixture.text}`);
-    expect(reply.decision?.emit).toBe(true);
-    expect(reply.certificate).toBeDefined();
-    expect(await certifiesOutput(reply.certificate!, reply.text)).toBe(true);
-    expect(await certifiesOutput(reply.certificate!, "different text")).toBe(false);
+    expect(reply.decision?.emit).toBe(false);
+    expect(reply.certificate).toBeUndefined();
+    expect(reply.decision?.pCorrectEstimate).toBe(0);
 
     await shutdown();
   });
@@ -191,7 +192,7 @@ describe("resolveGatewayEngine — swarm requested with a key (mode: real)", () 
 
   it("HADES_GATEWAY_MODEL and HADES_GATEWAY_BASE_URL override the provider defaults and reach the real createOpenAICompatibleChat wiring (structural check only — no live call)", async () => {
     const fake = fakeManagerFactory();
-    const createManager = vi.fn(async (_executor: LLMExecutor) => ({ manager: fake.manager, shutdown: fake.shutdown }));
+    const createManager = vi.fn(async (_executor: TaskExecutor) => ({ manager: fake.manager, shutdown: fake.shutdown }));
 
     // No injected `chat` here: resolveGatewayEngine must build one via
     // createOpenAICompatibleChat itself using the override model/base URL.
@@ -211,10 +212,10 @@ describe("resolveGatewayEngine — swarm requested with a key (mode: real)", () 
     // Confirm the executor passed into createManager is a real LLMExecutor
     // (not some other stand-in), proving the ChatFn was actually wired through.
     const passedExecutor = createManager.mock.calls[0][0];
-    expect(passedExecutor).toBeInstanceOf(LLMExecutor);
+    expect(passedExecutor).toBeInstanceOf(AgentTaskExecutor);
   });
 
-  it("HADES_STYX_KEY (hex) is honored as the certificate authority's signing key when set", async () => {
+  it("a supplied signing key does not bypass missing independent admission", async () => {
     const fake = fakeManagerFactory();
     const createManager = vi.fn(async () => ({ manager: fake.manager, shutdown: fake.shutdown }));
     const styxKeyHex = "5a".repeat(32);
@@ -224,17 +225,18 @@ describe("resolveGatewayEngine — swarm requested with a key (mode: real)", () 
       { chat: deterministicChat, createManager },
     );
     const reply = await engine.respond(turnFixture);
-    expect(reply.certificate).toBeDefined();
+    expect(reply.certificate).toBeUndefined();
     // Deterministic seed -> deterministic public key, independent of run.
     const again = await resolveGatewayEngine(
       { HADES_GATEWAY_ENGINE: "swarm", ANTHROPIC_API_KEY: "sk-ant-test", HADES_STYX_KEY: styxKeyHex },
       { chat: deterministicChat, createManager: vi.fn(async () => ({ manager: fakeManagerFactory().manager, shutdown: fake.shutdown })) },
     );
     const reply2 = await again.engine.respond(turnFixture);
-    expect(reply2.certificate?.publicKey).toBe(reply.certificate?.publicKey);
+    expect(reply2.certificate).toBeUndefined();
+    expect(reply2.decision?.emit).toBe(false);
   });
 
-  it("without HADES_STYX_KEY, a fresh signing key is generated (public keys differ across independent resolutions)", async () => {
+  it("independent default resolutions both abstain from certification", async () => {
     const fake1 = fakeManagerFactory();
     const fake2 = fakeManagerFactory();
     const r1 = await resolveGatewayEngine(
@@ -247,7 +249,8 @@ describe("resolveGatewayEngine — swarm requested with a key (mode: real)", () 
     );
     const reply1 = await r1.engine.respond(turnFixture);
     const reply2 = await r2.engine.respond(turnFixture);
-    expect(reply1.certificate?.publicKey).not.toBe(reply2.certificate?.publicKey);
+    expect(reply1.certificate).toBeUndefined();
+    expect(reply2.certificate).toBeUndefined();
   });
 });
 
@@ -273,7 +276,7 @@ describe("resolveGatewayEngine — full real path through a genuine createInline
         { HADES_GATEWAY_ENGINE: "swarm", ANTHROPIC_API_KEY: "sk-ant-real-path-test" },
         {
           chat: deterministicChat,
-          createManager: async (executor: LLMExecutor) => {
+          createManager: async (executor: TaskExecutor) => {
             const manager = await createInlineSwarm({ executor });
             shutdownSpy = vi.spyOn(manager, "shutdown");
             return { manager, shutdown: () => manager.shutdown() };
@@ -298,7 +301,7 @@ describe("resolveGatewayEngine — full real path through a genuine createInline
       expect(typeof reply.text).toBe("string");
       expect(reply.decision).toBeDefined();
       if (reply.decision?.emit) {
-        expect(reply.certificate).toBeDefined();
+        expect(reply.certificate).toBeUndefined();
         expect(await certifiesOutput(reply.certificate!, reply.text)).toBe(true);
       } else {
         expect(reply.certificate).toBeUndefined();

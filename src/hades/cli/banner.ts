@@ -69,7 +69,7 @@ export function renderBanner(opts: BannerOptions = {}): string {
  * `NO_COLOR`/`HADES_NO_BANNER` is set. Splitting this out from the renderers
  * is what lets tests assert the policy without a TTY.
  */
-export function shouldShowBanner(env: NodeJS.ProcessEnv, isTTY: boolean): boolean {
+export function shouldShowBanner(env: Record<string, string | undefined>, isTTY: boolean): boolean {
   if (!isTTY) return false;
   if (env.HADES_NO_BANNER) return false;
   if (env.CI) return false;
@@ -77,7 +77,7 @@ export function shouldShowBanner(env: NodeJS.ProcessEnv, isTTY: boolean): boolea
 }
 
 /** Colour policy, kept separate from banner policy: `NO_COLOR` is honoured. */
-export function shouldUseColor(env: NodeJS.ProcessEnv, isTTY: boolean): boolean {
+export function shouldUseColor(env: Record<string, string | undefined>, isTTY: boolean): boolean {
   if (!isTTY) return false;
   if (env.NO_COLOR) return false;
   if (env.TERM === "dumb") return false;

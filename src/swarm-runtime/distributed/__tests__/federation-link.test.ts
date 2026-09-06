@@ -243,14 +243,16 @@ describe("socketWire", () => {
     await once(server, "listening");
     const address = server.address();
     if (address === null || typeof address === "string") throw new Error("expected AddressInfo");
+    const accepted = once(server, "connection");
     const client = connect({ host: "127.0.0.1", port: address.port });
+    const connected = once(client, "connect");
     // These tests deliberately feed malformed/oversize frames that can cause the
     // peer to destroy its end of the socket; without a listener, Node treats the
     // resulting ECONNRESET as an uncaught exception rather than a normal event.
     client.on("error", () => undefined);
-    const [serverSocket] = (await once(server, "connection")) as [Socket];
+    const [serverSocket] = (await accepted) as [Socket];
     serverSocket.on("error", () => undefined);
-    await once(client, "connect");
+    await connected;
     sockets.push(client, serverSocket);
     return { client, server: serverSocket };
   }

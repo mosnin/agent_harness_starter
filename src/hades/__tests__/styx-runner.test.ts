@@ -100,6 +100,7 @@ function task(id: string, prompt: string, correct: string, category = "math"): E
 }
 
 const BASE_OPTS: StyxRunnerOptions = {
+  calibration: defaultCalibration(),
   workerModel: "worker-model",
   verifierModels: ["verifier-a", "verifier-b"],
   issuedAt: 1_700_000_000_000,

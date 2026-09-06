@@ -60,7 +60,8 @@ describe("issueHandoffCertificate", () => {
     expect(payload.taskId).toBe("goal-abc-123");
     expect(payload.verifierTier).toBe("mcp-handoff:accept");
     expect(payload.ensembleScore).toBe(0.93);
-    expect(payload.pCorrect).toBe(0.93);
+    expect(payload.pCorrect).toBe(0);
+    expect(payload.scope).toBe("integrity");
     expect(payload.epsilon).toBe(0); // accept -> no further conformal slack claimed
     expect(payload.verifierVersions).toEqual([
       "gate-check:has-claims",

@@ -173,7 +173,7 @@ describe("kind tuples exactly match their unions", () => {
       case "learning.get":
         return "get";
       default:
-        return assertNeverCommand(cmd);
+        return assertNeverCommand(cmd.kind);
     }
   }
 

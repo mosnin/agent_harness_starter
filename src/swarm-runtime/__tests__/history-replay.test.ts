@@ -34,7 +34,7 @@ describe("goal history + replay (manager)", () => {
 
 describe("goal history + replay (REST)", () => {
   it("serves the goal list and replays over HTTP", async () => {
-    const built = await buildSwarm({ mode: "inline", capabilities: ["research"], poolSize: 2 });
+    const built = await buildSwarm({ demo: true, mode: "inline", capabilities: ["research"], poolSize: 2 });
     const port = 39250;
     server = new SwarmServer(built, { port });
     await server.listen();

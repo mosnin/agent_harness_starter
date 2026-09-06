@@ -14,7 +14,7 @@ afterEach(async () => {
 
 describe("dashboard API auth", () => {
   it("guards /api/* with a token but leaves the dashboard open", async () => {
-    const built = await buildSwarm({ mode: "inline", capabilities: ["research"], poolSize: 1 });
+    const built = await buildSwarm({ demo: true, mode: "inline", capabilities: ["research"], poolSize: 1 });
     const port = 39280;
     server = new SwarmServer(built, { port, authToken: "s3cret" });
     await server.listen();

@@ -28,7 +28,8 @@ Return ONLY a JSON object of the form:
 Rules:
 - Never assert anything you cannot ground in the task input or provided dependencies.
 - If you are unsure, say so and lower confidence — do not fabricate evidence.
-- Evidence must be quotable text actually present in the task input/dependencies.`;
+- Evidence must be exact quotes actually present in the task input/dependencies.
+- Include a claim whose statement is exactly the final answer.`;
 
 /**
  * LLM-backed worker executor. Prompts the model for a grounded, JSON-structured
@@ -44,7 +45,9 @@ Rules:
  * its tool registry.
  */
 export class LLMExecutor implements TaskExecutor {
-  constructor(private readonly chat: ChatFn) {}
+  constructor(private readonly chat: (messages: ChatMessage[]) => Promise<string | {
+    text: string; usd: number; tokensIn: number; tokensOut: number; costMeasured?: boolean;
+  }>) {}
 
   async execute(task: WorkerTask, ctx: WorkerContext): Promise<ExecutionOutput> {
     const deps = (task.input as { _dependencies?: Array<{ output: unknown }> })._dependencies ?? [];
@@ -69,7 +72,12 @@ export class LLMExecutor implements TaskExecutor {
     ];
 
     ctx.log(`calling model for task ${task.id.slice(0, 8)}`);
-    const raw = await this.chat(messages);
+    const completion = await this.chat(messages);
+    const raw = typeof completion === "string" ? completion : completion.text;
+    const accounting = typeof completion === "string" ? {} : {
+      costUsd: completion.usd,
+      usage: { tokensIn: completion.tokensIn, tokensOut: completion.tokensOut, costMeasured: completion.costMeasured !== false },
+    };
 
     // The traceable evidence is only what the worker was *given* (task input +
     // verified dependencies) — never the model's own generated answer.
@@ -91,12 +99,13 @@ export class LLMExecutor implements TaskExecutor {
       const claims: Claim[] = Array.isArray(parsed.claims)
         ? parsed.claims.map(normalizeClaim)
         : [];
-      return { output: parsed.answer ?? raw, claims, toolTrace: trace };
+      return { output: parsed.answer ?? raw, claims, toolTrace: trace, ...accounting };
     }
 
     // Model didn't return valid JSON — degrade to a single low-confidence claim
     // grounded in its own output, which the gate will treat conservatively.
     return {
+      ...accounting,
       output: raw,
       claims: [{ statement: "Model produced a free-text answer.", evidence: [raw.slice(0, 200)], confidence: 0.4 }],
       toolTrace: trace,

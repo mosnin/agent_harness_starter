@@ -608,7 +608,7 @@ printf '%s' "$LAUNCHER_SCRIPT" > "$TMP_LAUNCHER"
 mv -- "$TMP_LAUNCHER" "$LAUNCHER_PATH"
 
 echo "  - (chmod) make ${LAUNCHER_PATH} executable"
-chmod 755 -- "$LAUNCHER_PATH"
+chmod 755 "$LAUNCHER_PATH"
 
 if [[ "$MODIFY_PATH" -eq 1 ]]; then
   if [[ "$PATH_ALREADY_CONTAINS_BIN_DIR" -eq 1 ]]; then

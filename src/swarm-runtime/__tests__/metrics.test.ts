@@ -31,7 +31,7 @@ describe("manager metrics", () => {
 
 describe("metrics REST", () => {
   it("serves GET /api/metrics", async () => {
-    const built = await buildSwarm({ mode: "inline", capabilities: ["research"], poolSize: 1 });
+    const built = await buildSwarm({ demo: true, mode: "inline", capabilities: ["research"], poolSize: 1 });
     const port = 39270;
     server = new SwarmServer(built, { port });
     await server.listen();

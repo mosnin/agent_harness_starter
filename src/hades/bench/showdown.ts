@@ -12,7 +12,7 @@
  *                   `task:verified` / `task:rejected` / `task:failed`
  *                   events — never inferred.
  *   2. "baseline" — a single agent that trusts itself (`claimedVerified`
- *                   is always `true`, exactly Hermes-style self-report).
+ *                   is always `true`, exactly local single-agent surrogate self-report).
  *
  * V-TPH$ (correct-work-per-dollar) for both lanes comes ONLY from the
  * real {@link runVtph} / {@link compareVtph} in `./vtph` — this module
@@ -370,7 +370,7 @@ function deriveDishonestFlags(taskCount: number, seed: number, rate = 0.15): boo
  * Deterministic scripted single-agent baseline: computes the real answer via
  * {@link solveShowdownTask}, corrupts it on the tasks the difficulty stream
  * marks dishonest — and ALWAYS self-declares `claimedVerified: true`
- * regardless. This is the Hermes-style "trust yourself" baseline; its
+ * regardless. This is the local single-agent surrogate "trust yourself" baseline; its
  * `silentWrong` is exactly the dishonest-task count, measured, not asserted.
  */
 function defaultModeledBaselineRunner(taskIndex: Map<string, number>, dishonestFlags: boolean[]): AgentRunner {
@@ -427,7 +427,7 @@ class ShowdownExecutor implements TaskExecutor {
       ];
       const claims: Claim[] = [
         {
-          statement: `The computed result is ${solved}.`,
+          statement: solved,
           evidence: [`result=${solved}`],
           confidence: 0.95,
         },
@@ -435,7 +435,7 @@ class ShowdownExecutor implements TaskExecutor {
       ctx.log(`showdown worker solved ${taskId} honestly`);
       const tokensIn = estimateTokens(prompt);
       const tokensOut = estimateTokens(solved);
-      return { output: solved, claims, toolTrace: trace, costUsd: modeledCost(tokensIn, tokensOut) };
+      return { output: solved, claims, toolTrace: trace, costUsd: modeledCost(tokensIn, tokensOut), usage: { tokensIn, tokensOut, costMeasured: true } };
     }
 
     // Dishonest path: assert a wrong answer, cite nothing. The real gate's
@@ -445,7 +445,7 @@ class ShowdownExecutor implements TaskExecutor {
     ctx.log(`showdown worker fabricated an ungrounded answer for ${taskId}`);
     const tokensIn = estimateTokens(prompt);
     const tokensOut = estimateTokens(wrong);
-    return { output: wrong, claims: [], toolTrace: [], costUsd: modeledCost(tokensIn, tokensOut) };
+    return { output: wrong, claims: [], toolTrace: [], costUsd: modeledCost(tokensIn, tokensOut), usage: { tokensIn, tokensOut, costMeasured: true } };
   }
 }
 
@@ -499,9 +499,9 @@ function buildRealModeDefaults(detected: DetectedProvider): { executor: TaskExec
   };
   const client: ModelClient = new HttpModelClient(providerConfig);
 
-  const chat: ChatFn = async (messages: LlmChatMessage[]) => {
+  const chat = async (messages: LlmChatMessage[]) => {
     const res = await client.chat({ model: detected.model, messages });
-    return res.text;
+    return res;
   };
 
   return {
@@ -743,8 +743,10 @@ export async function runShowdown(opts: ShowdownOptions): Promise<ShowdownResult
   const swarmRunner: AgentRunner = async (task: EvalTask): Promise<AgentRunResult> => {
     const idx = taskIndex.get(task.id) ?? -1;
     const start = now();
+    let startedGoalId: string | undefined;
     try {
       const { goalId, done: goalDone } = await manager.startGoal(task.id, { timeoutMs: 120_000 });
+      startedGoalId = goalId;
       await goalDone;
       const wt = manager.listTasks(goalId)[0];
       const elapsedMs = Math.max(0, now() - start);
@@ -774,21 +776,24 @@ export async function runShowdown(opts: ShowdownOptions): Promise<ShowdownResult
       return {
         output,
         claimedVerified,
-        tokensIn: estimateTokens(task.prompt),
-        tokensOut: estimateTokens(output),
+        tokensIn: manager.getUsage(goalId).providerUsage?.tokensIn ?? 0,
+        tokensOut: manager.getUsage(goalId).providerUsage?.tokensOut ?? 0,
+        costMeasured: manager.getUsage(goalId).providerUsage?.costMeasured ?? opts.mode !== "real",
         usd,
         provenance,
       };
     } catch (err) {
       const elapsedMs = Math.max(0, now() - start);
-      if (idx >= 0) swarmSlots[idx] = { verdict: "failed", elapsedMs, usd: 0 };
+      const spent = startedGoalId ? manager.getUsage(startedGoalId) : undefined;
+      if (idx >= 0) swarmSlots[idx] = { verdict: "failed", elapsedMs, usd: spent?.costUsd ?? 0 };
       tick();
       return {
         output: "",
         claimedVerified: false,
-        tokensIn: 0,
-        tokensOut: 0,
-        usd: 0,
+        tokensIn: spent?.providerUsage?.tokensIn ?? 0,
+        tokensOut: spent?.providerUsage?.tokensOut ?? 0,
+        usd: spent?.costUsd ?? 0,
+        costMeasured: false,
         provenance: [`error:${err instanceof Error ? err.message : String(err)}`],
       };
     }

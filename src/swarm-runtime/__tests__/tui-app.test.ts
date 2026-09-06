@@ -25,9 +25,9 @@ const sample: TuiState = {
 };
 
 function fakeController(): TuiController & {
-  dispatchGoal: ReturnType<typeof vi.fn>;
-  scalePool: ReturnType<typeof vi.fn>;
-  cancel: ReturnType<typeof vi.fn>;
+  dispatchGoal: ReturnType<typeof vi.fn<TuiController["dispatchGoal"]>>;
+  scalePool: ReturnType<typeof vi.fn<TuiController["scalePool"]>>;
+  cancel: ReturnType<typeof vi.fn<TuiController["cancel"]>>;
 } {
   return {
     dispatchGoal: vi.fn(),

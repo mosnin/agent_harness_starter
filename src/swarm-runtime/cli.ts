@@ -35,6 +35,8 @@ interface Flags {
   dockerNetwork?: string;
   authToken?: string;
   json: boolean;
+  demo: boolean;
+  model?: string;
   _: string[];
 }
 
@@ -47,6 +49,7 @@ function parseArgs(argv: string[]): Flags {
     controlPort: 8787,
     host: "127.0.0.1",
     json: false,
+    demo: false,
     _: [],
   };
   for (let i = 0; i < argv.length; i++) {
@@ -63,6 +66,8 @@ function parseArgs(argv: string[]): Flags {
       case "--docker-network": f.dockerNetwork = next(); break;
       case "--host": f.host = next(); break;
       case "--auth-token": f.authToken = next(); break;
+      case "--demo": f.demo = true; break;
+      case "--model": f.model = next(); break;
       case "--json": f.json = true; break;
       case "-h": case "--help": f._.push("help"); break;
       default: f._.push(a);
@@ -87,6 +92,8 @@ FLAGS
   --control-port N               worker control-plane port (default 8787)
   --image NAME                   worker docker image (docker mode)
   --host H                       bind host (default 127.0.0.1)
+  --demo                         explicit deterministic fixture mode
+  --model ID                     provider model (or HADES_MODEL)
   --json                         machine-readable run output`;
 
 async function cmdDoctor(): Promise<void> {
@@ -104,8 +111,11 @@ async function cmdRun(f: Flags): Promise<void> {
     console.error('error: provide an objective, e.g. hermes-swarm run "summarize the repo"');
     process.exit(1);
   }
+  if (f.demo) console.error("[demo] deterministic fixture executor; this does not solve real tasks");
   const swarm = await buildSwarm({
     mode: f.mode,
+    demo: f.demo,
+    model: f.model,
     capabilities: f.caps,
     poolSize: f.workers,
     controlPort: f.controlPort,
@@ -136,8 +146,11 @@ async function cmdRun(f: Flags): Promise<void> {
 }
 
 async function cmdServe(f: Flags): Promise<void> {
+  if (f.demo) console.error("[demo] deterministic fixture executor; this does not solve real tasks");
   const swarm = await buildSwarm({
     mode: f.mode,
+    demo: f.demo,
+    model: f.model,
     capabilities: f.caps,
     poolSize: f.workers,
     controlPort: f.controlPort,

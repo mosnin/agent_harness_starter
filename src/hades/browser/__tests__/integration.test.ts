@@ -233,7 +233,7 @@ describe("hades browser CLI routes", () => {
     };
     // Same environmental premise as the rest of this suite.
     expect(probe.chromiumFound).toBe(true);
-    expect(probe.chromiumPath).toMatch(/pw-browsers/);
+    expect(probe.chromiumPath).toMatch(/(?:ms-playwright|pw-browsers)/);
     expect(typeof probe.headedOk).toBe("boolean");
   });
 

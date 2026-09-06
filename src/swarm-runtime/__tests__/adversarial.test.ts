@@ -34,7 +34,7 @@ describe("RuleBasedAdversary", () => {
     const r = await adv.refute(
       res({
         output: "the file has 42 lines",
-        claims: [{ statement: "file has 42 lines", evidence: ["wc: 42"], confidence: 0.85 }],
+        claims: [{ statement: "file has 42 lines", evidence: ["42"], confidence: 0.85 }],
         toolTrace: [{ tool: "wc", args: {}, ok: true, output: "42", at: 0 }],
       })
     );
@@ -55,7 +55,7 @@ describe("adversary in the manager", () => {
       async execute(_t: WorkerTask, _c: WorkerContext) {
         return {
           output: "this approach always works and is guaranteed",
-          claims: [{ statement: "it always works", evidence: ["log: ran ok"], confidence: 0.9 }],
+          claims: [{ statement: "this approach always works and is guaranteed", evidence: ["log: ran ok"], confidence: 0.9 }],
           toolTrace: [{ tool: "run", args: {}, ok: true, output: "log: ran ok", at: 0 }],
         };
       },

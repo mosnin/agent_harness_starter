@@ -63,8 +63,8 @@ class ControllableExecutor implements TaskExecutor {
       output: `done:${objective}`,
       claims: [
         {
-          statement: `The objective "${objective}" was analyzed and confirmed.`,
-          evidence: [`analyze output: analyzed:${objective}`],
+          statement: `done:${objective}`,
+          evidence: [`analyzed:${objective}`],
           confidence: 0.9,
         },
       ],
@@ -323,7 +323,7 @@ describe("execute: real accepted path (genuine end-to-end)", () => {
     expect(await verifyCertificate(tampered)).toBe(false);
   });
 
-  it("does NOT claim a conformal bound it never computed: epsilon defaults to 0, and pCorrect is the gate's own score verbatim", async () => {
+  it("does NOT claim a conformal bound it never computed: epsilon defaults to 0 and the receipt attests integrity only", async () => {
     const { node } = await buildNode();
     const lease = mkLease("epsilon-task", node.nodeId);
     const outcome = await node.execute(lease, mkLeasedTask("epsilon-task"));
@@ -337,7 +337,8 @@ describe("execute: real accepted path (genuine end-to-end)", () => {
     expect(cert.payload.epsilon).toBe(0);
     // pCorrect is the ONE number that was actually computed (the gate score),
     // not a separately-invented "calibrated" figure.
-    expect(cert.payload.pCorrect).toBe(outcome.report.score);
+    expect(cert.payload.pCorrect).toBe(0);
+    expect(cert.payload.scope).toBe("integrity");
     expect(cert.payload.ensembleScore).toBe(outcome.report.score);
   });
 

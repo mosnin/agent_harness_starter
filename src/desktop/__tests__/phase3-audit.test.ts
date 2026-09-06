@@ -145,7 +145,7 @@ describe("[Team 3] cert-verify runs real ed25519 (not a valid:true stub)", () =>
     // Re-serialize the payload with keys in a different (reversed) order.
     const reordered: Record<string, unknown> = {};
     for (const k of Object.keys(cert.payload).reverse()) {
-      reordered[k] = (cert.payload as Record<string, unknown>)[k];
+      reordered[k] = (cert.payload as unknown as Record<string, unknown>)[k];
     }
     const wire = JSON.stringify({
       publicKey: cert.publicKey,

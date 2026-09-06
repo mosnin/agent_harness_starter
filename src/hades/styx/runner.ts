@@ -96,24 +96,15 @@ export interface StyxRunnerOptions {
   budget?: number;
   /** Worker `AgentLoop` step cap. */
   maxSteps?: number;
-  /** Gate calibration set; must hold >= 20 points. Default {@link defaultCalibration}. */
+  /** Real labeled calibration set; must hold >= 20 points. Missing data abstains. */
   calibration?: CalibrationPoint[];
   /** Caller-supplied certificate timestamp (no `Date.now` inside). */
   issuedAt: number;
-  /**
-   * 32-byte hex ed25519 seed used to sign certificates. Defaults to a FIXED
-   * deterministic seed so the runner is reproducible out of the box; real
-   * deployments MUST inject their own key.
-   */
+  /** Signing key; defaults to a fresh random key for this runner instance. */
   privateKeyHex?: string;
   /** Tool registry for the worker loop. Default {@link builtinRegistry}. */
   tools?: ToolRegistry;
 }
-
-/** Fixed deterministic signing seed (see {@link StyxRunnerOptions.privateKeyHex}). */
-export const DEFAULT_STYX_KEY = generatePrivateKeyHex(
-  (n) => new Uint8Array(n).fill(0x5a),
-);
 
 const DEFAULT_STRATEGIES = 3;
 const DEFAULT_EPSILON = 0.1;
@@ -174,13 +165,7 @@ export function signalsForTask(task: EvalTask): TaskSignals {
 // Default calibration
 // ---------------------------------------------------------------------------
 
-/**
- * A small, sane default calibration set (40 points, > the gate's 20-point
- * minimum). High verifier scores are reliably correct, low scores wrong, so
- * the conformal threshold at ε = 0.1 lands well below a unanimous-pass fitness
- * of 1.0 — a strongly-verified answer clears the gate, a rejected one does not.
- * Deployments should replace this with real (score, correct) history.
- */
+/** Synthetic calibration fixture for explicit tests and modeled demos only. */
 export function defaultCalibration(): CalibrationPoint[] {
   const points: CalibrationPoint[] = [];
   for (let i = 0; i < 24; i++) points.push({ score: 0.95, correct: true });
@@ -475,11 +460,12 @@ export function styxRunner(client: ModelClient, opts: StyxRunnerOptions): AgentR
   const tools = opts.tools ?? builtinRegistry();
   const epsilon = opts.epsilon ?? DEFAULT_EPSILON;
   const budget = opts.budget ?? DEFAULT_BUDGET;
-  const calibration = opts.calibration ?? defaultCalibration();
-  const ca = new CertificateAuthority(opts.privateKeyHex ?? DEFAULT_STYX_KEY);
+  const calibration = opts.calibration;
+  const ca = new CertificateAuthority(opts.privateKeyHex ?? generatePrivateKeyHex());
 
   return async (task: EvalTask): Promise<AgentRunResult> => {
     try {
+      if (!calibration) return { output: "", claimedVerified: false, tokensIn: 0, tokensOut: 0, usd: 0, costMeasured: false, provenance: ["uncalibrated: supply real labeled calibration data before running STYX"] };
       const prep = await prepareStyxTask(client, task, {
         workerModel: opts.workerModel,
         verifierModels: opts.verifierModels,
@@ -522,6 +508,7 @@ export function styxRunner(client: ModelClient, opts: StyxRunnerOptions): AgentR
         tokensIn: 0,
         tokensOut: 0,
         usd: 0,
+        costMeasured: false,
         provenance: [`error:${messageOf(err)}`],
       };
     }

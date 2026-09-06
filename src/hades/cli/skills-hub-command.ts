@@ -134,7 +134,7 @@ function renderImportReport(report: ImportReport, dryRun: boolean, width: number
 
   if (report.skipped.length > 0) {
     lines.push("", `skipped: ${report.skipped.length}`);
-    for (const s of report.skipped) lines.push(`  - ${sanitize(s.path)}: ${truncate(sanitize(s.reason), width)}`);
+    for (const s of report.skipped) lines.push(`  - ${sanitize(s.path)}: ${sanitize(s.reason)}`);
   }
 
   if (report.warnings.length > 0) {

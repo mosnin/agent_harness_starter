@@ -124,7 +124,7 @@ describe("planPackage (pure)", () => {
     });
     const plan = planPackage({ prerequisites, dryRun: false });
     const tauri = plan.steps.find((s: any) => s.name === "tauri-build");
-    expect(tauri.action).toBe("run");
+    expect(tauri?.action).toBe("run");
   });
 });
 

@@ -77,6 +77,7 @@ export interface AgentRunResult {
   tokensIn: number;
   tokensOut: number;
   usd: number;
+  costMeasured?: boolean;
   /** Audit-trail entries backing the claim (may be empty). */
   provenance: string[];
 }
@@ -86,6 +87,8 @@ export type AgentRunner = (task: EvalTask) => Promise<AgentRunResult>;
 
 /** The aggregated V-TPH$ scorecard for one runner over a task suite. */
 export interface VtphReport {
+  /** False makes the per-dollar metric unavailable; numeric value is then 0. */
+  costMeasured?: boolean;
   label: string;
   tasks: number;
   /** claimedVerified===true && grade(output)===true — the only work that scores. */
@@ -143,6 +146,7 @@ export async function runVtph(
   let totalUsd = 0;
   let claimedCount = 0;
   let claimedWithProvenance = 0;
+  let costMeasured = true;
 
   const process = async (task: EvalTask): Promise<void> => {
     let result: AgentRunResult;
@@ -151,11 +155,13 @@ export async function runVtph(
     } catch {
       // Guarded: a throwing runner is a declined task with zero cost.
       declined += 1;
+      costMeasured = false;
       return;
     }
 
     totalTokens += result.tokensIn + result.tokensOut;
-    totalUsd += result.usd;
+    costMeasured = costMeasured && result.costMeasured !== false && Number.isFinite(result.usd) && result.usd >= 0;
+    totalUsd += Number.isFinite(result.usd) && result.usd >= 0 ? result.usd : 0;
 
     if (result.claimedVerified) {
       claimedCount += 1;
@@ -180,11 +186,13 @@ export async function runVtph(
   const wallClockMs = end - start;
   const hours = wallClockMs / MS_PER_HOUR;
   const vtph = hours > 0 ? verifiedCorrect / hours : 0;
-  const vtphPerDollar = vtph / Math.max(totalUsd, 1e-9);
+  costMeasured = costMeasured && totalUsd > 0;
+  const vtphPerDollar = costMeasured ? vtph / totalUsd : 0;
   const provenanceCompleteRate = claimedWithProvenance / Math.max(1, claimedCount);
 
   return {
     label,
+    costMeasured,
     tasks: tasks.length,
     verifiedCorrect,
     silentWrong,
@@ -255,7 +263,7 @@ export async function compareVtph(
   const markdownTable = renderTable(reports);
 
   let vtphPerDollarSpeedup = 1;
-  if (reports.length > 0) {
+  if (reports.length > 0 && reports.every((r) => r.costMeasured !== false)) {
     const values = reports.map((r) => r.vtphPerDollar);
     const best = Math.max(...values);
     const worst = Math.min(...values);
@@ -274,7 +282,7 @@ function renderTable(reports: VtphReport[]): string {
     .map(
       (r) =>
         `| ${r.label} | ${r.tasks} | ${r.verifiedCorrect} | ${r.silentWrong} | ` +
-        `${r.vtph.toFixed(2)} | ${r.totalUsd.toFixed(4)} | ${r.vtphPerDollar.toFixed(2)} |`
+        `${r.vtph.toFixed(2)} | ${r.totalUsd.toFixed(4)} | ${r.costMeasured === false ? "n/a (unmeasured or zero spend)" : r.vtphPerDollar.toFixed(2)} |`
     )
     .join("\n");
   return `${header}\n${body}`;

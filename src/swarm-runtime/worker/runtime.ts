@@ -48,7 +48,7 @@ export class WorkerRuntime {
     this.startHeartbeat();
 
     const log = (line: string) => void bus.log(workerId, line).catch(() => undefined);
-    const ctx: WorkerContext = { workerId, model, log };
+    const ctx: WorkerContext = { workerId, model, log, signal };
 
     let idlePolls = 0;
     const maxIdle = this.config.maxIdlePolls ?? 0;
@@ -88,6 +88,8 @@ export class WorkerRuntime {
         output: out.output,
         claims: out.claims,
         toolTrace: out.toolTrace,
+        usage: out.usage,
+        error: out.error,
         startedAt,
         finishedAt: Date.now(),
         ...(out.costUsd != null ? { costUsd: out.costUsd } : {}),

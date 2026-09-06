@@ -679,13 +679,7 @@ export class ClusterNode extends EventEmitter {
    *                         mutation of the bytes the caller received.
    *  - `verifierTier`     = the REAL verifier that produced the verdict.
    *  - `ensembleScore`    = the gate's own score, verbatim.
-   *  - `pCorrect`         = the same gate score. This layer runs no separate
-   *                         calibration step, and inventing a distinct
-   *                         "calibrated" figure would be worse than reusing
-   *                         the one number that was actually computed — the
-   *                         same choice `hades/mcp/cert-handoff.ts` documents.
-   *  - `epsilon`          = {@link DEFAULT_EPSILON} (0) unless the caller
-   *                         asserted their own calibrated bound.
+   *  - `scope` = integrity; `pCorrect` = 0. The gate score is not a probability.
    *  - `traceSha256`      = sha256 of the REAL tool trace this result carries.
    */
   private async issueCertificate(
@@ -697,11 +691,12 @@ export class ClusterNode extends EventEmitter {
   ): Promise<VerificationCertificate> {
     const traceSha256 = sha256Hex(canonicalOutputText(result.toolTrace));
     const payload: CertificatePayload = {
+      scope: "integrity",
       outputSha256: sha256Hex(outputText),
       taskId,
       verifierTier: "T1-swarm-verification-gate",
       ensembleScore: report.score,
-      pCorrect: report.score,
+      pCorrect: 0,
       epsilon: this.epsilon,
       traceSha256,
       verifierVersions: ["swarm-runtime.verification-gate@1"],

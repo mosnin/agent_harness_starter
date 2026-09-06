@@ -162,6 +162,7 @@ describe("probeGatewayEngine: the pure decision table", () => {
     const probe = probeGatewayEngine({
       HADES_GATEWAY_ENGINE: "swarm",
       ANTHROPIC_API_KEY: SECRET,
+      HADES_MODEL: "fixture-model",
     });
     expect(probe).toMatchObject({ requested: "swarm", mode: "real" });
     expect(probe.detail).toContain("ANTHROPIC_API_KEY");
@@ -185,7 +186,7 @@ describe("buildGatewayDepsFromEnv: engine construction is start-gated", () => {
     const createManager = vi.fn();
     const deps = await buildGatewayDepsFromEnv(
       tmpConfig(),
-      { HADES_GATEWAY_ENGINE: "swarm", ANTHROPIC_API_KEY: "k" },
+      { HADES_GATEWAY_ENGINE: "swarm", ANTHROPIC_API_KEY: "k", HADES_MODEL: "fixture-model" },
       { forStart: false, resolveDeps: { createManager: createManager as never } }
     );
 
@@ -208,7 +209,7 @@ describe("buildGatewayDepsFromEnv: engine construction is start-gated", () => {
 
     const deps = await buildGatewayDepsFromEnv(
       tmpConfig(),
-      { HADES_GATEWAY_ENGINE: "swarm", ANTHROPIC_API_KEY: "k" },
+      { HADES_GATEWAY_ENGINE: "swarm", ANTHROPIC_API_KEY: "k", HADES_MODEL: "fixture-model" },
       { forStart: true, resolveDeps: { createManager: createManager as never } }
     );
 

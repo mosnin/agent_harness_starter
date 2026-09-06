@@ -495,9 +495,9 @@ describe("GateTrackRecorder — integration with a real VerificationGate", () =>
     return {
       taskId,
       workerId: "w1",
-      output: "The file has 42 lines.",
+      output: "The file a.txt has 42 lines.",
       claims: [
-        { statement: "The file a.txt has 42 lines.", evidence: ["wc output: 42 a.txt"], confidence: 0.9 },
+        { statement: "The file a.txt has 42 lines.", evidence: ["42 a.txt"], confidence: 0.9 },
       ],
       toolTrace: [{ tool: "wc", args: { file: "a.txt" }, ok: true, output: "42 a.txt", at: 0 }],
       startedAt: 0,

@@ -101,6 +101,9 @@ export async function assessReply(
   }
 
   let matches: boolean;
+  if (certificate.payload.scope === "integrity") {
+    return { badge: "unverified", reason: "certificate attests message integrity only" };
+  }
   try {
     matches = await certifiesOutput(certificate, replyText);
   } catch {

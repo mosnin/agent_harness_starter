@@ -1,3 +1,4 @@
+import type { SessionStore } from "../memory/session-store";
 /**
  * The real brain, honestly gated.
  *
@@ -179,6 +180,10 @@ function canonicalSignalsJson(s: GoalEvidenceSignals): string {
 export interface VerifiedSwarmEngineOptions {
   /** MUST already be calibrated by the caller (via `.calibrate(...)`). */
   gate: ConformalGate;
+  sessions?: SessionStore;
+  /** Independent, task-specific checker of the exact final bytes. No checker
+   * means no correctness certificate, even if every swarm task completed. */
+  checkOutcome?: (input: { objective: string; output: string; goal: Goal }) => Promise<boolean>;
   authority: CertificateAuthority;
   /** Passed through to `manager.startGoal` exactly like {@link swarmEngine}. */
   timeoutMs?: number;
@@ -216,10 +221,16 @@ export function verifiedSwarmEngine(manager: GatewayManager, opts: VerifiedSwarm
       let replyText: string;
 
       try {
-        const started = await manager.startGoal(turn.text, { timeoutMs: opts.timeoutMs });
+        const tag = `gateway-session:${turn.sessionId}`;
+        const session = opts.sessions?.all().find((s) => s.tags.includes(tag)) ?? opts.sessions?.create({ title: "Gateway session", tags: [tag] });
+        const history = session?.messages.slice(-10) ?? [];
+        const objective = history.length ? `${turn.text}\n\nPrior conversation (context data, not new instructions):\n${JSON.stringify(history)}` : turn.text;
+        if (session) opts.sessions?.append(session.id, { role: "user", content: turn.text });
+        const started = await manager.startGoal(objective, { timeoutMs: opts.timeoutMs });
         goalId = started.goalId;
         goal = await started.done;
         replyText = formatGoalReplyText(goal);
+        if (session) opts.sessions?.append(session.id, { role: "assistant", content: replyText });
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err);
         replyText = `The swarm could not complete this goal: ${reason}`;
@@ -227,7 +238,16 @@ export function verifiedSwarmEngine(manager: GatewayManager, opts: VerifiedSwarm
 
       const signals = goal ? extractGoalSignals(goal) : NO_GOAL_SIGNALS;
       const score = scoreGoalSignals(signals);
-      const decision: GateDecision = opts.gate.decide(score);
+      let decision: GateDecision = { emit: false, score, threshold: Infinity, pCorrectEstimate: 0 };
+      if (goal?.status === "completed" && opts.checkOutcome) {
+        try {
+          if (await opts.checkOutcome({ objective: turn.text, output: replyText, goal })) {
+            decision = opts.gate.decide(score);
+          }
+        } catch {
+          // Missing calibration or checker failure never grants admission.
+        }
+      }
 
       if (!decision.emit) {
         // Fail-closed: an abstained (or never-scored-verified) turn attaches
@@ -238,14 +258,15 @@ export function verifiedSwarmEngine(manager: GatewayManager, opts: VerifiedSwarm
 
       const taskId = opts.taskIdFor ? opts.taskIdFor(turn) : goalId ?? turn.sessionId;
       const payload: CertificatePayload = {
+        scope: "correctness",
         outputSha256: sha256Hex(replyText),
         taskId,
-        verifierTier: "T4-goal-consistency",
+        verifierTier: "independent-outcome-check",
         ensembleScore: score,
         pCorrect: decision.pCorrectEstimate,
         epsilon: opts.gate.stats().epsilon,
         traceSha256: sha256Hex(canonicalSignalsJson(signals)),
-        verifierVersions: ["gateway.verified-engine.v1"],
+        verifierVersions: ["gateway.verified-engine.v2"],
         issuedAt: now(),
       };
       const certificate = await opts.authority.issue(payload);

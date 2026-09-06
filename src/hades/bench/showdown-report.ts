@@ -61,7 +61,7 @@ function laneSummary(mode: ShowdownMode, label: string, r: VtphReport): string[]
     `  tokens:             ${int(mode, r.totalTokens)}`,
     `  spend:              ${usd(mode, r.totalUsd)}`,
     `  V-TPH:              ${num(mode, r.vtph)}`,
-    `  V-TPH$ (north star): ${Number.isFinite(r.vtphPerDollar) ? num(mode, r.vtphPerDollar) : fig(mode, "n/a (zero spend)")}`,
+    `  V-TPH$ (north star): ${r.costMeasured !== false && r.totalUsd > 0 && Number.isFinite(r.vtphPerDollar) ? num(mode, r.vtphPerDollar) : fig(mode, "n/a (cost unavailable)")}`,
     `  provenance-complete: ${fig(mode, `${(r.provenanceCompleteRate * 100).toFixed(0)}%`)}`,
   ];
 }
@@ -84,7 +84,7 @@ export function renderShowdownText(r: ShowdownResult): string[] {
   lines.push("");
   lines.push(...laneSummary(r.mode, "Swarm (verification-gated)", r.swarmReport));
   lines.push("");
-  lines.push(...laneSummary(r.mode, "Baseline (self-trusting single agent)", r.baselineReport));
+  lines.push(...laneSummary(r.mode, "Baseline (local single-agent surrogate)", r.baselineReport));
   lines.push("");
   lines.push(
     `V-TPH$ spread (best/worst): ${

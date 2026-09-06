@@ -1,3 +1,6 @@
+import { AgentTaskExecutor } from "../../hades/runtime/task-executor";
+import { resolveModel } from "../../hades/runtime/model";
+import { workspaceTools } from "../../hades/runtime/tools";
 /**
  * Container entrypoint for a swarm worker.
  *
@@ -17,25 +20,12 @@
 import { HttpWorkerClient } from "../bus/http-worker-client";
 import { WorkerRuntime } from "./runtime";
 import { DemoExecutor, type TaskExecutor } from "./executor";
-import { LLMExecutor, createOpenAICompatibleChat } from "./llm-executor";
 
-/**
- * Select the worker's executor from the environment. If an API key is present
- * the worker runs a real LLM-backed executor against any OpenAI-compatible
- * endpoint; otherwise it falls back to the deterministic demo executor so the
- * swarm is always runnable, keys or not.
- */
+/** Real model executor by default; HADES_DEMO=1 explicitly selects fixtures. */
 function selectExecutor(model?: string): TaskExecutor {
-  const apiKey = process.env.SWARM_API_KEY ?? process.env.OPENAI_API_KEY;
-  if (apiKey && model) {
-    const chat = createOpenAICompatibleChat({
-      apiKey,
-      model,
-      baseUrl: process.env.SWARM_BASE_URL ?? process.env.OPENAI_BASE_URL,
-    });
-    return new LLMExecutor(chat);
-  }
-  return new DemoExecutor();
+  if (process.env.HADES_DEMO === "1") return new DemoExecutor();
+  const selected = resolveModel(process.env, { model });
+  return new AgentTaskExecutor(selected.client, selected.model, workspaceTools(process.env.HADES_WORKSPACE ?? process.cwd()));
 }
 
 async function main(): Promise<void> {

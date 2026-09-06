@@ -19,7 +19,7 @@ async function waitFor(fn: () => Promise<boolean>, timeoutMs = 10_000): Promise<
 
 describe("SwarmServer REST API", () => {
   it("exposes schema, runs a goal, and serves its sub-resources", async () => {
-    const swarm = await buildSwarm({ mode: "inline", capabilities: ["research", "code"], poolSize: 2 });
+    const swarm = await buildSwarm({ demo: true, mode: "inline", capabilities: ["research", "code"], poolSize: 2 });
     const scheduler = new SwarmScheduler(swarm.manager);
     const port = 39220;
     server = new SwarmServer(swarm, { port, scheduler });
@@ -61,7 +61,7 @@ describe("SwarmServer REST API", () => {
   });
 
   it("manages schedules over REST", async () => {
-    const swarm = await buildSwarm({ mode: "inline", capabilities: ["research"], poolSize: 1 });
+    const swarm = await buildSwarm({ demo: true, mode: "inline", capabilities: ["research"], poolSize: 1 });
     const scheduler = new SwarmScheduler(swarm.manager);
     const port = 39221;
     server = new SwarmServer(swarm, { port, scheduler });

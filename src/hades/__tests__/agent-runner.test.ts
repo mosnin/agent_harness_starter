@@ -72,7 +72,7 @@ class VerifierThrowsClient implements ModelClient {
   constructor(private readonly workerText: string) {}
   async chat(req: ChatRequest): Promise<ChatResponse> {
     if (isVerifierCall(req)) throw new Error("verifier boom");
-    return toResponse({ text: this.workerText }, req.model);
+    return toResponse({ text: this.workerText, tokensIn: 11, tokensOut: 3, usd: 0.002 }, req.model);
   }
 }
 
@@ -215,7 +215,7 @@ describe("verifiedSwarmRunner", () => {
     expect(verifier?.model).toBe("claude-opus-4-1"); // separate, stronger model
   });
 
-  it("never throws when the verifier call throws: returns a zero-cost declined error result", async () => {
+  it("retains worker spend when the verifier call throws", async () => {
     const client = new VerifierThrowsClient("ANSWER: 4");
     const runner = verifiedSwarmRunner(client, { workerModel: "claude-fable-5" });
 
@@ -223,16 +223,17 @@ describe("verifiedSwarmRunner", () => {
 
     expect(res.claimedVerified).toBe(false);
     expect(res.output).toBe("");
-    expect(res.tokensIn).toBe(0);
-    expect(res.tokensOut).toBe(0);
-    expect(res.usd).toBe(0);
+    expect(res.tokensIn).toBe(11);
+    expect(res.tokensOut).toBe(3);
+    expect(res.usd).toBe(0.002);
     expect(res.provenance.length).toBe(1);
     expect(res.provenance[0]).toMatch(/^error:/);
+    expect(res.costMeasured).toBe(false);
   });
 });
 
 describe("singleAgentRunner", () => {
-  it("trusts itself: claimedVerified ALWAYS true, provenance = tool calls, tokens/usd from loop only", async () => {
+  it("trusts itself: no verification claim, provenance = tool calls, tokens/usd from loop only", async () => {
     const client = new ScriptedClient({
       workerScript: [{ text: "ANSWER: 4", tokensIn: 7, tokensOut: 2, usd: 0.0009 }],
       verifier: { text: "VERDICT: FAIL should never be called" },
@@ -242,14 +243,14 @@ describe("singleAgentRunner", () => {
     const res = await runner(task("add", "2+2", "4"));
 
     expect(res.output).toBe("4");
-    expect(res.claimedVerified).toBe(true);
+    expect(res.claimedVerified).toBe(false);
     expect(res.usd).toBeCloseTo(0.0009, 12);
     expect(res.tokensIn).toBe(7);
     expect(res.tokensOut).toBe(2);
     expect(client.verifierCalls).toBe(0); // no gate at all
   });
 
-  it("CONTRAST: same hallucinating worker => claimedVerified TRUE => silentWrong via runVtph", async () => {
+  it("a wrong answer without an independent check never claims verification", async () => {
     const client = new ScriptedClient({
       workerScript: [{ text: "ANSWER: 42", usd: 0.001 }],
       verifier: { text: "VERDICT: FAIL never called" },
@@ -257,7 +258,7 @@ describe("singleAgentRunner", () => {
     const runner = singleAgentRunner(client, { model: "claude-fable-5" });
 
     const single = await runner(task("add", "2+2", "4"));
-    expect(single.claimedVerified).toBe(true); // self-trust delivers the wrong answer
+    expect(single.claimedVerified).toBe(false); // self-trust delivers the wrong answer
 
     const report = await runVtph(runner, [task("add", "2+2", "4")], {
       label: "single",
@@ -266,8 +267,8 @@ describe("singleAgentRunner", () => {
         return () => (t += 1000);
       })(),
     });
-    expect(report.silentWrong).toBe(1); // the trust failure the swarm avoided
-    expect(report.declined).toBe(0);
+    expect(report.silentWrong).toBe(0); // the trust failure the swarm avoided
+    expect(report.declined).toBe(1);
   });
 
   it("never throws even when the model client always throws", async () => {
@@ -281,7 +282,7 @@ describe("singleAgentRunner", () => {
     // The loop swallows infra failures, so this resolves (does not reject).
     await expect(runner(task("add", "2+2", "4"))).resolves.toBeDefined();
     const res = await runner(task("add", "2+2", "4"));
-    expect(res.claimedVerified).toBe(true);
-    expect(res.output).toBe("");
+    expect(res.claimedVerified).toBe(false);
+    expect(res.output).toContain("Model request failed");
   });
 });

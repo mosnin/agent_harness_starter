@@ -42,16 +42,16 @@ function makeFakeEnv() {
 
   const now = () => t;
 
-  const setTimeoutFn = (cb: () => void, ms: number): number => {
+  const setTimeoutFn = (cb: () => void, ms: number): ReturnType<typeof setTimeout> => {
     setCalls += 1;
     const timer: FakeTimer = { id: nextId++, cb, due: t + ms, cleared: false };
     timers.push(timer);
-    return timer.id;
+    return timer.id as unknown as ReturnType<typeof setTimeout>;
   };
 
-  const clearTimeoutFn = (id: number): void => {
+  const clearTimeoutFn = (id: ReturnType<typeof setTimeout>): void => {
     clearCalls += 1;
-    const timer = timers.find((x) => x.id === id);
+    const timer = timers.find((x) => x.id === (id as unknown as number));
     if (timer) timer.cleared = true;
   };
 

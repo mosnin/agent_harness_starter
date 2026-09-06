@@ -42,7 +42,7 @@ const echoHandler: AcpPromptHandler = async (ctx) => {
   return { stopReason: "end_turn" };
 };
 
-function boot(handler: AcpPromptHandler = echoHandler, opts: Partial<Parameters<typeof AcpServer>[1]> = {}) {
+function boot(handler: AcpPromptHandler = echoHandler, opts: Partial<ConstructorParameters<typeof AcpServer>[1]> = {}) {
   const [agentSide, clientSide] = InMemoryAcpTransport.pair();
   let n = 0;
   const server = new AcpServer(agentSide, { onPrompt: handler, newSessionId: () => `s${++n}`, now: () => 1, ...opts });

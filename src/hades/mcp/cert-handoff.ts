@@ -96,16 +96,8 @@ function tierFor(verdict: "accept" | "abstain"): string {
  *  - `taskId`             = input.taskId                   (verbatim)
  *  - `verifierTier`       = "mcp-handoff:<verdict>"         (honest gate outcome)
  *  - `ensembleScore`      = input.score                     (verbatim)
- *  - `pCorrect`           = input.score                     (the handoff has no
- *                           separate calibration step beyond the gate's own
- *                           score; using the gate score directly, rather than
- *                           inventing a distinct calibrated figure, is the
- *                           honest choice)
- *  - `epsilon`            = 0 for "accept" (the gate already enforced its own
- *                           abstention bound before returning "accept"; the
- *                           handoff adds no further conformal slack) — for
- *                           "abstain" epsilon is 1 (no correctness guarantee
- *                           at all is being claimed)
+ *  - `scope` = integrity; `pCorrect` = 0. Signing binds bytes, not truth.
+ *    The legacy epsilon sentinel does not grant correctness admission.
  *  - `traceSha256`        = sha256Hex of the canonical JSON `{taskId, objective}`
  *                           record identifying which run this handoff traces
  *                           back to (the handoff carries no separate execution
@@ -121,11 +113,12 @@ export async function issueHandoffCertificate(
   const traceRecord = JSON.stringify({ taskId: input.taskId, objective: input.objective });
 
   const payload: CertificatePayload = {
+    scope: "integrity",
     outputSha256: resultSha256,
     taskId: input.taskId,
     verifierTier: tierFor(input.verdict),
     ensembleScore: input.score,
-    pCorrect: input.score,
+    pCorrect: 0,
     epsilon: input.verdict === "accept" ? 0 : 1,
     traceSha256: sha256Hex(traceRecord),
     verifierVersions: [...input.verifierVersions],

@@ -1,3 +1,4 @@
+import { resolveChromiumExecutable } from "./driver";
 /* ------------------------------------------------------------------ *
  * browser — a `web` category CatalogEntry: the product-facing surface
  * of the Playwright-Chromium browsing stack.
@@ -49,8 +50,6 @@
 
 import type { CatalogEntry, ToolFactoryOptions } from "../tools/catalog";
 import type { Tool, ToolResult } from "../agent/tools";
-import * as fs from "node:fs";
-import * as path from "node:path";
 import { createHash } from "node:crypto";
 
 // ---------------------------------------------------------------------------
@@ -124,8 +123,6 @@ export interface BrowserToolOptions extends ToolFactoryOptions {
 // Default Chromium probe — independent, pure fs-scan, never throws.
 // ---------------------------------------------------------------------------
 
-const HEADLESS_SHELL_DIR_RE = /^chromium_headless_shell-.+$/;
-const CHROMIUM_DIR_RE = /^chromium-.+$/;
 
 /**
  * True iff `browsersPath` contains an installed Chromium (preferring the
@@ -135,32 +132,8 @@ const CHROMIUM_DIR_RE = /^chromium-.+$/;
  * filesystem error (missing directory, permission denied, ...) is
  * reported honestly as "not found" rather than thrown.
  */
-export function defaultProbeChromium(browsersPath: string): boolean {
-  let entries: fs.Dirent[];
-  try {
-    entries = fs.readdirSync(browsersPath, { withFileTypes: true });
-  } catch {
-    return false;
-  }
-
-  for (const entry of entries) {
-    if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-    let execPath: string | null = null;
-    if (HEADLESS_SHELL_DIR_RE.test(entry.name)) {
-      execPath = path.join(browsersPath, entry.name, "chrome-linux", "headless_shell");
-    } else if (CHROMIUM_DIR_RE.test(entry.name)) {
-      execPath = path.join(browsersPath, entry.name, "chrome-linux", "chrome");
-    }
-    if (execPath === null) continue;
-    try {
-      if (fs.statSync(execPath).isFile()) return true;
-    } catch {
-      // Directory name matched the pattern but the binary isn't actually
-      // there (partial/broken install) — keep scanning honestly.
-      continue;
-    }
-  }
-  return false;
+export function defaultProbeChromium(browsersPath?: string): boolean {
+  return resolveChromiumExecutable(browsersPath || undefined).ok;
 }
 
 // ---------------------------------------------------------------------------
@@ -397,7 +370,7 @@ const DESCRIPTION =
  * per call, and never from anything the caller's input JSON can control.
  */
 export function createBrowserTool(opts: BrowserToolOptions = {}): CatalogEntry {
-  const browsersPath = opts.browsersPath ?? opts.env?.PLAYWRIGHT_BROWSERS_PATH ?? "/opt/pw-browsers";
+  const browsersPath = opts.browsersPath ?? opts.env?.PLAYWRIGHT_BROWSERS_PATH ?? "";
   const probe = opts.probeChromium ?? defaultProbeChromium;
   const runner = opts.runner;
 

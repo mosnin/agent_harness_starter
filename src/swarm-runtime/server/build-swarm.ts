@@ -1,3 +1,8 @@
+import { AgentTaskExecutor } from "../../hades/runtime/task-executor";
+import { resolveModel } from "../../hades/runtime/model";
+import { workspaceTools } from "../../hades/runtime/tools";
+import { DemoExecutor, type TaskExecutor } from "../worker/executor";
+import { FileStateStore, type StateStore } from "../persistence/state-store";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -7,31 +12,18 @@ import { LocalProcessProvider } from "../providers/local-process";
 import { SwarmManager } from "../manager/manager";
 import type { Planner } from "../manager/planner";
 import { createInlineSwarm } from "../factory";
-import { LLMPlanner } from "../manager/planner";
-import { createOpenAICompatibleChat, chatToPlannerComplete } from "../worker/llm-executor";
 import type { GuardrailPolicy } from "../verification/guardrails";
 import type { ContainerProvider, ResourceLimits } from "../types";
-
-/**
- * Build a model-backed planner from the environment when an API key + model are
- * available; otherwise return undefined so the manager uses its deterministic
- * planner. Keeps the swarm runnable with or without model access.
- */
-function plannerFromEnv(model?: string): LLMPlanner | undefined {
-  const apiKey = process.env.SWARM_API_KEY ?? process.env.OPENAI_API_KEY;
-  if (!apiKey || !model) return undefined;
-  const chat = createOpenAICompatibleChat({
-    apiKey,
-    model,
-    baseUrl: process.env.SWARM_BASE_URL ?? process.env.OPENAI_BASE_URL,
-  });
-  return new LLMPlanner(chatToPlannerComplete(chat));
-}
 
 export type SwarmMode = "inline" | "process" | "docker";
 
 export interface BuildSwarmOptions {
   mode: SwarmMode;
+  /** Explicit fixture/demo mode; never silently selected for missing credentials. */
+  demo?: boolean;
+  executor?: TaskExecutor;
+  stateStore?: StateStore;
+  workspaceRoot?: string;
   capabilities?: string[];
   poolSize?: number;
   planner?: Planner;
@@ -103,20 +95,40 @@ function resolveWorkerEntry(explicit?: string): {
  */
 export async function buildSwarm(opts: BuildSwarmOptions): Promise<BuiltSwarm> {
   const capabilities = opts.capabilities ?? ["general"];
+  const demo = opts.demo === true || process.env.HADES_DEMO === "1";
+  const modelConfig = !demo && !opts.executor ? resolveModel(process.env, { model: opts.model }) : undefined;
+  const executor = opts.executor ?? (demo ? new DemoExecutor() : new AgentTaskExecutor(modelConfig!.client, modelConfig!.model, workspaceTools(opts.workspaceRoot ?? process.cwd())));
+  // One real task by default: parallel workers must not race on shared files.
+  // Callers with isolated workspaces may supply a decomposing planner.
+  const planner: Planner | undefined = opts.planner ?? (demo ? undefined : { async plan(objective) { return [{ description: objective, requiredCapabilities: [capabilities[0]], input: { objective }, dependsOn: [], priority: 5 }]; } });
+  const stateStore = opts.stateStore ?? (demo ? undefined : new FileStateStore(resolve(process.env.HADES_DATA_DIR ?? ".hades", "swarm-state.json")));
+  const workerEnv: Record<string, string> = { HADES_DEMO: demo ? "1" : "0" };
+  if (modelConfig) {
+    workerEnv.HADES_PROVIDER = modelConfig.provider;
+    const names = modelConfig.provider === "anthropic" ? ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL"]
+      : modelConfig.provider === "local" ? ["HADES_API_KEY", "HADES_BASE_URL", "SWARM_BASE_URL", "OPENAI_BASE_URL"]
+      : ["SWARM_API_KEY", "OPENAI_API_KEY", "HADES_BASE_URL", "SWARM_BASE_URL", "OPENAI_BASE_URL"];
+    for (const name of names) if (process.env[name]) workerEnv[name] = process.env[name]!;
+  }
+  if (opts.mode === "process") workerEnv.HADES_WORKSPACE = resolve(opts.workspaceRoot ?? process.cwd());
+
 
   if (opts.mode === "inline") {
     const manager = await createInlineSwarm({
       capabilities,
       poolSize: opts.poolSize,
-      planner: opts.planner ?? plannerFromEnv(opts.model),
+      planner,
+      executor,
+      stateStore,
       guardrailPolicy: opts.guardrailPolicy,
       maxAttempts: opts.maxAttempts,
-      model: opts.model,
+      model: modelConfig?.model ?? opts.model,
     });
     return {
       manager,
       mode: "inline",
       async start() {
+        await manager.loadState();
         await manager.ensurePool();
       },
       async stop() {
@@ -151,12 +163,14 @@ export async function buildSwarm(opts: BuildSwarmOptions): Promise<BuiltSwarm> {
     authToken,
     capabilities,
     poolSize: opts.poolSize,
-    planner: opts.planner ?? plannerFromEnv(opts.model),
+    planner,
+    stateStore,
     guardrailPolicy: opts.guardrailPolicy,
     workerLimits: opts.workerLimits,
     workerImage: opts.workerImage,
+    workerEnv,
     maxAttempts: opts.maxAttempts,
-    model: opts.model,
+    model: modelConfig?.model ?? opts.model,
   });
 
   return {
@@ -164,6 +178,7 @@ export async function buildSwarm(opts: BuildSwarmOptions): Promise<BuiltSwarm> {
     mode: opts.mode,
     controlPlane,
     async start() {
+      await manager.loadState();
       await controlPlane.listen();
       await manager.ensurePool();
     },
