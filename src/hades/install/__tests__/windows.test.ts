@@ -756,6 +756,8 @@ describe("install.ps1 -- real pwsh execution (honest skip when pwsh is unavailab
     }
   });
 
+  // PowerShell cold startup on a shared runner can exceed Vitest's 5s default.
+  // Keep an explicit process deadline and preserve all real execution assertions.
   it("pwsh -DryRun -Json exits 0, prints parseable JSON, and touches nothing on disk", () => {
     if ("skipReason" in resolved) {
       // Honest skip: no pwsh available on this box. Nothing was executed,
@@ -769,13 +771,13 @@ describe("install.ps1 -- real pwsh execution (honest skip when pwsh is unavailab
     const result = spawnSync(
       resolved.bin,
       ["-NoProfile", "-NoLogo", "-File", INSTALL_PS1, "-DryRun", "-Json", "-InstallDir", path.join(scratch, "install")],
-      { encoding: "utf8", cwd: REPO_ROOT }
+      { encoding: "utf8", cwd: REPO_ROOT, timeout: 20_000 }
     );
-    expect(result.status).toBe(0);
+    expect(result.status, result.error?.message ?? result.stderr).toBe(0);
     const parsed = JSON.parse(result.stdout);
     expect(parsed.mode).toBe("install");
     expect(parsed.installDir).toBe(path.join(scratch, "install"));
     const after = listTree(scratch);
     expect(after).toEqual(before);
-  });
+  }, 25_000);
 });
