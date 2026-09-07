@@ -71,7 +71,7 @@ export async function buildHades({ outfile = DEFAULT_OUTFILE, entryPoint = DEFAU
     platform: "node",
     format: "cjs",
     target: "node20",
-    external: OPTIONAL_EXTERNALS,
+    external: process.env.HADES_BUNDLE_PROVIDERS === "1" ? OPTIONAL_EXTERNALS.filter(name => ["playwright-core", "@daytonaio/sdk", "modal", "@browserbasehq/sdk"].includes(name)) : OPTIONAL_EXTERNALS,
     ...(needsBanner ? { banner: { js: SHEBANG } } : {}),
     sourcemap: false,
     logLevel: "info",

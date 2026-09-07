@@ -8,7 +8,9 @@ for argument in "$@"; do
   case "$argument" in --build-only) MODE="build";; --verify) MODE="verify";; --debug|--logs|--telemetry) MODE="logs";; *) echo "Unknown option: $argument" >&2; exit 2;; esac
 done
 if [[ "$(uname -s)" != Darwin ]]; then echo "This script builds the macOS application." >&2; exit 1; fi
-npm run desktop:build
+HADES_BUNDLE_PROVIDERS=1 npm run desktop:build
+HADES_BUNDLE_PROVIDERS=1 npm run build:hades
+node scripts/build-team-server.mjs
 mkdir -p dist/runtime dist-mac
 NODE_BIN="$(command -v node)"
 if [[ ! -f dist/runtime/node ]] || ! cmp -s "$NODE_BIN" dist/runtime/node; then cp "$NODE_BIN" dist/runtime/node; chmod +x dist/runtime/node; fi
@@ -29,6 +31,9 @@ done || true
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp src-tauri/target/debug/hades-desktop "$APP/Contents/MacOS/Hades"
 cp dist/desktop/sidecar-entry.js "$APP/Contents/Resources/sidecar-entry.js"
+cp dist-hades/hades.js "$APP/Contents/Resources/hades.js"
+cp dist/desktop/team-server.js "$APP/Contents/Resources/team-server.js"
+node scripts/package-codex-runtime.mjs "$APP/Contents/Resources"
 cp dist/runtime/node "$APP/Contents/Resources/node"
 cp dist/runtime/hades-pty "$APP/Contents/Resources/hades-pty"
 cp src-tauri/icons/icon.icns "$APP/Contents/Resources/Hades.icns"
@@ -46,6 +51,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>NSMicrophoneUsageDescription</key><string>Record voice messages when you choose the microphone.</string>
 </dict></plist>
 PLIST
+codesign --force --sign - "$APP/Contents/Resources/codex"
 codesign --force --sign - "$APP/Contents/Resources/node"
 codesign --force --sign - "$APP/Contents/Resources/hades-pty"
 codesign --force --sign - "$APP"

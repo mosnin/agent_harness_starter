@@ -43,6 +43,7 @@ export interface ChatResponse {
 
 export interface ModelClient {
   chat(req: ChatRequest): Promise<ChatResponse>;
+  close?(): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -128,7 +129,7 @@ export interface ProviderConfig {
 
 interface OpenAIChatResponse {
   choices?: Array<{ message?: { content?: string } }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
 }
 
 interface AnthropicMessagesResponse {
@@ -219,6 +220,7 @@ export class HttpModelClient implements ModelClient {
       tokensIn,
       tokensOut,
       data.usage !== undefined,
+      data.usage?.cost,
     );
   }
 
@@ -315,6 +317,7 @@ export class HttpModelClient implements ModelClient {
       tokensIn = 0,
       tokensOut = 0,
       hasUsage = false,
+      reportedCost: number | undefined,
       complete = false;
     let data: string[] = [];
     const consume = () => {
@@ -345,6 +348,7 @@ export class HttpModelClient implements ModelClient {
       const usage = event.usage ?? event.message?.usage;
       if (usage) {
         hasUsage = true;
+        reportedCost = usage.cost ?? reportedCost;
         tokensIn = usage.prompt_tokens ?? usage.input_tokens ?? tokensIn;
         tokensOut = usage.completion_tokens ?? usage.output_tokens ?? tokensOut;
       }
@@ -385,7 +389,7 @@ export class HttpModelClient implements ModelClient {
       await reader.cancel().catch(() => {});
       reader.releaseLock();
     }
-    return this.finalize(req.model, output, tokensIn, tokensOut, hasUsage);
+    return this.finalize(req.model, output, tokensIn, tokensOut, hasUsage, reportedCost);
   }
 
   private finalize(
@@ -394,15 +398,17 @@ export class HttpModelClient implements ModelClient {
     tokensIn: number,
     tokensOut: number,
     hasUsage: boolean,
+    reportedCost?: number,
   ): ChatResponse {
+    const providerCost = this.provider.name === "openrouter" && typeof reportedCost === "number" && Number.isFinite(reportedCost) && reportedCost >= 0;
     return {
       text,
       tokensIn,
       tokensOut,
-      usd: computeCost(model, tokensIn, tokensOut, this.prices),
+      usd: providerCost ? reportedCost! : computeCost(model, tokensIn, tokensOut, this.prices),
       model,
       provider: this.provider.name,
-      costMeasured: hasUsage && this.prices.some((p) => p.model === model),
+      costMeasured: providerCost || (hasUsage && this.prices.some((p) => p.model === model)),
     };
   }
 

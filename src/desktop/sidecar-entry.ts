@@ -774,6 +774,12 @@ export async function runSidecar(
           if (
             [
               "models.list",
+              "slack.status", "slack.disconnect", "team.status",
+              "team.messages",
+              "team.read",
+              "codex.status",
+              "codex.login",
+              "codex.cancel",
               "voice.transcribe",
               "local.list",
               "approval.reply",

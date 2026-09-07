@@ -1,12 +1,12 @@
 :root {
   color-scheme: light;
-  --bg: #fcfbf9;
-  --sidebar: #f1f0ed;
-  --panel: #f7f6f3;
-  --text: #282825;
-  --muted: #6f6e68;
-  --line: #e6e5e0;
-  --hover: #e8e7e2;
+  --bg: #ffffff;
+  --sidebar: #f5f5f5;
+  --panel: #f7f7f8;
+  --text: #242426;
+  --muted: #656569;
+  --line: #e5e5e7;
+  --hover: #eaeaed;
   --accent: #bd4136;
   --accent-soft: #f8e7e2;
   --shadow: 0 18px 70px #29282022;
@@ -107,13 +107,13 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #1b1c1b;
-  --sidebar: #161716;
-  --panel: #202220;
-  --text: #e6e5de;
-  --muted: #999b93;
-  --line: #32342f;
-  --hover: #2d302a;
+  --bg: #1c1c1e;
+  --sidebar: #171719;
+  --panel: #242426;
+  --text: #f1f1f3;
+  --muted: #a4a4aa;
+  --line: #353538;
+  --hover: #303033;
   --accent: #f16e5d;
   --accent-soft: #402623;
   --shadow: 0 18px 70px #0008;
@@ -186,8 +186,8 @@ p {
   margin: 0;
 }
 h1 {
-  font-size: 2.5rem;
-  letter-spacing: -0.045em;
+  font-size: 1.7rem;
+  letter-spacing: -0.025em;
   font-weight: 550;
   line-height: 1.18;
 }
@@ -202,12 +202,7 @@ h3 {
 }
 kbd,
 .mono,
-.eyebrow,
-.section-label,
-.message-label,
-.code-lang,
-.statusbar,
-.composer-hint {
+.code-lang {
   font-family: "SFMono-Regular", Menlo, monospace;
   font-size: 0.72rem;
   letter-spacing: 0.02em;
@@ -494,7 +489,7 @@ pre {
 }
 .welcome h1 {
   margin-top: 16px;
-  font-size: 2.5rem;
+  font-size: 1.7rem;
 }
 .welcome p {
   font-size: 13px;
@@ -1438,3 +1433,86 @@ pre {
 .project-row:focus-within .hide-project {
   opacity: 1;
 }
+
+/* Shared desktop control and spacing rules. */
+[hidden] { display: none !important; }
+button:disabled { opacity: .5; cursor: default; }
+button { min-height: 30px; }
+button:active { transform: none; }
+.brand { padding: 4px 8px 16px; }
+.brand img { width: 24px; height: 24px; }
+.section-label { font-family: inherit; font-size: 11px; letter-spacing: 0; text-transform: none; padding-top: 18px; }
+.nav-item { font-size: 13px; min-height: 34px; padding: 6px 10px; }
+.new-chat { font-size: 13px; min-height: 34px; margin-bottom: 12px; box-shadow: none; }
+.new-chat kbd, .statusbar, .composer-hint { font-family: inherit; font-size: 11px; letter-spacing: 0; }
+.nav-item.selected .glyph { color: var(--text); }
+.page h2 { margin: 28px 0 12px; font-size: 16px; }
+.page > .page-actions { margin: 24px 0; }
+.page .record { gap: 12px; padding: 16px 0; }
+.record button, .page-actions button, .starter-actions button { font-size: 12px; min-height: 32px; border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; }
+.page-actions .primary-button, .primary-button { border-color: transparent; }
+.welcome { padding: 48px 24px; }
+.welcome h1 { font-size: 24px; font-weight: 550; }
+.welcome p { font-size: 14px; line-height: 1.6; margin-top: 12px; }
+.welcome .starter-actions { gap: 8px; margin-top: 24px; }
+.empty { padding: 48px 24px; }
+.empty h2 { margin: 0 0 8px; font-size: 16px; }
+.empty p { font-size: 13px; }
+.message-label { font-family: inherit; font-size: 11px; letter-spacing: 0; }
+.message-label time { font-size: 11px; }
+.message-label button { margin-left: 0; }
+.message-label button:first-of-type { margin-left: auto; }
+.message:focus-within .message-label button { opacity: 1; }
+.message-body { font-size: 14px; line-height: 1.7; }
+.settings-section > summary { font-size: 14px; font-weight: 550; padding: 8px 0; cursor: pointer; }
+.provider-account { padding: 16px; margin: 16px 0; background: var(--panel); border-radius: 8px; }
+.provider-account .help { margin-top: 8px; }
+.provider-account .page-actions { margin: 12px 0 0; }
+.glyph { display: inline-flex; justify-content: center; align-items: center; width: 20px; min-width: 20px; margin-right: 6px; }
+.glyph svg { width: 16px; height: 16px; }
+.ide { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.ide-tools { display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.ide-tools button { font-size: 12px; }
+#workspace-editor-host { flex: 1; min-height: 0; }
+.workspace-editor { height: 100%; display: flex; flex-direction: column; min-width: 0; }
+.editor-tabs { display: flex; overflow-x: auto; min-height: 38px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.editor-tab { display: flex; align-items: center; border-right: 1px solid var(--line); }
+.editor-tab.selected { background: var(--bg); box-shadow: inset 0 -2px var(--accent); }
+.editor-tab button { font-size: 12px; border-radius: 0; padding: 6px 12px; }
+.editor-tab button + button { padding: 6px; }
+.editor-actions { display: flex; gap: 8px; padding: 6px 12px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.editor-actions button { font-size: 12px; }
+.editor-host { flex: 1; min-height: 0; overflow: hidden; }
+.editor-host:empty { padding: 24px; color: var(--muted); }
+.editor-status { min-height: 28px; border-top: 1px solid var(--line); padding: 6px 12px; color: var(--muted); font-size: 11px; }
+#team-chat-host { height: 100%; min-height: 0; }
+.team-chat { display: flex; height: 100%; min-height: 0; }
+.team-setup { overflow-y: auto; width: 100%; }
+.team-sidebar { width: 190px; flex-shrink: 0; padding: 24px 12px; border-right: 1px solid var(--line); overflow-y: auto; }
+.team-sidebar h2 { font-size: 16px; margin: 0 8px 20px; }
+.team-sidebar > button { display: block; width: 100%; text-align: left; margin: 4px 0; font-size: 12px; }
+.team-sidebar .selected { background: var(--hover); }
+.team-sidebar .help { margin: 20px 8px; overflow-wrap: anywhere; font-size: 11px; }
+.team-members { margin: 24px 8px; font-size: 12px; }
+.team-member { padding: 8px 0; display: flex; gap: 4px; align-items: center; }
+.team-member button { font-size: 11px; padding: 3px; }
+.team-main { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.team-main > h2 { font-size: 16px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
+.team-main > .inline-notice { margin: 12px 24px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.team-messages { overflow-y: auto; flex: 1; min-height: 0; padding: 24px; }
+.team-message { margin-bottom: 24px; }
+.team-message .message-label { margin-bottom: 6px; }
+.team-message-content { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.6; }
+.team-reply { border-left: 2px solid var(--line); padding-left: 8px; margin: 8px 0; font-size: 12px; color: var(--muted); }
+.team-composer { padding: 16px 24px; border-top: 1px solid var(--line); }
+.team-composer textarea { width: 100%; }
+.team-composer .page-actions { justify-content: flex-end; margin: 10px 0 0; }
+.team-composer .help { margin-right: auto; font-size: 11px; }
+@media(max-width: 1000px) { .team-sidebar { width: 150px; } .team-main > h2, .team-messages, .team-composer { padding-left: 16px; padding-right: 16px; } }
+
+.sidebar-more > summary { color: var(--muted); padding: 7px 12px; cursor: pointer; font-size: 12px; }
+.slack-page .field { display: grid; gap: 6px; margin: 14px 0; }
+.slack-page .advanced { margin: 20px 0; }
+.slack-page .record { align-items: center; }
+.slack-page .record > div { min-width: 0; flex: 1; }
+.slack-page .record p { overflow-wrap: anywhere; }

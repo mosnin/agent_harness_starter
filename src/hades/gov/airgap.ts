@@ -202,7 +202,7 @@ const DNS_FUNCTION_KEYS: readonly string[] = [
  * own reference.
  */
 function realAirgapTarget(): AirgapTarget {
-  const req = createRequire(import.meta.url);
+  const req = createRequire(process.execPath);
   return {
     globals: globalThis as unknown as { fetch?: unknown },
     http: req("node:http") as unknown,

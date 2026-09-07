@@ -1,3 +1,7 @@
+import { SlackBot, type SlackJob } from "./slack-bot";
+import { harnessCatalog, parseHarnessArgs, shellQuote } from "./harness-catalog";
+import { TeamDeliveries } from "../team/deliveries";
+import { TeamClient } from "../team/client";
 /** Native desktop application service. All disk, process and model access stays
  * in the supervised sidecar; the webview receives bounded, credential-free data. */
 import {
@@ -19,7 +23,7 @@ import {
   dirname,
 } from "node:path";
 import { homedir } from "node:os";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   execFile,
   spawn,
@@ -34,7 +38,8 @@ import { ToolRegistry } from "../../hades/agent/tools";
 import { workspaceTools } from "../../hades/runtime/tools";
 import { connectMcp, type DesktopMcpServer } from "./mcp-stdio";
 import { parseCron, nextFireTime } from "../../hades/schedule/cron";
-import { HttpModelClient } from "../../hades/models/client";
+import { CodexProvider } from "../../hades/models/codex-provider";
+import { HttpModelClient, type ModelClient } from "../../hades/models/client";
 import { Checkpoints } from "./checkpoints";
 import { LocalModels } from "./local-models";
 import { parseDesktopPlugin, type DesktopPlugin } from "./desktop-plugins";
@@ -53,7 +58,7 @@ const ident = (v: unknown) => {
 export interface Profile {
   id: string;
   name: string;
-  provider: "openai" | "anthropic" | "local";
+  provider: "openai" | "anthropic" | "local" | "openrouter" | "codex";
   model: string;
   baseUrl: string;
   persona: string;
@@ -129,6 +134,10 @@ export class WorkbenchService {
   private progress = new Map<string, Record<string, any>>();
   private checkpoints: Checkpoints;
   private localModels: LocalModels;
+  private codex: CodexProvider;
+  private team: TeamClient;
+  private slack: SlackBot;
+  private teamDeliveries: TeamDeliveries;
   private turns = new Map<string, Promise<void>>();
   private roomRuns = new Map<string, AbortController>();
   private fileWrites = new Map<string, Promise<void>>();
@@ -159,6 +168,10 @@ export class WorkbenchService {
       output(event);
     };
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+    this.teamDeliveries = new TeamDeliveries(join(dataDir, "team"));
+    this.team = new TeamClient(join(dataDir, "team"));
+    this.slack = new SlackBot(join(dataDir, "slack"), (job, bind) => this.runSlack(job, bind), () => this.emit({ kind: "desktop.slack.changed" }));
+    this.codex = new CodexProvider(join(dataDir, "codex"), e => this.emit(e as WorkbenchEvent), env);
     this.checkpoints = new Checkpoints(join(dataDir, "checkpoints"));
     this.localModels = new LocalModels((e) => this.emit(e as WorkbenchEvent));
     const initial: Settings = {
@@ -237,22 +250,19 @@ export class WorkbenchService {
       throw new Error("Path is outside the project");
     return p;
   }
-  private client(p: Profile) {
-    const key =
-      this.keys.get(p.id + ":" + p.provider) ||
-      (p.provider === "anthropic"
-        ? this.env.ANTHROPIC_API_KEY
-        : p.provider === "openai"
-          ? this.env.OPENAI_API_KEY
-          : this.env.HADES_API_KEY);
+  private apiKey(p: Profile) {
+    return this.keys.get(p.id + ":" + p.provider) ||
+      this.env[({ openai: "OPENAI_API_KEY", anthropic: "ANTHROPIC_API_KEY", openrouter: "OPENROUTER_API_KEY", local: "HADES_API_KEY", codex: "" })[p.provider]];
+  }
+  private client(p: Profile): ModelClient {
+    if (p.provider === "codex") return this.codex;
+    const key = this.apiKey(p);
     if (!key && p.provider !== "local")
-      throw new Error("Add an API key in Settings → Provider before sending.");
+      throw new Error(`Add your ${p.provider === "openrouter" ? "OpenRouter" : p.provider} API key in Settings before sending.`);
     return new HttpModelClient({
       name: p.provider,
       kind: p.provider === "anthropic" ? "anthropic" : "openai",
-      baseUrl: p.baseUrl,
-      apiKey: key,
-      models: [p.model],
+      baseUrl: p.baseUrl, apiKey: key, models: [p.model],
     });
   }
   private snapshot(profileId?: unknown) {
@@ -314,6 +324,18 @@ export class WorkbenchService {
   }
   async dispatch(method: string, a: Record<string, unknown>): Promise<unknown> {
     switch (method) {
+      case "harness.catalog": return harnessCatalog;
+      case "harness.launch": {
+        const args = parseHarnessArgs(a.command, a.args);
+        const root = this.root(a.root), p = this.profile(a.profile);
+        const terminal = await this.dispatch("terminal.open", { root, profile: p.id }) as { id: string };
+        const bundled = join(dirname(process.execPath), "hades.js");
+        const script = existsSync(bundled) ? bundled : join(process.cwd(), "dist-hades/hades.js");
+        if (!existsSync(script)) { this.closeTerminal(terminal.id); throw new Error("Build the Hades CLI before using the harness console."); }
+        const line = [process.execPath, script, ...args].map(shellQuote).join(" ");
+        await this.dispatch("terminal.write", { id: terminal.id, input: line + "\n" });
+        return terminal;
+      }
       case "plugins.inspect":
         return parseDesktopPlugin(a.content);
       case "plugins.list":
@@ -456,15 +478,63 @@ export class WorkbenchService {
       }
       case "boot":
         return this.snapshot(a.profile);
+      case "slack.status": return this.slack.status();
+      case "slack.channels": return this.slack.channels();
+      case "slack.configure": return this.slack.configure({ root: this.root(a.root), profile: this.profile(a.profile).id, channels: Array.isArray(a.channels) ? a.channels : [], users: Array.isArray(a.users) ? a.users : [] });
+      case "slack.connect": return this.slack.connect();
+      case "slack.disconnect":
+        for (const job of this.slack.jobs()) if (job.status === "running" && job.session) this.active.get(job.session)?.abort();
+        return this.slack.disconnect();
+      case "slack.publish": return this.slack.publish(ident(a.id));
+      case "native.team.create": return this.team.create(text(a.name, 80), text(a.owner, 80));
+      case "native.team.join": return this.team.join(text(a.endpoint, 2048), text(a.invite, 100), text(a.name, 80));
+      case "native.team.resume": return this.team.credentials();
+      case "team.status": return { ...await this.team.status(), deliveries: this.teamDeliveries.all().filter(d => d.endpoint === this.team.address()).slice(-100) };
+      case "team.publish": {
+        const delivery = this.teamDeliveries.get(ident(a.id));
+        if (delivery.endpoint !== this.team.address()) throw new Error("Reconnect to the original team before publishing this reply.");
+        if (this.active.has(delivery.session)) throw new Error("This agent is still working.");
+        await this.publishTeamReply(delivery.id, this.team.publisher(delivery.teamId));
+        return true;
+      }
+      case "team.ask": {
+        const p = this.profile(a.profile), root = this.root(a.root), input = text(a.input, 40_000), requestId = ident(a.requestId);
+        this.client(p);
+        const existing = this.teamDeliveries.all().find(d => d.id === requestId);
+        const requestHash = createHash("sha256").update(JSON.stringify([this.team.address(), p.id, root, a.channel, input])).digest("hex");
+        if (existing) {
+          if (existing.requestHash !== requestHash) throw new Error("This team request ID was already used for a different message.");
+          return { session: existing.session };
+        }
+        const teamState = await this.team.status();
+        if (!teamState.connected || !teamState.id) throw new Error("Reconnect to your team before asking an agent.");
+        const question = await this.team.request("send", { channel: a.channel, content: input, requestId });
+        const session = await this.dispatch("session.new", { root, profile: p.id, title: "Team: " + input.slice(0, 50) }) as { id: string };
+        const publish = this.team.publisher(teamState.id);
+        this.teamDeliveries.add({ id: requestId, teamId: teamState.id, requestHash, endpoint: this.team.address(), channel: text(a.channel, 100), profile: p.id, session: session.id, replyTo: question.id, status: "running" });
+        try {
+          await this.dispatch("chat.send", { id: session.id, root, profile: p.id, input });
+          void this.turns.get(session.id)!.then(() => this.publishTeamReply(requestId, publish)).catch(() => {});
+        } catch (e) {
+          this.teamDeliveries.update(requestId, { status: "failed", error: e instanceof Error ? e.message : "Agent could not start" });
+          throw e;
+        }
+        return { session: session.id };
+      }
+      case "team.messages": case "team.send": case "team.invite": case "team.channel": case "team.revoke": case "team.read":
+        return this.team.request(method.slice(5), a);
+      case "team.disconnect": return this.team.disconnect();
       case "key.set":
+        if (a.account === "team-access") this.team.restore(text(a.key, 4096));
         this.keys.set(text(a.account, 120), text(a.key, 4096));
+        if (a.account === "slack-bot" || a.account === "slack-app") this.slack.credentials(this.keys.get("slack-bot") ?? "", this.keys.get("slack-app") ?? "");
         return true;
       case "profile.save": {
         const id = a.id ? ident(a.id) : randomUUID();
         const provider = text(a.provider);
-        if (!["openai", "anthropic", "local"].includes(provider))
+        if (!["openai", "anthropic", "local", "openrouter", "codex"].includes(provider))
           throw new Error("Unsupported provider");
-        const url = new URL(text(a.baseUrl, 2048));
+        const url = new URL(provider === "codex" ? "https://chatgpt.com" : text(a.baseUrl, 2048));
         if (url.username || url.password || url.hash)
           throw new Error(
             "Keep credentials in the API key field, not the endpoint URL",
@@ -547,15 +617,20 @@ export class WorkbenchService {
           });
         return created;
       }
+      case "codex.status": return this.codex.status();
+      case "codex.login": {
+        const { url } = await this.codex.login();
+        await this.dispatch("link.open", { url });
+        return { pending: true };
+      }
+      case "codex.cancel": return this.codex.cancelLogin();
+      case "codex.logout":
+        if (this.active.size || this.roomRuns.size) throw new Error("Stop running conversations before signing out.");
+        return this.codex.logout();
       case "models.list": {
         const p = this.profile(a.profile);
-        const key =
-          this.keys.get(p.id + ":" + p.provider) ||
-          (p.provider === "anthropic"
-            ? this.env.ANTHROPIC_API_KEY
-            : p.provider === "local"
-              ? this.env.HADES_API_KEY
-              : this.env.OPENAI_API_KEY);
+        if (p.provider === "codex") return this.codex.models();
+        const key = this.apiKey(p);
         const headers: Record<string, string> =
           p.provider === "anthropic"
             ? {
@@ -583,12 +658,12 @@ export class WorkbenchService {
       }
       case "voice.transcribe": {
         const p = this.profile(a.profile);
-        if (p.provider === "anthropic")
+        if (!["openai", "local"].includes(p.provider))
           throw new Error(
-            "Voice transcription requires an OpenAI-compatible profile.",
+            "Voice transcription is available with OpenAI API or a compatible local speech endpoint. You can still attach images and type messages.",
           );
         const key =
-          this.keys.get(p.id + ":" + p.provider) || this.env.OPENAI_API_KEY;
+          this.apiKey(p);
         const bytes = Buffer.from(text(a.audio, 16_000_000), "base64");
         const form = new FormData();
         form.append("model", text(a.model ?? "whisper-1", 120));
@@ -813,8 +888,10 @@ export class WorkbenchService {
             webp: "image/webp",
           } as Record<string, string>
         )[ext ?? ""];
+        if (!mime && (b.includes(0) || !Buffer.from(b.toString("utf8")).equals(b))) throw new Error("This binary file cannot be edited as text.");
         return {
           path: relative(root, path),
+          revision: createHash("sha256").update(b).digest("hex"),
           text: mime ? undefined : b.toString("utf8"),
           image: mime
             ? `data:${mime};base64,${b.toString("base64")}`
@@ -828,13 +905,15 @@ export class WorkbenchService {
           throw new Error(
             "An agent is editing this project. Wait for its file operation to finish, then save again.",
           );
+        if (a.expectedRevision !== undefined && a.expectedRevision !== createHash("sha256").update(readFileSync(path)).digest("hex"))
+          throw new Error("This file changed on disk. Your draft is safe. Reload the file before saving.");
         const content = text(a.content, 2_000_000);
         if (Buffer.byteLength(content) > 2_000_000)
           throw new Error("Editor saves are limited to 2 MB");
         const checkpoint = this.checkpoints.capture(root, path, "editor");
         writeFileSync(path, content);
         this.checkpoints.finish(checkpoint);
-        return true;
+        return { revision: createHash("sha256").update(content).digest("hex") };
       }
       case "files.open": {
         const root = this.root(a.root),
@@ -931,13 +1010,19 @@ export class WorkbenchService {
       }
       case "terminal.open": {
         const root = this.root(a.root);
+        const p = this.profile(a.profile);
+        const env: NodeJS.ProcessEnv = { ...this.env, TERM: "xterm-256color", HADES_PROVIDER: p.provider, HADES_MODEL: p.model,
+          HADES_BASE_URL: p.baseUrl, OPENROUTER_BASE_URL: p.baseUrl, ANTHROPIC_BASE_URL: p.baseUrl,
+          HADES_CODEX_HOME: join(this.dataDir, "codex"), HADES_DATA_DIR: join(this.dir(p.id), "harness") };
+        const key = this.apiKey(p);
+        if (key) env[({ openai: "OPENAI_API_KEY", anthropic: "ANTHROPIC_API_KEY", openrouter: "OPENROUTER_API_KEY", local: "HADES_API_KEY", codex: "" })[p.provider]] = key;
         const id = randomUUID();
         const child = spawn(
           this.env.HADES_PTY ?? join(process.cwd(), "dist/runtime/hades-pty"),
           [],
           {
             cwd: root,
-            env: { ...this.env, TERM: "xterm-256color" },
+            env,
             stdio: ["pipe", "pipe", "pipe", "pipe"],
             detached: true,
           },
@@ -1165,7 +1250,7 @@ export class WorkbenchService {
     p: Profile,
     root: string,
     input: string,
-    client: HttpModelClient,
+    client: ModelClient,
     controller: AbortController,
     images: string[] = [],
   ) {
@@ -1389,6 +1474,38 @@ export class WorkbenchService {
       for (const c of connections) c.close();
     }
   }
+  private async runSlack(job: SlackJob, bind: (session: string) => void): Promise<string> {
+    const p = this.profile(job.profile), root = this.root(job.root);
+    this.client(p);
+    const session = job.session ?? (await this.dispatch("session.new", { root, profile: p.id, title: "Slack: " + job.input.slice(0, 50) }) as { id: string }).id;
+    bind(session);
+    await this.dispatch("chat.send", { id: session, root, profile: p.id, input: job.input });
+    await this.turns.get(session);
+    const error = this.progress.get(session)?.error;
+    if (error) throw new Error(String(error));
+    const answer = this.sessions(p.id).get(session)?.messages.filter(m => m.role === "assistant").at(-1)?.content;
+    if (!answer) throw new Error("The agent did not complete a reply. Open the Hades conversation to inspect it.");
+    return answer;
+  }
+  private async publishTeamReply(id: string, publish: (body: unknown) => Promise<unknown>) {
+    const delivery = this.teamDeliveries.get(id);
+    if (delivery.status === "sent") return;
+    try {
+      const failure = this.progress.get(delivery.session)?.error;
+      if (failure) throw new Error(String(failure));
+      const record = this.sessions(delivery.profile).get(delivery.session);
+      const answer = record?.messages.filter(m => m.role === "assistant").at(-1)?.content;
+      if (!answer) throw new Error("No completed agent reply. Open the conversation to continue.");
+      this.teamDeliveries.update(id, { status: "ready", error: undefined });
+      await publish({ channel: delivery.channel, content: answer.length > 39_000 ? answer.slice(0, 39_000) + "\n[Reply shortened. The full response is saved in the originating Hades conversation.]" : answer,
+        requestId: id + "-reply", replyTo: delivery.replyTo, agent: this.profile(delivery.profile).name });
+      this.teamDeliveries.update(id, { status: "sent", error: undefined });
+    } catch (e) {
+      this.teamDeliveries.update(id, { status: "failed", error: e instanceof Error ? e.message : "Reply was not delivered" });
+      this.emit({ kind: "desktop.team.delivery", id, session: delivery.session });
+      throw e;
+    }
+  }
   private closeTerminal(id: string) {
     const t = this.terminals.get(id);
     if (t) {
@@ -1438,6 +1555,9 @@ export class WorkbenchService {
   close() {
     clearInterval(this.timer);
     this.localModels.close();
+    this.codex.close();
+    void this.team.close();
+    this.slack.close();
     for (const c of this.roomRuns.values()) c.abort();
     this.awake?.kill();
     this.speech?.kill();

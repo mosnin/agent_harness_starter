@@ -18,7 +18,7 @@ export async function runChatCommand(args: string[], config: HadesConfig): Promi
     "allow-shell": { type: "string" }, help: { type: "boolean" },
   } });
   if (values.help) return { code: 0, lines: [
-    'hades chat [--once "task"] [--model ID] [--provider openai|anthropic|local]',
+    'hades chat [--once "task"] [--model ID] [--provider openai|anthropic|local|openrouter|codex]',
     '  --root DIR       Workspace for file operations (default current directory)',
     '  --session ID     Resume a saved conversation; /history shows prior turns',
     '  --max-steps N    Model/tool turn limit (default 20)',
@@ -26,6 +26,7 @@ export async function runChatCommand(args: string[], config: HadesConfig): Promi
     '  /remember, /recall, /history, /help, /exit; Ctrl-C cancels the current turn',
   ] };
   const { client, model, provider } = resolveModel(process.env, { model: values.model ?? config.model, provider: values.provider });
+  try {
   const root = realpathSync(values.root ?? process.cwd());
   const dataDir = resolve(config.dataDir);
   const maxSteps = Number(values["max-steps"] ?? 20);
@@ -69,4 +70,5 @@ export async function runChatCommand(args: string[], config: HadesConfig): Promi
     }
   } finally { input.close(); }
   return { code: 0, lines: [] };
+  } finally { client.close?.(); }
 }

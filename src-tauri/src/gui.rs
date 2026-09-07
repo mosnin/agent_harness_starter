@@ -48,8 +48,7 @@ struct SidecarState {
 /// Returns `Err(String)` (surfaced to the renderer's rejected promise) rather
 /// than panicking, so a transient sidecar hiccup never tears down the window.
 #[cfg(feature = "gui")]
-#[tauri::command]
-fn hades_command(
+fn send_sidecar(
     cmd: serde_json::Value,
     state: tauri::State<'_, SidecarState>,
 ) -> Result<(), String> {
@@ -77,8 +76,7 @@ fn hades_command(
 }
 
 #[cfg(feature = "gui")]
-#[tauri::command]
-async fn hades_request(
+async fn request_sidecar(
     cmd: serde_json::Value,
     state: tauri::State<'_, SidecarState>,
 ) -> Result<serde_json::Value, String> {
@@ -98,7 +96,7 @@ async fn hades_request(
         }
         pending.insert(id.clone(), tx);
     }
-    let write_result = hades_command(cmd, state.clone());
+    let write_result = send_sidecar(cmd, state.clone());
     if let Err(error) = write_result {
         state.pending.lock().ok().map(|mut p| p.remove(&id));
         return Err(error);
@@ -110,6 +108,46 @@ async fn hades_request(
     .map_err(|e| e.to_string())?;
     state.pending.lock().ok().map(|mut p| p.remove(&id));
     result.map_err(|_| "The local backend did not respond".into())
+}
+
+// The renderer cannot request native credential replies or reserve native IDs.
+#[cfg_attr(not(feature = "gui"), allow(dead_code))]
+fn renderer_request_allowed(method: &str, id: &str) -> bool {
+    !method.starts_with("native.") && !id.starts_with("native-")
+}
+#[cfg(feature = "gui")]
+fn validate_renderer_request(cmd: &serde_json::Value) -> Result<(), String> {
+    if !renderer_request_allowed(cmd.get("method").and_then(|v| v.as_str()).unwrap_or(""), cmd.get("id").and_then(|v| v.as_str()).unwrap_or("")) {
+        return Err("This action requires the native credential bridge".into());
+    }
+    Ok(())
+}
+#[cfg(feature = "gui")]
+#[tauri::command]
+fn hades_command(cmd: serde_json::Value, state: tauri::State<'_, SidecarState>) -> Result<(), String> {
+    validate_renderer_request(&cmd)?;
+    send_sidecar(cmd, state)
+}
+#[cfg(feature = "gui")]
+#[tauri::command]
+async fn hades_request(cmd: serde_json::Value, state: tauri::State<'_, SidecarState>) -> Result<serde_json::Value, String> {
+    validate_renderer_request(&cmd)?;
+    request_sidecar(cmd, state).await
+}
+#[cfg(feature = "gui")]
+#[tauri::command]
+async fn hades_team(action: String, args: serde_json::Value, state: tauri::State<'_, SidecarState>) -> Result<bool, String> {
+    if !["create", "join", "resume"].contains(&action.as_str()) { return Err("Unknown team connection action".into()); }
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
+    let response = request_sidecar(serde_json::json!({
+        "kind": "desktop.request", "id": format!("native-team-{stamp}"),
+        "method": format!("native.team.{action}"), "args": args
+    }), state.clone()).await?;
+    if let Some(error) = response.get("error").and_then(|v| v.as_str()) { return Err(error.to_string()); }
+    let token = response.get("result").and_then(|v| v.get("token")).and_then(|v| v.as_str()).ok_or("Team connection did not return credentials")?;
+    if token.is_empty() { return Err("No pending team connection to save".into()); }
+    hades_key("team-access".into(), Some(token.to_string()), state)?;
+    Ok(true)
 }
 
 /// Build and run the Tauri application. Never returns under normal operation
@@ -141,6 +179,7 @@ pub fn run() {
             hades_request,
             hades_window,
             hades_key,
+            hades_team,
             hades_quick_entry
         ])
         .setup(|app| {
@@ -252,6 +291,7 @@ pub fn run() {
                                         continue;
                                     }
                                 }
+                                continue;
                             }
                             if let Err(err) = handle.emit(EVENT_NAME, value) {
                                 crate::log(&format!("gui: failed to emit {EVENT_NAME}: {err}"));
@@ -398,7 +438,7 @@ fn hades_key(
             .and_then(|b| String::from_utf8(b).ok())
             .unwrap_or_default();
         let configured = !key.is_empty();
-        hades_command(
+        send_sidecar(
             serde_json::json!({"kind":"desktop.request","id":"native-key","method":"key.set","args":{"account":account,"key":key}}),
             state,
         )?;
@@ -459,6 +499,15 @@ fn event_line_payload(line: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn renderer_cannot_request_credentials_or_hijack_native_responses() {
+        assert!(!renderer_request_allowed("native.team.resume", "web-1"));
+        assert!(!renderer_request_allowed("boot", "native-team-123"));
+        assert!(!renderer_request_allowed("boot", "native-key"));
+        assert!(renderer_request_allowed("team.status", "web-1"));
+        assert!(renderer_request_allowed("slack.status", "web-2"));
+    }
 
     #[test]
     fn resolve_sidecar_path_prefers_non_blank_override() {

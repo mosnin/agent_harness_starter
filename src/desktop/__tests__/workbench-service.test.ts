@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import {
   mkdtempSync,
   writeFileSync,
@@ -20,6 +20,7 @@ const roots: string[] = [];
 const services: WorkbenchService[] = [];
 const servers: Server[] = [];
 afterEach(() => {
+  vi.unstubAllGlobals();
   services.forEach((s) => s.close());
   servers.forEach((s) => s.closeAllConnections());
   servers.forEach((s) => s.close());
@@ -516,4 +517,58 @@ it("desktop plugin MCP launches only after enable and waits for a tool approval"
         e.session === second.id,
     )?.output,
   ).toContain("plugin result");
+});
+
+
+it("protects editor writes against external changes, binary content and cross-project ownership", async () => {
+  const { root, s } = setup();
+  await s.dispatch("project.add", { path: root });
+  writeFileSync(join(root, "edit.txt"), "original");
+  const file = await s.dispatch("files.read", { root, path: "edit.txt" }) as any;
+  writeFileSync(join(root, "edit.txt"), "external change");
+  await expect(s.dispatch("files.save", { root, path: "edit.txt", content: "my draft", expectedRevision: file.revision })).rejects.toThrow("changed on disk");
+  expect(readFileSync(join(root, "edit.txt"), "utf8")).toBe("external change");
+  const current = await s.dispatch("files.read", { root, path: "edit.txt" }) as any;
+  await s.dispatch("files.save", { root, path: "edit.txt", content: "my draft", expectedRevision: current.revision });
+  expect(readFileSync(join(root, "edit.txt"), "utf8")).toBe("my draft");
+  writeFileSync(join(root, "binary"), Buffer.from([0, 255]));
+  await expect(s.dispatch("files.read", { root, path: "binary" })).rejects.toThrow("binary");
+  await expect(s.dispatch("files.save", { root: tmpdir(), path: "edit.txt", content: "wrong project" })).rejects.toThrow();
+});
+
+it("runs Slack requests through real workbench approvals and keeps denied writes off disk", async () => {
+  const originalFetch = globalThis.fetch, posted: any[] = [];
+  let socket: EventTarget;
+  class Socket extends EventTarget {
+    readyState = 1;
+    constructor() { super(); socket = this; }
+    send() {}
+    close() { this.readyState = 3; this.dispatchEvent(new Event("close")); }
+  }
+  vi.stubGlobal("WebSocket", Socket);
+  vi.stubGlobal("fetch", async (url: any, init: any) => {
+    if (!String(url).startsWith("https://slack.com/api/")) return originalFetch(url, init);
+    const method = String(url).split("/").at(-1)!; posted.push({ method, body: JSON.parse(init.body) });
+    return new Response(JSON.stringify({ ok: true, ...({ "auth.test": { team_id: "T1", user_id: "UBOT" }, "apps.connections.open": { url: "wss://wss-primary.slack.com/test" }, "chat.postMessage": { ts: "9.001" } } as any)[method] }));
+  });
+  const { root, s, events } = setup();
+  const p = await provider(body => /^TOOL_(RESULT|ERROR):/.test(JSON.parse(body).messages.at(-1).content) ? "ANSWER: The file change was declined." : 'TOOL: file_ops\nINPUT: {"op":"write","path":"slack-write.txt","content":"remote"}');
+  await s.dispatch("project.add", { path: root });
+  await s.dispatch("profile.save", { id: "default", name: "Test", provider: "local", model: "test", baseUrl: p.url });
+  await s.dispatch("key.set", { account: "slack-bot", key: "xoxb-fixture" });
+  await s.dispatch("key.set", { account: "slack-app", key: "xapp-fixture" });
+  await s.dispatch("slack.configure", { root, profile: "default", channels: ["C1"], users: ["U1"] });
+  await s.dispatch("slack.connect", {});
+  socket!.dispatchEvent(new MessageEvent("message", { data: JSON.stringify({ type: "hello" }) }));
+  socket!.dispatchEvent(new MessageEvent("message", { data: JSON.stringify({ type: "events_api", envelope_id: "one", payload: { type: "event_callback", team_id: "T1", event_id: "E1", event: { type: "app_mention", channel: "C1", user: "U1", ts: "1.001", text: "<@UBOT> Write a file" } } }) }));
+  await vi.waitFor(async () => {
+    expect(await s.dispatch("slack.status", {})).toMatchObject({ connected: true, jobs: [{ status: "running" }] });
+    expect(events.some(e => e.kind === "desktop.approval")).toBe(true);
+  }, { timeout: 1500 });
+  expect(existsSync(join(root, "slack-write.txt"))).toBe(false);
+  const approval = events.find(e => e.kind === "desktop.approval")!;
+  await s.dispatch("approval.reply", { id: approval.id, allow: false });
+  await vi.waitFor(async () => expect(await s.dispatch("slack.status", {})).toMatchObject({ jobs: [{ status: "sent" }] }), { timeout: 1500 });
+  expect(existsSync(join(root, "slack-write.txt"))).toBe(false);
+  expect(posted.find(p => p.method === "chat.update").body).toMatchObject({ channel: "C1", ts: "9.001", text: "The file change was declined." });
 });

@@ -38,7 +38,8 @@ function isRealPython3Process(pid: number): boolean {
 function listHadesPythonPids(): number[] {
   let candidates: number[];
   try {
-    const out = execSync(`pgrep -f "${HADES_PY_MARKER}"`, { encoding: "utf8" });
+    // Other Vitest workers also run Python sandboxes. Count only this worker's children.
+    const out = execFileSync("pgrep", ["-P", String(process.pid), "-f", HADES_PY_MARKER], { encoding: "utf8" });
     candidates = out
       .split("\n")
       .map((s) => s.trim())
