@@ -35,7 +35,7 @@ export interface BrowserConnection {
 }
 
 export interface HadesBrowserClientOptions {
-  /** Defaults to ws://127.0.0.1:8787, the browser's bridge listener. */
+  /** Defaults to HADES_BROWSER_URL, then ws://127.0.0.1:8787. */
   url?: string;
   /** Pairing token from the browser's Settings → Agents panel. */
   token: string;
@@ -74,7 +74,7 @@ export class HadesBrowserClient {
   }
 
   async connect(): Promise<HandshakeResponse> {
-    const base = this.#options.url ?? "ws://127.0.0.1:8787";
+    const base = this.#options.url ?? process.env.HADES_BROWSER_URL ?? "ws://127.0.0.1:8787";
     // The token travels in the query string because the browser checks it
     // during the WebSocket upgrade, before any frame is accepted.
     const url = `${base}?token=${encodeURIComponent(this.#options.token)}`;

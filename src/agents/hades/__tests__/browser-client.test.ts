@@ -64,6 +64,23 @@ class FakeBrowser implements BrowserConnection {
 
 const AGENTS = [{ id: "hermes-1", name: "Hermes", allowedTools: [] }];
 
+/** Connect once and report the URL the transport was asked to open. */
+async function connectUrl(options: { token: string; url?: string }): Promise<string> {
+  const seen: string[] = [];
+  const client = new HadesBrowserClient({
+    ...options,
+    agents: AGENTS,
+    connect: async (url) => {
+      seen.push(url);
+      return new FakeBrowser((envelope) =>
+        envelope.type === "handshake" ? handshakeOk() : { ok: true },
+      );
+    },
+  });
+  await client.connect();
+  return seen[0]!;
+}
+
 function handshakeOk(protocol: string = PROTOCOL_VERSION) {
   return {
     ok: true,
@@ -108,19 +125,37 @@ describe("HadesBrowserClient handshake", () => {
   });
 
   it("defaults to the browser's loopback listener", async () => {
-    const seen: string[] = [];
-    const client = new HadesBrowserClient({
-      token: "t",
-      agents: AGENTS,
-      connect: async (url) => {
-        seen.push(url);
-        return new FakeBrowser((envelope) =>
-          envelope.type === "handshake" ? handshakeOk() : { ok: true },
-        );
-      },
-    });
-    await client.connect();
-    expect(seen[0]!.startsWith("ws://127.0.0.1:8787?")).toBe(true);
+    const saved = process.env.HADES_BROWSER_URL;
+    delete process.env.HADES_BROWSER_URL;
+    try {
+      const seen = await connectUrl({ token: "t" });
+      expect(seen.startsWith("ws://127.0.0.1:8787?")).toBe(true);
+    } finally {
+      if (saved !== undefined) process.env.HADES_BROWSER_URL = saved;
+    }
+  });
+
+  it("prefers HADES_BROWSER_URL over the loopback default", async () => {
+    const saved = process.env.HADES_BROWSER_URL;
+    process.env.HADES_BROWSER_URL = "ws://127.0.0.1:9999";
+    try {
+      expect(await connectUrl({ token: "t" })).toContain("ws://127.0.0.1:9999?");
+    } finally {
+      if (saved === undefined) delete process.env.HADES_BROWSER_URL;
+      else process.env.HADES_BROWSER_URL = saved;
+    }
+  });
+
+  it("prefers an explicit url over the environment", async () => {
+    const saved = process.env.HADES_BROWSER_URL;
+    process.env.HADES_BROWSER_URL = "ws://127.0.0.1:9999";
+    try {
+      const seen = await connectUrl({ token: "t", url: "ws://127.0.0.1:7777" });
+      expect(seen).toContain("ws://127.0.0.1:7777?");
+    } finally {
+      if (saved === undefined) delete process.env.HADES_BROWSER_URL;
+      else process.env.HADES_BROWSER_URL = saved;
+    }
   });
 
   it("announces its agents right after the handshake", async () => {
