@@ -36,7 +36,7 @@ jobs:
           key: mac-desktop-${{ runner.arch }}-${{ hashFiles('src-tauri/Cargo.lock') }}
       - run: npm ci --ignore-scripts
       - run: npm run type-check
-      - run: npx vitest run src/desktop/__tests__/workbench-service.test.ts src/desktop/__tests__/mcp-stdio.test.ts src/hades/__tests__/model-stream.test.ts
+      - run: npx vitest run src/desktop/__tests__/workbench-service.test.ts src/desktop/__tests__/desktop-additions.test.ts src/desktop/__tests__/mcp-stdio.test.ts src/hades/__tests__/model-stream.test.ts
       - run: ./script/build_and_run.sh --build-only
       - run: node scripts/smoke-macos.mjs
       - run: node scripts/smoke-macos.mjs --signal

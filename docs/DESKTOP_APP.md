@@ -41,3 +41,15 @@ The default data directory is `~/.hades`. Set `HADES_DATA_DIR` before launch to 
 Backend startup errors are written to `<data directory>/desktop-backend.log`. No API key is included in snapshots or profile exports. Shell and MCP processes run with the user's account permissions; workspace path checks are not an OS sandbox.
 
 See [the Hermes capability comparison](HERMES_DESKTOP_PARITY.md), [design and logo provenance](HADES_DESIGN.md), and [local acceptance evidence](MAC_DESKTOP_ACCEPTANCE.md) for the exact implemented and verified scope.
+
+## Local models, rooms and extensions
+
+**Local models** connects to an existing loopback Ollama runtime. Refresh the inventory, download a model by its library name, cancel a pull, remove a model, or create a profile from an installed model. The app requires Ollama's success event before marking a download installed. `--local` on the packaged Mac smoke test exercises an installed Qwen model without changing your profiles.
+
+**Team rooms** combine two to eight profiles in roster order. Each prompt starts one round; each agent reads bounded previous replies and uses its own model, memory, tools and approvals. Open a contribution's conversation for the full transcript. Stop cancels the current member and prevents the next from starting. Rooms and completed replies survive restart.
+
+**Extensions** accepts a local JSON manifest with `format: "hades-plugin-v1"`, `name`, `version`, optional `description`, `skills: [{name, content}]`, and `mcp: [{name, command, args}]`. Download a working skill-only example from Extensions. Review instructions and commands, install disabled, then enable deliberately. Skills guide future turns; MCP servers start during those turns and every tool call needs approval. Removal retains a copy under the profile's `removed-plugins` directory. This format is separate from the harness code-based plugin API and does not claim marketplace compatibility.
+
+**Checkpoints** is in the command palette and Git review. Approved regular-file writes/appends/deletes and editor saves receive persistent before/after records. Restore only succeeds when the current file still matches the recorded result. Files over 2 MB, shell/MCP changes and external-process mutations are outside this journal. Interrupted edits require manual review.
+
+**Appearance and shortcuts** imports VS Code JSON/JSONC UI colors and edits in-app bindings. Values must be hex colors; no theme scripts execute. Global Quick Entry keeps its existing fixed shortcut.

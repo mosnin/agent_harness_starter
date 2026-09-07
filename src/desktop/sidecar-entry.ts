@@ -751,6 +751,9 @@ export async function runSidecar(
     loadConfig({ env: process.env }).dataDir,
     (e) => output(JSON.stringify(e) + "\n"),
   );
+  let desktopQueue = Promise.resolve();
+  let queuedDesktopRequests = 0;
+  let acceptingDesktopRequests = true;
 
   try {
     for await (const rawLine of lineBuffer(
@@ -766,7 +769,41 @@ export async function runSidecar(
           typeof req.id === "string" &&
           typeof req.method === "string"
         ) {
-          await workbench.handle(req);
+          // Keep mutations ordered without holding stdin hostage. Control
+          // messages must reach running turns even while Git or a provider waits.
+          if (
+            [
+              "models.list",
+              "voice.transcribe",
+              "local.list",
+              "approval.reply",
+              "chat.stop",
+              "room.stop",
+              "terminal.write",
+              "terminal.resize",
+              "local.cancel",
+              "key.set",
+            ].includes(req.method)
+          ) {
+            void workbench.handle(req);
+          } else if (queuedDesktopRequests >= 256) {
+            output(
+              JSON.stringify({
+                kind: "desktop.response",
+                id: req.id,
+                error: "Too many pending desktop requests",
+              }) + "\n",
+            );
+          } else {
+            queuedDesktopRequests++;
+            desktopQueue = desktopQueue
+              .then(async () => {
+                if (acceptingDesktopRequests) await workbench.handle(req);
+              })
+              .finally(() => {
+                queuedDesktopRequests--;
+              });
+          }
           continue;
         }
       } catch {
@@ -795,6 +832,7 @@ export async function runSidecar(
     // `dispose`, not `close`: stdin has ended, so this is process-lifetime
     // teardown — the workspace feed's timer/watcher and the store handle
     // must go with it, not just the swarm handle.
+    acceptingDesktopRequests = false;
     workbench.close();
     await sidecar.dispose();
   }

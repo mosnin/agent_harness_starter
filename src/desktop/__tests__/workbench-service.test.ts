@@ -312,3 +312,208 @@ describe("desktop persistent workflows", () => {
     expect(((await s.dispatch("boot", {})) as any).jobs[0].enabled).toBe(false);
   });
 });
+
+describe("desktop team rooms", () => {
+  it("runs profiles in order, passes context, saves real replies and reloads the room", async () => {
+    const { root, s, events } = setup();
+    const p = await provider(
+      (body) => "ANSWER: " + JSON.parse(body).model + " contribution",
+    );
+    await s.dispatch("project.add", { path: root });
+    for (const id of ["writer", "reviewer"])
+      await s.dispatch("profile.save", {
+        id,
+        name: id,
+        provider: "local",
+        model: id,
+        baseUrl: p.url,
+      });
+    const room = (await s.dispatch("room.create", {
+      root,
+      name: "Editorial",
+      members: ["writer", "reviewer"],
+    })) as { id: string };
+    await s.dispatch("room.send", {
+      id: room.id,
+      input: "Draft and review a title",
+    });
+    await until(
+      () => events.filter((e) => e.kind === "desktop.room").length === 3,
+    );
+    const result = (await s.dispatch("room.get", { id: room.id })) as any;
+    expect(result.running).toBe(false);
+    expect(result.messages.map((m: any) => m.content)).toEqual([
+      "Draft and review a title",
+      "writer contribution",
+      "reviewer contribution",
+    ]);
+    expect(p.requests[1]).toContain("writer contribution");
+    expect(result.sessions.writer).not.toBe(result.sessions.reviewer);
+    const restarted = new WorkbenchService(join(root, "data"), () => {}, {
+      NODE_ENV: "test",
+    });
+    services.push(restarted);
+    expect(await restarted.dispatch("room.get", { id: room.id })).toMatchObject(
+      { messages: result.messages, running: false },
+    );
+  });
+  it("surfaces approvals in the room and stops before later members run", async () => {
+    const { root, s, events } = setup();
+    const p = await provider(
+      () =>
+        'TOOL: file_ops\nINPUT: {"op":"write","path":"room.txt","content":"hello"}',
+    );
+    await s.dispatch("project.add", { path: root });
+    for (const id of ["writer", "reviewer"])
+      await s.dispatch("profile.save", {
+        id,
+        name: id,
+        provider: "local",
+        model: id,
+        baseUrl: p.url,
+      });
+    const room = (await s.dispatch("room.create", {
+      root,
+      name: "Editorial",
+      members: ["writer", "reviewer"],
+    })) as { id: string };
+    await s.dispatch("room.send", { id: room.id, input: "Write a file" });
+    await until(() => events.some((e) => e.kind === "desktop.approval"));
+    const waiting = (await s.dispatch("room.get", { id: room.id })) as any;
+    expect(waiting.pending[0]).toMatchObject({
+      profile: "writer",
+      tool: "file_ops",
+    });
+    await s.dispatch("room.stop", { id: room.id });
+    await until(() => events.some((e) => e.kind === "desktop.room"));
+    expect(existsSync(join(root, "room.txt"))).toBe(false);
+    expect(p.requests).toHaveLength(1);
+    expect(await s.dispatch("room.get", { id: room.id })).toMatchObject({
+      running: false,
+      error: "Stopped. Completed replies are saved.",
+    });
+  });
+});
+
+describe("desktop plugin packages", () => {
+  it("reviews and installs disabled, activates instructions only when enabled, and archives removals", async () => {
+    const { root, s, events } = setup();
+    const p = await provider(() => "ANSWER: Done");
+    await s.dispatch("project.add", { path: root });
+    await s.dispatch("profile.save", {
+      id: "default",
+      name: "Test",
+      provider: "local",
+      model: "test",
+      baseUrl: p.url,
+    });
+    const content = JSON.stringify({
+      format: "hades-plugin-v1",
+      name: "editor",
+      version: "1",
+      description: "Editorial skill",
+      skills: [
+        { name: "prose", content: "PLUGIN_MARKER: Use concrete verbs." },
+      ],
+      mcp: [],
+    });
+    expect(await s.dispatch("plugins.inspect", { content })).toMatchObject({
+      name: "editor",
+    });
+    await s.dispatch("plugins.install", { content });
+    expect(await s.dispatch("skills.list", {})).toEqual([]);
+    await expect(s.dispatch("plugins.install", { content })).rejects.toThrow(
+      "already installed",
+    );
+    await s.dispatch("plugins.toggle", { name: "editor", enabled: true });
+    expect(await s.dispatch("skills.list", {})).toMatchObject([
+      { name: "editor--prose", readonly: true },
+    ]);
+    const session = (await s.dispatch("session.new", { root })) as {
+      id: string;
+    };
+    await s.dispatch("chat.send", { id: session.id, input: "Edit this" });
+    await until(() => events.some((e) => e.kind === "desktop.done"));
+    expect(p.requests[0]).toContain("PLUGIN_MARKER");
+    await expect(
+      s.dispatch("skills.save", {
+        name: "editor--prose",
+        content: "overwrite",
+      }),
+    ).rejects.toThrow("belongs to an extension");
+    await s.dispatch("plugins.toggle", { name: "editor", enabled: false });
+    expect(await s.dispatch("skills.list", {})).toEqual([]);
+    await s.dispatch("plugins.remove", { name: "editor" });
+    expect(await s.dispatch("plugins.list", {})).toEqual([]);
+    expect(existsSync(join(root, "data/removed-plugins"))).toBe(true);
+    await expect(
+      s.dispatch("plugins.inspect", {
+        content: JSON.stringify({
+          format: "hades-plugin-v1",
+          name: "../escape",
+          version: "1",
+        }),
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+it("desktop plugin MCP launches only after enable and waits for a tool approval", async () => {
+  const { root, s, events } = setup();
+  const tool = "mcp_package--server_echo";
+  const p = await provider((body) =>
+    !body.includes(tool) ||
+    JSON.parse(body).messages.at(-1).content.startsWith("TOOL_RESULT:")
+      ? "ANSWER: Finished"
+      : `TOOL: ${tool}\nINPUT: {"value":"plugin result"}`,
+  );
+  await s.dispatch("project.add", { path: root });
+  await s.dispatch("profile.save", {
+    id: "default",
+    name: "Test",
+    provider: "local",
+    model: "test",
+    baseUrl: p.url,
+  });
+  const fixture = `const rl=require('node:readline').createInterface({input:process.stdin});rl.on('line',line=>{const m=JSON.parse(line);if(!m.id)return;const result=m.method==='initialize'?{protocolVersion:'2024-11-05',capabilities:{tools:{}},serverInfo:{name:'fixture',version:'1'}}:m.method==='tools/list'?{tools:[{name:'echo',inputSchema:{type:'object'}}]}:{content:[{type:'text',text:m.params.arguments.value}]};process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result})+'\\n');});`;
+  await s.dispatch("plugins.install", {
+    content: JSON.stringify({
+      format: "hades-plugin-v1",
+      name: "package",
+      version: "1",
+      mcp: [
+        { name: "server", command: process.execPath, args: ["-e", fixture] },
+      ],
+    }),
+  });
+  const first = (await s.dispatch("session.new", { root })) as { id: string };
+  await s.dispatch("chat.send", { id: first.id, input: "Echo something" });
+  await until(() =>
+    events.some((e) => e.kind === "desktop.done" && e.session === first.id),
+  );
+  expect(p.requests[0]).not.toContain(tool);
+  await s.dispatch("plugins.toggle", { name: "package", enabled: true });
+  const second = (await s.dispatch("session.new", { root })) as { id: string };
+  await s.dispatch("chat.send", { id: second.id, input: "Echo something" });
+  await until(() =>
+    events.some(
+      (e) => e.kind === "desktop.approval" && e.session === second.id,
+    ),
+  );
+  const approval = events.find(
+    (e) => e.kind === "desktop.approval" && e.session === second.id,
+  )!;
+  expect(approval.tool).toBe(tool);
+  await s.dispatch("approval.reply", { id: approval.id, allow: true });
+  await until(() =>
+    events.some((e) => e.kind === "desktop.done" && e.session === second.id),
+  );
+  expect(
+    events.find(
+      (e) =>
+        e.kind === "desktop.tool" &&
+        e.status === "done" &&
+        e.session === second.id,
+    )?.output,
+  ).toContain("plugin result");
+});

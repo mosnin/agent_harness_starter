@@ -44,3 +44,13 @@ No public release, notarization, auto-update service or production deployment is
 ## CI follow-up
 
 The first pushed revision passed the native Mac application build, its packaged smoke checks, and the full Linux job. The full Mac job reported a five-second timeout in the real Git workflow and a throughput timing assertion while other tests competed for CPU. CI now runs the same soak and desktop workflow assertions in a separate serial step, after the remaining suite. The Git subprocess test has a bounded 20-second cold-start budget; the throughput threshold is unchanged. Five consecutive isolated local runs passed (19 tests each). No test is omitted by this split.
+
+## Desktop continuation — 2026-09-06
+
+Added local Ollama management, ordered team rooms, persistent file checkpoints, declarative skill/MCP extensions, VS Code UI color imports and configurable in-app shortcuts. Local correctness checks passed: 511 files, 11,889 passing tests and one skip (509-file parallel suite plus 23 isolated desktop/soak tests). The new plugin test starts a real MCP subprocess only after enable, then requires an approval before invoking it.
+
+The bundled backend passed `node scripts/smoke-macos.mjs --local`: real installed `qwen3.5:latest`, streamed reply, persisted two-message conversation, real PTY input/resize and EOF cleanup. The SIGTERM mode also passed. This used a temporary data directory and did not change user profiles or download models.
+
+The Mac later became accessible. Native screenshots now cover the light/dark conversation workspace, local model inventory and Team rooms empty state. The Local models → Use model action created a functioning Qwen profile, preserving the existing Hades profile. These observations do not establish every new native workflow, provider OAuth, remote hosts, messaging integrations, browser annotations, localization or signed updates.
+
+Native provider follow-through: selecting `qwen3.5:latest` in Local models created a new local profile. Sending a short greeting in Hades produced a streamed “Hello! 👋” reply, persisted the conversation and returned the composer to its ready state. A native screenshot captured that completed reply. The existing OpenAI profile was preserved.

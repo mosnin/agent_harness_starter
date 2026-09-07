@@ -25,11 +25,13 @@ const child = spawn(
 let stderr = "",
   output = "",
   counter = 0;
+const events = [];
 const pending = new Map();
 child.stderr.on("data", (data) => (stderr += data));
 const lines = createInterface({ input: child.stdout });
 lines.on("line", (line) => {
   const event = JSON.parse(line);
+  if (process.argv.includes("--local")) events.push(event);
   if (event.kind === "desktop.response") pending.get(event.id)?.(event);
   if (event.kind === "desktop.terminal") output += event.chunk;
 });
@@ -67,6 +69,56 @@ try {
   const boot = await request("boot");
   assert.equal(boot.profiles[0].name, "Hades");
   await request("project.add", { path: root });
+  let localProvider;
+  if (process.argv.includes("--local")) {
+    const catalog = await request("local.list", {
+      endpoint: "http://127.0.0.1:11434",
+    });
+    const model = process.env.HADES_SMOKE_MODEL || "qwen3.5:latest";
+    assert.ok(
+      catalog.models.some((m) => m.name === model),
+      `Install ${model} in Ollama before running --local`,
+    );
+    await request("profile.save", {
+      id: "default",
+      name: "Local verification",
+      provider: "local",
+      model,
+      baseUrl: "http://127.0.0.1:11434/v1",
+    });
+    const session = await request("session.new", { root });
+    await request("chat.send", {
+      id: session.id,
+      input: "Reply with exactly HADES_LOCAL_OK. Do not call tools.",
+    });
+    const until = Date.now() + 120000;
+    while (
+      !events.some(
+        (e) => e.kind === "desktop.done" && e.session === session.id,
+      ) &&
+      Date.now() < until
+    )
+      await new Promise((r) => setTimeout(r, 50));
+    const failure = events.find(
+      (e) => e.kind === "desktop.error" && e.session === session.id,
+    );
+    assert.equal(failure, undefined, failure?.message);
+    assert.ok(
+      events.some((e) => e.kind === "desktop.done" && e.session === session.id),
+      "Local model did not finish",
+    );
+    const record = await request("session.get", { id: session.id });
+    assert.ok(
+      record.messages.at(-1)?.content.includes("HADES_LOCAL_OK"),
+      "Local model did not produce the requested response",
+    );
+    localProvider = {
+      model,
+      installedModels: catalog.models.length,
+      streamed: events.some((e) => e.kind === "desktop.delta"),
+      persisted: record.messages.length === 2,
+    };
+  }
   const terminal = await request("terminal.open", { root });
   await request("terminal.resize", { id: terminal.id, cols: 72, rows: 24 });
   await request("terminal.write", {
@@ -109,6 +161,7 @@ try {
         ? "SIGTERM passed"
         : "EOF passed",
       externalRuntimeRequired: false,
+      ...(localProvider ? { localProvider } : {}),
     }),
   );
 } finally {

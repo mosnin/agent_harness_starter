@@ -8,7 +8,7 @@ The reference groups desktop work into conversations, projects, files and artifa
 
 | Hades capability | Implementation | Acceptance boundary |
 | --- | --- | --- |
-| Native Mac application | Tauri/WKWebView with a bundled Node backend and PTY helper | Build and initial native GUI checks on this Mac; final visual pass pending unlock |
+| Native Mac application | Tauri/WKWebView with a bundled Node backend and PTY helper | Native build, light/dark screenshots and live local-model controls inspected on this Mac |
 | Identity and appearance | Original red H/bracket logo, native app icon, system typography, light/dark/system, reduced motion, zoom | Reference inspired original mark, not a copied logo |
 | Chat | Real HTTP streaming, tool activity, cancellation, write/shell/MCP approvals, history, queued prompts, transcript search, tabs | Scripted localhost provider exercises the real wire and file tool; paid providers need credentials |
 | Models | OpenAI, Anthropic and compatible local/custom endpoints; provider catalog, profile default and conversation model override | Exact model ID must exist at the endpoint; catalog is fetched from the configured provider |
@@ -23,11 +23,16 @@ The reference groups desktop work into conversations, projects, files and artifa
 | MCP | Explicit local stdio servers, real initialize/list/call, per-call approval, cancellation cleanup | Remote HTTP/SSE server transport and OAuth are not connected here |
 | Voice | Record a clip, transcribe through a compatible speech endpoint, system read-aloud, stop | Microphone permission and live transcription require user/provider verification |
 | Windows | Session windows, floating chat and opt-in global Quick Entry | Same local backend; Quick Entry preference persists; no automatic foreground-app/screen capture |
+| Local model management | Ollama inventory, streamed downloads, cancellation, removal and profile selection | Existing runtime required; real Qwen inference verified on this Mac; download lifecycle tested against an HTTP fixture |
+| Team rooms | Two to eight profiles, ordered rounds, shared context, independent sessions and inline approvals | HTTP integration verified; cancellation stops before the next member; no remote bot federation |
+| Checkpoints | Before/after review and conflict-checked restore for approved file edits and editor saves | Per-file records, at most 2 MB; newer changes, symlinks and incomplete edits block restore; excludes shell/MCP changes |
+| Extensions | Review/install/enable/disable/remove local Hades skill + MCP manifests; removed manifests retained | Disabled on install, commands visible before enabling; real MCP subprocess and approval tested; no arbitrary code plugin runtime or marketplace |
+| Themes and shortcuts | VS Code JSON/JSONC UI colors; configurable in-app bindings with collision checks | UI colors only; no syntax themes or marketplace; global Quick Entry remains fixed |
 | Existing harness | Fleet/gateway/learning/scheduler inspection in Command Center | Original service modules remain; advanced command-line surfaces still exist |
 
 ## Remaining Hermes differences
 
-This build does **not** claim complete Hermes equivalence. Remaining features include remote multi-host desktop connections, messaging setup panels, provider OAuth, managed local model downloads, multi-bot group rooms and handoffs, live browser DOM annotations/screenshots, checkpoint rollback, VS Code theme imports, plugin installation UI, rebindable shortcuts, localization, signed automatic updates, and vendor-operated cloud services. These require additional integrations and acceptance work; there are no simulated success controls for them.
+This build does **not** claim complete Hermes equivalence. Remaining features include remote multi-host desktop connections, messaging setup panels, provider OAuth, automatic local-runtime installation, remote bot federation, live browser DOM annotations/screenshots, whole-turn or shell checkpoint rollback, marketplace/theme syntax integration, global hotkey rebinding, localization, signed automatic updates, and vendor-operated cloud services. These require additional integrations and acceptance work; there are no simulated success controls for them.
 
 ## Running and packaging
 
@@ -36,3 +41,11 @@ This build does **not** claim complete Hermes equivalence. Remaining features in
 Desktop state defaults to `~/.hades`; use `HADES_DATA_DIR` to choose another directory. The default profile uses the CLI's session and memory file formats. To use the same records from a project terminal, set `HADES_DATA_DIR="$HOME/.hades"`. Additional profiles use `~/.hades/profiles/<id>`.
 
 Ad-hoc signing is for local use. Developer ID signing, notarization, public distribution and automatic updates are not established by a successful local build.
+
+## Follow-up verification
+
+The packaged backend completed a real `qwen3.5:latest` request against the already-installed Ollama runtime on this Mac, streamed the reply, and saved the two-message conversation. `node scripts/smoke-macos.mjs --local` reproduces this in an isolated temporary directory. It does not download a model or change the user's profiles.
+
+Slow provider reads and queued Git work no longer hold approval replies, cancellation or terminal input behind them in the sidecar input loop. Native light/dark conversation screens, the installed Ollama inventory and the Team rooms empty state were captured after the Mac became accessible. Local model selection was exercised in the app. Full native interaction acceptance for every new feature remains separate from backend tests.
+
+API references: [Ollama model API](https://github.com/ollama/ollama/blob/main/docs/api.md), [VS Code color theme format](https://code.visualstudio.com/api/extension-guides/color-theme).

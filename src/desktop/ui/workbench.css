@@ -17,6 +17,94 @@
     sans-serif;
   letter-spacing: -0.012em;
 }
+.local-connect {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.local-connect .field {
+  flex: 1;
+  min-width: 220px;
+  margin: 0;
+}
+.local-connect button {
+  min-height: 38px;
+}
+.inline-notice {
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+}
+.checkpoint-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.checkpoint-compare > div {
+  min-width: 0;
+}
+.checkpoint-compare pre {
+  overflow: auto;
+  max-height: 320px;
+  font-size: 12px;
+  background: var(--panel);
+  padding: 12px;
+  border-radius: 8px;
+}
+.record progress {
+  display: block;
+  width: 100%;
+  height: 5px;
+  margin-top: 10px;
+  accent-color: var(--accent);
+}
+.shortcut-list .field {
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  align-items: center;
+  gap: 12px;
+  margin: 7px 0;
+}
+.room-page {
+  max-width: 920px;
+}
+.room-messages .message {
+  padding: 22px 0;
+}
+.room-composer {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  padding-top: 20px;
+}
+.room-composer textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--panel);
+}
+.room-roster {
+  display: grid;
+  gap: 8px;
+  margin: 20px 0;
+}
+.room-roster label {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: var(--panel);
+  border-radius: 8px;
+}
+.room-roster small {
+  display: block;
+  color: var(--muted);
+  margin-top: 3px;
+}
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #1b1c1b;
