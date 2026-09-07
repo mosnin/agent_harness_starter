@@ -230,6 +230,7 @@ Consume external MCP servers by adding them to `MCP_SERVERS` in `.env.local`.
 | **[05 — Model Configuration](./docs/05-model-configuration.md)** | Model selection, prompts, temperature, context, cost |
 | **[06 — Harness and Orchestration](./docs/06-harness-orchestration.md)** | Streaming, cancellation, multi-agent patterns, observability |
 | **[07 — Deployment](./docs/07-deployment.md)** | Vercel, Docker, migrations, rate limiting, cost controls |
+| **[24 — Hades Browser](./docs/24-hades-browser.md)** | The account/sync API, the browser bridge client and per-agent wallets that pair with `hades-browser` |
 
 ---
 
