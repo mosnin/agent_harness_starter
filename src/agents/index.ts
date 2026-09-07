@@ -15,6 +15,7 @@
  *   import { ... } from "@/agents/observability"   // setObservabilityAdapter, ObservabilityAdapter, …
  *   import { ... } from "@/agents/providers/anthropic"  // createAnthropicHarness
  *   import { ... } from "@/agents/examples"        // createResearchAgent, createCodeAgent, …
+ *   import { ... } from "@/agents/hades"           // agent wallets, Hades Browser bridge
  *   import { ... } from "@/agents/runtime"         // validateRuntime, getRegisteredTools — call at startup
  */
 

@@ -18,6 +18,10 @@ export * from "./sandbox/files";
 // Composio (3rd-party OAuth)
 export * from "./composio/index";
 
+// Hades — agent wallets and the user's own browser
+export * from "../hades/wallet/tools";
+export * from "../hades/browser/tools";
+
 // Registry helpers — use these to wire tools into agents
 export { registerTool, getTool, getAllTools, getTools } from "./registry";
 export type { ToolDefinition, ToolContext, ToolRegistry, SandboxToolConfig } from "./types";
