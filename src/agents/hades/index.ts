@@ -65,6 +65,26 @@ export {
   HADES_WALLET_TOOL_NAMES,
 } from "./wallet/tools";
 
+export {
+  HadesAccountService,
+  AuthError,
+  InMemoryAccountStore,
+  getHadesAccountService,
+  setHadesAccountService,
+  handleRefresh,
+  handleSignIn,
+  handleSignOut,
+  handleSignUp,
+  handleSync,
+} from "./account/index";
+export type {
+  AccountRecord,
+  AccountStore,
+  AuthSession,
+  HadesUser,
+  SyncRecordRow,
+} from "./account/index";
+
 export { HadesBrowserClient, BrowserToolError } from "./browser/client";
 export type { BrowserConnection, HadesBrowserClientOptions } from "./browser/client";
 
