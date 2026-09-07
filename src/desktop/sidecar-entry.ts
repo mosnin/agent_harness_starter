@@ -21,6 +21,7 @@
  * factory, with no real stdio and no child processes involved.
  */
 
+import { WorkbenchService } from "./core/workbench-service";
 import { encodeEvent, decodeCommand } from "./ipc/contract";
 import type { AppEvent, Command } from "./ipc/contract";
 import {
@@ -180,7 +181,9 @@ export interface RunSidecarOptions {
  * which has no notion of "one command per chunk") or a test fixture that
  * hands over one full command per chunk — both come out the same way.
  */
-async function* lineBuffer(input: AsyncIterable<string | Buffer>): AsyncGenerator<string> {
+async function* lineBuffer(
+  input: AsyncIterable<string | Buffer>,
+): AsyncGenerator<string> {
   let buffer = "";
   for await (const chunk of input) {
     buffer += typeof chunk === "string" ? chunk : chunk.toString("utf8");
@@ -219,7 +222,7 @@ function errMsg(err: unknown): string {
 export async function runSidecar(
   input: AsyncIterable<string | Buffer> | NodeJS.ReadableStream,
   output: (line: string) => void,
-  opts: RunSidecarOptions = {}
+  opts: RunSidecarOptions = {},
 ): Promise<void> {
   const now = opts.now ?? Date.now;
 
@@ -243,7 +246,10 @@ export async function runSidecar(
     // terminal report one learning history. Saves are debounced off the
     // loop's own "feed" events and forced on "detached"; every save is
     // atomic (tmp + rename) and never throws (see learning-status-store.ts).
-    const learningStore = new FileLearningStatusStore({ path: `${dataDir}/learning-status.json`, now });
+    const learningStore = new FileLearningStatusStore({
+      path: `${dataDir}/learning-status.json`,
+      now,
+    });
     // The currently-attached live loop, if any — `learning.get` prefers it
     // over the on-disk snapshot and labels the answer honestly either way.
     let liveLoop: SwarmLearningLoop | undefined;
@@ -253,8 +259,12 @@ export async function runSidecar(
     // <dataDir>/route-bandit.json).
     learning = async (swarm) => {
       let persisting: PersistingOnEventHandle | undefined;
-      const loop = await realFleet.attachLearning(swarm, (e) => persisting?.onEvent(e));
-      persisting = persistingOnEvent(learningStore, () => loop.status(), { now });
+      const loop = await realFleet.attachLearning(swarm, (e) =>
+        persisting?.onEvent(e),
+      );
+      persisting = persistingOnEvent(learningStore, () => loop.status(), {
+        now,
+      });
       liveLoop = loop;
       return {
         detach: async () => {
@@ -281,7 +291,9 @@ export async function runSidecar(
           ...(liveLoop ? { source: liveLoop } : {}),
           loadPersisted: async () => {
             const persisted = await learningStore.load();
-            return persisted ? { at: persisted.at, status: persisted.status } : undefined;
+            return persisted
+              ? { at: persisted.at, status: persisted.status }
+              : undefined;
           },
           now,
         }).handle(cmd, emit),
@@ -291,7 +303,9 @@ export async function runSidecar(
     // adopted into the live registry, so the learning loop's resolveBackend
     // answers with measured facts instead of "unknown". Only wired when the
     // factory is also defaulted — an injected factory keeps full control.
-    factory ??= realSwarmFactory({ decorateProvider: (p, mode) => realFleet.decorateProvider(p, mode) });
+    factory ??= realSwarmFactory({
+      decorateProvider: (p, mode) => realFleet.decorateProvider(p, mode),
+    });
   }
 
   // Real gateway lane: GatewayService over the SAME buildGatewayDeps
@@ -338,23 +352,38 @@ export async function runSidecar(
   if (!schedule) {
     schedule = {
       handle: async (cmd) => {
-        const [{ join }, { JsonFileJobStore }, { systemClock }, cron, { SchedulerRunner }, { VerifiedDeliveryRouter }, { ExecutorRegistry }, { SwarmJobExecutor, SWARM_TASK_KIND }, { DeliveryReceiptLedger, LedgeredDeliverer }, { BuiltinNoteExecutor }, { ScheduleService }, { echoEngine }] =
-          await Promise.all([
-            import("node:path"),
-            import("../hades/schedule/store"),
-            import("../hades/schedule/clock"),
-            import("../hades/schedule/cron"),
-            import("../hades/schedule/runner"),
-            import("../hades/schedule/delivery"),
-            import("../hades/schedule/executor-registry"),
-            import("../hades/schedule/swarm-executor"),
-            import("../hades/schedule/receipt-ledger"),
-            import("../hades/cli/schedule-command"),
-            import("./core/schedule-service"),
-            import("../hades/gateway/agent-handler"),
-          ]);
+        const [
+          { join },
+          { JsonFileJobStore },
+          { systemClock },
+          cron,
+          { SchedulerRunner },
+          { VerifiedDeliveryRouter },
+          { ExecutorRegistry },
+          { SwarmJobExecutor, SWARM_TASK_KIND },
+          { DeliveryReceiptLedger, LedgeredDeliverer },
+          { BuiltinNoteExecutor },
+          { ScheduleService },
+          { echoEngine },
+        ] = await Promise.all([
+          import("node:path"),
+          import("../hades/schedule/store"),
+          import("../hades/schedule/clock"),
+          import("../hades/schedule/cron"),
+          import("../hades/schedule/runner"),
+          import("../hades/schedule/delivery"),
+          import("../hades/schedule/executor-registry"),
+          import("../hades/schedule/swarm-executor"),
+          import("../hades/schedule/receipt-ledger"),
+          import("../hades/cli/schedule-command"),
+          import("./core/schedule-service"),
+          import("../hades/gateway/agent-handler"),
+        ]);
         const dataDir = loadConfig({ env: process.env }).dataDir;
-        const store = new JsonFileJobStore(join(dataDir, "schedule.json"), systemClock);
+        const store = new JsonFileJobStore(
+          join(dataDir, "schedule.json"),
+          systemClock,
+        );
         const registry = new ExecutorRegistry();
         registry.register("note", new BuiltinNoteExecutor());
         registry.register(
@@ -372,16 +401,25 @@ export async function runSidecar(
             },
           }),
         );
-        const ledger = new DeliveryReceiptLedger({ path: join(dataDir, "schedule-receipts.json"), clock: systemClock });
+        const ledger = new DeliveryReceiptLedger({
+          path: join(dataDir, "schedule-receipts.json"),
+          clock: systemClock,
+        });
         const deliverer = new LedgeredDeliverer(
           new VerifiedDeliveryRouter({ senders: [], clock: systemClock }),
           ledger,
         );
-        const runner = new SchedulerRunner({ store, clock: systemClock, executor: registry, deliverer });
+        const runner = new SchedulerRunner({
+          store,
+          clock: systemClock,
+          executor: registry,
+          deliverer,
+        });
         const service = new ScheduleService({
           jobs: store,
           runner,
-          nextFire: (cronExpr, after, tz) => cron.nextFireTime(cron.parseCron(cronExpr), after, tz),
+          nextFire: (cronExpr, after, tz) =>
+            cron.nextFireTime(cron.parseCron(cronExpr), after, tz),
           now,
         });
         return service.handle(cmd);
@@ -431,9 +469,19 @@ export async function runSidecar(
         // The feed's own error channel rides the same lane, so a watcher
         // that dies is reported to the renderer instead of the app silently
         // degrading to "nothing ever changes".
-        onFeedError: (e) => fanOut({ kind: "state.error", op: "state.watch", message: e.message }),
+        onFeedError: (e) =>
+          fanOut({
+            kind: "state.error",
+            op: "state.watch",
+            message: e.message,
+          }),
       });
-      service = new StateService({ store: stack.store, sync: stack.sync, feed: stack.feed, now });
+      service = new StateService({
+        store: stack.store,
+        sync: stack.sync,
+        feed: stack.feed,
+        now,
+      });
       serviceUnsubscribe = service.subscribe(fanOut);
       return service;
     };
@@ -492,7 +540,12 @@ export async function runSidecar(
           // MigrateService.handle catches its own failures; this only fires
           // if constructing it (or resolving config) throws. Report the REAL
           // reason rather than an empty scan.
-          return { kind: "migrate.error", op: cmd.kind, message: errMsg(err), at: now() };
+          return {
+            kind: "migrate.error",
+            op: cmd.kind,
+            message: errMsg(err),
+            at: now(),
+          };
         }
       },
     };
@@ -510,7 +563,10 @@ export async function runSidecar(
       handle: async (cmd) => {
         try {
           service ??= new TrustService({
-            stackOptions: { env: process.env, dataDir: loadConfig({ env: process.env }).dataDir },
+            stackOptions: {
+              env: process.env,
+              dataDir: loadConfig({ env: process.env }).dataDir,
+            },
             now,
           });
           return await service.handle(cmd);
@@ -518,7 +574,12 @@ export async function runSidecar(
           // TrustService.handle catches its own failures; this only fires if
           // constructing it (or resolving config) throws. Report the REAL
           // reason rather than a synthesized healthy-looking status.
-          return { kind: "trust.error", op: cmd.kind, message: errMsg(err), at: now() };
+          return {
+            kind: "trust.error",
+            op: cmd.kind,
+            message: errMsg(err),
+            at: now(),
+          };
         }
       },
     };
@@ -537,7 +598,10 @@ export async function runSidecar(
       handle: async (cmd) => {
         try {
           marketService ??= new MarketService({
-            stackOptions: { env: process.env, dataDir: loadConfig({ env: process.env }).dataDir },
+            stackOptions: {
+              env: process.env,
+              dataDir: loadConfig({ env: process.env }).dataDir,
+            },
             now,
           });
           return await marketService.handle(cmd);
@@ -545,7 +609,12 @@ export async function runSidecar(
           // MarketService.handle catches its own failures; this only fires if
           // constructing it (or resolving config) throws. Report the REAL
           // reason rather than a synthesized empty market.
-          return { kind: "market.error", op: cmd.kind, message: errMsg(err), at: now() };
+          return {
+            kind: "market.error",
+            op: cmd.kind,
+            message: errMsg(err),
+            at: now(),
+          };
         }
       },
     };
@@ -563,7 +632,10 @@ export async function runSidecar(
       handle: async (cmd) => {
         try {
           routeService ??= new RouteService({
-            stackOptions: { env: process.env, dataDir: loadConfig({ env: process.env }).dataDir },
+            stackOptions: {
+              env: process.env,
+              dataDir: loadConfig({ env: process.env }).dataDir,
+            },
             now,
           });
           return await routeService.handle(cmd);
@@ -571,7 +643,12 @@ export async function runSidecar(
           // RouteService.handle catches its own failures; this only fires if
           // constructing it (or resolving config) throws. Report the REAL
           // reason rather than a synthesized empty router.
-          return { kind: "route.error", op: cmd.kind, message: errMsg(err), at: now() };
+          return {
+            kind: "route.error",
+            op: cmd.kind,
+            message: errMsg(err),
+            at: now(),
+          };
         }
       },
     };
@@ -593,7 +670,12 @@ export async function runSidecar(
           // ClusterService.handle catches its own failures; this only fires
           // if constructing it throws. Report the REAL reason rather than a
           // synthesized healthy-looking cluster.
-          return { kind: "cluster.error", op: cmd.kind, message: errMsg(err), at: now() };
+          return {
+            kind: "cluster.error",
+            op: cmd.kind,
+            message: errMsg(err),
+            at: now(),
+          };
         }
       },
     };
@@ -625,7 +707,14 @@ export async function runSidecar(
           // Only fires if constructing the stack throws (locked keystore,
           // unwritable dataDir). Report the REAL reason — never a synthesized
           // healthy identity or a "verified" chain we never read.
-          return [{ kind: "gov.error", op: cmd.kind, message: errMsg(err), at: now() }];
+          return [
+            {
+              kind: "gov.error",
+              op: cmd.kind,
+              message: errMsg(err),
+              at: now(),
+            },
+          ];
         }
       },
     };
@@ -640,7 +729,8 @@ export async function runSidecar(
     // CLI writes, so the desktop's badges and the terminal's `trust show`
     // report one truth. `badges()` never throws — a corrupt store degrades to
     // per-skill integrity-error badges, never a dead skills list.
-    skills: opts.skills ?? new SkillsService({ trust: new SkillTrustService() }),
+    skills:
+      opts.skills ?? new SkillsService({ trust: new SkillTrustService() }),
     fleet,
     provision,
     inference: opts.inference ?? detectInference(),
@@ -657,11 +747,31 @@ export async function runSidecar(
     gov,
   });
 
+  const workbench = new WorkbenchService(
+    loadConfig({ env: process.env }).dataDir,
+    (e) => output(JSON.stringify(e) + "\n"),
+  );
+
   try {
-    for await (const rawLine of lineBuffer(input as AsyncIterable<string | Buffer>)) {
+    for await (const rawLine of lineBuffer(
+      input as AsyncIterable<string | Buffer>,
+    )) {
       const line = rawLine.trim();
       if (line.length === 0) continue;
 
+      try {
+        const req = JSON.parse(line);
+        if (
+          req.kind === "desktop.request" &&
+          typeof req.id === "string" &&
+          typeof req.method === "string"
+        ) {
+          await workbench.handle(req);
+          continue;
+        }
+      } catch {
+        /* normal codec reports malformed input */
+      }
       let command: Command;
       try {
         command = decodeCommand(line);
@@ -671,7 +781,7 @@ export async function runSidecar(
             kind: "log",
             line: `malformed command, ignored: ${errMsg(err)}`,
             at: now(),
-          })
+          }),
         );
         continue;
       }
@@ -685,6 +795,7 @@ export async function runSidecar(
     // `dispose`, not `close`: stdin has ended, so this is process-lifetime
     // teardown — the workspace feed's timer/watcher and the store handle
     // must go with it, not just the swarm handle.
+    workbench.close();
     await sidecar.dispose();
   }
 }
@@ -695,11 +806,24 @@ export async function main(): Promise<void> {
     process.stdout.write(line);
   };
 
+  let stopping = false;
   try {
     // No explicit factory: runSidecar wires the real engine factory itself,
     // decorated with the real fleet's worker->backend attribution.
-    await runSidecar(process.stdin, output, {});
+    const stop = () => {
+      stopping = true;
+      process.stdin.destroy();
+    };
+    process.once("SIGTERM", stop);
+    process.once("SIGINT", stop);
+    try {
+      await runSidecar(process.stdin, output, {});
+    } finally {
+      process.removeListener("SIGTERM", stop);
+      process.removeListener("SIGINT", stop);
+    }
   } catch (err) {
+    if (stopping) return;
     // Last-resort guard: a bug in runSidecar's own plumbing (not in a
     // command handler, which Sidecar already isolates) should still surface
     // as a log line the renderer/TUI can show, rather than an unhandled
@@ -709,7 +833,7 @@ export async function main(): Promise<void> {
         kind: "log",
         line: `sidecar-entry fatal: ${errMsg(err)}`,
         at: Date.now(),
-      })
+      }),
     );
     process.exitCode = 1;
   }
@@ -718,7 +842,10 @@ export async function main(): Promise<void> {
 // Only auto-run when invoked directly by the Rust supervisor (`node
 // dist/desktop/sidecar-entry.js`), never when imported by a test.
 const invokedDirectly =
-  process.argv[1]?.endsWith("sidecar-entry.ts") || process.argv[1]?.endsWith("sidecar-entry.js");
+  process.argv[1]?.endsWith("sidecar-entry.ts") ||
+  process.argv[1]?.endsWith("sidecar-entry.js");
 if (invokedDirectly) {
-  void main();
+  void main().then(() => {
+    process.exit(process.exitCode ?? 0);
+  });
 }

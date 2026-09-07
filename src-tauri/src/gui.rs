@@ -18,28 +18,6 @@
 //!   sidecar's stdout into a `hades_event` window event
 //!   (`window.__TAURI__.listen("hades_event", ...)` on the other side).
 //!
-//! # What is verified, and what is NOT (be honest)
-//!
-//! This build environment is headless: no display server, no WebKitGTK /
-//! WebView2 / WKWebView, no `cargo tauri` CLI. Therefore:
-//!
-//!   - The `#[cfg(feature = "gui")]` code below (everything touching `tauri`)
-//!     is **not compiled or run here**. Do NOT run `cargo check --features gui`
-//!     in this sandbox and expect success — it needs crates.io + the platform
-//!     webview libraries. That code is written to be correct by inspection and
-//!     is gated entirely behind the feature so it never touches the default
-//!     build. It must be compiled/run on a local machine with a display via
-//!     `cargo check --features gui` / `cargo tauri dev --features gui`.
-//!   - There is no screenshot of a rendered window anywhere in this change,
-//!     because no window was rendered here — there is nothing to screenshot
-//!     without that local step.
-//!
-//! What IS proven headless: the pure line-framing helpers at the bottom of this
-//! file ([`resolve_sidecar_path`], [`frame_command_line`], [`event_line_payload`])
-//! are always compiled (feature on or off) and unit-tested by a plain
-//! `cargo test`, because the wire framing is the part most worth pinning down
-//! and it needs neither `tauri` nor a display.
-
 // ---------------------------------------------------------------------------
 // GUI (feature-gated) — the real Tauri app. Not compiled in the default build.
 // ---------------------------------------------------------------------------
@@ -58,6 +36,9 @@ const EVENT_NAME: &str = "hades_event";
 struct SidecarState {
     stdin: std::sync::Mutex<Option<std::process::ChildStdin>>,
     child: std::sync::Mutex<Option<std::process::Child>>,
+    pending: std::sync::Mutex<
+        std::collections::HashMap<String, std::sync::mpsc::Sender<serde_json::Value>>,
+    >,
 }
 
 /// Renderer -> sidecar bridge. The webview invokes `"hades_command"` with a
@@ -95,6 +76,42 @@ fn hades_command(
     Ok(())
 }
 
+#[cfg(feature = "gui")]
+#[tauri::command]
+async fn hades_request(
+    cmd: serde_json::Value,
+    state: tauri::State<'_, SidecarState>,
+) -> Result<serde_json::Value, String> {
+    let id = cmd
+        .get("id")
+        .and_then(|v| v.as_str())
+        .ok_or("Missing request id")?
+        .to_string();
+    let (tx, rx) = std::sync::mpsc::channel();
+    {
+        let mut pending = state
+            .pending
+            .lock()
+            .map_err(|_| "Request lock unavailable")?;
+        if pending.len() >= 256 {
+            return Err("Too many pending requests".into());
+        }
+        pending.insert(id.clone(), tx);
+    }
+    let write_result = hades_command(cmd, state.clone());
+    if let Err(error) = write_result {
+        state.pending.lock().ok().map(|mut p| p.remove(&id));
+        return Err(error);
+    }
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        rx.recv_timeout(std::time::Duration::from_secs(65))
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    state.pending.lock().ok().map(|mut p| p.remove(&id));
+    result.map_err(|_| "The local backend did not respond".into())
+}
+
 /// Build and run the Tauri application. Never returns under normal operation
 /// (Tauri owns the event loop until the window closes).
 ///
@@ -108,19 +125,76 @@ pub fn run() {
     use tauri::{Emitter, Manager};
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        let _ = hades_window(app.clone(), "hud".into(), None);
+                    }
+                })
+                .build(),
+        )
         .manage(SidecarState::default())
-        .invoke_handler(tauri::generate_handler![hades_command])
+        .invoke_handler(tauri::generate_handler![
+            hades_command,
+            hades_request,
+            hades_window,
+            hades_key,
+            hades_quick_entry
+        ])
         .setup(|app| {
-            let sidecar_path = resolve_sidecar_path(std::env::var("HADES_SIDECAR").ok());
+            let resources = app.path().resource_dir()?;
+            let bundled = resources.join("sidecar-entry.js");
+            let sidecar_path = std::env::var("HADES_SIDECAR").unwrap_or_else(|_| {
+                if bundled.exists() {
+                    bundled.to_string_lossy().into_owned()
+                } else {
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("../dist/desktop/sidecar-entry.js")
+                        .to_string_lossy()
+                        .into_owned()
+                }
+            });
+            let node = if resources.join("node").exists() {
+                resources.join("node")
+            } else {
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../dist/runtime/node")
+            };
+            let home = app.path().home_dir()?;
+            let data = std::env::var("HADES_DATA_DIR")
+                .map(std::path::PathBuf::from)
+                .unwrap_or(home.join(".hades"));
+            std::fs::create_dir_all(&data)?;
             crate::log(&format!("gui: launching sidecar: node {sidecar_path}"));
 
-            let mut child = Command::new("node")
+            let mut child = Command::new(node)
                 .arg(&sidecar_path)
+                .current_dir(&home)
+                .env("HADES_DATA_DIR", &data)
+                .env(
+                    "HADES_PTY",
+                    if resources.join("hades-pty").exists() {
+                        resources.join("hades-pty")
+                    } else {
+                        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                            .join("../dist/runtime/hades-pty")
+                    },
+                )
+                .env(
+                    "PATH",
+                    format!(
+                        "/opt/homebrew/bin:/usr/local/bin:{}",
+                        std::env::var("PATH").unwrap_or_default()
+                    ),
+                )
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 // Inherit stderr so sidecar crash logs surface wherever the app
                 // was launched from — same choice as the headless supervisor.
-                .stderr(Stdio::inherit())
+                .stderr(Stdio::from(std::fs::File::create(
+                    data.join("desktop-backend.log"),
+                )?))
                 .spawn()?;
 
             let child_stdin = child
@@ -166,6 +240,19 @@ pub fn run() {
                     };
                     match serde_json::from_str::<serde_json::Value>(payload) {
                         Ok(value) => {
+                            if value.get("kind").and_then(|v| v.as_str())
+                                == Some("desktop.response")
+                            {
+                                if let Some(id) = value.get("id").and_then(|v| v.as_str()) {
+                                    let state = handle.state::<SidecarState>();
+                                    let sender =
+                                        state.pending.lock().ok().and_then(|mut p| p.remove(id));
+                                    if let Some(sender) = sender {
+                                        let _ = sender.send(value);
+                                        continue;
+                                    }
+                                }
+                            }
                             if let Err(err) = handle.emit(EVENT_NAME, value) {
                                 crate::log(&format!("gui: failed to emit {EVENT_NAME}: {err}"));
                             }
@@ -175,13 +262,153 @@ pub fn run() {
                         }
                     }
                 }
+                let _ = handle.emit(
+                    EVENT_NAME,
+                    serde_json::json!({"kind":"desktop.disconnected"}),
+                );
                 crate::log("gui: sidecar stdout closed; event stream ended");
             });
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running the Hades Tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building Hades")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                let state = app.state::<SidecarState>();
+                state.stdin.lock().ok().and_then(|mut s| s.take());
+                if let Ok(mut guard) = state.child.lock() {
+                    if let Some(mut child) = guard.take() {
+                        // EOF lets the backend cancel turns and reap its PTY children.
+                        let deadline =
+                            std::time::Instant::now() + std::time::Duration::from_secs(2);
+                        while matches!(child.try_wait(), Ok(None))
+                            && std::time::Instant::now() < deadline
+                        {
+                            std::thread::sleep(std::time::Duration::from_millis(20));
+                        }
+                        if matches!(child.try_wait(), Ok(None)) {
+                            let _ = child.kill();
+                        }
+                        let _ = child.wait();
+                    }
+                };
+            }
+        });
+}
+
+#[cfg(feature = "gui")]
+#[tauri::command]
+fn hades_quick_entry(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    if enabled
+        && app
+            .global_shortcut()
+            .is_registered("CommandOrControl+Shift+Space")
+    {
+        return Ok(());
+    }
+    if enabled {
+        app.global_shortcut()
+            .register("CommandOrControl+Shift+Space")
+            .map_err(|e| e.to_string())
+    } else {
+        app.global_shortcut()
+            .unregister("CommandOrControl+Shift+Space")
+            .map_err(|e| e.to_string())
+    }
+}
+
+#[cfg(feature = "gui")]
+#[tauri::command]
+fn hades_window(
+    app: tauri::AppHandle,
+    action: String,
+    session: Option<String>,
+) -> Result<(), String> {
+    use tauri::Manager;
+    let label = if action == "hud" {
+        "hud".to_string()
+    } else {
+        format!(
+            "chat-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        )
+    };
+    if let Some(window) = app.get_webview_window(&label) {
+        window.close().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    let session = session
+        .unwrap_or_default()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
+        .collect::<String>();
+    let query = format!(
+        "?session={session}{}",
+        if action == "hud" { "&hud=1" } else { "" }
+    );
+    let mut builder = tauri::WebviewWindowBuilder::new(
+        &app,
+        &label,
+        tauri::WebviewUrl::App(format!("index.html{query}").into()),
+    )
+    .title("Hades")
+    .inner_size(960.0, 700.0)
+    .min_inner_size(500.0, 400.0);
+    if action == "hud" {
+        builder = builder.inner_size(640.0, 400.0).always_on_top(true);
+    }
+    builder.build().map_err(|e| e.to_string())?;
+    Ok(())
+}
+#[cfg(feature = "gui")]
+#[tauri::command]
+fn hades_key(
+    account: String,
+    value: Option<String>,
+    state: tauri::State<'_, SidecarState>,
+) -> Result<bool, String> {
+    if !account
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || "-_:".contains(c))
+        || account.len() > 120
+    {
+        return Err("Invalid provider account".into());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use security_framework::passwords::{
+            delete_generic_password, get_generic_password, set_generic_password,
+        };
+        let service = "ai.hades.desktop";
+        if let Some(ref v) = value {
+            if v.is_empty() {
+                let _ = delete_generic_password(service, &account);
+            } else {
+                set_generic_password(service, &account, v.as_bytes())
+                    .map_err(|e| format!("Keychain: {e}"))?;
+            }
+        }
+        let key = get_generic_password(service, &account)
+            .ok()
+            .and_then(|b| String::from_utf8(b).ok())
+            .unwrap_or_default();
+        let configured = !key.is_empty();
+        hades_command(
+            serde_json::json!({"kind":"desktop.request","id":"native-key","method":"key.set","args":{"account":account,"key":key}}),
+            state,
+        )?;
+        Ok(configured)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (value, state);
+        Err("Keychain is available on macOS only; use environment credentials.".into())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +421,7 @@ pub fn run() {
 /// shared with the headless supervisor in `main.rs`). The override is passed in
 /// rather than read here so the resolution is pure and testable.
 #[cfg_attr(not(feature = "gui"), allow(dead_code))]
+#[allow(dead_code)]
 fn resolve_sidecar_path(env_override: Option<String>) -> String {
     match env_override {
         Some(p) if !p.trim().is_empty() => p,

@@ -36,6 +36,7 @@ export interface ConversationalAgentDeps {
   brain: ConversationBrain;
   /** Resume an existing persisted session; unknown ids fail explicitly. */
   sessionId?: string;
+  images?: string[];
   memory?: MemoryStore;
   sessions?: SessionStore;
   /** Anything that can render a prose profile of the user — the legacy
@@ -87,7 +88,7 @@ export class ConversationalAgent {
     const history = (session?.messages ?? []).slice(-this.historyLimit);
     const contextPrompt = this.loadContextPrompt();
 
-    this.deps.sessions?.append(this.sessionId, { role: "user", content: input });
+    this.deps.sessions?.append(this.sessionId, { role: "user", content: input, ...(this.deps.images?.length?{images:this.deps.images}:{}) });
     const reply = await this.deps.brain({ input, memories, userProfile, history, contextPrompt }, stream, signal);
     if (reply) this.deps.sessions?.append(this.sessionId, { role: "assistant", content: reply });
     return reply;

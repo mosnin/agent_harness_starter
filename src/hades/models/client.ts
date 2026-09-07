@@ -16,6 +16,8 @@
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
   content: string;
+  /** Validated image data URLs for multimodal providers. */
+  images?: string[];
 }
 
 export interface ChatRequest {
@@ -24,6 +26,8 @@ export interface ChatRequest {
   maxTokens?: number;
   temperature?: number;
   signal?: AbortSignal;
+  /** Receives provider text deltas when streaming is supported. */
+  onText?: (chunk: string) => void;
 }
 
 export interface ChatResponse {
@@ -144,8 +148,7 @@ export class HttpModelClient implements ModelClient {
     this.provider = provider;
     // Bind to preserve the correct `this` for a real global fetch.
     const impl = opts?.fetchImpl ?? globalThis.fetch;
-    this.fetchImpl =
-      opts?.fetchImpl ?? (impl ? impl.bind(globalThis) : impl);
+    this.fetchImpl = opts?.fetchImpl ?? (impl ? impl.bind(globalThis) : impl);
     this.prices = opts?.prices ?? DEFAULT_PRICES;
   }
 
@@ -163,8 +166,23 @@ export class HttpModelClient implements ModelClient {
     const url = `${this.stripTrailingSlash(this.provider.baseUrl)}/chat/completions`;
     const body: Record<string, unknown> = {
       model: req.model,
-      messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
+      messages: req.messages.map((m) => ({
+        role: m.role,
+        content: m.images?.length
+          ? [
+              { type: "text", text: m.content },
+              ...m.images.map((url) => ({
+                type: "image_url",
+                image_url: { url },
+              })),
+            ]
+          : m.content,
+      })),
     };
+    if (req.onText) {
+      body.stream = true;
+      body.stream_options = { include_usage: true };
+    }
     if (req.maxTokens !== undefined) body.max_tokens = req.maxTokens;
     if (req.temperature !== undefined) body.temperature = req.temperature;
 
@@ -179,7 +197,9 @@ export class HttpModelClient implements ModelClient {
       method: "POST",
       headers,
       body: JSON.stringify(body),
-      signal: req.signal ? AbortSignal.any([req.signal, AbortSignal.timeout(120_000)]) : AbortSignal.timeout(120_000),
+      signal: req.signal
+        ? AbortSignal.any([req.signal, AbortSignal.timeout(120_000)])
+        : AbortSignal.timeout(120_000),
     });
     if (!res.ok) {
       const detail = await this.safeText(res);
@@ -187,11 +207,19 @@ export class HttpModelClient implements ModelClient {
         `[${this.provider.name}] openai chat/completions failed: ${res.status} ${detail}`,
       );
     }
+    if (res.headers?.get?.("content-type")?.includes("text/event-stream"))
+      return this.readStream(res, req);
     const data = (await res.json()) as OpenAIChatResponse;
     const text = data.choices?.[0]?.message?.content ?? "";
     const tokensIn = data.usage?.prompt_tokens ?? 0;
     const tokensOut = data.usage?.completion_tokens ?? 0;
-    return this.finalize(req.model, text, tokensIn, tokensOut, data.usage !== undefined);
+    return this.finalize(
+      req.model,
+      text,
+      tokensIn,
+      tokensOut,
+      data.usage !== undefined,
+    );
   }
 
   private async chatAnthropic(req: ChatRequest): Promise<ChatResponse> {
@@ -207,7 +235,24 @@ export class HttpModelClient implements ModelClient {
       .filter((m) => m.role !== "system")
       .map((m) => ({
         role: m.role === "assistant" ? "assistant" : "user",
-        content: m.content,
+        content: m.images?.length
+          ? [
+              { type: "text", text: m.content },
+              ...m.images.map((url) => {
+                const match =
+                  /^data:(image\/(?:png|jpeg|gif|webp));base64,(.+)$/.exec(url);
+                if (!match) throw new Error("Invalid image attachment");
+                return {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: match[1],
+                    data: match[2],
+                  },
+                };
+              }),
+            ]
+          : m.content,
       }));
 
     const body: Record<string, unknown> = {
@@ -218,6 +263,7 @@ export class HttpModelClient implements ModelClient {
     };
     if (req.temperature !== undefined) body.temperature = req.temperature;
     if (system) body.system = system;
+    if (req.onText) body.stream = true;
 
     const headers: Record<string, string> = {
       "content-type": "application/json",
@@ -229,7 +275,9 @@ export class HttpModelClient implements ModelClient {
       method: "POST",
       headers,
       body: JSON.stringify(body),
-      signal: req.signal ? AbortSignal.any([req.signal, AbortSignal.timeout(120_000)]) : AbortSignal.timeout(120_000),
+      signal: req.signal
+        ? AbortSignal.any([req.signal, AbortSignal.timeout(120_000)])
+        : AbortSignal.timeout(120_000),
     });
     if (!res.ok) {
       const detail = await this.safeText(res);
@@ -237,6 +285,8 @@ export class HttpModelClient implements ModelClient {
         `[${this.provider.name}] anthropic messages failed: ${res.status} ${detail}`,
       );
     }
+    if (res.headers?.get?.("content-type")?.includes("text/event-stream"))
+      return this.readStream(res, req);
     const data = (await res.json()) as AnthropicMessagesResponse;
     const text = (data.content ?? [])
       .filter((b) => (b.type ?? "text") === "text")
@@ -244,7 +294,98 @@ export class HttpModelClient implements ModelClient {
       .join("");
     const tokensIn = data.usage?.input_tokens ?? 0;
     const tokensOut = data.usage?.output_tokens ?? 0;
-    return this.finalize(req.model, text, tokensIn, tokensOut, data.usage !== undefined);
+    return this.finalize(
+      req.model,
+      text,
+      tokensIn,
+      tokensOut,
+      data.usage !== undefined,
+    );
+  }
+
+  private async readStream(
+    res: Response,
+    req: ChatRequest,
+  ): Promise<ChatResponse> {
+    if (!res.body) throw new Error("Provider returned no stream");
+    const reader = res.body.getReader(),
+      decoder = new TextDecoder();
+    let buffer = "",
+      output = "",
+      tokensIn = 0,
+      tokensOut = 0,
+      hasUsage = false,
+      complete = false;
+    let data: string[] = [];
+    const consume = () => {
+      const raw = data.join("\n").trim();
+      data = [];
+      if (!raw) return;
+      if (raw === "[DONE]") {
+        complete = true;
+        return;
+      }
+      const event = JSON.parse(raw);
+      if (event.error)
+        throw new Error(event.error.message ?? "Provider stream error");
+      if (
+        event.type === "message_stop" ||
+        event.choices?.some((c: { finish_reason?: string }) => c.finish_reason)
+      )
+        complete = true;
+      const delta =
+        event.choices?.[0]?.delta?.content ??
+        (event.type === "content_block_delta" ? event.delta?.text : "");
+      if (typeof delta === "string" && delta) {
+        if (output.length + delta.length > 4_000_000)
+          throw new Error("Provider stream exceeded size limit");
+        output += delta;
+        req.onText?.(delta);
+      }
+      const usage = event.usage ?? event.message?.usage;
+      if (usage) {
+        hasUsage = true;
+        tokensIn = usage.prompt_tokens ?? usage.input_tokens ?? tokensIn;
+        tokensOut = usage.completion_tokens ?? usage.output_tokens ?? tokensOut;
+      }
+    };
+    const line = (value: string) => {
+      if (!value) consume();
+      else if (value.startsWith("data:")) data.push(value.slice(5).trimStart());
+    };
+    const abort = () => {
+      void reader.cancel().catch(() => {});
+    };
+    req.signal?.addEventListener("abort", abort, { once: true });
+    try {
+      while (true) {
+        req.signal?.throwIfAborted();
+        const { value, done } = await reader.read();
+        req.signal?.throwIfAborted();
+        buffer += decoder.decode(value, { stream: !done });
+        if (buffer.length + data.join("").length > 2_000_000)
+          throw new Error("Provider stream exceeded size limit");
+        let index: number;
+        while ((index = buffer.indexOf("\n")) >= 0) {
+          line(buffer.slice(0, index).replace(/\r$/, ""));
+          buffer = buffer.slice(index + 1);
+        }
+        if (done) {
+          if (buffer.trim()) line(buffer);
+          consume();
+          break;
+        }
+      }
+      if (!complete)
+        throw new Error(
+          "Provider stream ended before completion. Please retry.",
+        );
+    } finally {
+      req.signal?.removeEventListener("abort", abort);
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
+    return this.finalize(req.model, output, tokensIn, tokensOut, hasUsage);
   }
 
   private finalize(

@@ -47,3 +47,9 @@ dist/desktop/
 
 # hades CLI bundle (built by scripts/build-hades.mjs)
 dist-hades/
+
+# Native Mac build products
+dist-mac/
+dist/runtime/
+src-tauri/target/
+src-tauri/gen/

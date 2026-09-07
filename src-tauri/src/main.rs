@@ -9,28 +9,9 @@
 //! JSON over stdio — see `src/desktop/ipc/contract.ts`), and restarts it with
 //! bounded retries if it crashes.
 //!
-//! # What this file is NOT (be honest about the gap)
-//!
-//! This build environment is headless: no display server, no webview system
-//! libraries, and no `cargo tauri` CLI installed. That means:
-//!
-//!   - This crate has **zero external dependencies** on purpose, so
-//!     `cargo check` (and `cargo build`) succeed offline in a sandbox with
-//!     nothing but the Rust standard library. There is no `tauri` crate here.
-//!   - There is no window, no webview, no renderer wired up in this binary.
-//!     The actual Tauri application shell (native window, webview pointed at
-//!     the built desktop UI, IPC bridge from the webview to this process)
-//!     is configured declaratively in `tauri.conf.json` next to this file,
-//!     and is a **local build step**: on a machine with the Tauri CLI and
-//!     the platform webview libs installed, `cargo tauri dev` /
-//!     `cargo tauri build` reads that config, generates the real Tauri
-//!     `main.rs` bindings (or wraps this supervisor as the sidecar-launching
-//!     half of it), and produces the installable app. That step cannot run
-//!     here and was not attempted here.
-//!
-//! In short: this binary is a genuine, runnable process supervisor you can
-//! `cargo run` right now (given a `node` on PATH and a sidecar entry file);
-//! it is deliberately scoped to the part that does not need a display.
+//! The default build runs this stdio supervisor. `--features gui` instead
+//! launches the native Tauri application in gui.rs. The macOS build script
+//! bundles the compiled shell, Node runtime, sidecar and icon into Hades.app.
 //!
 //! # Design
 //!
@@ -80,6 +61,7 @@ const BACKOFF_STEP: Duration = Duration::from_millis(250);
 /// buffered — see the module doc comment.
 type StdinSlot = Arc<Mutex<Option<ChildStdin>>>;
 
+#[allow(unreachable_code)]
 fn main() {
     // With `--features gui`, hand off to the real Tauri window shell and never
     // fall through to the headless stdio supervisor below. This branch is

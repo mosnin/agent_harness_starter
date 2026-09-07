@@ -84,14 +84,13 @@ describe("desktop frontend source shape", () => {
     expect(html).not.toMatch(/<(link|script)[^>]*\s(href|src)="https?:\/\//);
   });
 
-  it("main.ts wires mountApp to tauriBridge/devBridge based on window.__TAURI__", async () => {
-    const main = await readFile(path.join(REPO_ROOT, "src/desktop/ui/main.ts"), "utf8");
-    expect(main).toMatch(/from ["']\.\/renderer["']/);
-    expect(main).toContain("mountApp");
-    expect(main).toMatch(/from ["']\.\/bridge["']/);
-    expect(main).toContain("tauriBridge");
-    expect(main).toContain("devBridge");
-    expect(main).toContain("__TAURI__");
-    expect(main).toContain("DOMContentLoaded");
+  it("ships a browser-safe bundle with no Node imports or development sidecar", async () => {
+    outdir = await mkdtemp(path.join(tmpParent, "desktop-boundary-"));
+    await buildDesktop({ outdir });
+    const bundle = await readFile(path.join(outdir, "main.js"), "utf8");
+    expect(bundle).not.toMatch(/from ["']node:/);
+    expect(bundle).not.toContain("class Sidecar");
+    expect(bundle).toContain("hades_command");
+    expect(bundle).toContain("hades_event");
   });
 });

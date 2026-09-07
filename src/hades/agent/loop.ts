@@ -37,7 +37,9 @@ export interface AgentLoopOptions {
   temperature?: number;
   signal?: AbortSignal;
   history?: ChatMessage[];
+  images?: string[];
   onTool?: (call: ToolCall, result: string) => void;
+  onText?: (chunk: string) => void;
 }
 
 export interface AgentLoopResult {
@@ -82,7 +84,7 @@ export class AgentLoop {
     const messages: ChatMessage[] = [
       { role: "system", content: this.buildSystemPrompt() },
       ...(this.opts.history ?? []),
-      { role: "user", content: task },
+      { role: "user", content: task, ...(this.opts.images?.length?{images:this.opts.images}:{}) },
     ];
 
     const toolCalls: Array<{ call: ToolCall; result: string; ok?: boolean }> = [];
@@ -102,6 +104,7 @@ export class AgentLoop {
           messages,
           temperature: this.opts.temperature,
           signal: this.opts.signal,
+          onText: this.opts.onText,
         });
         reply = res.text ?? "";
         tokensIn += res.tokensIn ?? 0;

@@ -65,10 +65,15 @@ replayed. Process workers share host permissions; Docker requires a configured
 image, reachable control-plane address and network. Container workspaces are
 inside the container, not automatically mounted from your project.
 
-The desktop sidecar uses the same real executor. Build its JavaScript halves
-with `npm run desktop:build`; native installers use the separate Desktop Build
-workflow. Messaging uses an explicit `HADES_GATEWAY_ENGINE=swarm` opt-in and
-provider credentials. Its fallback labels itself as a mock.
+Build and open the native Mac app with `./script/build_and_run.sh`. It bundles
+its own backend and Node runtime into `dist-mac/Hades.app`. The chat-first
+interface includes projects, files, Git, terminals, memory, skills, profiles,
+routines and a new original Hades icon. `./script/package_mac.sh` creates a
+local-use ZIP and DMG. See [Mac setup and acceptance](docs/DESKTOP_APP.md)
+and the [Hermes feature comparison](docs/HERMES_DESKTOP_PARITY.md).
+
+Messaging uses an explicit `HADES_GATEWAY_ENGINE=swarm` opt-in and provider
+credentials. Its fallback labels itself as a mock.
 
 ## What verification means
 

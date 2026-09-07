@@ -3,52 +3,55 @@
   "productName": "Hades",
   "version": "0.1.0",
   "identifier": "ai.hades.desktop",
-
-  "//_sidecar": "NOT run in this headless environment. This file is config data consumed by the `cargo tauri` CLI on a machine with a display + webview libs; it is not executed by `cargo check`. The actual native shell logic (spawn/pipe/restart the Node sidecar) lives in src-tauri/src/main.rs, a plain std-only Rust binary you can `cargo run` directly. The Tauri build step wraps that behavior as this app's `beforeDevCommand`/`beforeBuildCommand`, or as an externalBin sidecar, depending on how the real build wires it up — that wiring was not attempted here.",
-
   "build": {
-    "frontendDist": "../dist/desktop/renderer",
-    "beforeBuildCommand": "npm run build:desktop-renderer",
-    "beforeDevCommand": "npm run dev:desktop-renderer",
-    "devUrl": "http://localhost:5183"
+    "frontendDist": "../dist/desktop",
+    "beforeBuildCommand": "npm run desktop:build",
+    "beforeDevCommand": "npm run desktop:build"
   },
-
   "app": {
-    "withGlobalTauri": false,
+    "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",
         "title": "Hades",
-        "width": 1280,
-        "height": 800,
-        "minWidth": 900,
-        "minHeight": 600,
-        "resizable": true,
-        "center": true,
-        "decorations": true,
+        "width": 1240,
+        "height": 820,
+        "minWidth": 800,
+        "minHeight": 560,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "//titleBarStyle": "macOS: draw the traffic lights over a custom title bar (Overlay + hiddenTitle), matching the terminal/desktop-app aesthetic rather than a browser chrome look.",
-        "trafficLightPosition": { "x": 16, "y": 16 }
+        "trafficLightPosition": {
+          "x": 20,
+          "y": 22
+        },
+        "backgroundThrottling": "disabled",
+        "dragDropEnabled": false
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; script-src 'self'; connect-src ipc: http://ipc.localhost; frame-src 'self' https: http://localhost:* http://127.0.0.1:*"
     }
   },
-
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg", "deb", "appimage", "msi", "nsis"],
-    "identifier": "ai.hades.desktop",
+    "targets": [
+      "app",
+      "dmg"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
+      "icons/icon.icns"
     ],
-    "//sidecar_binaries": "Real build: bundle the Node sidecar (built from src/desktop/sidecar-entry.ts to dist/desktop/sidecar-entry.js) as a resource or externalBin so src-tauri/src/main.rs can spawn it via the HADES_SIDECAR path without depending on a system Node install.",
-    "resources": ["../dist/desktop/sidecar-entry.js"]
+    "resources": {
+      "../dist/desktop/sidecar-entry.js": "sidecar-entry.js",
+      "../dist/runtime/node": "node",
+      "../dist/runtime/hades-pty": "hades-pty",
+      "runtime-package.json": "package.json"
+    },
+    "macOS": {
+      "minimumSystemVersion": "12.0"
+    }
   }
 }

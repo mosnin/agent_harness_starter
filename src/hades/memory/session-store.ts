@@ -7,6 +7,7 @@ export interface SessionMessage {
   role: "user" | "assistant" | "system";
   content: string;
   at: number;
+  images?: string[];
 }
 
 /** A past conversation Hades can search and recall — the FTS5-session-search analogue. */
@@ -92,7 +93,7 @@ export class InMemorySessionStore implements SessionStore {
   append(id: string, msg: Omit<SessionMessage, "at"> & { at?: number }): void {
     const s = this.sessions.get(id);
     if (!s) return;
-    s.messages.push({ role: msg.role, content: msg.content, at: msg.at ?? this.now() });
+    s.messages.push({ role: msg.role, content: msg.content, at: msg.at ?? this.now(), ...(msg.images?.length?{images:msg.images}:{}) });
     this.persist();
   }
 
@@ -161,7 +162,7 @@ export class FileSessionStore extends InMemorySessionStore {
       /* exists */
     }
     const tmp = `${this.path}.tmp`;
-    writeFileSync(tmp, JSON.stringify(this.all()));
+    writeFileSync(tmp, JSON.stringify(this.all()), {mode:0o600});
     renameSync(tmp, this.path);
   }
 }
