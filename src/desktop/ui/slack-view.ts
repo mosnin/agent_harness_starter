@@ -1,3 +1,4 @@
+import { captureFocus, restoreFocus } from "./focus";
 import manifest from "../../../docs/integration/slack-app-manifest.json";
 type Row = Record<string, any>;
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -31,8 +32,12 @@ export class SlackView {
     finally { this.busy = false; this.paint(); }
   }
   private paint() {
+    const focus = captureFocus(this.node);
+    const scrollTop = this.node.scrollTop;
+    const expanded = this.node.querySelector<HTMLDetailsElement>(".advanced")?.open;
+    const tokens = [...this.node.querySelectorAll<HTMLInputElement>('input[type="password"]')].map(input => ({ id: input.id, value: input.value }));
     const s = this.state, c = this.context();
-    this.node.innerHTML = `<h2>Slack</h2><p class="page-description">Mention your Hades agent in a Slack thread. Replies stay in that thread.</p>
+    this.node.innerHTML = `<div class="page-heading"><h1>Slack</h1><p>Mention your Hades agent in a Slack thread. Replies stay in that thread.</p></div>
       <div class="record"><div><h3>${esc(s.connection ?? "Loading")}</h3><p>${s.config ? esc(s.config.root) : "Choose a project and agent in Hades, then save the connection settings below."}</p></div><button data-command="connect" ${!s.config ? "disabled" : ""}>${s.enabled ? "Disconnect" : "Connect"}</button></div>
       ${this.error ? `<p class="inline-notice" role="alert">${esc(this.error)}</p>` : ""}
       <details class="advanced" ${!s.config ? "open" : ""}><summary>Connection settings</summary>
@@ -45,6 +50,10 @@ export class SlackView {
       <div class="page-actions"><button data-command="save" ${s.enabled ? "disabled" : ""}>Save settings</button><button data-command="channels">List bot channels</button></div>
       ${this.available.map(channel => `<p class="help">#${esc(channel.name)} · <code>${esc(channel.id)}</code></p>`).join("")}</details>
       <h3>Requests</h3>${(s.jobs ?? []).length ? s.jobs.map((j: Row) => `<div class="record"><div><h3>${esc(j.input.slice(0, 100))}</h3><p>${esc(j.status)} · ${esc(j.channel)} · ${esc(j.user)}</p>${j.error ? `<p class="help">${esc(j.error)}</p>` : ""}</div>${j.session ? `<button data-session="${esc(j.session)}">Open conversation</button>` : ""}${j.status === "ready" ? `<button data-publish="${esc(j.id)}">Publish reply</button>` : ""}</div>`).join("") : '<p class="help">No requests yet. Connect, then mention the bot in an allowed channel.</p>'}`;
+    if (expanded !== undefined) this.node.querySelector<HTMLDetailsElement>(".advanced")!.open = expanded;
+    for (const token of tokens) this.node.querySelector<HTMLInputElement>(`#${token.id}`)!.value = token.value;
+    this.node.scrollTop = scrollTop;
+    restoreFocus(this.node, focus);
     this.node.querySelector<HTMLInputElement>("#slack-channels")!.oninput = e => this.channels = (e.target as HTMLInputElement).value;
     this.node.querySelector<HTMLInputElement>("#slack-users")!.oninput = e => this.users = (e.target as HTMLInputElement).value;
     this.node.querySelectorAll<HTMLButtonElement>("button").forEach(b => b.onclick = () => {

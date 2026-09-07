@@ -50,14 +50,19 @@ export function parseShortcuts(input: Record<string, unknown>) {
   return result;
 }
 export function eventShortcut(
-  e: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey">,
+  e: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey"> & Partial<Pick<KeyboardEvent, "code">>,
 ) {
-  return (
-    (e.metaKey || e.ctrlKey ? "mod+" : "") +
-    (e.shiftKey ? "shift+" : "") +
-    (e.altKey ? "alt+" : "") +
-    e.key.toLowerCase()
-  );
+  // Option changes the produced character on macOS (Option-K is ˚).
+  const physical = e.code?.match(/^(?:Key|Digit)([A-Z0-9])$/)?.[1]?.toLowerCase();
+  const punctuation: Record<string, string> = { Comma: ",", Period: ".", Slash: "/", Semicolon: ";", BracketLeft: "[", BracketRight: "]", Backquote: "`", Minus: "-" };
+  const shifted: Record<string, string> = { "<": ",", ">": ".", "?": "/", ":": ";", "{": "[", "}": "]", "~": "`", "_": "-" };
+  const key = e.altKey ? physical ?? punctuation[e.code ?? ""] ?? e.key.toLowerCase()
+    : e.shiftKey ? shifted[e.key] ?? e.key.toLowerCase() : e.key.toLowerCase();
+  return (e.metaKey || e.ctrlKey ? "mod+" : "") + (e.shiftKey ? "shift+" : "") + (e.altKey ? "alt+" : "") + key;
+}
+export function formatShortcut(binding: string) {
+  const symbols: Record<string, string> = { mod: "⌘", shift: "⇧", alt: "⌥" };
+  return binding.split("+").map(part => symbols[part] ?? part.toUpperCase()).join(" ");
 }
 export const themeMapping: Record<string, string> = {
   "editor.background": "--bg",

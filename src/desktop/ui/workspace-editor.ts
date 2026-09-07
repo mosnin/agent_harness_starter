@@ -1,3 +1,4 @@
+import { icon } from "./icons";
 import { basicSetup } from "codemirror";
 import { EditorState, Compartment } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
@@ -60,7 +61,7 @@ export class WorkspaceEditor {
   }
   private editorTheme() {
     return EditorView.theme({
-      "&": { height: "100%", fontSize: "13px", backgroundColor: "var(--bg)", color: "var(--text)" },
+      "&": { height: "100%", fontSize: "0.929rem", backgroundColor: "var(--bg)", color: "var(--text)" },
       ".cm-scroller": { overflow: "auto", fontFamily: '"SFMono-Regular", Menlo, monospace', lineHeight: "1.65" },
       ".cm-gutters": { backgroundColor: "var(--panel)", color: "var(--muted)", borderRight: "1px solid var(--line)" },
       ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "var(--panel)" },
@@ -130,7 +131,7 @@ export class WorkspaceEditor {
       const tab = document.createElement("div"); tab.className = "editor-tab" + (key === this.selected ? " selected" : "");
       const open = document.createElement("button"); open.textContent = doc.path.split("/").at(-1)! + (this.dirty(doc) ? " •" : "");
       open.title = doc.path; open.setAttribute("role", "tab"); open.setAttribute("aria-selected", String(key === this.selected)); open.onclick = () => this.select(key);
-      const close = document.createElement("button"); close.textContent = "×"; close.setAttribute("aria-label", `Close ${doc.path}`);
+      const close = document.createElement("button"); close.innerHTML = icon("close"); close.setAttribute("aria-label", `Close ${doc.path}`);
       close.onclick = () => {
         if (this.dirty(doc)) { this.report(new Error("Save this file or reload it from disk before closing.")); return; }
         this.docs.delete(key);

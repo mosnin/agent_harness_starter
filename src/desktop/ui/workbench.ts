@@ -1,6 +1,7 @@
 import { SlackView } from "./slack-view";
 import { TeamChatView } from "./team-chat";
 import { WorkspaceEditor } from "./workspace-editor";
+import { captureFocus, restoreFocus, dialogFocusable } from "./focus";
 import { icon } from "./icons";
 /** Chat-first native workbench. No Node imports, remote scripts or browser server. */
 import { providers } from "./providers";
@@ -13,6 +14,7 @@ import {
   shortcutDefaults,
   parseShortcuts,
   eventShortcut,
+  formatShortcut,
   parseTheme,
   themeMapping,
 } from "./preferences";
@@ -25,8 +27,10 @@ const esc = (v: unknown) =>
         c
       ]!,
   );
-const button = (label: string, action: string, extra = "") =>
-  `<button type="button" data-action="${action}" ${extra}>${label}</button>`;
+const button = (label: string, action: string, extra = "") => {
+  const accessibleLabel = extra.match(/aria-label="([^"]+)"/)?.[1];
+  return `<button type="button" data-action="${action}" ${extra}${accessibleLabel && !extra.includes('title="') ? ` title="${accessibleLabel}"` : ""}>${label}</button>`;
+};
 const field = (label: string, id: string, value = "", type = "text") =>
   `<label class="field">${label}<input id="${id}" type="${type}" value="${esc(value)}" autocomplete="off"></label>`;
 const tauri = () => (globalThis as any).__TAURI__;
@@ -99,7 +103,8 @@ export function mountWorkbench(root: HTMLElement) {
     checkpoints: Row[] = [];
   let quickEntry = localStorage.getItem("hades.quickEntry") === "true";
   let connected = false,
-    sidebar = true,
+    sidebar = !matchMedia("(max-width: 800px)").matches,
+    moreOpen = false,
     statusbar = true,
     archived = false,
     theme = localStorage.getItem("hades.theme") ?? "system",
@@ -286,25 +291,30 @@ export function mountWorkbench(root: HTMLElement) {
     return button(
       icon(name) + label,
       "nav",
-      `data-view="${name}" class="nav-item ${view === name ? "selected" : ""}"`,
+      `data-view="${name}" aria-current="${view === name ? "page" : "false"}" class="nav-item ${view === name ? "selected" : ""}"`,
     );
   }
   let renderedModal = "";
+  let modalReturnFocus: ReturnType<typeof captureFocus>;
+  let renderedPane = "";
   function render() {
     const modalKey = `${modal}:${profile?.id ?? ""}`;
-    const savedFields = renderedModal === modalKey && ["settings", "profile"].includes(modal)
-      ? [...root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('[id^="settings-"]')].map(el => ({ id: el.id, value: el.value })) : [];
-    const savedDetails = renderedModal === modalKey ? [...root.querySelectorAll<HTMLDetailsElement>(".modal details")].map(el => el.open) : [];
+    const paneKey = `${pane}:${project}:${preview?.path ?? ""}`;
+    const modalChanged = renderedModal !== modalKey;
+    const hadModal = !!root.querySelector(".modal");
+    const savedFocus = captureFocus(root);
+    if (modal && !hadModal) modalReturnFocus = savedFocus;
+    const savedFields = [...root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+      [!modalChanged ? ".modal input[id], .modal textarea[id], .modal select[id]" : "", renderedPane === paneKey ? ".inspector input[id], .inspector textarea[id]" : ""].filter(Boolean).join(",") || "[data-no-preserved-fields]",
+    )].filter(el => el.type !== "file").map(el => ({ id: el.id, value: el.value, checked: (el as HTMLInputElement).checked }));
+    const savedDetails = !modalChanged ? [...root.querySelectorAll<HTMLDetailsElement>(".modal details")].map(el => el.open) : [];
+    const previousMore = root.querySelector<HTMLDetailsElement>(".sidebar-more");
+    if (previousMore) moreOpen = previousMore.open || (["artifact", "memory", "skills", "plugins", "jobs", "rooms", "models", "harness", "slack"].includes(view) && !root.querySelector(`[data-view="${view}"]`)?.classList.contains("selected"));
+    const sidebarScroll = root.querySelector(".sidebar-content")?.scrollTop ?? 0;
+    const terminalFocused = !!document.activeElement?.closest(".terminal-surface");
+    const terminalWasVisible = !!root.querySelector("#terminal-host");
     renderedModal = modalKey;
-    const activeEl = document.activeElement as
-        | HTMLInputElement
-        | HTMLTextAreaElement
-        | null,
-      focusId = activeEl?.id,
-      selection =
-        activeEl && "selectionStart" in activeEl
-          ? activeEl.selectionStart
-          : null;
+    renderedPane = paneKey;
     const transcript = root.querySelector(".transcript"),
       oldScroll = transcript?.scrollTop ?? 0,
       atEnd = transcript
@@ -314,11 +324,11 @@ export function mountWorkbench(root: HTMLElement) {
           70
         : true;
     root.innerHTML = `<div class="workbench ${!sidebar ? "hide-sidebar" : ""} ${location.search.includes("hud=1") ? "hud" : ""}">
-   <aside class="sidebar"><div class="window-space" data-tauri-drag-region></div><div class="brand"><img src="./assets/hades-icon.png" alt="Hades logo"><strong>Hades</strong></div>
-   ${button(icon("+") + "New conversation <kbd>⌘ N</kbd>", "new", 'class="new-chat"')}
-   <div class="sidebar-nav">${nav("chat", "Conversations")}${nav("workspace", "Workspace")}${nav("team", "Team chat")}${nav("agents", "Agents")}<details class="sidebar-more" ${["artifact", "memory", "skills", "plugins", "jobs", "rooms", "models", "harness", "slack"].includes(view) ? "open" : ""}><summary>More</summary>${nav("jobs", "Routines")}${nav("slack", "Slack")}${nav("artifact", "Artifacts")}${nav("memory", "Memory")}${nav("skills", "Skills")}${nav("plugins", "Extensions")}${nav("rooms", "Team rooms")}${nav("models", "Local models")}${nav("harness", "Harness")}</details></div>
-   <div class="section-label">PROJECTS ${button("+", "project", 'aria-label="Open project"')}</div><div class="project-list">${boot.projects.length ? boot.projects.map((p: string) => `<div class="project-row ${project === p ? "active" : ""}">${button(icon("files") + esc(labelProject(p)), "project-select", `data-path="${esc(p)}" title="${esc(p)}"`)}${button("×", "project-hide", `data-path="${esc(p)}" class="hide-project" aria-label="Hide project ${esc(labelProject(p))}"`)}</div>`).join("") : `<p class="sidebar-hint">Open a project folder.</p>`}</div>
-   <div class="section-label">${archived ? "ARCHIVED" : "RECENT"} ${button(archived ? "←" : "⋯", "archive-view", 'aria-label="Toggle archived conversations"')}</div>
+   <aside class="sidebar" id="sidebar" aria-label="Workspace navigation"><div class="window-space" data-tauri-drag-region></div><div class="sidebar-content"><div class="brand"><img src="./assets/hades-icon.png" alt="Hades logo"><strong>Hades</strong></div>
+   ${button(icon("+") + `<span class="truncate">New conversation</span><kbd>${esc(formatShortcut(bindings.new))}</kbd>`, "new", 'class="new-chat"')}
+   <div class="sidebar-nav">${nav("chat", "Conversations")}${nav("workspace", "Workspace")}${nav("team", "Team chat")}${nav("agents", "Agents")}<details class="sidebar-more" ${moreOpen ? "open" : ""}><summary>More</summary>${nav("jobs", "Routines")}${nav("slack", "Slack")}${nav("artifact", "Artifacts")}${nav("memory", "Memory")}${nav("skills", "Skills")}${nav("plugins", "Extensions")}${nav("rooms", "Team rooms")}${nav("models", "Local models")}${nav("harness", "Harness")}</details></div>
+   <div class="section-label">Projects ${button(icon("+"), "project", 'aria-label="Open project"')}</div><div class="project-list">${boot.projects.length ? boot.projects.map((p: string) => `<div class="project-row ${project === p ? "active" : ""}">${button(icon("files") + `<span class="truncate">${esc(labelProject(p))}</span>`, "project-select", `data-path="${esc(p)}" title="${esc(p)}"`)}${button(icon("close"), "project-hide", `data-path="${esc(p)}" class="hide-project" aria-label="Hide project ${esc(labelProject(p))}"`)}</div>`).join("") : `<p class="sidebar-hint">Open a project folder.</p>`}</div>
+   <div class="section-label">${archived ? "Archived" : "Recent"} ${button(icon(archived ? "back" : "more"), "archive-view", 'aria-label="Toggle archived conversations"')}</div>
    <input id="session-search" class="search" aria-label="Search conversations" placeholder="Search conversations" value="${esc(search)}">
    <div class="session-list">${
      boot.sessions
@@ -330,7 +340,7 @@ export function mountWorkbench(root: HTMLElement) {
        )
        .map((s: Row) =>
          button(
-           `${s.pinned ? "⌁ " : ""}${esc(s.title || "Untitled conversation")}${boot.active.includes(s.id) ? '<span class="running-dot"></span>' : ""}`,
+           `${s.pinned ? icon("pin") : ""}${esc(s.title || "Untitled conversation")}${boot.active.includes(s.id) ? '<span class="running-dot"></span>' : ""}`,
            "session",
            `data-id="${esc(s.id)}" class="session-row ${current() === s.id ? "selected" : ""}" title="${esc(s.preview || s.id)}"`,
          ),
@@ -338,23 +348,23 @@ export function mountWorkbench(root: HTMLElement) {
        .join("") ||
      '<p class="sidebar-hint">Your conversations appear here.</p>'
    }</div>
-   <div class="sidebar-footer"><select id="profile-switch" aria-label="Agent profile">${boot.profiles.map((p: Profile) => `<option value="${p.id}" ${p.id === profile?.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>${button(icon("settings"), "settings", 'class="icon-button" aria-label="Settings" title="Settings ⌘ ,"')}</div></aside>
-   <main class="main"><header class="toolbar" data-tauri-drag-region>${button("◧", "sidebar", 'class="icon-button" aria-label="Toggle sidebar"')}<div class="breadcrumb">${esc(project ? labelProject(project) : "Your workspace")} <span>/</span> <strong>${esc(view === "chat" ? session?.title || "New conversation" : ({ slack: "Slack", harness: "Harness", team: "Team chat", workspace: "Workspace", artifact: "Artifacts", memory: "Memory", skills: "Skills", jobs: "Routines", agents: "Agents", models: "Local models", rooms: "Team rooms", plugins: "Extensions" } as Row)[view])}</strong></div><div class="toolbar-actions">${button("⌕", "palette", 'class="icon-button" aria-label="Command palette" title="Command palette ⌘ K"')}${button("↗", "popout", 'class="icon-button" aria-label="Open conversation in new window"')}${button("▱", "hud", 'class="icon-button" aria-label="Floating chat"')}${button(icon("files"), "files", 'class="icon-button" aria-label="File browser"')}${button(icon("git"), "git", 'class="icon-button" aria-label="Git review"')}${button(icon("terminal"), "terminal", 'class="icon-button" aria-label="Terminal"')}</div></header>
+   </div><div class="sidebar-footer"><select id="profile-switch" aria-label="Agent profile">${boot.profiles.map((p: Profile) => `<option value="${p.id}" ${p.id === profile?.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>${button(icon("settings"), "settings", `class="icon-button" aria-label="Settings" title="Settings ${esc(formatShortcut(bindings.settings))}"`)}</div></aside>
+   ${button("", "sidebar", 'class="sidebar-scrim" aria-label="Close sidebar" tabindex="-1"')}<main class="main"><header class="toolbar" data-tauri-drag-region>${button(icon("sidebar"), "sidebar", 'id="toggle-sidebar" class="icon-button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="' + sidebar + '"')}<div class="breadcrumb">${esc(project ? labelProject(project) : "Your workspace")} <span>/</span> <strong>${esc(view === "chat" ? session?.title || "New conversation" : ({ slack: "Slack", harness: "Harness", team: "Team chat", workspace: "Workspace", artifact: "Artifacts", memory: "Memory", skills: "Skills", jobs: "Routines", agents: "Agents", models: "Local models", rooms: "Team rooms", plugins: "Extensions" } as Row)[view])}</strong></div><div class="toolbar-actions">${button(icon("search"), "palette", `class="icon-button" aria-label="Command palette" title="Command palette ${esc(formatShortcut(bindings.palette))}"`)}${button(icon("files"), "files", 'class="icon-button" aria-label="File browser"')}${button(icon("git"), "git", 'class="icon-button" aria-label="Git review"')}${button(icon("terminal"), "terminal", 'class="icon-button" aria-label="Terminal"')}<details class="toolbar-menu"><summary id="window-actions" class="icon-button" aria-label="Window actions" title="Window actions">${icon("more")}</summary><div>${button(icon("external") + "New window", "popout")}${button(icon("floating") + "Floating chat", "hud")}</div></details></div></header>
    ${
      view === "chat" && tabs.length > 1
        ? `<div class="tabs">${tabs
            .filter((id) => boot.sessions.some((s: Row) => s.id === id))
            .map(
              (id) =>
-               `<div class="tab ${id === current() ? "active" : ""}">${button(esc(boot.sessions.find((s: Row) => s.id === id)?.title || "New chat"), "session", `data-id="${id}"`)}${button("×", "tab-close", `data-id="${id}" aria-label="Close tab"`)}</div>`,
+               `<div class="tab ${id === current() ? "active" : ""}">${button(esc(boot.sessions.find((s: Row) => s.id === id)?.title || "New chat"), "session", `data-id="${id}"`)}${button(icon("close"), "tab-close", `data-id="${id}" aria-label="Close tab"`)}</div>`,
            )
-           .join("")}${button("+", "new", 'aria-label="New tab"')}</div>`
+           .join("")}${button(icon("+"), "new", 'aria-label="New tab"')}</div>`
        : ""
    }
-   ${error || notice ? `<div class="error ${error ? "" : "notice"}" role="${error ? "alert" : "status"}">${esc(error || notice)}${button("×", "dismiss", `aria-label="${error ? "Dismiss error" : "Dismiss notification"}"`)}</div>` : ""}
+   ${error || notice ? `<div class="error ${error ? "" : "notice"}" role="${error ? "alert" : "status"}">${esc(error || notice)}${button(icon("close"), "dismiss", `aria-label="${error ? "Dismiss error" : "Dismiss notification"}"`)}</div>` : ""}
    <div class="body"><section class="primary">${view === "chat" ? chatHTML() : view === "workspace" ? workspaceHTML() : view === "team" ? '<div id="team-chat-host"></div>' : view === "slack" ? '<div id="slack-host"></div>' : pageHTML()}</section>${pane ? paneHTML() : ""}</div>
-   ${statusbar ? `<footer class="statusbar"><span><i class="${running() ? "busy" : ""}"></i>${running() ? "Working" : connected ? "Local backend" : "Disconnected"} <span class="muted">/</span> ${esc(profile?.name || "Connecting")}</span><span>${usage.tokensIn !== undefined ? `${usage.tokensIn.toLocaleString()} in · ${usage.tokensOut.toLocaleString()} out · ${usage.costMeasured ? "~$" + usage.usd.toFixed(4) : profile?.provider === "codex" ? "subscription" : "price unavailable"}` : "Workspace files · ask before changes"} <span class="muted">⌘ K</span></span></footer>` : ""}</main></div>${modal ? modalHTML() : ""}`;
-    for (const field of savedFields) { const input = root.querySelector<HTMLInputElement>(`#${CSS.escape(field.id)}`); if (input) input.value = field.value; }
+   ${statusbar ? `<footer class="statusbar"><span><i class="${running() ? "busy" : connected ? "connected" : ""}"></i>${running() ? "Working" : connected ? "Ready" : "Disconnected"} <span class="muted">/</span> ${esc(profile?.name || "Connecting")}</span><span>${usage.tokensIn !== undefined ? `${usage.tokensIn.toLocaleString()} in · ${usage.tokensOut.toLocaleString()} out · ${usage.costMeasured ? "~$" + usage.usd.toFixed(4) : profile?.provider === "codex" ? "subscription" : "price unavailable"}` : "Workspace files · ask before changes"} <span class="muted">${esc(formatShortcut(bindings.palette))}</span></span></footer>` : ""}</main></div>${modal ? modalHTML() : ""}`;
+    for (const field of savedFields) { const input = root.querySelector<HTMLInputElement>(`#${CSS.escape(field.id)}`); if (input) { input.value = field.value; if (field.checked !== undefined) input.checked = field.checked; } }
     root.querySelectorAll<HTMLDetailsElement>(".modal details").forEach((el, i) => { if (savedDetails[i] !== undefined) el.open = savedDetails[i]; });
     const savedProvider = savedFields.find(f => f.id === "settings-provider")?.value;
     if (savedProvider) { const codex = root.querySelector<HTMLElement>("#codex-connection"), api = root.querySelector<HTMLElement>("#api-connection"); if (codex) codex.hidden = savedProvider !== "codex"; if (api) api.hidden = savedProvider === "codex"; }
@@ -365,32 +375,35 @@ export function mountWorkbench(root: HTMLElement) {
     if (teamHost) teamChat.mount(teamHost);
     const slackHost = root.querySelector<HTMLElement>("#slack-host");
     if (slackHost) slackView.mount(slackHost);
-    if (focusId) {
-      const el = root.querySelector<HTMLInputElement>(
-        `#${CSS.escape(focusId)}`,
-      );
-      el?.focus();
-      if (
-        selection !== null &&
-        el &&
-        ["text", "search", "password", "textarea"].includes(el.type)
-      )
-        try {
-          el.setSelectionRange(selection, selection);
-        } catch {}
+    const sidebarContent = root.querySelector(".sidebar-content");
+    if (sidebarContent) sidebarContent.scrollTop = sidebarScroll;
+    root.querySelector<HTMLElement>(".workbench")!.inert = !!modal;
+    if (modal && (modalChanged || !savedFocus)) {
+      const dialog = root.querySelector<HTMLElement>(".modal")!;
+      const candidates = dialogFocusable(dialog);
+      (candidates.find(el => el.matches("input, textarea, select")) ?? candidates[0] ?? dialog).focus({ preventScroll: true });
+    } else if (!modal && hadModal) {
+      if (!restoreFocus(root, modalReturnFocus)) root.querySelector<HTMLElement>("#composer, #toggle-sidebar")?.focus({ preventScroll: true });
+      modalReturnFocus = undefined;
+    } else {
+      if (!restoreFocus(root, savedFocus) && modal) {
+        const dialog = root.querySelector<HTMLElement>(".modal")!;
+        (dialogFocusable(dialog)[0] ?? dialog).focus({ preventScroll: true });
+      }
+      if (!modal && pane === "terminal" && (terminalFocused || !terminalWasVisible)) terminalViews.get(selectedTerminal)?.terminal.focus();
     }
     const t = root.querySelector(".transcript");
     if (t) t.scrollTop = atEnd ? t.scrollHeight : oldScroll;
   }
   function chatHTML() {
     const messages = session?.messages ?? [];
-    return `${find !== "" ? `<div class="findbar"><input id="find-input" placeholder="Find in conversation" value="${esc(find === " " ? "" : find)}" aria-label="Find in conversation">${button("↓", "find-next")}${button("×", "find-close", 'aria-label="Close find"')}</div>` : ""}
-  <div class="transcript" role="log" aria-label="Conversation">${!messages.length ? `<div class="welcome"><h1>New conversation</h1><p>${project ? "Ask a question or describe a task." : "Open a project to start working with Hades."}</p><div class="starter-actions">${button("Open project", "project")}${button("Choose provider", "settings")}</div></div>` : messages.map((m: Row, i: number) => `<article id="message-${i}" class="message ${m.role}"><div class="message-label">${m.role === "user" ? "YOU" : `<img src="./assets/hades-icon.png" alt=""> ${esc(profile.name)}`}<time>${new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>${m.role === "assistant" ? button("♪", "speak-message", `data-index="${i}" aria-label="Read message aloud"`) : ""}${button("⧉", "copy-message", `data-index="${i}" aria-label="Copy message"`)}</div><div class="message-body">${m.images?.map((image: string) => `<img class="chat-attachment" src="${esc(image)}" alt="Attached image">`).join("") ?? ""}${formatText(m.content)}</div></article>`).join("")}
+    return `${find !== "" ? `<div class="findbar"><input id="find-input" placeholder="Find in conversation" value="${esc(find === " " ? "" : find)}" aria-label="Find in conversation">${button(icon("down"), "find-next", 'aria-label="Next match"')}${button(icon("close"), "find-close", 'aria-label="Close find"')}</div>` : ""}
+  <div class="transcript" role="log" aria-label="Conversation">${!messages.length ? `<div class="welcome"><h1>New conversation</h1><p>${project ? "Ask a question or describe a task." : "Open a project to start working with Hades."}</p><div class="starter-actions">${button("Open project", "project")}${button("Choose provider", "settings")}</div></div>` : messages.map((m: Row, i: number) => `<article id="message-${i}" class="message ${m.role}"><div class="message-label">${m.role === "user" ? "You" : `<img src="./assets/hades-icon.png" alt=""> ${esc(profile.name)}`}<time>${new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>${m.role === "assistant" ? button(icon("speaker"), "speak-message", `data-index="${i}" aria-label="Read message aloud"`) : ""}${button(icon("copy"), "copy-message", `data-index="${i}" aria-label="Copy message"`)}</div><div class="message-body">${m.images?.map((image: string) => `<img class="chat-attachment" src="${esc(image)}" alt="Attached image">`).join("") ?? ""}${formatText(m.content)}</div></article>`).join("")}
   ${running() ? `<article class="message assistant"><div class="message-label"><img src="./assets/hades-icon.png" alt="">${esc(profile.name)} <span class="working">Working<span>...</span></span></div><div class="message-body live-output">${formatText(visibleResponse(stream))}</div></article>` : ""}
   ${activity.length ? `<details class="activity" ${pendingApproval ? "open" : ""}><summary>${icon("terminal")}${activity.length} tool events</summary>${activity.map((t) => `<div><span class="mono">${esc(t.tool)} · ${esc(t.status)}</span><pre>${esc(t.output ?? t.input)}</pre></div>`).join("")}</details>` : ""}
   ${pendingApproval ? `<div class="approval" role="alert"><strong>Hades needs your approval</strong><p>${esc(pendingApproval.tool)}</p><pre>${esc(pendingApproval.input)}</pre>${button("Allow once", "approve", 'class="primary-button"')}${button("Deny", "deny")}</div>` : ""}</div>
-  <div class="composer-area">${(queued[current()] ?? []).length ? `<div class="queue"><span class="eyebrow">${paused.has(current()) ? "PAUSED" : "QUEUED"} · ${queued[current()].length}</span>${queued[current()].map((q, i) => `<div><span>${esc(q.slice(0, 120))}</span>${button("Edit", "queue-edit", `data-index="${i}"`)}${button("×", "queue-delete", `data-index="${i}" aria-label="Delete queued message"`)}</div>`).join("")}${paused.has(current()) ? button("Resume queue", "queue-resume") : ""}</div>` : ""}
-  <div class="attachment-tray">${draftImages.map((src, i) => `<div><img src="${esc(src)}" alt="Image attachment ${i + 1}">${button("×", "image-remove", `data-index="${i}" aria-label="Remove image"`)}</div>`).join("")}</div><form id="composer-form" class="composer"><textarea id="composer" aria-label="Message Hades" placeholder="${project ? "Message Hades…" : "Open a project to start…"}" rows="3">${esc(draft)}</textarea><div class="composer-bottom"><div>${button("+", "attach", 'class="icon-button" aria-label="Attach files or images"')}<input id="attachments" type="file" multiple hidden accept="image/png,image/jpeg,image/gif,image/webp,text/*,.md,.json,.ts,.tsx,.py,.js,.csv,.html,.css,.yaml,.yml">${button(recording ? "■" : "◉", "voice-record", `class="icon-button ${recording ? "recording" : ""}" aria-label="${recording ? "Finish voice message" : "Record voice message"}" ${!["local", "openai"].includes(profile?.provider) ? 'disabled title="Choose an OpenAI API or compatible speech provider to record voice"' : ""}`)}${button(esc(session?.model || profile?.model || "Choose model") + " ⌄", "model", 'class="model-picker"')}<span class="composer-project">${project ? "⌑ " + esc(labelProject(project)) : "No project selected"}</span></div><div>${running() ? button("■", "stop", 'class="send" aria-label="Stop generation"') : `<button type="submit" class="send" aria-label="Send message">↑</button>`}</div></div></form><div class="composer-hint"><span>Return to send <span class="muted">·</span> ⇧ Return for a new line</span></div></div>`;
+  <div class="composer-area">${(queued[current()] ?? []).length ? `<div class="queue"><span class="eyebrow">${paused.has(current()) ? "PAUSED" : "QUEUED"} · ${queued[current()].length}</span>${queued[current()].map((q, i) => `<div><span>${esc(q.slice(0, 120))}</span>${button("Edit", "queue-edit", `data-index="${i}"`)}${button(icon("close"), "queue-delete", `data-index="${i}" aria-label="Delete queued message"`)}</div>`).join("")}${paused.has(current()) ? button("Resume queue", "queue-resume") : ""}</div>` : ""}
+  <div class="attachment-tray">${draftImages.map((src, i) => `<div><img src="${esc(src)}" alt="Image attachment ${i + 1}">${button(icon("close"), "image-remove", `data-index="${i}" aria-label="Remove image"`)}</div>`).join("")}</div><form id="composer-form" class="composer"><textarea id="composer" aria-label="Message Hades" placeholder="${project ? "Message Hades…" : "Open a project to start…"}" rows="3">${esc(draft)}</textarea><div class="composer-bottom"><div>${button(icon("+"), "attach", 'class="icon-button" aria-label="Attach files or images"')}<input id="attachments" type="file" multiple hidden accept="image/png,image/jpeg,image/gif,image/webp,text/*,.md,.json,.ts,.tsx,.py,.js,.csv,.html,.css,.yaml,.yml">${button(icon(recording ? "stop" : "microphone"), "voice-record", `class="icon-button ${recording ? "recording" : ""}" aria-label="${recording ? "Finish voice message" : "Record voice message"}" ${!["local", "openai"].includes(profile?.provider) ? 'disabled title="Choose an OpenAI API or compatible speech provider to record voice"' : ""}`)}${button(`<span class="truncate">${esc(session?.model || profile?.model || "Choose model")}</span>` + icon("chevron"), "model", 'class="model-picker"')}<span class="composer-project">${project ? esc(labelProject(project)) : "No project selected"}</span></div><div>${running() ? button(icon("stop"), "stop", 'class="send" aria-label="Stop generation"') : `<button type="submit" class="send" aria-label="Send message">${icon("up")}</button>`}</div></div></form><div class="composer-hint"><span>Return to send <span class="muted">·</span> ⇧ Return for a new line</span></div></div>`;
   }
   function formatText(content: string) {
     return esc(content)
@@ -411,23 +424,15 @@ export function mountWorkbench(root: HTMLElement) {
       return `<div class="page">${heading("Extensions", "Install skill and MCP bundles for the current agent profile.")}<div class="page-actions">${button("Install a plugin", "plugin-import", 'class="primary-button"')}${button("Example manifest", "plugin-example")}<input id="plugin-import-file" type="file" accept=".json" hidden></div><p class="help">Review every package before installing. New packages start disabled. Enabling MCP servers allows their commands to launch on the next turn; tool calls still require approval.</p>${plugins.map((x) => `<div class="record"><div><h3>${esc(x.manifest.name)} <span class="muted">${esc(x.manifest.version)}</span></h3><p>${esc(x.manifest.description)}</p><small>${x.manifest.skills.length} skills · ${x.manifest.mcp.length} MCP servers · ${x.enabled ? "Enabled" : "Disabled"}</small></div>${button("Review", "plugin-review", `data-name="${esc(x.manifest.name)}"`)}${button(x.enabled ? "Disable" : "Enable", "plugin-toggle", `data-name="${esc(x.manifest.name)}" data-enabled="${!x.enabled}"`)}${button("Remove", "plugin-remove", `data-name="${esc(x.manifest.name)}"`)}</div>`).join("") || empty("[ + ]", "No extensions installed", "Install a local Hades plugin manifest, or start with the example.")}</div>`;
     if (view === "rooms") {
       if (!room)
-        return `<div class="page">${heading("Team rooms", "Give a task to a team. Each profile contributes in order, with its own tools and memory.")}<div class="page-actions">${button("+ New room", "room-new", 'class="primary-button"')}</div><div class="cards">${(boot.rooms ?? []).map((r: Row) => `<button class="library-card" data-action="room-open" data-id="${r.id}"><h3>${esc(r.name)}</h3><p>${r.members.map((id: string) => esc(boot.profiles.find((p: Profile) => p.id === id)?.name ?? id)).join(" → ")}</p><small>${r.running ? "Working" : `${r.count} messages`} · ${esc(labelProject(r.root))}</small></button>`).join("")}</div>${!boot.rooms?.length ? empty("[ · · ]", "No team rooms", "Create two agent profiles, then add them to a room.") : ""}</div>`;
-      return `<div class="page room-page"><div class="page-actions">${button("← All rooms", "rooms-back")}<span class="muted">${room.members.map((id: string) => esc(boot.profiles.find((p: Profile) => p.id === id)?.name ?? id)).join(" → ")}</span></div><h1>${esc(room.name)}</h1><p class="help">${esc(room.root)} · One response per agent in each round.</p><div class="room-messages">${room.messages.map((m: Row) => `<article class="message ${m.role}"><div class="message-label">${m.role === "user" ? "YOU" : esc(boot.profiles.find((p: Profile) => p.id === m.profile)?.name)}${m.session ? button("Open conversation ↗", "session", `data-id="${m.session}"`) : ""}</div><div class="message-body">${formatText(m.content)}</div></article>`).join("")}</div>${room.error ? `<p class="inline-notice">${esc(room.error)}</p>` : ""}${(room.pending ?? []).map((p: Row) => `<div class="inline-notice"><strong>${esc(boot.profiles.find((x: Profile) => x.id === p.profile)?.name)} needs approval</strong><pre>${esc(p.tool)} ${esc(p.input)}</pre>${button("Approve", "room-approve", `data-id="${p.id}" data-allow="true"`)}${button("Decline", "room-approve", `data-id="${p.id}" data-allow="false"`)}</div>`).join("")}<div class="room-composer"><textarea id="room-draft" rows="3" placeholder="Give your team a task…" aria-label="Message your team">${esc(roomDraft)}</textarea><div class="page-actions"><span class="help">${room.running ? "Your team is working…" : "Uses each member’s configured provider."}</span>${button(room.running ? "Stop round" : "Send to team ↑", room.running ? "room-stop" : "room-send", 'class="primary-button"')}</div></div></div>`;
+        return `<div class="page">${heading("Team rooms", "Give a task to a team. Each profile contributes in order, with its own tools and memory.")}<div class="page-actions">${button("New room", "room-new", 'class="primary-button"')}</div><div class="cards">${(boot.rooms ?? []).map((r: Row) => `<button class="library-card" data-action="room-open" data-id="${r.id}"><h3>${esc(r.name)}</h3><p>${r.members.map((id: string) => esc(boot.profiles.find((p: Profile) => p.id === id)?.name ?? id)).join(" → ")}</p><small>${r.running ? "Working" : `${r.count} messages`} · ${esc(labelProject(r.root))}</small></button>`).join("")}</div>${!boot.rooms?.length ? empty("[ · · ]", "No team rooms", "Create two agent profiles, then add them to a room.") : ""}</div>`;
+      return `<div class="page room-page"><div class="page-actions">${button("← All rooms", "rooms-back")}<span class="muted">${room.members.map((id: string) => esc(boot.profiles.find((p: Profile) => p.id === id)?.name ?? id)).join(" → ")}</span></div><h1>${esc(room.name)}</h1><p class="help">${esc(room.root)} · One response per agent in each round.</p><div class="room-messages">${room.messages.map((m: Row) => `<article class="message ${m.role}"><div class="message-label">${m.role === "user" ? "You" : esc(boot.profiles.find((p: Profile) => p.id === m.profile)?.name)}${m.session ? button("Open conversation", "session", `data-id="${m.session}"`) : ""}</div><div class="message-body">${formatText(m.content)}</div></article>`).join("")}</div>${room.error ? `<p class="inline-notice">${esc(room.error)}</p>` : ""}${(room.pending ?? []).map((p: Row) => `<div class="inline-notice"><strong>${esc(boot.profiles.find((x: Profile) => x.id === p.profile)?.name)} needs approval</strong><pre>${esc(p.tool)} ${esc(p.input)}</pre>${button("Approve", "room-approve", `data-id="${p.id}" data-allow="true"`)}${button("Decline", "room-approve", `data-id="${p.id}" data-allow="false"`)}</div>`).join("")}<div class="room-composer"><textarea id="room-draft" rows="3" placeholder="Give your team a task…" aria-label="Message your team">${esc(roomDraft)}</textarea><div class="page-actions"><span class="help">${room.running ? "Your team is working…" : "Uses each member’s configured provider."}</span>${button(room.running ? "Stop round" : "Send to team", room.running ? "room-stop" : "room-send", 'class="primary-button"')}</div></div></div>`;
     }
     if (view === "models")
-      return `<div class="page">${heading("Local models", "Run models on your Mac with Ollama.")}<div class="local-connect">${field("Ollama address", "local-endpoint", localEndpoint)}${button("Connect / refresh", "local-refresh", 'class="primary-button"')}${button("Get Ollama ↗", "open-link", 'data-url="https://ollama.com/download/mac"')}</div>${localError ? `<p class="inline-notice">${esc(localError)}</p>` : `<p class="help">${localState.models.length} installed models · ${esc(localEndpoint)}</p>`}<h2>Download a model</h2><div class="local-connect">${field("Model name from the Ollama library", "local-model", "", "text")}${button("Download", "local-pull")}${button("Browse library ↗", "open-link", 'data-url="https://ollama.com/library"')}</div><p class="help">Models can require several GB of storage and memory. Downloads start only when you choose Download.</p><div id="downloads">${downloadHTML()}</div><h2>On this Mac</h2>${localState.models.length ? localState.models.map((m: Row) => `<div class="record"><div><h3>${esc(m.name)}</h3><small>${(Number(m.size) / 1e9).toFixed(1)} GB · ${esc(m.details?.parameter_size ?? "")}</small></div>${button("Use model", "local-use", `data-model="${esc(m.name)}"`)}${button("Remove", "local-remove", `data-model="${esc(m.name)}"`)}</div>`).join("") : empty("[ · ]", "No local models", "Start Ollama, then download a model or connect to your existing library.")}</div>`;
+      return `<div class="page">${heading("Local models", "Run models on your Mac with Ollama.")}<div class="local-connect">${field("Ollama address", "local-endpoint", localEndpoint)}${button("Connect / refresh", "local-refresh", 'class="primary-button"')}${button("Get Ollama", "open-link", 'data-url="https://ollama.com/download/mac"')}</div>${localError ? `<p class="inline-notice">${esc(localError)}</p>` : `<p class="help">${localState.models.length} installed models · ${esc(localEndpoint)}</p>`}<h2>Download a model</h2><div class="local-connect">${field("Model name from the Ollama library", "local-model", "", "text")}${button("Download", "local-pull")}${button("Browse library", "open-link", 'data-url="https://ollama.com/library"')}</div><p class="help">Models can require several GB of storage and memory. Downloads start only when you choose Download.</p><div id="downloads">${downloadHTML()}</div><h2>On this Mac</h2>${localState.models.length ? localState.models.map((m: Row) => `<div class="record"><div><h3>${esc(m.name)}</h3><small>${(Number(m.size) / 1e9).toFixed(1)} GB · ${esc(m.details?.parameter_size ?? "")}</small></div>${button("Use model", "local-use", `data-model="${esc(m.name)}"`)}${button("Remove", "local-remove", `data-model="${esc(m.name)}"`)}</div>`).join("") : empty("[ · ]", "No local models", "Start Ollama, then download a model or connect to your existing library.")}</div>`;
     if (view === "memory")
-      return `<div class="page">${heading("Memory", "Useful context, carried from one conversation to the next.")}<div class="page-actions">${button("+ Add memory", "memory-add", 'class="primary-button"')}${button("Export", "memory-export")}</div>${
+      return `<div class="page">${heading("Memory", "Useful context, carried from one conversation to the next.")}<div class="page-actions">${button("Add memory", "memory-add", 'class="primary-button"')}${button("Export", "memory-export")}</div>${
         memory.length
-          ? `<div class="memory-map" aria-label="Memory constellation">${memory
-              .slice(0, 16)
-              .map(
-                (m, i) =>
-                  `<button data-action="memory-detail" data-id="${m.id}" style="--i:${i}" title="${esc(m.fact)}">✳ <span>${esc(m.fact.slice(0, 44))}</span></button>`,
-              )
-              .join(
-                "",
-              )}</div><div class="record-list">${memory.map((m) => `<div class="record"><span>${icon("memory")}</span><div><p>${esc(m.fact)}</p><small>Used ${m.accessCount} times · ${new Date(m.createdAt).toLocaleDateString()}</small></div>${button("Forget", "memory-forget", `data-id="${m.id}"`)}</div>`).join("")}</div>`
+          ? `<div class="record-list">${memory.map((m) => `<div class="record"><span>${icon("memory")}</span><div><p>${esc(m.fact)}</p><small>Used ${m.accessCount} times · ${new Date(m.createdAt).toLocaleDateString()}</small></div>${button("Details", "memory-detail", `data-id="${m.id}"`)}${button("Forget", "memory-forget", `data-id="${m.id}"`)}</div>`).join("")}</div>`
           : empty(
               "✳",
               "A fresh start.",
@@ -435,14 +440,14 @@ export function mountWorkbench(root: HTMLElement) {
             )
       }</div>`;
     if (view === "skills")
-      return `<div class="page">${heading("Skills", "Reusable instructions for the way you like to work.")}<div class="page-actions">${button("+ Create skill", "skill-new", 'class="primary-button"')}${button("Install SKILL.md", "skill-import")}<input id="skill-import-file" type="file" accept=".md" hidden></div>${skills.length ? `<div class="cards">${skills.map((s) => `<button class="library-card" data-action="skill-edit" data-name="${esc(s.name)}">${icon("skills")}<h3>${esc(s.name)}</h3><p>${esc(s.content.slice(0, 160))}</p><small>Local SKILL.md ↗</small></button>`).join("")}</div>` : empty("⌘", "No skills yet", "Create a skill and attach its instructions to a conversation.")}</div>`;
+      return `<div class="page">${heading("Skills", "Reusable instructions for the way you like to work.")}<div class="page-actions">${button("Create skill", "skill-new", 'class="primary-button"')}${button("Install SKILL.md", "skill-import")}<input id="skill-import-file" type="file" accept=".md" hidden></div>${skills.length ? `<div class="cards">${skills.map((s) => `<button class="library-card" data-action="skill-edit" data-name="${esc(s.name)}">${icon("skills")}<h3>${esc(s.name)}</h3><p>${esc(s.content.slice(0, 160))}</p><small>Local SKILL.md</small></button>`).join("")}</div>` : empty("⌘", "No skills yet", "Create a skill and attach its instructions to a conversation.")}</div>`;
     if (view === "jobs")
-      return `<div class="page">${heading("Routines", "Recurring work, with a conversation for every run.")}<div class="page-actions">${button("+ New routine", "job-new", 'class="primary-button"')}<span class="muted">Runs while Hades is open. Changes still require approval.</span></div>${boot.jobs.length ? boot.jobs.map((j: Row) => `<div class="record"><span>${icon("jobs")}</span><div><h3>${esc(j.name)}</h3><p>${esc(j.prompt)}</p><small>${j.cron ? esc(j.cron) + " · " + esc(j.timeZone) : "Every " + j.intervalMinutes + " min"} · ${j.enabled ? "Next " + new Date(j.nextAt).toLocaleString() : "Paused"}${j.lastError ? " · " + esc(j.lastError) : ""}</small></div>${button(j.enabled ? "Pause" : "Enable", "job-toggle", `data-id="${j.id}"`)}${button("Run now", "job-run", `data-id="${j.id}"`)}</div>`).join("") : empty("◷", "No routines yet", "Set up a recurring prompt for one of your projects.")}</div>`;
+      return `<div class="page">${heading("Routines", "Recurring work, with a conversation for every run.")}<div class="page-actions">${button("New routine", "job-new", 'class="primary-button"')}<span class="muted">Runs while Hades is open. Changes still require approval.</span></div>${boot.jobs.length ? boot.jobs.map((j: Row) => `<div class="record"><span>${icon("jobs")}</span><div><h3>${esc(j.name)}</h3><p>${esc(j.prompt)}</p><small>${j.cron ? esc(j.cron) + " · " + esc(j.timeZone) : "Every " + j.intervalMinutes + " min"} · ${j.enabled ? "Next " + new Date(j.nextAt).toLocaleString() : "Paused"}${j.lastError ? " · " + esc(j.lastError) : ""}</small></div>${button(j.enabled ? "Pause" : "Enable", "job-toggle", `data-id="${j.id}"`)}${button("Run now", "job-run", `data-id="${j.id}"`)}</div>`).join("") : empty("◷", "No routines yet", "Set up a recurring prompt for one of your projects.")}</div>`;
     if (view === "artifact") {
       return `<div class="page">${heading("Artifacts", "Files in your project, and links from the current conversation.")}<div class="page-actions">${button("Browse project files", "files", 'class="primary-button"')}</div>${artifacts.length ? artifacts.map((item: Row, i: number) => `<div class="record">${icon("artifact")}<div><p>${esc(item.path ?? item.url)}</p><small>${new Date(item.at).toLocaleString()}</small></div>${button("Preview", "artifact-open", `data-index="${i}"`)}${button("Conversation", "session", `data-id="${item.session}"`)}</div>`).join("") : empty("◇", "No artifacts yet", "Use the file browser to preview, edit and open your project’s outputs.")}</div>`;
     }
     if (view === "agents")
-      return `<div class="page">${heading("Agents", "Separate profiles, shared workspace tools, independent conversations.")}<div class="page-actions">${button("+ New agent", "profile-new", 'class="primary-button"')}</div><div class="cards">${boot.profiles.map((p: Profile) => `<button class="library-card" data-action="profile-select" data-id="${p.id}"><h3>${esc(p.name)}</h3><p>${esc(p.persona || "Your general-purpose agent.")}</p><small>${esc(p.provider)} / ${esc(p.model)}</small></button>`).join("")}</div><h2>Running conversations <span class="muted">${boot.active.length}</span></h2>${boot.active.map((id: string) => `<div class="record"><i class="running-dot"></i><div>${esc(boot.sessions.find((s: Row) => s.id === id)?.title || id)}</div>${button("Open", "session", `data-id="${id}"`)}</div>`).join("") || '<p class="muted">No conversations running.</p>'}<details class="advanced"><summary>Harness services</summary><p>Inspect Hades’ existing fleet, gateway, trust and learning services.</p>${["fleet.list", "gateway.status.get", "learning.get", "schedule.status.get"].map((kind) => button(esc(kind), "harness", `data-kind="${kind}"`)).join("")}<pre id="harness-output">${esc(modalData.harness ?? "")}</pre></details></div>`;
+      return `<div class="page">${heading("Agents", "Separate profiles, shared workspace tools, independent conversations.")}<div class="page-actions">${button("New agent", "profile-new", 'class="primary-button"')}</div><div class="cards">${boot.profiles.map((p: Profile) => `<button class="library-card" data-action="profile-select" data-id="${p.id}"><h3>${esc(p.name)}</h3><p>${esc(p.persona || "Your general-purpose agent.")}</p><small>${esc(p.provider)} / ${esc(p.model)}</small></button>`).join("")}</div><h2>Running conversations <span class="muted">${boot.active.length}</span></h2>${boot.active.map((id: string) => `<div class="record"><i class="running-dot"></i><div>${esc(boot.sessions.find((s: Row) => s.id === id)?.title || id)}</div>${button("Open", "session", `data-id="${id}"`)}</div>`).join("") || '<p class="muted">No conversations running.</p>'}<details class="advanced"><summary>Harness services</summary><p>Inspect Hades’ existing fleet, gateway, trust and learning services.</p>${["fleet.list", "gateway.status.get", "learning.get", "schedule.status.get"].map((kind) => button(esc(kind), "harness", `data-kind="${kind}"`)).join("")}<pre id="harness-output">${esc(modalData.harness ?? "")}</pre></details></div>`;
     return "";
   }
   function downloadHTML() {
@@ -457,10 +462,10 @@ export function mountWorkbench(root: HTMLElement) {
     return `<div class="empty"><h2>${title}</h2><p>${detail}</p></div>`;
   }
   function paneHTML() {
-    return `<aside class="inspector"><div class="inspector-heading"><strong>${pane === "files" ? "Project files" : pane === "git" ? "Changes" : pane === "preview" ? "Preview" : "Terminal"}</strong>${button("×", "pane-close", 'aria-label="Close inspector"')}</div>${!project ? empty("⌑", "Open a project", "Choose a folder first.") : pane === "files" ? `<div class="file-path">${button("↑", "folder-up", 'aria-label="Parent folder"')}<span class="mono">${esc(folder)}</span>${button("↻", "files-refresh", 'aria-label="Refresh files"')}</div><div class="file-list">${files.map((f) => button(`${icon(f.directory ? "files" : "artifact")}${esc(f.name)}${f.directory ? " <span>›</span>" : ""}`, "file", `data-path="${esc(f.path)}" data-dir="${f.directory}" class="file-row"`)).join("")}</div>${preview ? previewHTML() : ""}` : pane === "preview" ? `<div class="preview-url"><input id="preview-url" type="url" placeholder="https://…" value="${esc(modalData.url ?? "")}">${button("Go", "preview-go")}</div>${modalData.url ? `<iframe title="Website preview" src="${esc(modalData.url)}" sandbox="allow-scripts allow-forms" referrerpolicy="no-referrer"></iframe><p class="muted preview-note">Some sites block embedded previews. ${button("Open in browser", "open-link", `data-url="${esc(modalData.url)}"`)}</p>` : ""}` : pane === "git" ? `<div class="git-review"><pre class="git-status">${esc(git.status ?? "")}</pre><div class="page-actions">${button("Refresh", "git-refresh")}${button("Checkpoints", "checkpoints")}${button("New branch", "branch")}${button("Worktree", "worktree")}</div><label class="field">File path to stage or unstage<input id="git-path" placeholder="src/example.ts"></label>${button("Stage", "git-stage")}${button("Unstage", "git-unstage")}<label class="field">Commit message<input id="commit-message" placeholder="Describe the change"></label>${button("Commit staged", "git-commit", 'class="primary-button"')}${button("Push", "git-push")}<pre class="diff">${esc(git.diff || "No tracked file changes.")}</pre></div>` : `<div class="terminal-tabs">${boot.terminals.map((t: Row, i: number) => button(`${i + 1} ${labelProject(t.root)}`, "terminal-select", `data-id="${t.id}" class="${selectedTerminal === t.id ? "selected" : ""}"`)).join("")}${button("+", "terminal-new", 'aria-label="New terminal"')}${button("×", "terminal-close", 'aria-label="Close terminal process"')}</div><div id="terminal-host" class="terminal-host" aria-label="Interactive terminal"></div><div class="terminal-controls">${button("Ctrl C", "terminal-interrupt")}${button("Add output to chat", "terminal-context")}</div>`}</aside>`;
+    return `<aside class="inspector"><div class="inspector-heading"><strong>${pane === "files" ? "Project files" : pane === "git" ? "Changes" : pane === "preview" ? "Preview" : "Terminal"}</strong>${button(icon("close"), "pane-close", 'aria-label="Close inspector"')}</div>${!project ? empty("⌑", "Open a project", "Choose a folder first.") : pane === "files" ? `<div class="file-path">${button(icon("up"), "folder-up", 'aria-label="Parent folder"')}<span class="mono">${esc(folder)}</span>${button(icon("refresh"), "files-refresh", 'aria-label="Refresh files"')}</div><div class="file-list">${files.map((f) => button(`${icon(f.directory ? "files" : "artifact")}<span class="truncate">${esc(f.name)}</span>${f.directory ? icon("right") : ""}`, "file", `data-path="${esc(f.path)}" data-dir="${f.directory}" class="file-row"`)).join("")}</div>${preview ? previewHTML() : ""}` : pane === "preview" ? `<div class="preview-url"><input id="preview-url" aria-label="Preview address" type="url" placeholder="https://…" value="${esc(modalData.url ?? "")}">${button("Go", "preview-go")}</div>${modalData.url ? `<iframe title="Website preview" src="${esc(modalData.url)}" sandbox="allow-scripts allow-forms" referrerpolicy="no-referrer"></iframe><p class="muted preview-note">Some sites block embedded previews. ${button("Open in browser", "open-link", `data-url="${esc(modalData.url)}"`)}</p>` : ""}` : pane === "git" ? `<div class="git-review"><pre class="git-status">${esc(git.status ?? "")}</pre><div class="page-actions">${button("Refresh", "git-refresh")}${button("Checkpoints", "checkpoints")}${button("New branch", "branch")}${button("Worktree", "worktree")}</div><label class="field">File path to stage or unstage<input id="git-path" placeholder="src/example.ts"></label>${button("Stage", "git-stage")}${button("Unstage", "git-unstage")}<label class="field">Commit message<input id="commit-message" placeholder="Describe the change"></label>${button("Commit staged", "git-commit", 'class="primary-button"')}${button("Push", "git-push")}<pre class="diff">${esc(git.diff || "No tracked file changes.")}</pre></div>` : `<div class="terminal-tabs">${boot.terminals.map((t: Row, i: number) => button(`${i + 1} ${labelProject(t.root)}`, "terminal-select", `data-id="${t.id}" class="${selectedTerminal === t.id ? "selected" : ""}"`)).join("")}${button(icon("+"), "terminal-new", 'aria-label="New terminal"')}${button(icon("close"), "terminal-close", 'aria-label="Close terminal process"')}</div><div id="terminal-host" class="terminal-host" aria-label="Interactive terminal"></div><div class="terminal-controls">${button("Ctrl C", "terminal-interrupt")}${button("Add output to chat", "terminal-context")}</div>`}</aside>`;
   }
   function previewHTML() {
-    return `<section class="file-preview"><div class="inspector-heading"><strong>${esc(preview!.path)}</strong>${button("↗", "file-open", 'aria-label="Open file in default editor"')}</div>${preview!.image ? `<img src="${esc(preview!.image)}" alt="${esc(preview!.path)}">` : `<textarea id="file-content" aria-label="File contents" spellcheck="false">${esc(preview!.text)}</textarea><div class="page-actions">${button("Save changes", "file-save")}${button("Add to chat", "file-context")}</div>`}</section>`;
+    return `<section class="file-preview"><div class="inspector-heading"><strong>${esc(preview!.path)}</strong>${button(icon("external"), "file-open", 'aria-label="Open file in default editor"')}</div>${preview!.image ? `<img src="${esc(preview!.image)}" alt="${esc(preview!.path)}">` : `<textarea id="file-content" aria-label="File contents" spellcheck="false">${esc(preview!.text)}</textarea><div class="page-actions">${button("Save changes", "file-save")}${button("Add to chat", "file-context")}</div>`}</section>`;
   }
   function codexHTML() {
     return `<div class="provider-account"><strong>${codexAccount.connected ? "Connected to ChatGPT" : "Use your Codex subscription"}</strong><p class="help">${codexAccount.connected ? esc([codexAccount.email, codexAccount.plan].filter(Boolean).join(" · ")) : "Sign in with the ChatGPT account that includes Codex. No API key needed."}</p><div class="page-actions">${button(codexPending ? "Waiting for sign-in…" : codexAccount.connected ? "Sign out" : "Sign in with ChatGPT", codexAccount.connected ? "codex-logout" : "codex-login", codexPending ? "disabled" : 'class="primary-button"')}${codexPending ? button("Cancel", "codex-cancel") : button("Refresh status", "codex-status")}</div><p class="help" id="codex-error" role="status"></p></div>`;
@@ -489,7 +494,7 @@ export function mountWorkbench(root: HTMLElement) {
             }
           : profile;
       title = modal === "profile" ? "New agent" : "Settings";
-      content = `<div class="settings-section"><h3>Provider & model</h3>${field("Agent name", "settings-name", p.name)}<label class="field">Provider<select id="settings-provider">${Object.entries(providers).map(([v, item]) => `<option value="${v}" ${p.provider === v ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><div id="codex-connection" ${p.provider !== "codex" ? "hidden" : ""}>${codexHTML()}</div>${field("Model", "settings-model", p.model)}<div id="api-connection" ${p.provider === "codex" ? "hidden" : ""}>${field("Endpoint", "settings-url", p.baseUrl)}${field("API key", "settings-key", "", "password")}<p class="help">Saved in macOS Keychain. Leave blank to keep your existing key.</p></div></div><details class="settings-section"><summary>Instructions & tools</summary><label class="field">Agent instructions<textarea id="settings-persona" rows="4">${esc(p.persona)}</textarea></label>${field("Allowed shell commands, separated by commas", "settings-shell", p.shell.join(","))}<p class="help">Host commands require your approval each time. They run with your account’s access.</p><label class="field">MCP servers (JSON)<textarea id="settings-mcp" rows="5" spellcheck="false">${esc(JSON.stringify(p.mcp ?? [], null, 2))}</textarea></label><p class="help">Each server has name, command, args and enabled fields. Enabling a server launches its command during agent turns. Tool calls require approval.</p></details><details class="settings-section"><summary>Appearance & preferences</summary><div class="segmented">${["system", "light", "dark"].map((t) => button(t[0].toUpperCase() + t.slice(1), "theme", `data-theme="${t}" class="${theme === t ? "active" : ""}"`)).join("")}</div><div class="page-actions">${button("A−", "zoom-out")}${button("A+", "zoom-in")}${button("Export profile", "profile-export")}${button("Import profile", "profile-import")}<input id="profile-import-file" type="file" accept=".json" hidden>${button("Keyboard shortcuts", "shortcuts")}${button("Import VS Code theme", "theme-import")}<input id="theme-import-file" type="file" accept=".json,.jsonc" hidden>${importedTheme ? button(esc(importedTheme.name), "theme", 'data-theme="custom"') : ""}</div><div class="page-actions">${button(quickEntry ? "Disable Quick Entry" : "Enable Quick Entry", "quick-entry")}${button("Keep awake", "awake-on")}${button("Allow sleep", "awake-off")}${button("Stop speech", "voice-stop")}</div><p class="help">Quick Entry: ⌘ ⇧ Space while Hades is open. Voice clips go to your profile’s speech endpoint; transcripts stay in the composer until you send.</p></details>${button("Save settings", "settings-save", 'class="primary-button wide"')}`;
+      content = `<div class="settings-section"><h3>Provider & model</h3>${field("Agent name", "settings-name", p.name)}<label class="field">Provider<select id="settings-provider">${Object.entries(providers).map(([v, item]) => `<option value="${v}" ${p.provider === v ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><div id="codex-connection" ${p.provider !== "codex" ? "hidden" : ""}>${codexHTML()}</div>${field("Model", "settings-model", p.model)}<div id="api-connection" ${p.provider === "codex" ? "hidden" : ""}>${field("Endpoint", "settings-url", p.baseUrl)}${field("API key", "settings-key", "", "password")}<p class="help">Saved in macOS Keychain. Leave blank to keep your existing key.</p></div></div><details class="settings-section"><summary>Instructions & tools</summary><label class="field">Agent instructions<textarea id="settings-persona" rows="4">${esc(p.persona)}</textarea></label>${field("Allowed shell commands, separated by commas", "settings-shell", p.shell.join(","))}<p class="help">Host commands require your approval each time. They run with your account’s access.</p><label class="field">MCP servers (JSON)<textarea id="settings-mcp" rows="5" spellcheck="false">${esc(JSON.stringify(p.mcp ?? [], null, 2))}</textarea></label><p class="help">Each server has name, command, args and enabled fields. Enabling a server launches its command during agent turns. Tool calls require approval.</p></details><details class="settings-section"><summary>Appearance & preferences</summary><div class="segmented">${["system", "light", "dark"].map((t) => button(t[0].toUpperCase() + t.slice(1), "theme", `data-theme="${t}" aria-pressed="${theme === t}" class="${theme === t ? "active" : ""}"`)).join("")}</div><div class="page-actions">${button("A−", "zoom-out", 'aria-label="Decrease text size"')}${button("A+", "zoom-in", 'aria-label="Increase text size"')}${button("Export profile", "profile-export")}${button("Import profile", "profile-import")}<input id="profile-import-file" type="file" accept=".json" hidden>${button("Keyboard shortcuts", "shortcuts")}${button("Import VS Code theme", "theme-import")}<input id="theme-import-file" type="file" accept=".json,.jsonc" hidden>${importedTheme ? button(esc(importedTheme.name), "theme", 'data-theme="custom"') : ""}</div><div class="page-actions">${button(quickEntry ? "Disable Quick Entry" : "Enable Quick Entry", "quick-entry")}${button("Keep awake", "awake-on")}${button("Allow sleep", "awake-off")}${button("Stop speech", "voice-stop")}</div><p class="help">Quick Entry: ⌘ ⇧ Space while Hades is open. Voice clips go to your profile’s speech endpoint; transcripts stay in the composer until you send.</p></details>${button("Save settings", "settings-save", 'class="primary-button wide"')}`;
     }
     if (modal === "harness-command") {
       title = "hades " + modalData.command;
@@ -625,12 +630,14 @@ export function mountWorkbench(root: HTMLElement) {
       const c = modalData.checkpoint;
       content = `<p class="mono">${esc(c.path)}</p><p class="help">${c.restoredAt ? "Already restored." : c.conflict ? "This file has newer changes or the edit was interrupted. Automatic restore is unavailable." : "Restore the file to its saved contents before this edit."}</p><div class="checkpoint-compare"><div><h3>Before</h3><pre>${esc(c.before ?? "[File did not exist]")}</pre></div><div><h3>After</h3><pre>${esc(c.after ?? "[File removed]")}</pre></div></div>${button("Back", "checkpoints")}${!c.conflict && !c.restoredAt ? button("Restore this edit", "checkpoint-restore", 'class="primary-button"') : ""}`;
     }
-    return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-header"><h2>${title}</h2>${button("×", "modal-close", 'class="icon-button" aria-label="Close dialog"')}</div>${content}</section></div>`;
+    return `<div class="modal-backdrop"><section class="modal" role="dialog" tabindex="-1" aria-modal="true" aria-label="${esc(title)}"><div class="modal-header"><h2>${title}</h2>${button(icon("close"), "modal-close", 'class="icon-button" aria-label="Close dialog"')}</div>${content}</section></div>`;
   }
   const val = (id: string) =>
     root.querySelector<HTMLInputElement>("#" + id)?.value ?? "";
   async function navigate(next: string) {
     view = next;
+    if (matchMedia("(max-width: 800px)").matches) sidebar = false;
+    if (["artifact", "memory", "skills", "plugins", "jobs", "rooms", "models", "harness", "slack"].includes(view)) moreOpen = true;
     if (view === "workspace" && project) { pane = "files"; folder = "."; files = await rpc("files.list", { root: project, path: folder }); }
 
     modal = "";
@@ -1077,7 +1084,7 @@ export function mountWorkbench(root: HTMLElement) {
         root
           .querySelectorAll<HTMLElement>("[data-action=theme]")
           .forEach((b) =>
-            b.classList.toggle("active", b.dataset.theme === theme),
+            { b.classList.toggle("active", b.dataset.theme === theme); b.setAttribute("aria-pressed", String(b.dataset.theme === theme)); },
           );
         return;
       case "zoom-in":
@@ -1088,6 +1095,7 @@ export function mountWorkbench(root: HTMLElement) {
         );
         localStorage.setItem("hades.zoom", String(fontSize));
         applyTheme();
+        for (const item of terminalViews.values()) { item.terminal.options.fontSize = Math.round(fontSize * 13 / 14); item.fit.fit(); }
         return;
       case "sidebar":
         sidebar = !sidebar;
@@ -1551,10 +1559,14 @@ export function mountWorkbench(root: HTMLElement) {
   }
 
   root.addEventListener("click", e => {
+    const menu = root.querySelector<HTMLDetailsElement>(".toolbar-menu[open]");
+    if (menu && !menu.contains(e.target as Node)) menu.open = false;
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-action]");
     if (el && !el.hasAttribute("disabled")) void action(el.dataset.action!, el).catch(toast);
   });
   function bind() {
+    const more = root.querySelector<HTMLDetailsElement>(".sidebar-more");
+    if (more) more.ontoggle = () => { if (more.isConnected) moreOpen = more.open; };
     const input = (id: string, cb: (v: string) => void) => {
       const el = root.querySelector<HTMLInputElement>("#" + id);
       if (el) el.oninput = () => cb(el.value);
@@ -1751,11 +1763,11 @@ export function mountWorkbench(root: HTMLElement) {
           node = document.createElement("div");
         node.className = "terminal-surface";
         const terminal = new Terminal({
-          fontFamily: "Menlo, monospace",
-          fontSize: 11,
+          fontFamily: "SFMono-Regular, Menlo, monospace",
+          fontSize: Math.round(fontSize * 13 / 14),
           theme: {
-            background: "#181b18",
-            foreground: "#d6dfd1",
+            background: "#1c1c1e",
+            foreground: "#f1f1f3",
             cursor: "#e16b58",
           },
           cursorBlink: true,
@@ -1788,34 +1800,37 @@ export function mountWorkbench(root: HTMLElement) {
       }
       host.append(item.node);
       item.fit.fit();
-      item.terminal.focus();
+      item.terminal.options.fontSize = Math.round(fontSize * 13 / 14);
     }
   }
   function onKey(e: KeyboardEvent) {
+    if (e.defaultPrevented) return;
     if (e.key === "Tab" && modal) {
-      const elements = Array.from(
-        root.querySelectorAll<HTMLElement>(
-          ".modal button:not([hidden]),.modal input,.modal select,.modal textarea",
-        ),
-      ).filter((el) => el.offsetParent !== null);
-      if (e.shiftKey && document.activeElement === elements[0]) {
+      const dialog = root.querySelector<HTMLElement>(".modal");
+      const elements = dialog ? dialogFocusable(dialog) : [];
+      const active = document.activeElement as HTMLElement;
+      if (!elements.includes(active) || (e.shiftKey ? active === elements[0] : active === elements.at(-1))) {
         e.preventDefault();
-        elements.at(-1)?.focus();
-      } else if (!e.shiftKey && document.activeElement === elements.at(-1)) {
-        e.preventDefault();
-        elements[0]?.focus();
+        (e.shiftKey ? elements.at(-1) : elements[0])?.focus();
       }
+      return;
     }
     if (e.key === "Escape") {
+      const windowMenu = root.querySelector<HTMLDetailsElement>(".toolbar-menu[open]");
+      if (windowMenu && !modal) { windowMenu.open = false; root.querySelector<HTMLElement>("#window-actions")?.focus(); return; }
       if (modal) {
         modal = "";
         render();
       } else if (find) {
         find = "";
         render();
-      } else if (running()) void action("stop").catch(toast);
+      } else if (sidebar && matchMedia("(max-width: 800px)").matches) {
+        sidebar = false; render(); root.querySelector<HTMLElement>("#toggle-sidebar")?.focus();
+      } else if (pane) { pane = ""; render(); }
+      else if (running()) void action("stop").catch(toast);
       return;
     }
+    if (modal) return;
     if (e.ctrlKey && e.key === "`") {
       e.preventDefault();
       void action("terminal").catch(toast);

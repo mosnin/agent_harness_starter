@@ -1,3 +1,4 @@
+import { captureFocus, restoreFocus } from "./focus";
 type Row = Record<string, any>;
 type Rpc = (method: string, args?: Row) => Promise<any>;
 const el = (tag: string, text = "", cls = "") => { const node = document.createElement(tag); node.textContent = text; node.className = cls; return node; };
@@ -31,6 +32,7 @@ export class TeamChatView {
   }
   private field(label: string, key: keyof typeof this.controls, password = false) {
     const node = el("label", label, "field"), input = document.createElement("input");
+    input.id = "team-setup-" + key;
     input.type = password ? "password" : "text"; input.value = this.controls[key]; input.autocomplete = "off";
     input.oninput = () => { this.controls[key] = input.value; }; node.append(input); return node;
   }
@@ -55,32 +57,33 @@ export class TeamChatView {
     finally { this.polling = false; }
   }
   private paint() {
-    const previousInput = this.node.querySelector("textarea");
-    const focused = previousInput === document.activeElement;
-    const selection = [previousInput?.selectionStart ?? 0, previousInput?.selectionEnd ?? 0];
+    const focus = captureFocus(this.node);
+    const membersExpanded = this.node.querySelector<HTMLDetailsElement>(".team-members")?.open ?? false;
+    const sidebarScroll = this.node.querySelector(".team-sidebar")?.scrollTop ?? 0;
+    const setupScroll = this.node.querySelector(".team-setup")?.scrollTop ?? 0;
     const oldLog = this.node.querySelector(".team-messages");
     const scrollTop = oldLog?.scrollTop ?? 0;
     const atBottom = !oldLog || oldLog.scrollHeight - oldLog.scrollTop - oldLog.clientHeight < 80;
     this.node.replaceChildren();
     if (!this.state.connected) {
-      const page = el("div", "", "page team-setup"); page.append(el("h1", "Team chat"), el("p", "A shared place for people and Hades agents.", "help"));
+      const page = el("div", "", "page team-setup"); const heading = el("div", "", "page-heading"); heading.append(el("h1", "Team chat"), el("p", "A shared place for people and Hades agents.")); page.append(heading);
       if (this.state.message) page.append(el("p", this.state.message, "inline-notice"));
       if (this.error) page.append(el("p", this.error, "inline-notice"));
       page.append(this.field("Your name", "name"));
       const create = el("section", "", "settings-section"); create.append(el("h2", "Create a team"), this.field("Team name", "team"), this.button("Create on this Mac", async () => { await this.native("create", { name: this.controls.team, owner: this.controls.name }); await this.refresh(); }, true), el("p", "This Mac hosts the team while Hades is open. For other Macs, expose the service through HTTPS or run the team server on your own host.", "help"));
       const join = el("section", "", "settings-section"); join.append(el("h2", "Join a team"), this.field("Team server · https://…", "endpoint"), this.field("Invitation code", "invite", true), this.button("Join team", async () => { await this.native("join", { endpoint: this.controls.endpoint, invite: this.controls.invite, name: this.controls.name }); this.controls.invite = ""; await this.refresh(); }));
-      page.append(create, join, this.button("Retry saved connection", () => this.refresh()), this.button("Finish saving connection", async () => { await this.native("resume", {}); await this.refresh(); })); this.node.append(page); return;
+      page.append(create, join, this.button("Retry saved connection", () => this.refresh()), this.button("Finish saving connection", async () => { await this.native("resume", {}); await this.refresh(); })); this.node.append(page); page.scrollTop = setupScroll; restoreFocus(this.node, focus); return;
     }
     const sidebar = el("aside", "", "team-sidebar"); sidebar.append(el("h2", this.state.name));
     for (const channel of this.state.channels) {
       const b = this.button(`# ${channel.name}${channel.unread ? ` (${channel.unread})` : ""}`, async () => { this.channel = channel.id; this.messages = []; this.replyTo = undefined; await this.refresh(); });
-      b.classList.toggle("selected", channel.id === this.channel); sidebar.append(b);
+      b.id = "team-channel-" + channel.id; b.setAttribute("aria-current", channel.id === this.channel ? "page" : "false"); b.classList.toggle("selected", channel.id === this.channel); sidebar.append(b);
     }
     sidebar.append(this.button("New channel", async () => {
       const name = window.prompt("Channel name (lowercase, no spaces)");
       if (!name) return; const created = await this.rpc("team.channel", { name }); this.channel = created.id; this.messages = []; await this.refresh();
     }));
-    const members = el("details", "", "team-members"); members.append(el("summary", "Members"));
+    const members = el("details", "", "team-members"); const memberSummary = el("summary", "Members"); memberSummary.id = "team-members-toggle"; members.append(memberSummary); (members as HTMLDetailsElement).open = membersExpanded;
     for (const member of this.state.members) {
       const row = el("div", "", "team-member"); row.append(el("span", `${member.name}${member.role === "owner" ? " · owner" : ""}`));
       if (this.state.member.role === "owner" && member.id !== this.state.member.id) row.append(this.button("Remove", async () => {
@@ -112,7 +115,7 @@ export class TeamChatView {
     }
     const composer = el("div", "", "team-composer");
     if (this.replyTo) composer.append(el("span", "Replying to a message"), this.button("Cancel reply", () => { this.replyTo = undefined; }));
-    const input = document.createElement("textarea"); input.rows = 3; input.placeholder = "Message your team…"; input.setAttribute("aria-label", "Team message"); input.value = this.draft; input.oninput = () => { this.draft = input.value; }; composer.append(input);
+    const input = document.createElement("textarea"); input.id = "team-message"; input.rows = 3; input.placeholder = "Message your team…"; input.setAttribute("aria-label", "Team message"); input.value = this.draft; input.oninput = () => { this.draft = input.value; }; composer.append(input);
     const actions = el("div", "", "page-actions");
     actions.append(el("span", "Only Ask agent starts a local agent turn.", "help"), this.button("Ask agent", async () => { if (!this.draft.trim()) return; const sent = this.draft; await this.ask(this.channel, sent, this.requestId); if (this.draft === sent) this.draft = ""; this.requestId = crypto.randomUUID(); }), this.button("Send", async () => {
       if (!this.draft.trim()) return;
@@ -122,7 +125,8 @@ export class TeamChatView {
     }, true));
     composer.append(actions); main.append(log, composer); this.node.append(sidebar, main);
     log.scrollTop = atBottom ? log.scrollHeight : scrollTop;
-    if (focused) { input.focus(); input.setSelectionRange(selection[0], selection[1]); }
+    sidebar.scrollTop = sidebarScroll;
+    restoreFocus(this.node, focus);
   }
   destroy() { clearInterval(this.timer); }
 }
