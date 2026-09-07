@@ -28,7 +28,10 @@ jobs:
       - name: Install browser for real local browser tests
         run: node node_modules/playwright-core/cli.js install --with-deps chromium
       - run: npm run type-check
-      - run: npm test -- --maxWorkers=4
+      - name: Run parallel correctness suite
+        run: npm test -- --maxWorkers=4 --exclude src/hades/__tests__/soak-adversarial.test.ts --exclude src/desktop/__tests__/workbench-service.test.ts
+      - name: Run timing and native subprocess checks without competing test workers
+        run: npm test -- src/hades/__tests__/soak-adversarial.test.ts src/desktop/__tests__/workbench-service.test.ts --maxWorkers=1
       - run: npm run build:hades
       - run: npm run build:swarm
       - run: npm run desktop:build

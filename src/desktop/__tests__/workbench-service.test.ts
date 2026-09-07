@@ -254,7 +254,7 @@ describe("desktop persistent workflows", () => {
     await expect(
       s.dispatch("git.action", { root, action: "stage", path: "../outside" }),
     ).rejects.toThrow("inside");
-  });
+  }, 20_000); // Multiple real Git subprocesses include cold macOS executable startup.
   it("exports and imports memory and skills without process-launching settings", async () => {
     const { s } = setup();
     await s.dispatch("memory.add", { fact: "Keep replies concise" });

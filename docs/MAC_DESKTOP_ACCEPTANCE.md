@@ -40,3 +40,7 @@ The HTTP fixtures prove transport, streaming, file execution and persistence. Th
 ## Distribution boundary
 
 No public release, notarization, auto-update service or production deployment is established here. GitHub CI status must be checked against the pushed revision separately from these local results. No pull request was opened.
+
+## CI follow-up
+
+The first pushed revision passed the native Mac application build, its packaged smoke checks, and the full Linux job. The full Mac job reported a five-second timeout in the real Git workflow and a throughput timing assertion while other tests competed for CPU. CI now runs the same soak and desktop workflow assertions in a separate serial step, after the remaining suite. The Git subprocess test has a bounded 20-second cold-start budget; the throughput threshold is unchanged. Five consecutive isolated local runs passed (19 tests each). No test is omitted by this split.
