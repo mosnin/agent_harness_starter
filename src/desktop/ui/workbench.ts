@@ -50,6 +50,7 @@ export function mountWorkbench(root: HTMLElement) {
   let draftImages: string[] = [];
   let draft = "",
     error = "",
+    notice = "",
     modal = "",
     modalData: Row = {},
     search = "",
@@ -141,6 +142,12 @@ export function mountWorkbench(root: HTMLElement) {
   async function refresh() {
     boot = await rpc("boot", { profile: profile?.id });
     connected = true;
+    if (!session) {
+      usage = {};
+      activity = [];
+      stream = "";
+      pendingApproval = undefined;
+    }
     profile = boot.profiles.find((p: Profile) => p.id === boot.activeProfile);
     project = project || boot.projects[0] || "";
     if (session) {
@@ -153,6 +160,7 @@ export function mountWorkbench(root: HTMLElement) {
   const running = () => boot.active.includes(current());
   const labelProject = (p: string) => p.split("/").filter(Boolean).at(-1) ?? p;
   function toast(e: unknown) {
+    notice = "";
     error = e instanceof Error ? e.message : String(e);
     render();
   }
@@ -173,6 +181,8 @@ export function mountWorkbench(root: HTMLElement) {
     activity = s.progress?.tools ?? [];
     usage = s.progress?.usage ?? {};
     pendingApproval = s.progress?.approval;
+    error = s.progress?.error ?? "";
+    notice = "";
     if (!tabs.includes(id)) tabs.push(id);
     rememberTabs();
     localStorage.setItem("hades.lastSession", id);
@@ -190,6 +200,10 @@ export function mountWorkbench(root: HTMLElement) {
     view = "chat";
     activity = [];
     stream = "";
+    usage = {};
+    pendingApproval = undefined;
+    error = "";
+    notice = "";
     await refresh();
     render();
     root.querySelector<HTMLTextAreaElement>("#composer")?.focus();
@@ -283,7 +297,7 @@ export function mountWorkbench(root: HTMLElement) {
    <aside class="sidebar"><div class="window-space" data-tauri-drag-region></div><div class="brand"><img src="./assets/hades-icon.png" alt="Hades logo"><strong>Hades</strong><span class="mono">[H]</span></div>
    ${button(icon("+") + "New conversation <kbd>⌘ N</kbd>", "new", 'class="new-chat"')}
    <div class="sidebar-nav">${nav("chat", "Conversations")}${nav("artifact", "Artifacts")}${nav("memory", "Memory")}${nav("skills", "Skills")}${nav("plugins", "Extensions")}${nav("jobs", "Routines")}${nav("agents", "Command Center")}${nav("rooms", "Team rooms")}${nav("models", "Local models")}</div>
-   <div class="section-label">PROJECTS ${button("+", "project", 'aria-label="Open project"')}</div><div class="project-list">${boot.projects.length ? boot.projects.map((p: string) => `<div class="project-row ${project === p ? "active" : ""}">${button(icon("files") + esc(labelProject(p)), "project-select", `data-path="${esc(p)}" title="${esc(p)}"`)}</div>`).join("") : `<p class="sidebar-hint">Open a folder to give<br>your work a home.</p>`}</div>
+   <div class="section-label">PROJECTS ${button("+", "project", 'aria-label="Open project"')}</div><div class="project-list">${boot.projects.length ? boot.projects.map((p: string) => `<div class="project-row ${project === p ? "active" : ""}">${button(icon("files") + esc(labelProject(p)), "project-select", `data-path="${esc(p)}" title="${esc(p)}"`)}${button("×", "project-hide", `data-path="${esc(p)}" class="hide-project" aria-label="Hide project ${esc(labelProject(p))}"`)}</div>`).join("") : `<p class="sidebar-hint">Open a folder to give<br>your work a home.</p>`}</div>
    <div class="section-label">${archived ? "ARCHIVED" : "RECENT"} ${button(archived ? "←" : "⋯", "archive-view", 'aria-label="Toggle archived conversations"')}</div>
    <input id="session-search" class="search" aria-label="Search conversations" placeholder="Search conversations" value="${esc(search)}">
    <div class="session-list">${
@@ -317,7 +331,7 @@ export function mountWorkbench(root: HTMLElement) {
            .join("")}${button("+", "new", 'aria-label="New tab"')}</div>`
        : ""
    }
-   ${error ? `<div class="error" role="alert">${esc(error)}${button("×", "dismiss", 'aria-label="Dismiss error"')}</div>` : ""}
+   ${error || notice ? `<div class="error ${error ? "" : "notice"}" role="${error ? "alert" : "status"}">${esc(error || notice)}${button("×", "dismiss", `aria-label="${error ? "Dismiss error" : "Dismiss notification"}"`)}</div>` : ""}
    <div class="body"><section class="primary">${view === "chat" ? chatHTML() : pageHTML()}</section>${pane ? paneHTML() : ""}</div>
    ${statusbar ? `<footer class="statusbar"><span><i class="${running() ? "busy" : ""}"></i>${running() ? "Working" : connected ? "Local backend" : "Disconnected"} <span class="muted">/</span> ${esc(profile?.name || "Connecting")}</span><span>${usage.tokensIn !== undefined ? `${usage.tokensIn.toLocaleString()} in · ${usage.tokensOut.toLocaleString()} out · ${usage.costMeasured ? "~$" + usage.usd.toFixed(4) : "price unavailable"}` : "Workspace files · ask before changes"} <span class="muted">⌘ K</span></span></footer>` : ""}</main></div>${modal ? modalHTML() : ""}`;
     bind();
@@ -896,6 +910,18 @@ export function mountWorkbench(root: HTMLElement) {
       case "modal-close":
         modal = "";
         break;
+      case "project-hide": {
+        const hidden = el!.dataset.path;
+        await rpc("project.hide", { path: hidden });
+        if (project === hidden) {
+          project = "";
+          session = undefined;
+          pane = "";
+          preview = undefined;
+        }
+        await refresh();
+        return;
+      }
       case "project-pick": {
         const path = await tauri().dialog.open({
           directory: true,
@@ -1116,7 +1142,8 @@ export function mountWorkbench(root: HTMLElement) {
           content: val("file-content"),
         });
         preview!.text = val("file-content");
-        error = "Saved " + preview!.path;
+        error = "";
+        notice = "Saved " + preview!.path;
         break;
       case "file-open":
         await rpc("files.open", { root: project, path: preview!.path });
@@ -1357,7 +1384,8 @@ export function mountWorkbench(root: HTMLElement) {
       case "awake-on":
       case "awake-off":
         await rpc("awake.set", { enabled: name === "awake-on" });
-        error =
+        error = "";
+        notice =
           name === "awake-on"
             ? "Hades will keep this Mac awake while the app is running."
             : "Normal sleep behavior restored.";
@@ -1368,7 +1396,8 @@ export function mountWorkbench(root: HTMLElement) {
         });
         quickEntry = !quickEntry;
         localStorage.setItem("hades.quickEntry", String(quickEntry));
-        error = quickEntry
+        error = "";
+        notice = quickEntry
           ? "Quick Entry enabled: ⌘ ⇧ Space"
           : "Quick Entry disabled";
         break;
@@ -1404,6 +1433,7 @@ export function mountWorkbench(root: HTMLElement) {
       }
       case "dismiss":
         error = "";
+        notice = "";
         break;
       case "harness":
         await tauri().core.invoke("hades_command", {
@@ -1413,11 +1443,11 @@ export function mountWorkbench(root: HTMLElement) {
     }
     render();
     if (modal)
-      root
-        .querySelector<HTMLInputElement>(
-          ".modal input, .modal textarea, .modal button",
-        )
-        ?.focus();
+      (
+        root.querySelector<HTMLInputElement>(
+          '.modal input:not([type="hidden"]), .modal textarea, .modal select',
+        ) ?? root.querySelector<HTMLButtonElement>(".modal button")
+      )?.focus();
   }
   async function attachFiles(list: FileList | File[]) {
     for (const file of Array.from(list)) {

@@ -1412,3 +1412,29 @@ pre {
 .terminal-surface .xterm-viewport {
   background: #181b18;
 }
+
+/* Native QA follow-through: quiet success feedback and discoverable project curation. */
+.error.notice {
+  background: var(--panel);
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+}
+.project-row {
+  display: flex;
+  align-items: center;
+}
+.project-row > button:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.project-row .hide-project {
+  width: 26px;
+  flex: 0 0 26px;
+  opacity: 0;
+  padding: 6px;
+  justify-content: center;
+}
+.project-row:hover .hide-project,
+.project-row:focus-within .hide-project {
+  opacity: 1;
+}
