@@ -19,7 +19,13 @@ export {
   normaliseEmail,
   verifyPassword,
 } from "./store";
-export type { AccountRecord, AccountStore, SyncRecordRow } from "./store";
+export type {
+  AccountRecord,
+  AccountStore,
+  SyncEnvelope,
+  SyncRecordInput,
+  SyncRecordRow,
+} from "./store";
 
 export {
   getHadesAccountService,

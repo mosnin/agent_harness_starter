@@ -12,6 +12,10 @@ const scryptAsync = promisify(scrypt) as (
  * browser pushes. The storage interface is deliberately small so it can sit on
  * Prisma, Supabase or Convex — the harness already ships adapters for all
  * three — with the in-memory implementation used for tests and local runs.
+ *
+ * Sync payloads arrive sealed. The server holds the envelope and the metadata
+ * around it, and has no key: a store adapter must treat `enc` as an opaque
+ * blob — never index it, never log it, never try to read inside it.
  */
 
 export interface AccountRecord {
@@ -24,13 +28,37 @@ export interface AccountRecord {
   walletInitialised: boolean;
 }
 
-export interface SyncRecordRow {
-  userId: string;
+/**
+ * A record's payload, AES-256-GCM under a key derived on the user's devices
+ * from their password. `iv` is 12 bytes and `ct` the ciphertext with the tag
+ * appended, both base64. The record's type, id and revision are authenticated
+ * alongside it, so a payload cannot be moved to another record unnoticed.
+ */
+export interface SyncEnvelope {
+  v: 1;
+  iv: string;
+  ct: string;
+}
+
+/** What a browser pushes: metadata for ordering, and a sealed payload. */
+export interface SyncRecordInput {
   type: string;
   id: string;
   revision: number;
   updatedAt: number;
   deviceId: string;
+  enc: SyncEnvelope;
+}
+
+export interface SyncRecordRow extends Omit<SyncRecordInput, "enc"> {
+  userId: string;
+  /**
+   * Absent only on a row written before payloads were sealed. A browser that
+   * receives such a row imports it, re-uploads it sealed at a higher revision,
+   * and the plaintext is overwritten; nothing writes a row without it now.
+   */
+  enc?: SyncEnvelope;
+  /** Pre-envelope plaintext. Read back for the browser to migrate, never written. */
   data?: unknown;
   deleted?: boolean;
   /** Server-assigned, monotonic per user. Clients page on it. */
@@ -43,8 +71,8 @@ export interface AccountStore {
   create(account: AccountRecord): Promise<void>;
   /** Records strictly newer than `since`, oldest first. */
   recordsSince(userId: string, since: number): Promise<SyncRecordRow[]>;
-  /** Upsert, returning the rows actually written and the new high cursor. */
-  putRecords(userId: string, rows: Omit<SyncRecordRow, "cursor">[]): Promise<number>;
+  /** Upsert, returning the new high cursor. */
+  putRecords(userId: string, rows: SyncRecordInput[]): Promise<number>;
   /** Current high-water cursor for a user. */
   cursor(userId: string): Promise<number>;
 }
@@ -76,7 +104,7 @@ export class InMemoryAccountStore implements AccountStore {
       .sort((a, b) => a.cursor - b.cursor);
   }
 
-  async putRecords(userId: string, rows: Omit<SyncRecordRow, "cursor">[]): Promise<number> {
+  async putRecords(userId: string, rows: SyncRecordInput[]): Promise<number> {
     const existing = this.#records.get(userId) ?? [];
     let cursor = this.#cursors.get(userId) ?? 0;
 
@@ -89,11 +117,30 @@ export class InMemoryAccountStore implements AccountStore {
       // stale push cannot walk back a newer edit.
       if (current && !supersedes(row, current)) continue;
       cursor += 1;
+      // A fresh row, not a patch over the old one: a plaintext row being
+      // superseded must not keep its `data` beside the new envelope.
       const next: SyncRecordRow = { ...row, userId, cursor };
       if (index === -1) existing.push(next);
       else existing[index] = next;
     }
 
+    this.#records.set(userId, existing);
+    this.#cursors.set(userId, cursor);
+    return cursor;
+  }
+
+  /**
+   * Seed a row as a deployment from before the envelope wrote it, plaintext
+   * and all. Exists so the path that replaces such rows can be exercised;
+   * nothing in the request path calls it.
+   */
+  async seedLegacyRow(
+    userId: string,
+    row: Omit<SyncRecordRow, "userId" | "cursor" | "enc">,
+  ): Promise<number> {
+    const existing = this.#records.get(userId) ?? [];
+    const cursor = (this.#cursors.get(userId) ?? 0) + 1;
+    existing.push({ ...row, userId, cursor });
     this.#records.set(userId, existing);
     this.#cursors.set(userId, cursor);
     return cursor;

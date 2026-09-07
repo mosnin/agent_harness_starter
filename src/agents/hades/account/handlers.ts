@@ -38,21 +38,43 @@ const refreshSchema = z.object({
   deviceId: z.string().max(120).optional(),
 });
 
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
+
+/**
+ * The sealed payload. 12 bytes of IV is 16 characters of base64; the
+ * ciphertext carries a 16-byte tag so it is never shorter than 24. The upper
+ * bound is generous for a saved page and small enough that one record cannot
+ * be a memory problem.
+ */
+const envelopeSchema = z
+  .object({
+    v: z.literal(1),
+    iv: z.string().length(16).regex(BASE64),
+    ct: z.string().min(24).max(8_000_000).regex(BASE64),
+  })
+  .strict();
+
+/**
+ * `.strict()` is the point: a record carrying `data` or `deleted` in the
+ * clear is a client that has not sealed its payload, and the answer is 400
+ * rather than storing what it should not have sent.
+ */
+const syncRecordSchema = z
+  .object({
+    type: z.string().min(1).max(64),
+    id: z.string().min(1).max(200),
+    revision: z.number().int().min(0),
+    updatedAt: z.number().int().min(0),
+    deviceId: z.string().min(1).max(120),
+    enc: envelopeSchema,
+  })
+  .strict();
+
 const syncSchema = z.object({
   deviceId: z.string().min(1).max(120),
   since: z.number().int().min(0).default(0),
   records: z
-    .array(
-      z.object({
-        type: z.string().min(1).max(64),
-        id: z.string().min(1).max(200),
-        revision: z.number().int().min(0),
-        updatedAt: z.number().int().min(0),
-        deviceId: z.string().min(1).max(120),
-        data: z.unknown().optional(),
-        deleted: z.boolean().optional(),
-      }),
-    )
+    .array(syncRecordSchema)
     // A push this large is a client bug; rejecting it beats holding it in memory.
     .max(2_000)
     .default([]),
@@ -111,6 +133,8 @@ async function guard(run: () => Promise<Response>): Promise<Response> {
       return json({ code: error.code, message: error.message }, error.status);
     }
     if (error instanceof z.ZodError) {
+      // Not logged: a rejected body may be the very plaintext the schema
+      // exists to keep off this server.
       return json({ code: "unknown", message: "The request body is malformed." }, 400);
     }
     // Never echo an internal error to an unauthenticated caller.

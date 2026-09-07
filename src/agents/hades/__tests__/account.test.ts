@@ -1,12 +1,33 @@
-import { describe, expect, it } from "vitest";
+import { randomBytes } from "node:crypto";
+import { afterEach, describe, expect, it } from "vitest";
+import { handleSync, setHadesAccountService } from "../account/handlers";
 import { AuthError, HadesAccountService } from "../account/service";
-import { InMemoryAccountStore, hashPassword, supersedes, verifyPassword } from "../account/store";
+import {
+  InMemoryAccountStore,
+  hashPassword,
+  supersedes,
+  verifyPassword,
+  type SyncEnvelope,
+} from "../account/store";
 
 const SECRET = "0123456789abcdef0123456789abcdef0123456789abcdef";
 const PASSWORD = "CorrectHorse9!x";
 
 function service() {
   return new HadesAccountService({ store: new InMemoryAccountStore(), secret: SECRET });
+}
+
+/**
+ * A sealed payload as the browser produces one: 12 random bytes of IV and a
+ * ciphertext that ends in a 16-byte tag. The server cannot tell these random
+ * bytes from a real encryption, which is the property being relied on.
+ */
+function envelope(ciphertextBytes = 40): SyncEnvelope {
+  return {
+    v: 1,
+    iv: randomBytes(12).toString("base64"),
+    ct: randomBytes(ciphertextBytes + 16).toString("base64"),
+  };
 }
 
 describe("password hashing", () => {
@@ -161,13 +182,15 @@ describe("tokens", () => {
 });
 
 describe("sync", () => {
-  const record = (overrides: Partial<{ revision: number; updatedAt: number; deviceId: string }> = {}) => ({
+  const record = (
+    overrides: Partial<{ revision: number; updatedAt: number; deviceId: string; enc: SyncEnvelope }> = {},
+  ) => ({
     type: "workspace",
     id: "w1",
     revision: 1,
     updatedAt: 100,
     deviceId: "d1",
-    data: { name: "Home" },
+    enc: envelope(),
     ...overrides,
   });
 
@@ -181,6 +204,49 @@ describe("sync", () => {
     });
     expect(result.cursor).toBe(1);
     expect(result.records).toHaveLength(1);
+  });
+
+  it("returns the envelope byte for byte, having no way to open it", async () => {
+    const instance = service();
+    const session = await instance.signUp({ email: "a@b.co", password: PASSWORD });
+    const sealed = envelope();
+    const result = await instance.sync(session.user.id, {
+      deviceId: "d1",
+      since: 0,
+      records: [record({ enc: sealed })],
+    });
+    expect(result.records[0]?.enc).toEqual(sealed);
+    expect(result.records[0]).not.toHaveProperty("data");
+  });
+
+  it("overwrites a plaintext row from before the envelope when a sealed one supersedes it", async () => {
+    const store = new InMemoryAccountStore();
+    const instance = new HadesAccountService({ store, secret: SECRET });
+    const session = await instance.signUp({ email: "a@b.co", password: PASSWORD });
+    await store.seedLegacyRow(session.user.id, {
+      type: "workspace",
+      id: "w1",
+      revision: 1,
+      updatedAt: 100,
+      deviceId: "d0",
+      data: { name: "Home", secret: "page text" },
+    });
+
+    // The browser sees the plaintext row once...
+    const first = await instance.sync(session.user.id, { deviceId: "d1", since: 0, records: [] });
+    expect(first.records[0]).toMatchObject({ id: "w1", data: { name: "Home", secret: "page text" } });
+
+    // ...and sends it back sealed, one revision up.
+    await instance.sync(session.user.id, {
+      deviceId: "d1",
+      since: first.cursor,
+      records: [record({ revision: 2 })],
+    });
+    const after = await instance.sync(session.user.id, { deviceId: "d1", since: 0, records: [] });
+    expect(after.records).toHaveLength(1);
+    expect(after.records[0]).toMatchObject({ id: "w1", revision: 2 });
+    expect(after.records[0]).toHaveProperty("enc");
+    expect(JSON.stringify(after.records)).not.toContain("page text");
   });
 
   it("only returns records newer than the client's cursor", async () => {
@@ -214,6 +280,95 @@ describe("sync", () => {
 
     const bobsView = await instance.sync(bob.user.id, { deviceId: "d2", since: 0, records: [] });
     expect(bobsView.records).toEqual([]);
+  });
+});
+
+describe("handleSync", () => {
+  afterEach(() => setHadesAccountService(null));
+
+  async function signedInRequest(body: unknown) {
+    const instance = service();
+    setHadesAccountService(instance);
+    const session = await instance.signUp({ email: "a@b.co", password: PASSWORD });
+    return new Request("https://api.test/v1/sync", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${session.accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  const sealedRecord = () => ({
+    type: "collection",
+    id: "c1",
+    revision: 1,
+    updatedAt: 100,
+    deviceId: "d1",
+    enc: envelope(),
+  });
+
+  it("accepts a sealed record and hands it back without the server's columns", async () => {
+    const record = sealedRecord();
+    const response = await handleSync(
+      await signedInRequest({ deviceId: "d1", since: 0, records: [record] }),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { cursor: number; records: unknown[] };
+    expect(body.cursor).toBe(1);
+    expect(body.records).toEqual([record]);
+  });
+
+  it("rejects a record whose payload arrives in the clear", async () => {
+    // A client that has not sealed its payload is the thing this endpoint
+    // exists to refuse; storing it would put page text on the server.
+    const plaintext = { ...sealedRecord(), enc: undefined, data: { name: "Home" } };
+    const response = await handleSync(
+      await signedInRequest({ deviceId: "d1", since: 0, records: [plaintext] }),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects plaintext fields even beside a valid envelope", async () => {
+    const both = { ...sealedRecord(), data: { name: "Home" } };
+    const response = await handleSync(
+      await signedInRequest({ deviceId: "d1", since: 0, records: [both] }),
+    );
+    expect(response.status).toBe(400);
+
+    const tombstone = { ...sealedRecord(), deleted: true };
+    const second = await handleSync(
+      await signedInRequest({ deviceId: "d1", since: 0, records: [tombstone] }),
+    );
+    expect(second.status).toBe(400);
+  });
+
+  it("rejects an envelope that is not the shape the browser produces", async () => {
+    const cases = [
+      { ...sealedRecord(), enc: { v: 2, iv: envelope().iv, ct: envelope().ct } },
+      { ...sealedRecord(), enc: { v: 1, iv: "short", ct: envelope().ct } },
+      { ...sealedRecord(), enc: { v: 1, iv: envelope().iv, ct: "AAAA" } },
+      { ...sealedRecord(), enc: { v: 1, iv: envelope().iv, ct: envelope().ct, data: {} } },
+      { ...sealedRecord(), enc: { v: 1, iv: "not base64!!!!!!", ct: envelope().ct } },
+    ];
+    for (const record of cases) {
+      const response = await handleSync(
+        await signedInRequest({ deviceId: "d1", since: 0, records: [record] }),
+      );
+      expect(response.status).toBe(400);
+    }
+  });
+
+  it("refuses an unauthenticated push before reading the body", async () => {
+    setHadesAccountService(service());
+    const response = await handleSync(
+      new Request("https://api.test/v1/sync", {
+        method: "POST",
+        body: JSON.stringify({ deviceId: "d1", since: 0, records: [sealedRecord()] }),
+      }),
+    );
+    expect(response.status).toBe(401);
   });
 });
 

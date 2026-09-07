@@ -82,6 +82,8 @@ export type {
   AccountStore,
   AuthSession,
   HadesUser,
+  SyncEnvelope,
+  SyncRecordInput,
   SyncRecordRow,
 } from "./account/index";
 

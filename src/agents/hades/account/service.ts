@@ -9,6 +9,7 @@ import {
   verifyPassword,
   type AccountRecord,
   type AccountStore,
+  type SyncRecordInput,
   type SyncRecordRow,
 } from "./store";
 
@@ -147,11 +148,14 @@ export class HadesAccountService {
 
   async sync(
     userId: string,
-    input: { deviceId: string; since: number; records: Array<Omit<SyncRecordRow, "userId" | "cursor">> },
+    input: { deviceId: string; since: number; records: SyncRecordInput[] },
   ): Promise<{ cursor: number; records: SyncRecordRow[] }> {
     // Write first, then read back from the same cursor the client sent. The
     // client filters its own echo, and doing it in this order means a record
     // written by another device between the two steps is never skipped.
+    //
+    // Payloads are sealed and stay sealed: this method orders records by
+    // their metadata and never looks inside `enc`, because it cannot.
     if (input.records.length > 0) {
       await this.store.putRecords(userId, input.records.map((record) => ({ ...record, userId })));
     }
