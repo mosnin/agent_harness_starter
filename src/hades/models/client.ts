@@ -32,6 +32,8 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   text: string;
+  /** Provider termination reason. Length-limited text is not a complete tool call. */
+  finishReason?: string;
   tokensIn: number;
   tokensOut: number;
   usd: number;
@@ -125,14 +127,17 @@ export interface ProviderConfig {
   apiKey?: string;
   /** Model ids this provider serves. */
   models: string[];
+  /** Entire request deadline, including streaming. Cancellation remains separate. */
+  timeoutMs?: number;
 }
 
 interface OpenAIChatResponse {
-  choices?: Array<{ message?: { content?: string } }>;
+  choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
   usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
 }
 
 interface AnthropicMessagesResponse {
+  stop_reason?: string;
   content?: Array<{ type?: string; text?: string }>;
   usage?: { input_tokens?: number; output_tokens?: number };
 }
@@ -147,6 +152,7 @@ export class HttpModelClient implements ModelClient {
     opts?: { fetchImpl?: typeof fetch; prices?: PriceEntry[] },
   ) {
     this.provider = provider;
+    if (provider.timeoutMs !== undefined && (!Number.isSafeInteger(provider.timeoutMs) || provider.timeoutMs < 1 || provider.timeoutMs > 3_600_000)) throw new Error("Invalid provider request timeout");
     // Bind to preserve the correct `this` for a real global fetch.
     const impl = opts?.fetchImpl ?? globalThis.fetch;
     this.fetchImpl = opts?.fetchImpl ?? (impl ? impl.bind(globalThis) : impl);
@@ -199,8 +205,8 @@ export class HttpModelClient implements ModelClient {
       headers,
       body: JSON.stringify(body),
       signal: req.signal
-        ? AbortSignal.any([req.signal, AbortSignal.timeout(120_000)])
-        : AbortSignal.timeout(120_000),
+        ? AbortSignal.any([req.signal, AbortSignal.timeout(this.provider.timeoutMs ?? 120_000)])
+        : AbortSignal.timeout(this.provider.timeoutMs ?? 120_000),
     });
     if (!res.ok) {
       const detail = await this.safeText(res);
@@ -221,6 +227,7 @@ export class HttpModelClient implements ModelClient {
       tokensOut,
       data.usage !== undefined,
       data.usage?.cost,
+      data.choices?.[0]?.finish_reason,
     );
   }
 
@@ -278,8 +285,8 @@ export class HttpModelClient implements ModelClient {
       headers,
       body: JSON.stringify(body),
       signal: req.signal
-        ? AbortSignal.any([req.signal, AbortSignal.timeout(120_000)])
-        : AbortSignal.timeout(120_000),
+        ? AbortSignal.any([req.signal, AbortSignal.timeout(this.provider.timeoutMs ?? 120_000)])
+        : AbortSignal.timeout(this.provider.timeoutMs ?? 120_000),
     });
     if (!res.ok) {
       const detail = await this.safeText(res);
@@ -302,6 +309,8 @@ export class HttpModelClient implements ModelClient {
       tokensIn,
       tokensOut,
       data.usage !== undefined,
+      undefined,
+      data.stop_reason,
     );
   }
 
@@ -317,6 +326,7 @@ export class HttpModelClient implements ModelClient {
       tokensIn = 0,
       tokensOut = 0,
       hasUsage = false,
+      finishReason: string | undefined,
       reportedCost: number | undefined,
       complete = false;
     let data: string[] = [];
@@ -329,6 +339,7 @@ export class HttpModelClient implements ModelClient {
         return;
       }
       const event = JSON.parse(raw);
+      finishReason = event.choices?.[0]?.finish_reason ?? event.delta?.stop_reason ?? event.message?.stop_reason ?? finishReason;
       if (event.error)
         throw new Error(event.error.message ?? "Provider stream error");
       if (
@@ -389,7 +400,7 @@ export class HttpModelClient implements ModelClient {
       await reader.cancel().catch(() => {});
       reader.releaseLock();
     }
-    return this.finalize(req.model, output, tokensIn, tokensOut, hasUsage, reportedCost);
+    return this.finalize(req.model, output, tokensIn, tokensOut, hasUsage, reportedCost, finishReason);
   }
 
   private finalize(
@@ -399,10 +410,12 @@ export class HttpModelClient implements ModelClient {
     tokensOut: number,
     hasUsage: boolean,
     reportedCost?: number,
+    finishReason?: string,
   ): ChatResponse {
     const providerCost = this.provider.name === "openrouter" && typeof reportedCost === "number" && Number.isFinite(reportedCost) && reportedCost >= 0;
     return {
       text,
+      ...(finishReason ? { finishReason } : {}),
       tokensIn,
       tokensOut,
       usd: providerCost ? reportedCost! : computeCost(model, tokensIn, tokensOut, this.prices),

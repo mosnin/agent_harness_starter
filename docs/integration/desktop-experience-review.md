@@ -29,3 +29,21 @@ Scope: the installed Tauri application, from baseline `6f478adc659e24679eb293a08
 The Mac was locked at both native inspection attempts. No screenshots or rendered visual acceptance are claimed for this revision. DOM tests do not establish WebKit layout, VoiceOver quality or a polished appearance.
 
 When the screen is available, inspect the actual installed app at 1440×900, 1024×768 and a compact window, in light and dark appearances, then at enlarged text size. Review chat/composer, long project names, expanded sidebar, workspace/editor, each inspector, settings/dialog keyboard loops, Team chat and Slack setup. Confirm traffic-light clearance, readable contrast, focus visibility, scroll containment and no clipped controls. Capture screenshots from that native build; older screenshots are not evidence for this pass.
+
+## Native follow-through on 2026-09-07
+
+The Mac became available. Actual Hades screenshots showed the chat, workspace,
+file explorer and CodeMirror editor. The current Markdown/plain-text editor wraps
+long prose. Project switching now clears the previous project's inspector state;
+an asynchronous directory-list timeout keeps the sidecar responsive during a
+stalled folder read. Protected Documents access remains unverified.
+
+A real `pwd` command returned the disposable project path through the PTY and
+could be added to a chat draft. The terminal renderer was blank while WebKit
+reported `document.visibilityState=hidden` during automation, and repainted after
+a view change. Temporary diagnostic code and an unproven repaint workaround were
+removed. This observation does not establish normal foreground terminal quality.
+The broad light/dark/compact/large-text and VoiceOver acceptance matrix remains
+open. The latest screenshot also showed an actual provider catalog 401; the
+source now directs authentication failures to API-key/account settings rather
+than incorrectly suggesting that a model-ID change will fix authorization.

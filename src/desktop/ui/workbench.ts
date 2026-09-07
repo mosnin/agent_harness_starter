@@ -167,7 +167,7 @@ export function mountWorkbench(root: HTMLElement) {
       pendingApproval = undefined;
     }
     profile = boot.profiles.find((p: Profile) => p.id === boot.activeProfile);
-    project = project || boot.projects[0] || "";
+    setProject(project || boot.projects[0] || "");
     if (session) {
       const row = boot.sessions.find((s: Row) => s.id === session!.id);
       if (row) session.title = row.title;
@@ -193,7 +193,7 @@ export function mountWorkbench(root: HTMLElement) {
     }
     const s = await rpc("session.get", { id, profile: profile.id });
     session = s;
-    project = s.root || project;
+    setProject(s.root || project);
     view = "chat";
     stream = s.progress?.stream ?? "";
     activity = s.progress?.tools ?? [];
@@ -271,15 +271,29 @@ export function mountWorkbench(root: HTMLElement) {
     boot.active.push(current());
     render();
   }
+  function setProject(next: string) {
+    if (project === next) return;
+    project = next;
+    folder = "."; files = []; preview = undefined; git = {}; pane = "";
+    selectedTerminal = boot.terminals?.find((terminal: Row) => terminal.root === next)?.id ?? "";
+  }
   async function loadPane(next: string) {
     pane = pane === next ? "" : next;
-    if (pane === "files" && project)
-      files = await rpc("files.list", { root: project, path: folder });
-    if (pane === "git" && project)
-      git = await rpc("git.status", { root: project });
+    const requestRoot = project, requestFolder = folder;
+    if (pane === "files" && project) {
+      const result = await rpc("files.list", { root: requestRoot, path: requestFolder });
+      if (project !== requestRoot || folder !== requestFolder || pane !== "files") return;
+      files = result;
+    }
+    if (pane === "git" && project) {
+      const result = await rpc("git.status", { root: requestRoot });
+      if (project !== requestRoot || pane !== "git") return;
+      git = result;
+    }
     if (pane === "terminal" && !selectedTerminal && project) {
       const t = await rpc("terminal.open", { root: project });
       boot.terminals.push(t);
+      if (project !== requestRoot || pane !== "terminal") return;
       selectedTerminal = t.id;
     }
     render();
@@ -442,7 +456,7 @@ export function mountWorkbench(root: HTMLElement) {
     if (view === "skills")
       return `<div class="page">${heading("Skills", "Reusable instructions for the way you like to work.")}<div class="page-actions">${button("Create skill", "skill-new", 'class="primary-button"')}${button("Install SKILL.md", "skill-import")}<input id="skill-import-file" type="file" accept=".md" hidden></div>${skills.length ? `<div class="cards">${skills.map((s) => `<button class="library-card" data-action="skill-edit" data-name="${esc(s.name)}">${icon("skills")}<h3>${esc(s.name)}</h3><p>${esc(s.content.slice(0, 160))}</p><small>Local SKILL.md</small></button>`).join("")}</div>` : empty("⌘", "No skills yet", "Create a skill and attach its instructions to a conversation.")}</div>`;
     if (view === "jobs")
-      return `<div class="page">${heading("Routines", "Recurring work, with a conversation for every run.")}<div class="page-actions">${button("New routine", "job-new", 'class="primary-button"')}<span class="muted">Runs while Hades is open. Changes still require approval.</span></div>${boot.jobs.length ? boot.jobs.map((j: Row) => `<div class="record"><span>${icon("jobs")}</span><div><h3>${esc(j.name)}</h3><p>${esc(j.prompt)}</p><small>${j.cron ? esc(j.cron) + " · " + esc(j.timeZone) : "Every " + j.intervalMinutes + " min"} · ${j.enabled ? "Next " + new Date(j.nextAt).toLocaleString() : "Paused"}${j.lastError ? " · " + esc(j.lastError) : ""}</small></div>${button(j.enabled ? "Pause" : "Enable", "job-toggle", `data-id="${j.id}"`)}${button("Run now", "job-run", `data-id="${j.id}"`)}</div>`).join("") : empty("◷", "No routines yet", "Set up a recurring prompt for one of your projects.")}</div>`;
+      return `<div class="page">${heading("Routines", "Recurring work, with a conversation for every run.")}<div class="page-actions">${button("New routine", "job-new", 'class="primary-button"')}<span class="muted">Runs while Hades is open. Changes still require approval.</span></div>${boot.jobs.length ? boot.jobs.map((j: Row) => `<div class="record"><span>${icon("jobs")}</span><div><h3>${esc(j.name)}</h3><p>${esc(j.prompt)}</p><small>${j.cron ? esc(j.cron) + " · " + esc(j.timeZone) : "Every " + j.intervalMinutes + " min"} · ${j.enabled ? "Next " + new Date(j.nextAt).toLocaleString() : "Paused"}${j.lastStatus ? " · " + esc(({queued:"Queued",running:"Running",completed:"Finished",failed:"Failed",interrupted:"Needs review",cancelled:"Cancelled"} as Row)[j.lastStatus] ?? j.lastStatus) : ""}${j.lastError ? " · " + esc(j.lastError) : ""}</small></div>${j.session ? button("Open conversation", "session", `data-id="${j.session}"`) : ""}${button(j.enabled ? "Pause" : "Enable", "job-toggle", `data-id="${j.id}"`)}${["queued", "running"].includes(j.lastStatus) ? button("Stop run", "job-cancel", `data-id="${j.runId}"`) : button("Run now", "job-run", `data-id="${j.id}"`)}</div>`).join("") : empty("◷", "No routines yet", "Set up a recurring prompt for one of your projects.")}</div>`;
     if (view === "artifact") {
       return `<div class="page">${heading("Artifacts", "Files in your project, and links from the current conversation.")}<div class="page-actions">${button("Browse project files", "files", 'class="primary-button"')}</div>${artifacts.length ? artifacts.map((item: Row, i: number) => `<div class="record">${icon("artifact")}<div><p>${esc(item.path ?? item.url)}</p><small>${new Date(item.at).toLocaleString()}</small></div>${button("Preview", "artifact-open", `data-index="${i}"`)}${button("Conversation", "session", `data-id="${item.session}"`)}</div>`).join("") : empty("◇", "No artifacts yet", "Use the file browser to preview, edit and open your project’s outputs.")}</div>`;
     }
@@ -769,7 +783,7 @@ export function mountWorkbench(root: HTMLElement) {
             ),
           ].map((x) => x.value),
         });
-        project = room!.root;
+        setProject(room!.root);
         view = "rooms";
         modal = "";
         await refresh();
@@ -777,7 +791,7 @@ export function mountWorkbench(root: HTMLElement) {
       case "room-open":
         room = await rpc("room.get", { id: el!.dataset.id });
         roomDraft = "";
-        project = room!.root;
+        setProject(room!.root);
         view = "rooms";
         break;
       case "rooms-back":
@@ -935,7 +949,7 @@ export function mountWorkbench(root: HTMLElement) {
           pane = "preview";
           modalData.url = item.url;
         } else {
-          project = item.root;
+          setProject(item.root);
           pane = "files";
           folder = ".";
           files = await rpc("files.list", { root: project, path: "." });
@@ -978,7 +992,7 @@ export function mountWorkbench(root: HTMLElement) {
         const hidden = el!.dataset.path;
         await rpc("project.hide", { path: hidden });
         if (project === hidden) {
-          project = "";
+          setProject("");
           session = undefined;
           pane = "";
           preview = undefined;
@@ -997,13 +1011,13 @@ export function mountWorkbench(root: HTMLElement) {
         return;
       }
       case "project-add":
-        project = await rpc("project.add", { path: val("project-path") });
+        setProject(await rpc("project.add", { path: val("project-path") }));
         modal = "";
         await refresh();
         await newChat();
         return;
       case "project-select":
-        project = el!.dataset.path!;
+        setProject(el!.dataset.path!);
         session = undefined;
         folder = ".";
         preview = undefined;
@@ -1383,6 +1397,10 @@ export function mountWorkbench(root: HTMLElement) {
           id: el!.dataset.id,
           enabled: !boot.jobs.find((j: Row) => j.id === el!.dataset.id).enabled,
         });
+        await refresh();
+        return;
+      case "job-cancel":
+        await rpc("job.cancel", { id: el!.dataset.id });
         await refresh();
         return;
       case "job-run":
@@ -1801,6 +1819,7 @@ export function mountWorkbench(root: HTMLElement) {
       host.append(item.node);
       item.fit.fit();
       item.terminal.options.fontSize = Math.round(fontSize * 13 / 14);
+
     }
   }
   function onKey(e: KeyboardEvent) {

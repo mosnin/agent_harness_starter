@@ -1,4 +1,5 @@
 import { SlackBot, type SlackJob } from "./slack-bot";
+import { WakeStore, type Wake } from "./wake-store";
 import { harnessCatalog, parseHarnessArgs, shellQuote } from "./harness-catalog";
 import { TeamDeliveries } from "../team/deliveries";
 import { TeamClient } from "../team/client";
@@ -13,7 +14,9 @@ import {
   readdirSync,
   realpathSync,
   statSync,
+  type Dirent,
 } from "node:fs";
+import { readdir } from "node:fs/promises";
 import {
   join,
   resolve,
@@ -32,6 +35,7 @@ import {
 import { promisify } from "node:util";
 import { FileSessionStore } from "../../hades/memory/session-store";
 import { FileMemoryStore } from "../../hades/memory/store";
+import { FileContextArchive } from "../../hades/memory/context-archive";
 import { ConversationalAgent } from "../../hades/repl/agent";
 import { AgentLoop } from "../../hades/agent/loop";
 import { ToolRegistry } from "../../hades/agent/tools";
@@ -141,6 +145,12 @@ export class WorkbenchService {
   private turns = new Map<string, Promise<void>>();
   private roomRuns = new Map<string, AbortController>();
   private fileWrites = new Map<string, Promise<void>>();
+  private wakes: WakeStore;
+  private wakeOwner = randomUUID();
+  private wakeWorkers = new Map<string, ReturnType<typeof setInterval>>();
+  private pumpingWakes = false;
+  private closed = false;
+  private directoryReads = new Map<string, Promise<Dirent[]>>();
   constructor(
     readonly dataDir: string,
     private emit: (event: WorkbenchEvent) => void,
@@ -168,10 +178,11 @@ export class WorkbenchService {
       output(event);
     };
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+    this.wakes = new WakeStore(join(dataDir, "wakes.sqlite"));
     this.teamDeliveries = new TeamDeliveries(join(dataDir, "team"));
     this.team = new TeamClient(join(dataDir, "team"));
     this.slack = new SlackBot(join(dataDir, "slack"), (job, bind) => this.runSlack(job, bind), () => this.emit({ kind: "desktop.slack.changed" }));
-    this.codex = new CodexProvider(join(dataDir, "codex"), e => this.emit(e as WorkbenchEvent), env);
+    this.codex = new CodexProvider(env.HADES_CODEX_HOME ?? join(dataDir, "codex"), e => this.emit(e as WorkbenchEvent), env);
     this.checkpoints = new Checkpoints(join(dataDir, "checkpoints"));
     this.localModels = new LocalModels((e) => this.emit(e as WorkbenchEvent));
     const initial: Settings = {
@@ -197,7 +208,7 @@ export class WorkbenchService {
       ? { ...initial, ...JSON.parse(readFileSync(this.configPath, "utf8")) }
       : initial;
     this.timer = setInterval(() => {
-      void this.tick();
+      void this.tick().catch(error => this.emit({ kind: "desktop.error", message: `Routine scheduler: ${error instanceof Error ? error.message : "failed"}` }));
     }, 15_000);
     this.timer.unref();
   }
@@ -263,6 +274,7 @@ export class WorkbenchService {
       name: p.provider,
       kind: p.provider === "anthropic" ? "anthropic" : "openai",
       baseUrl: p.baseUrl, apiKey: key, models: [p.model],
+      timeoutMs: p.provider === "local" ? 600_000 : 120_000,
     });
   }
   private snapshot(profileId?: unknown) {
@@ -288,7 +300,7 @@ export class WorkbenchService {
             b.startedAt - a.startedAt,
         ),
       active: [...this.active.keys()],
-      jobs: this.settings.jobs,
+      jobs: this.settings.jobs.map(job => this.jobView(job)),
       downloads: this.localModels.states(),
       rooms: this.settings.rooms.map(({ messages, ...room }) => ({
         ...room,
@@ -649,7 +661,9 @@ export class WorkbenchService {
         );
         if (!response.ok)
           throw new Error(
-            `Model catalog unavailable (${response.status}); enter a model ID manually.`,
+            response.status === 401 || response.status === 403
+              ? "Your provider did not authorize the model request. Check its API key and account access in Settings."
+              : `Model catalog unavailable (${response.status}); enter a model ID manually.`,
           );
         const data = (await response.json()) as {
           data?: Array<{ id: string }>;
@@ -855,7 +869,22 @@ export class WorkbenchService {
       case "files.list": {
         const root = this.root(a.root);
         const path = this.path(root, a.path ?? ".");
-        return readdirSync(path, { withFileTypes: true })
+        // macOS may wait for folder permission while opening a directory. Keep
+        // the event loop and cancellation responsive and bound the UI wait.
+        let pending = this.directoryReads.get(path);
+        if (!pending) {
+          pending = readdir(path, { withFileTypes: true });
+          this.directoryReads.set(path, pending);
+          void pending.finally(() => this.directoryReads.delete(path)).catch(() => {});
+        }
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let entries: Dirent[];
+        try {
+          entries = await Promise.race([pending, new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error("Folder access is taking too long. Choose the project with ‘Choose in Finder’ and check macOS Files and Folders permission for Hades.")), 5000);
+          })]);
+        } finally { clearTimeout(timer); }
+        return entries
           .filter(
             (d) => !["node_modules", ".git", ".DS_Store"].includes(d.name),
           )
@@ -1141,7 +1170,16 @@ export class WorkbenchService {
         const j = this.settings.jobs.find((j) => j.id === a.id);
         if (!j) throw new Error("Routine not found");
         await this.runJob(j);
-        return j;
+        return this.jobView(j);
+      }
+      case "job.runs": return this.wakes.history(ident(a.id));
+      case "job.cancel": {
+        const wake = this.wakes.get(ident(a.id));
+        if (!wake) throw new Error("Routine run not found");
+        const cancelled = this.wakes.cancel(wake.id);
+        if (cancelled && wake.session) this.active.get(wake.session)?.abort();
+        this.emit({ kind: "desktop.changed" });
+        return cancelled;
       }
       default:
         throw new Error(`Unknown desktop operation: ${method}`);
@@ -1375,9 +1413,12 @@ export class WorkbenchService {
         memory: this.memory(p.id),
         contextFiles: { dataDir: this.dir(p.id), projectDir: root },
         brain: async (ctx, _stream, signal) => {
+          const contextDirectory = join(this.dir(p.id), "context", id, randomUUID());
           const result = await new AgentLoop(client, tools, {
             model: p.model,
-            maxSteps: 20,
+            maxSteps: 80,
+            contextArchive: new FileContextArchive(contextDirectory),
+            contextWindow: p.provider === "local" ? () => this.localModels.contextWindow(p.baseUrl, p.model) : undefined,
             signal,
             images,
             history: ctx.history.map(({ role, content, images }) => ({
@@ -1442,6 +1483,11 @@ export class WorkbenchService {
                 }
             },
           }).run(ctx.input);
+          // Retain the full original turn, including failures, independently of
+          // the smaller model-facing view. This does not authorize tool replay.
+          const receiptPath = join(contextDirectory, "run.json");
+          writeFileSync(receiptPath + ".pending", JSON.stringify(result), { mode: 0o600, flush: true });
+          renameSync(receiptPath + ".pending", receiptPath);
           this.emit({
             kind: "desktop.usage",
             session: id,
@@ -1451,6 +1497,7 @@ export class WorkbenchService {
             costMeasured: result.costMeasured,
           });
           if (result.error) throw new Error(result.error);
+          if (result.hitStepLimit) throw new Error(result.answer);
           return result.answer;
         },
       });
@@ -1517,42 +1564,94 @@ export class WorkbenchService {
       this.terminals.delete(id);
     }
   }
-  private async runJob(j: Job) {
-    j.lastAt = Date.now();
+  private jobView(j: Job) {
+    const run = this.wakes.history(j.id, 1).at(-1);
+    return { ...j, ...(run ? { runId: run.id, lastStatus: run.status, lastError: run.error, session: run.session } : {}) };
+  }
+  private async runJob(j: Job, scheduledFor?: number) {
+    if (this.wakes.pending(j.id)) return;
+    const due = scheduledFor ?? Date.now();
+    this.wakes.enqueue("routine", scheduledFor === undefined ? `${j.id}:manual:${randomUUID()}` : `${j.id}:${scheduledFor}`,
+      { job: j.id, profile: j.profile, root: j.root, name: j.name, prompt: j.prompt }, due);
+    // Persist the wake first. A crash before schedule advancement re-enqueues the
+    // same occurrence key and cannot create a second run.
+    j.lastAt = due;
     j.nextAt = j.cron
       ? (nextFireTime(parseCron(j.cron), Date.now(), j.timeZone ?? "UTC") ??
         Number.MAX_SAFE_INTEGER)
       : Date.now() + j.intervalMinutes * 60_000;
+    this.save();
+    await this.pumpWakes();
+  }
+  private async startWake(wake: Wake) {
+    let session: string | undefined;
     try {
-      const p = this.profile(j.profile);
+      const p = this.profile(wake.task.profile);
       this.client(p);
       const s = (await this.dispatch("session.new", {
         profile: p.id,
-        root: j.root,
-        title: j.name,
+        root: wake.task.root,
+        title: wake.task.name,
       })) as { id: string };
-      j.session = s.id;
+      session = s.id;
+      if (this.closed || !this.wakes.bind(wake, session)) throw new Error("Routine ownership was lost before starting");
+      const renewal = setInterval(() => {
+        if (!this.closed && !this.wakes.renew(wake)) this.active.get(s.id)?.abort();
+      }, 15_000);
+      renewal.unref();
+      this.wakeWorkers.set(wake.id, renewal);
       await this.dispatch("chat.send", {
         id: s.id,
         profile: p.id,
-        input: j.prompt,
+        input: wake.task.prompt,
       });
-      j.lastError = undefined;
+      void (this.turns.get(s.id) ?? Promise.resolve()).then(() => {
+        if (this.closed) return;
+        const error = this.progress.get(s.id)?.error;
+        const answer = this.sessions(p.id).get(s.id)?.messages.filter(message => message.role === "assistant").at(-1)?.content;
+        this.wakes.settle(wake, error || !answer ? "failed" : "completed", error ? String(error) : !answer ? "Agent ended without a completed reply" : undefined);
+      }).catch(error => {
+        if (!this.closed) this.wakes.settle(wake, "failed", error instanceof Error ? error.message : "Routine failed");
+      }).finally(() => {
+        clearInterval(renewal); this.wakeWorkers.delete(wake.id);
+        if (!this.closed) this.emit({ kind: "desktop.changed" });
+      });
     } catch (e) {
-      j.lastError = e instanceof Error ? e.message : "Routine failed";
+      if (session) this.active.get(session)?.abort();
+      clearInterval(this.wakeWorkers.get(wake.id)); this.wakeWorkers.delete(wake.id);
+      if (!this.closed) this.wakes.settle(wake, "failed", e instanceof Error ? e.message : "Routine failed");
     }
-    this.save();
+    if (!this.closed) this.emit({ kind: "desktop.changed" });
+  }
+  private async pumpWakes() {
+    if (this.closed || this.pumpingWakes) return;
+    this.pumpingWakes = true;
+    try {
+      if (this.wakes.reconcileExpired()) this.emit({ kind: "desktop.changed" });
+      while (!this.closed && this.wakeWorkers.size < 3) {
+        const wake = this.wakes.claim(this.wakeOwner);
+        if (!wake) break;
+        await this.startWake(wake);
+      }
+    } finally { this.pumpingWakes = false; }
   }
   private async tick() {
+    if (this.closed) return;
     for (const j of this.settings.jobs)
       if (
         j.enabled &&
         j.nextAt <= Date.now() &&
-        (!j.session || !this.active.has(j.session))
+        this.jobView(j).lastStatus !== "interrupted"
       )
-        await this.runJob(j);
+        await this.runJob(j, j.nextAt);
+    await this.pumpWakes();
   }
   close() {
+    if (this.closed) return;
+    this.closed = true;
+    for (const timer of this.wakeWorkers.values()) clearInterval(timer);
+    this.wakes.interruptOwner(this.wakeOwner);
+    this.wakes.close();
     clearInterval(this.timer);
     this.localModels.close();
     this.codex.close();

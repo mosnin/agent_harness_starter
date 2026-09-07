@@ -43,6 +43,14 @@ describe("createFileOpsTool: catalog metadata", () => {
 });
 
 describe("createFileOpsTool: basic operations", () => {
+  it("rejects missing write content without truncating a file", async () => {
+    await run({ op: "write", path: "kept.txt", content: "Keep this" });
+    const missing = await run({ op: "write", path: "kept.txt" });
+    expect(missing.ok).toBe(false);
+    expect(await fs.readFile(path.join(root, "kept.txt"), "utf8")).toBe("Keep this");
+    expect((await run({ op: "write", path: "kept.txt", content: "" })).ok).toBe(true);
+    expect(await fs.readFile(path.join(root, "kept.txt"), "utf8")).toBe("");
+  });
   it("writes then reads a file back", async () => {
     const w = await run({ op: "write", path: "hello.txt", content: "hello world" });
     expect(w.ok).toBe(true);

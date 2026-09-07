@@ -92,6 +92,7 @@ export class WorkspaceEditor {
     const path = JSON.parse(key)[1];
     return EditorState.create({ doc: text, extensions: [
       basicSetup, language(path), keymap.of([indentWithTab, { key: "Mod-s", run: () => { void this.save().catch(this.report); return true; } }]),
+      /\.(md|txt)$/i.test(path) ? EditorView.lineWrapping : [],
       this.theme.of(this.editorTheme()),
       EditorView.updateListener.of(update => {
         const doc = this.docs.get(key);

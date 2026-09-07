@@ -50,6 +50,7 @@ export interface ToolFactoryOptions {
 export interface Tool {
   name: string;
   description: string;
+  validate?: (input: string) => string | undefined;
   run: (input: string) => ToolResult | Promise<ToolResult>;
 }
 
@@ -110,6 +111,9 @@ function parseInput(raw: string): { ok: true; value: FileOpsInput } | { ok: fals
   }
   if (obj.content !== undefined && typeof obj.content !== "string") {
     return { ok: false, error: "content must be a string" };
+  }
+  if (["write", "append"].includes(obj.op) && typeof obj.content !== "string") {
+    return { ok: false, error: "write and append require explicit content (use an empty string only to intentionally write empty content)" };
   }
   if (obj.maxBytes !== undefined) {
     if (typeof obj.maxBytes !== "number" || !Number.isFinite(obj.maxBytes) || obj.maxBytes < 0) {
@@ -339,6 +343,7 @@ export function createFileOpsTool(opts: ToolFactoryOptions & { root: string }): 
 
   const tool: Tool = {
     name: "file_ops",
+    validate: (input) => { const parsed = parseInput(input); return parsed.ok ? undefined : parsed.error; },
     description:
       "Read, write, append, list, stat, mkdir, or delete files/directories within a jailed root. " +
       'Input JSON: {"op":"read|write|append|list|stat|mkdir|delete","path":string,"content"?:string,"maxBytes"?:number}',

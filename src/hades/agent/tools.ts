@@ -24,6 +24,8 @@ export interface Tool {
   name: string;
   /** One line the model reads to decide when to use it. */
   description: string;
+  /** Pure input check, run before approval or any side effect. */
+  validate?: (input: string) => string | undefined;
   run: (input: string) => ToolResult | Promise<ToolResult>;
 }
 
@@ -62,6 +64,8 @@ export class ToolRegistry {
       return { ok: false, output: `unknown tool: ${call.tool}` };
     }
     try {
+      const invalid = tool.validate?.(call.input);
+      if (invalid) return { ok: false, output: `Invalid tool input: ${invalid}. Correct the input and retry.` };
       return await tool.run(call.input);
     } catch (err) {
       return { ok: false, output: `error: ${messageOf(err)}` };

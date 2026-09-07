@@ -53,3 +53,6 @@ dist-mac/
 dist/runtime/
 src-tauri/target/
 src-tauri/gen/
+
+# Retained upstream research snapshots and evidence archives (local only).
+.research/

@@ -32,6 +32,11 @@ function fixture(
   );
 }
 describe("streaming model transport", () => {
+  it.each(["openai", "anthropic"] as const)("preserves %s length stop reasons", async kind => {
+    const ending = kind === "openai" ? event({ choices: [{ delta: {}, finish_reason: "length" }] }) : event({ type: "message_delta", delta: { stop_reason: "max_tokens" } }) + event({ type: "message_stop" });
+    const reply = await fixture(kind, ending + "data: [DONE]\n\n").chat({ model: "gpt-4o-mini", messages: [], onText: () => {} });
+    expect(reply.finishReason).toBe(kind === "openai" ? "length" : "max_tokens");
+  });
   it("decodes split UTF-8 and measures OpenAI usage", async () => {
     const chunks: string[] = [];
     const client = fixture(

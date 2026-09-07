@@ -11,6 +11,11 @@ import {
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
+import * as fsPromises from "node:fs/promises";
+vi.mock("node:fs/promises", async importOriginal => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...actual, readdir: vi.fn(actual.readdir) };
+});
 import { createServer, type Server } from "node:http";
 import {
   WorkbenchService,
@@ -26,6 +31,20 @@ afterEach(() => {
   servers.forEach((s) => s.close());
   roots.forEach((r) => rmSync(r, { recursive: true, force: true }));
   services.length = servers.length = roots.length = 0;
+});
+it("bounds a blocked folder read without blocking control requests", async () => {
+  const { s, root } = setup();
+  await s.dispatch("project.add", { path: root });
+  const read = vi.mocked(fsPromises.readdir).mockClear().mockImplementationOnce(() => new Promise(() => {}));
+  vi.useFakeTimers();
+  try {
+    const listing = s.dispatch("files.list", { root, path: "." });
+    const failed = expect(listing).rejects.toThrow("Choose in Finder");
+    expect((await s.dispatch("boot", {}) as any).projects).toContain(realpathSync(root));
+    await vi.advanceTimersByTimeAsync(5001);
+    await failed;
+    expect(read).toHaveBeenCalledTimes(1);
+  } finally { read.mockClear(); vi.useRealTimers(); }
 });
 function setup() {
   const root = mkdtempSync(join(tmpdir(), "hades-desktop-test-"));
@@ -311,6 +330,51 @@ describe("desktop persistent workflows", () => {
     })) as any;
     expect(session.messages.at(-1).content).toContain("Routine completed");
     expect(((await s.dispatch("boot", {})) as any).jobs[0].enabled).toBe(false);
+    await until(() => (s as any).jobView(job).lastStatus === "completed");
+    expect((await s.dispatch("job.runs", { id: job.id }) as any[]).at(-1).status).toBe("completed");
+  });
+  it("persists routine failure after the model ends with empty responses", async () => {
+    const { s, root, events } = setup();
+    const p = await provider(() => "");
+    await s.dispatch("project.add", { path: root });
+    await s.dispatch("profile.save", { id: "default", name: "Hades", provider: "local", model: "test-model", baseUrl: p.url });
+    const job = await s.dispatch("job.save", { name: "Failing routine", prompt: "Do work", root, intervalMinutes: 60 }) as any;
+    const run = await s.dispatch("job.run", { id: job.id }) as any;
+    await until(() => events.some(event => event.kind === "desktop.done" && event.session === run.session));
+    await until(() => (s as any).jobView(job).lastStatus === "failed");
+    const history = await s.dispatch("job.runs", { id: job.id }) as any[];
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({ status: "failed", error: expect.stringContaining("empty response") });
+  });
+  it("keeps approval waits running, deduplicates manual clicks, and preserves cancelled state", async () => {
+    const { s, root, events } = setup();
+    const p = await provider(() => 'TOOL: file_ops\nINPUT: {"op":"write","path":"routine.txt","content":"change"}');
+    await s.dispatch("project.add", { path: root });
+    await s.dispatch("profile.save", { id: "default", name: "Hades", provider: "local", model: "test-model", baseUrl: p.url });
+    const job = await s.dispatch("job.save", { name: "Approval routine", prompt: "Write a note", root, intervalMinutes: 60 }) as any;
+    const run = await s.dispatch("job.run", { id: job.id }) as any;
+    await until(() => events.some(event => event.kind === "desktop.approval"));
+    const duplicate = await s.dispatch("job.run", { id: job.id }) as any;
+    expect(duplicate.runId).toBe(run.runId); expect(duplicate.lastStatus).toBe("running");
+    expect(await s.dispatch("job.cancel", { id: run.runId })).toBe(true);
+    await until(() => events.some(event => event.kind === "desktop.done" && event.session === run.session));
+    expect((await s.dispatch("job.runs", { id: job.id }) as any[])[0].status).toBe("cancelled");
+    expect(existsSync(join(root, "routine.txt"))).toBe(false);
+  });
+  it("exposes interrupted routine state after closing during approval", async () => {
+    const { s, root, events } = setup();
+    const p = await provider(() => 'TOOL: file_ops\nINPUT: {"op":"write","path":"routine.txt","content":"change"}');
+    await s.dispatch("project.add", { path: root });
+    await s.dispatch("profile.save", { id: "default", name: "Hades", provider: "local", model: "test-model", baseUrl: p.url });
+    const job = await s.dispatch("job.save", { name: "Interrupted routine", prompt: "Write a note", root, intervalMinutes: 60 }) as any;
+    const run = await s.dispatch("job.run", { id: job.id }) as any;
+    await until(() => events.some(event => event.kind === "desktop.approval"));
+    s.close();
+    await until(() => events.some(event => event.kind === "desktop.done" && event.session === run.session));
+    const restarted = new WorkbenchService(join(root, "data"), () => {}, { NODE_ENV: "test" }); services.push(restarted);
+    const restored = (await restarted.dispatch("boot", {}) as any).jobs[0];
+    expect(restored).toMatchObject({ lastStatus: "interrupted", session: run.session });
+    expect(existsSync(join(root, "routine.txt"))).toBe(false);
   });
 });
 

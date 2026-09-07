@@ -11,6 +11,7 @@ type Download = {
 };
 /** Uses an existing Ollama runtime. Pulls are asynchronous so approval/cancel RPC stays responsive. */
 export class LocalModels {
+  private ollamaEndpoints = new Set<string>();
   private downloads = new Map<
     string,
     { state: Download; controller: AbortController }
@@ -49,6 +50,7 @@ export class LocalModels {
       });
       if (!r.ok) throw new Error(`Ollama returned ${r.status}`);
       const data = (await r.json()) as { models?: unknown[] };
+      if (Array.isArray(data.models)) this.ollamaEndpoints.add(url);
       return {
         endpoint: url,
         models: (data.models ?? []).slice(0, 200),
@@ -62,6 +64,18 @@ export class LocalModels {
   }
   states() {
     return [...this.downloads.values()].map((x) => x.state);
+  }
+  async contextWindow(endpoint: unknown, model: string): Promise<number | undefined> {
+    try {
+      const url = this.endpoint(endpoint);
+      if (new URL(url).port !== "11434" && !this.ollamaEndpoints.has(url)) return undefined;
+      const response = await fetch(url + "/api/ps", { signal: AbortSignal.timeout(2000), redirect: "error" });
+      if (!response.ok) return undefined; // Other OpenAI-compatible servers have no Ollama API.
+      const body = await response.json() as { models?: Array<{ name?: string; model?: string; context_length?: number }> };
+      const entry = body.models?.find(entry => [entry.name, entry.model].includes(model));
+      const value = entry?.context_length;
+      return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : undefined;
+    } catch { return undefined; }
   }
   pull(endpoint: unknown, model: unknown) {
     const url = this.endpoint(endpoint),

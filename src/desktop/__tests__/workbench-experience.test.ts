@@ -95,6 +95,19 @@ describe("focus helpers", () => {
 });
 
 describe("inspector file ownership", () => {
+  it("clears the old inspector and reloads from the new project after switching roots", async () => {
+    boot.projects.push("/other");
+    try {
+      await mount(); click('[data-action="files"]'); await settle();
+      click('[data-action="file"][data-path="a.txt"]'); await settle();
+      expect(root.querySelector("#file-content")).toBeTruthy();
+      click('[data-action="project-select"][data-path="/other"]'); await settle();
+      expect(root.querySelector("#file-content")).toBeNull();
+      click('[data-action="files"]'); await settle();
+      const calls = (window as any).__TAURI__.core.invoke.mock.calls;
+      expect(calls.filter((call: any) => call[1]?.cmd?.method === "files.list").at(-1)[1].cmd.args.root).toBe("/other");
+    } finally { boot.projects.splice(1); }
+  });
   it("does not transfer a file draft to a different preview", async () => {
     await mount(); click('[data-action="files"]'); await settle();
     click('[data-action="file"][data-path="a.txt"]'); await settle();

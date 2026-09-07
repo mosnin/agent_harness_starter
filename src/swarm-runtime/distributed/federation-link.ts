@@ -426,6 +426,8 @@ export class FederationLink extends EventEmitter {
   private readonly reconnectOpts?: FederationLinkOptions["reconnect"];
 
   private wire: Wire;
+  private inbound: Promise<void> = Promise.resolve();
+  private outbound: Promise<void> = Promise.resolve();
   private appHandler?: (e: FederatedEnvelope) => unknown | Promise<unknown>;
 
   private peerNodeId: string | undefined;
@@ -585,7 +587,11 @@ export class FederationLink extends EventEmitter {
   private attachWire(wire: Wire): void {
     wire.onFrame((frame) => {
       if (this.closed || wire !== this.wire) return;
-      void this.onFrame(frame);
+      // Verification is asynchronous. Preserve wire order through replay checks,
+      // otherwise a later frame can advance the sequence and discard its predecessor.
+      this.inbound = this.inbound.then(() => {
+        if (!this.closed && wire === this.wire) return this.onFrame(frame);
+      }).catch(() => { this.recordRejected("processing-error"); });
     });
     const hooked = wire as Partial<SocketWireExtras>;
     if (typeof hooked.onClose === "function") {
@@ -623,15 +629,25 @@ export class FederationLink extends EventEmitter {
   }
 
   private async sendReliable<T>(kind: FederatedKind, to: string | "*", payload: T): Promise<FederatedEnvelope> {
-    const e = await this.buildEnvelope(kind, to, payload);
-    this.enqueueUnacked(e);
-    this.transmit(e);
-    return e;
+    const operation = this.outbound.then(async () => {
+      const e = await this.buildEnvelope(kind, to, payload);
+      this.enqueueUnacked(e);
+      // A newly dialed wire is not ready until the resume handshake flushes
+      // older unacknowledged frames. Fresh traffic must not overtake that flush.
+      if (!this.degraded) this.transmit(e);
+      return e;
+    });
+    this.outbound = operation.then(() => {}, () => {});
+    return operation;
   }
 
   private async sendControl<T>(kind: FederatedKind, to: string | "*", payload: T): Promise<void> {
-    const e = await this.buildEnvelope(kind, to, payload);
-    this.transmit(e);
+    const operation = this.outbound.then(async () => {
+      const e = await this.buildEnvelope(kind, to, payload);
+      this.transmit(e);
+    });
+    this.outbound = operation.then(() => {}, () => {});
+    await operation;
   }
 
   private enqueueUnacked(e: FederatedEnvelope): void {
@@ -756,7 +772,9 @@ export class FederationLink extends EventEmitter {
     this.statCounts.received++;
 
     if (this.closed) return;
-    await this.dispatch(e);
+    // Handlers may await another request on this link. Only admission is
+    // serialized; waiting for an application reply here would deadlock its result.
+    void this.dispatch(e).catch(() => { this.recordRejected("dispatch-error"); });
   }
 
   /**

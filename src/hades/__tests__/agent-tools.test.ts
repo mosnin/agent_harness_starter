@@ -112,6 +112,15 @@ describe("word_count / case", () => {
 });
 
 describe("ToolRegistry guards", () => {
+  it("rejects invalid input before invoking approval or execution wrappers", async () => {
+    const registry = new ToolRegistry();
+    let invoked = false;
+    registry.register({ name: "validated", description: "test", validate: value => value === "valid" ? undefined : "expected valid", run: () => { invoked = true; return { ok: true, output: "done" }; } });
+    expect(await registry.run({ tool: "validated", input: "bad" })).toMatchObject({ ok: false, output: expect.stringContaining("Invalid tool input") });
+    expect(invoked).toBe(false);
+    expect(await registry.run({ tool: "validated", input: "valid" })).toEqual({ ok: true, output: "done" });
+    expect(invoked).toBe(true);
+  });
   it("guards unknown tools", async () => {
     const reg = builtinRegistry();
     expect(await reg.run({ tool: "nope", input: "x" })).toEqual({

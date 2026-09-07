@@ -21,7 +21,7 @@ fi
 # Disable debug information and incremental state to keep local builds small.
 cc -O2 -Wall -Wextra scripts/macos-pty.c -o dist/runtime/hades-pty
 cargo build --manifest-path src-tauri/Cargo.toml --features gui -j "${HADES_BUILD_JOBS:-4}"
-APP="$ROOT/dist-mac/Hades.app"
+APP="${HADES_APP_OUTPUT:-$ROOT/dist-mac/Hades.app}"
 # Stop only the previously built application. Other Node processes are untouched.
 pgrep -f "^${APP}/Contents/MacOS/Hades$" | while read -r pid; do
   pkill -TERM -P "$pid" || true
@@ -49,6 +49,9 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleVersion</key><string>1</string><key>CFBundleIconFile</key><string>Hades.icns</string>
 <key>LSMinimumSystemVersion</key><string>12.0</string><key>NSHighResolutionCapable</key><true/>
 <key>NSMicrophoneUsageDescription</key><string>Record voice messages when you choose the microphone.</string>
+<key>NSDocumentsFolderUsageDescription</key><string>Read and edit the project folders you open in Hades.</string>
+<key>NSDesktopFolderUsageDescription</key><string>Read and edit project folders you open from your Desktop.</string>
+<key>NSDownloadsFolderUsageDescription</key><string>Read project files and attachments you choose from Downloads.</string>
 </dict></plist>
 PLIST
 codesign --force --sign - "$APP/Contents/Resources/codex"

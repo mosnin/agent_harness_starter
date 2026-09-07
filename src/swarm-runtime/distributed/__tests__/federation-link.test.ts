@@ -1,4 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
+import * as federationCrypto from "../../../agents/federation/crypto";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { createServer, connect, type Server, type Socket } from "node:net";
 import { once } from "node:events";
 import { randomBytes } from "node:crypto";
@@ -839,4 +840,60 @@ describe("FederationLink end-to-end over real TCP", () => {
     for (const s of [...clientSockets, ...serverSockets]) s.destroy();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }, 20_000);
+});
+
+describe("FederationLink asynchronous ordering", () => {
+  it("keeps concurrent reliable sends in sequence even when an earlier signature stalls", async () => {
+    const node = await makeIdentity("ordered-sender");
+    let release!: () => void;
+    let started!: () => void;
+    const signing = new Promise<void>(resolve => { started = resolve; });
+    const hold = new Promise<void>(resolve => { release = resolve; });
+    const identity: NodeIdentity = { ...node.identity, sign: async bytes => {
+      const body = JSON.parse(new TextDecoder().decode(bytes));
+      if (body.kind === "gossip" && body.seq === 1) { started(); await hold; }
+      return node.identity.sign(bytes);
+    } };
+    const wire = makeControllableWire();
+    const link = track(new FederationLink({ identity, trust: pinnedTrust(), wire: wire.wire }));
+    const first = link.send("gossip", "peer", { n: 1 }); await signing;
+    const second = link.send("gossip", "peer", { n: 2 });
+    await delay(30); expect(wire.sent).toHaveLength(0);
+    release(); await Promise.all([first, second]);
+    expect(wire.sent.map(frame => JSON.parse(frame).payload.n)).toEqual([1, 2]);
+  });
+
+  it("does not block inbound results while an application handler awaits a nested request", async () => {
+    const a = await makeIdentity("nested-a"), b = await makeIdentity("nested-b"), pair = makeWirePair();
+    const linkA = track(new FederationLink({ identity: a.identity, trust: pinnedTrust([{ nodeId: "nested-b", publicKeyHex: b.publicKeyHex }]), wire: pair.a, requestTimeoutMs: 1000 }));
+    const linkB = track(new FederationLink({ identity: b.identity, trust: pinnedTrust([{ nodeId: "nested-a", publicKeyHex: a.publicKeyHex }]), wire: pair.b, requestTimeoutMs: 1000 }));
+    await Promise.all([linkA.handshake(), linkB.handshake()]);
+    linkA.serve(() => ({ nested: true }));
+    linkB.serve(async () => linkB.request("offer", "nested-a", { nested: true }));
+    await expect(linkA.request("offer", "nested-b", { start: true })).resolves.toEqual({ nested: true });
+  });
+});
+
+
+it("admits reliable frames in arrival order when signature verification yields", async () => {
+  const a = await makeIdentity("verify-a"), b = await makeIdentity("verify-b"), pair = makeWirePair();
+  const linkA = track(new FederationLink({identity:a.identity,trust:pinnedTrust([{nodeId:"verify-b",publicKeyHex:b.publicKeyHex}]),wire:pair.a}));
+  const linkB = track(new FederationLink({identity:b.identity,trust:pinnedTrust([{nodeId:"verify-a",publicKeyHex:a.publicKeyHex}]),wire:pair.b}));
+  await Promise.all([linkA.handshake(),linkB.handshake()]);
+  let release!: () => void, began!: () => void;
+  const waiting = new Promise<void>(r=>{began=r;}), gate = new Promise<void>(r=>{release=r;});
+  const original = federationCrypto.verify;
+  const spy = vi.spyOn(federationCrypto,"verify").mockImplementation(async (...args) => {
+    const body=JSON.parse(new TextDecoder().decode(args[1]));
+    if(body.kind==="gossip" && body.seq===1){began();await gate;}
+    return original(...args);
+  });
+  const delivered:number[]=[]; linkB.on("message", e=>delivered.push(e.payload.n));
+  try {
+    await linkA.send("gossip","verify-b",{n:1});await waiting;
+    await linkA.send("gossip","verify-b",{n:2});await delay(30);
+    expect(delivered).toEqual([]); release();
+    const deadline=Date.now()+1000;while(delivered.length<2&&Date.now()<deadline)await delay(5);
+    expect(delivered).toEqual([1,2]);
+  } finally {release();spy.mockRestore();}
 });

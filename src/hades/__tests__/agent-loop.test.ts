@@ -42,6 +42,13 @@ function scripted(turns: Turn[]): FakeClient {
 const baseOpts: AgentLoopOptions = { model: "claude-fable-5" };
 
 describe("AgentLoop", () => {
+  it("does not interpret an ANSWER tag inside tool arguments as completion", async () => {
+    const client = scripted([{ text: 'TOOL: uppercase\nINPUT: The literal ANSWER: remains data' }, { text: "ANSWER: Done" }]);
+    const result = await new AgentLoop(client, builtinRegistry(), { model: "test" }).run("Transform the text");
+    expect(result.toolCalls).toHaveLength(1);
+    expect(result.toolCalls[0].result).toBe("THE LITERAL ANSWER: REMAINS DATA");
+    expect(result.answer).toBe("Done");
+  });
   it("direct-answer path: ANSWER on turn 1, no tools", async () => {
     const client = scripted([{ text: "ANSWER: 42" }]);
     const loop = new AgentLoop(client, builtinRegistry(), baseOpts);
@@ -181,5 +188,21 @@ describe("AgentLoop", () => {
     expect(r.answer).toBe("safe");
     expect(r.toolCalls[0].result).toMatch(/^error:/);
     expect(r.transcript.some((m) => m.content.startsWith("TOOL_ERROR:"))).toBe(true);
+  });
+});
+
+
+describe("AgentLoop incomplete provider responses", () => {
+  it("recovers an empty response without declaring the task complete", async () => {
+    const client = scripted([{text: ""}, {text: "TOOL: calc\nINPUT: 1+1"}, {text: "ANSWER: 2"}]);
+    const result = await new AgentLoop(client, builtinRegistry(), baseOpts).run("Calculate two");
+    expect(result.answer).toBe("2"); expect(result.toolCalls).toHaveLength(1); expect(result.steps).toBe(3);
+    expect(result.transcript.some(m => m.role === "user" && m.content.includes("response was empty"))).toBe(true);
+  });
+  it("bounds repeated empty answers and reports incomplete work", async () => {
+    const client = scripted([{text:" "},{text:"ANSWER: "},{text:""}]);
+    const result = await new AgentLoop(client,builtinRegistry(),baseOpts).run("Do the task");
+    expect(client.calls).toBe(3); expect(result.error).toMatch(/empty response three times/);
+    expect(result.answer).toContain("incomplete"); expect(result.hitStepLimit).toBe(false);
   });
 });
