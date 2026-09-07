@@ -6,6 +6,23 @@ const views: { destroy(): void }[] = [];
 afterEach(() => { views.forEach(v => v.destroy()); views.length = 0; document.body.replaceChildren(); });
 async function settle() { for (let i=0;i<12;i++) await Promise.resolve(); }
 function host() { const node = document.createElement("div"); document.body.append(node); return node; }
+it("shows one team setup form and retains drafts when switching between create and join", async () => {
+  const native = vi.fn(), view = new TeamChatView(vi.fn(async () => ({connected:false})), native, vi.fn());
+  views.push(view); view.mount(host()); await settle();
+  expect(view.node.querySelector("#team-setup-invite")).toBeNull();
+  const name = view.node.querySelector<HTMLInputElement>("#team-setup-name")!;
+  name.value = "Taylor"; name.dispatchEvent(new Event("input"));
+  view.node.querySelector<HTMLButtonElement>("#team-mode-join")!.click(); await settle();
+  expect(view.node.querySelector("#team-setup-team")).toBeNull();
+  expect(view.node.querySelector<HTMLInputElement>("#team-setup-name")!.value).toBe("Taylor");
+  const invite = view.node.querySelector<HTMLInputElement>("#team-setup-invite")!;
+  invite.value = "unsaved-invitation"; invite.dispatchEvent(new Event("input"));
+  view.node.querySelector<HTMLButtonElement>("#team-mode-create")!.click(); await settle();
+  view.node.querySelector<HTMLButtonElement>("#team-mode-join")!.click(); await settle();
+  expect(view.node.querySelector<HTMLInputElement>("#team-setup-invite")!.value).toBe("unsaved-invitation");
+  expect(view.node.querySelector<HTMLDetailsElement>(".team-recovery")!.open).toBe(false);
+  expect(native).not.toHaveBeenCalled();
+});
 it("keeps team member disclosure and composer selection across incoming messages", async () => {
   let messages: any[] = [];
   const state = { connected: true, name: "Team", member: { id: "me", role: "owner" }, members: [], channels: [{ id: "general", name: "general" }] };

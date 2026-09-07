@@ -113,7 +113,7 @@ body { -webkit-font-smoothing: antialiased; }
 .record p { line-height: 1.6; }
 .record button, .page-actions button, .management-page button, .starter-actions button { min-height: 30px; padding: 5px 10px; font-size: var(--control-text); border-radius: 6px; }
 .primary-button, .page-actions .primary-button { background: var(--text); color: var(--bg); }
-.tools-page { max-width: 940px; width: 100%; margin: 0 auto; }
+.tools-page { width: 100%; }
 .tools-group { margin-top: 26px; }
 .tools-group h2 { margin: 0 0 10px; color: var(--muted); font-size: var(--control-text); }
 .tool-route { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 0; text-align: left; border-bottom: 1px solid var(--line); border-radius: 0; }
@@ -144,3 +144,14 @@ body { -webkit-font-smoothing: antialiased; }
 .routine-actions > summary::-webkit-details-marker { display: none; }
 .routine-actions > div { position: absolute; right: 0; top: 34px; min-width: 150px; z-index: 3; display: grid; padding: 5px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
 .routine-actions > div button { border: 0; text-align: left; }
+.team-setup > .field, .team-setup > .settings-section, .team-setup > .team-recovery { max-width: 600px; }
+.team-setup-modes { margin-bottom: 24px; width: fit-content; }
+.team-setup .settings-section { border-top: 0; padding-top: 8px; }
+.team-setup .settings-section h2 { display: none; }
+.team-setup button { min-height: 30px; padding: 5px 10px; font-size: var(--control-text); border-radius: 6px; }
+.team-recovery { margin-top: 24px; color: var(--muted); font-size: var(--control-text); }
+.team-recovery summary { cursor: pointer; }
+@media (prefers-contrast: more) {
+  :root { --line: #99999f; --muted: #49494e; }
+  :root[data-theme="dark"] { --line: #77777f; --muted: #c5c5ce; }
+}

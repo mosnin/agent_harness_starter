@@ -15,6 +15,7 @@ export class TeamChatView {
   private error = "";
   private timer: ReturnType<typeof setInterval>;
   private controls = { endpoint: "", name: "", team: "", invite: "" };
+  private setupMode: "create" | "join" = "create";
   constructor(private rpc: Rpc, private native: (action: string, args: Row) => Promise<unknown>, private ask: (channel: string, input: string, requestId: string) => Promise<void>) {
     this.timer = setInterval(() => { if (this.node.isConnected && this.state.connected) void this.refresh(false); }, 2500);
     this.paint();
@@ -61,6 +62,7 @@ export class TeamChatView {
     const membersExpanded = this.node.querySelector<HTMLDetailsElement>(".team-members")?.open ?? false;
     const sidebarScroll = this.node.querySelector(".team-sidebar")?.scrollTop ?? 0;
     const setupScroll = this.node.querySelector(".team-setup")?.scrollTop ?? 0;
+    const recoveryExpanded = this.node.querySelector<HTMLDetailsElement>(".team-recovery")?.open ?? false;
     const oldLog = this.node.querySelector(".team-messages");
     const scrollTop = oldLog?.scrollTop ?? 0;
     const atBottom = !oldLog || oldLog.scrollHeight - oldLog.scrollTop - oldLog.clientHeight < 80;
@@ -69,10 +71,18 @@ export class TeamChatView {
       const page = el("div", "", "page team-setup"); const heading = el("div", "", "page-heading"); heading.append(el("h1", "Team chat"), el("p", "A shared place for people and Hades agents.")); page.append(heading);
       if (this.state.message) page.append(el("p", this.state.message, "inline-notice"));
       if (this.error) page.append(el("p", this.error, "inline-notice"));
-      page.append(this.field("Your name", "name"));
+      const modes = el("div", "", "segmented team-setup-modes");
+      for (const mode of ["create", "join"] as const) {
+        const choose = this.button(mode === "create" ? "Create a team" : "Join a team", () => { this.setupMode = mode; });
+        choose.id = "team-mode-" + mode; choose.setAttribute("aria-pressed", String(this.setupMode === mode)); choose.classList.toggle("active", this.setupMode === mode); modes.append(choose);
+      }
+      page.append(modes, this.field("Your name", "name"));
       const create = el("section", "", "settings-section"); create.append(el("h2", "Create a team"), this.field("Team name", "team"), this.button("Create on this Mac", async () => { await this.native("create", { name: this.controls.team, owner: this.controls.name }); await this.refresh(); }, true), el("p", "This Mac hosts the team while Hades is open. For other Macs, expose the service through HTTPS or run the team server on your own host.", "help"));
       const join = el("section", "", "settings-section"); join.append(el("h2", "Join a team"), this.field("Team server · https://…", "endpoint"), this.field("Invitation code", "invite", true), this.button("Join team", async () => { await this.native("join", { endpoint: this.controls.endpoint, invite: this.controls.invite, name: this.controls.name }); this.controls.invite = ""; await this.refresh(); }));
-      page.append(create, join, this.button("Retry saved connection", () => this.refresh()), this.button("Finish saving connection", async () => { await this.native("resume", {}); await this.refresh(); })); this.node.append(page); page.scrollTop = setupScroll; restoreFocus(this.node, focus); return;
+      const recovery = el("details", "", "team-recovery") as HTMLDetailsElement;
+      recovery.open = recoveryExpanded;
+      recovery.append(el("summary", "Connection recovery"), el("p", "Use these controls if an earlier connection was interrupted.", "help"), this.button("Retry saved connection", () => this.refresh()), this.button("Finish saving connection", async () => { await this.native("resume", {}); await this.refresh(); }));
+      page.append(this.setupMode === "create" ? create : join, recovery); this.node.append(page); page.scrollTop = setupScroll; restoreFocus(this.node, focus); return;
     }
     const sidebar = el("aside", "", "team-sidebar"); sidebar.append(el("h2", this.state.name));
     for (const channel of this.state.channels) {

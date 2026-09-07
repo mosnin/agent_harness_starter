@@ -71,3 +71,9 @@ Computer control screens. This verifies those observed layouts at the inspected
 1162x768 window. It does not close the complete light/dark/compact/large-text,
 VoiceOver, provider, terminal or reconnect matrix. The source status report tracks
 functional implementation and remaining Hermes management gaps separately.
+
+The final native pass also aligns the Tools page gutter with other management
+pages. Team setup now presents Create/Join as a single choice, retains drafts
+when switching, and keeps connection recovery under a disclosure. Increased
+contrast preferences override the final theme layer. Focused interaction checks
+cover setup switching, unsaved invitations and routine schedule drafts.
