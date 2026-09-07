@@ -150,6 +150,36 @@ export interface CaptureSubmission {
   agentId?: string;
 }
 
+// ── Browser-side language work ──────────────────────────────────────────────
+
+/**
+ * A short, bounded piece of language work the browser asks the agent for.
+ *
+ * The browser cannot summarise a page or name a tab for itself, and running
+ * that on a service of ours would mean page text leaving the machine to reach
+ * somebody the user never chose. So it comes here instead, to the agent they
+ * already connected — and with no agent connected the browser simply does not
+ * offer the features.
+ */
+export type AiTask = "preview" | "ask" | "tidy-title" | "tidy-filename";
+
+export interface AiCompleteRequest {
+  task: AiTask;
+  url?: string;
+  title?: string;
+  /** Page text, already truncated by the browser. */
+  text?: string;
+  question?: string;
+  agentId?: string;
+  maxWords?: number;
+}
+
+export interface AiCompleteResponse {
+  ok: boolean;
+  text: string;
+  error?: string;
+}
+
 // ── Wallet ──────────────────────────────────────────────────────────────────
 
 export type ChainFamily = "evm" | "solana";

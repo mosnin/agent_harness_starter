@@ -4,6 +4,8 @@ import {
   nextMessageId,
   type ActivityDigest,
   type AgentDescriptor,
+  type AiCompleteRequest,
+  type AiCompleteResponse,
   type BrowserTab,
   type BrowserToolName,
   type BrowserWorkspace,
@@ -47,6 +49,12 @@ export interface HadesBrowserClientOptions {
   onCapture?: (submission: CaptureSubmission) => void;
   /** Called when the user types into the browser's agent panel. */
   onChat?: (message: { text: string; agentId?: string }) => void;
+  /**
+   * Answer the browser's Max features — page previews, ask-on-page, tab and
+   * filename tidying. Leaving this unset is a supported configuration: the
+   * browser is told the feature is unavailable rather than left waiting.
+   */
+  onComplete?: (request: AiCompleteRequest) => Promise<string> | string;
 }
 
 interface Pending {
@@ -258,6 +266,11 @@ export class HadesBrowserClient {
       return;
     }
 
+    if (envelope.kind === "request") {
+      void this.#handleRequest(envelope);
+      return;
+    }
+
     if (envelope.kind !== "event") return;
     if (envelope.type === "capture.submit") {
       this.#options.onCapture?.(envelope.payload as CaptureSubmission);
@@ -265,6 +278,52 @@ export class HadesBrowserClient {
     if (envelope.type === "chat.send") {
       this.#options.onChat?.(envelope.payload as { text: string; agentId?: string });
     }
+  }
+
+  /**
+   * Reply to a request from the browser.
+   *
+   * A request always gets a response, including when there is no handler or
+   * the handler throws — the browser is holding a promise open, and a silent
+   * drop turns a missing feature into a thirty-second stall.
+   */
+  async #handleRequest(envelope: Envelope): Promise<void> {
+    if (envelope.type !== "ai.complete") {
+      this.#respond(envelope, { ok: false, text: "", error: `Unsupported request ${envelope.type}` });
+      return;
+    }
+
+    const handler = this.#options.onComplete;
+    if (!handler) {
+      this.#respond(envelope, { ok: false, text: "", error: "This agent does not answer browser prompts." });
+      return;
+    }
+
+    try {
+      const text = await handler(envelope.payload as AiCompleteRequest);
+      this.#respond(envelope, { ok: true, text: String(text ?? "") });
+    } catch (error) {
+      this.#respond(envelope, {
+        ok: false,
+        text: "",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  #respond(request: Envelope, payload: AiCompleteResponse): void {
+    this.#connection?.send(
+      JSON.stringify({
+        id: nextMessageId("res"),
+        protocol: PROTOCOL_VERSION,
+        kind: "response",
+        type: request.type,
+        at: Date.now(),
+        payload,
+        replyTo: request.id,
+        sessionId: this.#sessionId,
+      } satisfies Envelope<AiCompleteResponse>),
+    );
   }
 
   #failAll(error: Error): void {

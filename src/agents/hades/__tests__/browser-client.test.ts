@@ -92,6 +92,7 @@ function handshakeOk(protocol: string = PROTOCOL_VERSION) {
 
 async function connected(
   respond: (envelope: Envelope, browser: FakeBrowser) => unknown | undefined,
+  extra: Partial<ConstructorParameters<typeof HadesBrowserClient>[0]> = {},
 ): Promise<{ client: HadesBrowserClient; browser: FakeBrowser }> {
   let browser!: FakeBrowser;
   const client = new HadesBrowserClient({
@@ -102,6 +103,7 @@ async function connected(
       browser = new FakeBrowser(respond);
       return browser;
     },
+    ...extra,
   });
   await client.connect();
   return { client, browser };
@@ -324,5 +326,84 @@ describe("HadesBrowserClient inbound events", () => {
       // The client registers one message listener; feed it rubbish directly.
       browser.deliver({} as Envelope);
     }).not.toThrow();
+  });
+});
+
+describe("answering the browser's Max requests", () => {
+  /** Send `ai.complete` from the browser side and wait for the reply. */
+  async function askBrowserSide(
+    browser: FakeBrowser,
+    payload: unknown,
+  ): Promise<{ ok: boolean; text: string; error?: string }> {
+    const id = "req_ai_1";
+    browser.deliver({
+      id,
+      protocol: PROTOCOL_VERSION,
+      kind: "request",
+      type: "ai.complete",
+      at: Date.now(),
+      payload,
+    });
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      const reply = browser.received.find(
+        (envelope) => envelope.kind === "response" && envelope.replyTo === id,
+      );
+      if (reply) return reply.payload as { ok: boolean; text: string; error?: string };
+    }
+    throw new Error("no response to ai.complete");
+  }
+
+  it("answers with the handler's text", async () => {
+    const { browser } = await connected(
+      (envelope) => (envelope.type === "handshake" ? handshakeOk() : { ok: true }),
+      { onComplete: (request) => `answered ${request.task}` },
+    );
+    await expect(askBrowserSide(browser, { task: "preview" })).resolves.toEqual({
+      ok: true,
+      text: "answered preview",
+    });
+  });
+
+  it("says so when no handler is configured, rather than going quiet", async () => {
+    // The browser holds a promise open for this; a silent drop turns a
+    // missing feature into a thirty-second stall behind a spinner.
+    const { browser } = await connected((envelope) =>
+      envelope.type === "handshake" ? handshakeOk() : { ok: true },
+    );
+    const reply = await askBrowserSide(browser, { task: "preview" });
+    expect(reply.ok).toBe(false);
+    expect(reply.error).toMatch(/does not answer/i);
+  });
+
+  it("reports a handler that threw instead of hanging", async () => {
+    const { browser } = await connected(
+      (envelope) => (envelope.type === "handshake" ? handshakeOk() : { ok: true }),
+      {
+        onComplete: () => {
+          throw new Error("model unavailable");
+        },
+      },
+    );
+    const reply = await askBrowserSide(browser, { task: "ask" });
+    expect(reply).toMatchObject({ ok: false, error: "model unavailable" });
+  });
+
+  it("refuses a request type it does not implement", async () => {
+    const { browser } = await connected((envelope) =>
+      envelope.type === "handshake" ? handshakeOk() : { ok: true },
+    );
+    const id = "req_unknown";
+    browser.deliver({
+      id,
+      protocol: PROTOCOL_VERSION,
+      kind: "request",
+      type: "something.else",
+      at: Date.now(),
+      payload: {},
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const reply = browser.received.find((envelope) => envelope.replyTo === id);
+    expect(reply?.payload).toMatchObject({ ok: false });
   });
 });
