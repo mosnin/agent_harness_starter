@@ -19,6 +19,7 @@ if [[ ! -f src-tauri/icons/icon.icns ]] || [[ src/desktop/assets/hades-icon.png 
   iconutil -c icns dist-mac/Hades.iconset -o src-tauri/icons/icon.icns
 fi
 # Disable debug information and incremental state to keep local builds small.
+xcrun swiftc -target "$(uname -m)-apple-macos14.0" -parse-as-library -O scripts/macos-computer.swift -o dist/runtime/hades-computer
 cc -O2 -Wall -Wextra scripts/macos-pty.c -o dist/runtime/hades-pty
 cargo build --manifest-path src-tauri/Cargo.toml --features gui -j "${HADES_BUILD_JOBS:-4}"
 APP="${HADES_APP_OUTPUT:-$ROOT/dist-mac/Hades.app}"
@@ -36,6 +37,7 @@ cp dist/desktop/team-server.js "$APP/Contents/Resources/team-server.js"
 node scripts/package-codex-runtime.mjs "$APP/Contents/Resources"
 cp dist/runtime/node "$APP/Contents/Resources/node"
 cp dist/runtime/hades-pty "$APP/Contents/Resources/hades-pty"
+cp dist/runtime/hades-computer "$APP/Contents/Resources/hades-computer"
 cp src-tauri/icons/icon.icns "$APP/Contents/Resources/Hades.icns"
 # Keep Node package lookup inside the signed bundle, away from protected parent folders.
 cp src-tauri/runtime-package.json "$APP/Contents/Resources/package.json"
@@ -57,6 +59,7 @@ PLIST
 codesign --force --sign - "$APP/Contents/Resources/codex"
 codesign --force --sign - "$APP/Contents/Resources/node"
 codesign --force --sign - "$APP/Contents/Resources/hades-pty"
+codesign --force --sign - "$APP/Contents/Resources/hades-computer"
 codesign --force --sign - "$APP"
 codesign --verify --deep --strict "$APP"
 echo "Built: $APP"

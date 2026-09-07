@@ -33,6 +33,23 @@ async function mount(compact = false) {
 beforeEach(() => { root = document.createElement("div"); document.body.append(root); localStorage.clear(); terminal.focus.mockClear(); });
 afterEach(() => { window.dispatchEvent(new Event("beforeunload")); document.body.replaceChildren(); vi.unstubAllGlobals(); });
 describe("workbench interaction experience", () => {
+  it("does not show an empty tab strip for conversations outside the current profile", async () => {
+    localStorage.setItem("hades.tabs", JSON.stringify(["old-one", "old-two"]));
+    await mount(); expect(root.querySelector(".tabs")).toBeNull();
+  });
+  it("preserves the chosen schedule and draft when routine fields update in the background", async () => {
+    await mount(); click('[data-view="jobs"]'); await settle(); click('[data-action="job-new"]');
+    const schedule = root.querySelector<HTMLSelectElement>("#job-schedule")!;
+    expect(root.querySelector<HTMLElement>("#job-cron-fields")!.hidden).toBe(true);
+    schedule.value = "cron"; schedule.dispatchEvent(new Event("change"));
+    expect(root.querySelector<HTMLElement>("#job-interval-fields")!.hidden).toBe(true);
+    root.querySelector<HTMLInputElement>("#job-name")!.value = "Morning review";
+    root.querySelector<HTMLInputElement>("#job-cron")!.value = "0 9 * * 1-5";
+    emit({ kind: "desktop.usage", tokensIn: 2, tokensOut: 3 });
+    expect(root.querySelector<HTMLInputElement>("#job-name")!.value).toBe("Morning review");
+    expect(root.querySelector<HTMLInputElement>("#job-cron")!.value).toBe("0 9 * * 1-5");
+    expect(root.querySelector<HTMLElement>("#job-cron-fields")!.hidden).toBe(false);
+  });
   it("focuses a dialog, excludes disabled and closed sections from Tab order, blocks background shortcuts, and returns focus", async () => {
     await mount(); click('[data-action="settings"]'); await settle();
     const dialog = root.querySelector<HTMLElement>(".modal")!;
@@ -66,11 +83,11 @@ describe("workbench interaction experience", () => {
     terminal.focus.mockClear(); emit({ kind: "desktop.usage", tokensIn: 2, tokensOut: 2 });
     expect(root.querySelector(".modal")!.contains(document.activeElement)).toBe(true); expect(terminal.focus).not.toHaveBeenCalled();
   });
-  it("keeps More expanded and sidebar scroll stable across updates", async () => {
-    await mount(); const more = root.querySelector<HTMLDetailsElement>(".sidebar-more")!; more.open = true;
+  it("keeps project folders expanded and sidebar scroll stable across updates", async () => {
+    await mount(); const more = root.querySelector<HTMLDetailsElement>(".sidebar-projects")!; more.open = true;
     root.querySelector(".sidebar-content")!.scrollTop = 175;
     emit({ kind: "desktop.usage", tokensIn: 1, tokensOut: 1 });
-    expect(root.querySelector<HTMLDetailsElement>(".sidebar-more")!.open).toBe(true);
+    expect(root.querySelector<HTMLDetailsElement>(".sidebar-projects")!.open).toBe(true);
     expect(root.querySelector(".sidebar-content")!.scrollTop).toBe(175);
   });
   it("offers a working compact sidebar toggle and closes navigation after selecting a page", async () => {

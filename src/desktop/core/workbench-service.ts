@@ -1,4 +1,6 @@
+import { ComputerControl, computerBridge } from "./computer-control";
 import { SlackBot, type SlackJob } from "./slack-bot";
+import { ActivityStore } from "./activity-store";
 import { WakeStore, type Wake } from "./wake-store";
 import { harnessCatalog, parseHarnessArgs, shellQuote } from "./harness-catalog";
 import { TeamDeliveries } from "../team/deliveries";
@@ -16,7 +18,7 @@ import {
   statSync,
   type Dirent,
 } from "node:fs";
-import { readdir } from "node:fs/promises";
+import { readdir, statfs } from "node:fs/promises";
 import {
   join,
   resolve,
@@ -25,7 +27,7 @@ import {
   isAbsolute,
   dirname,
 } from "node:path";
-import { homedir } from "node:os";
+import { homedir, platform, arch, release, cpus, freemem, totalmem, uptime } from "node:os";
 import { createHash, randomUUID } from "node:crypto";
 import {
   execFile,
@@ -76,6 +78,7 @@ interface SessionMeta {
   archived?: boolean;
   pinned?: boolean;
   model?: string;
+  source?: "desktop" | "routine" | "slack" | "team";
 }
 interface Job {
   id: string;
@@ -93,6 +96,7 @@ interface Job {
   session?: string;
 }
 interface Settings {
+  computerEnabled: boolean;
   profiles: Profile[];
   projects: string[];
   activeProfile: string;
@@ -146,6 +150,8 @@ export class WorkbenchService {
   private roomRuns = new Map<string, AbortController>();
   private fileWrites = new Map<string, Promise<void>>();
   private wakes: WakeStore;
+  private activityStore: ActivityStore;
+  private computer: ComputerControl;
   private wakeOwner = randomUUID();
   private wakeWorkers = new Map<string, ReturnType<typeof setInterval>>();
   private pumpingWakes = false;
@@ -158,6 +164,10 @@ export class WorkbenchService {
   ) {
     const output = emit;
     this.emit = (event) => {
+      if (!this.closed && this.activityStore && typeof event.session === "string") {
+        const owner = this.settings.sessionMeta[event.session]?.profile;
+        if (owner) this.activityStore.record(owner, event);
+      }
       if (typeof event.session === "string") {
         const id = event.session;
         const state = this.progress.get(id) ?? { stream: "", tools: [] };
@@ -179,6 +189,8 @@ export class WorkbenchService {
     };
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
     this.wakes = new WakeStore(join(dataDir, "wakes.sqlite"));
+    this.activityStore = new ActivityStore(join(dataDir, "activity.sqlite"));
+    this.computer = new ComputerControl(computerBridge(env.HADES_COMPUTER ?? join(dirname(process.execPath), "hades-computer")));
     this.teamDeliveries = new TeamDeliveries(join(dataDir, "team"));
     this.team = new TeamClient(join(dataDir, "team"));
     this.slack = new SlackBot(join(dataDir, "slack"), (job, bind) => this.runSlack(job, bind), () => this.emit({ kind: "desktop.slack.changed" }));
@@ -186,6 +198,7 @@ export class WorkbenchService {
     this.checkpoints = new Checkpoints(join(dataDir, "checkpoints"));
     this.localModels = new LocalModels((e) => this.emit(e as WorkbenchEvent));
     const initial: Settings = {
+      computerEnabled: false,
       profiles: [
         {
           id: "default",
@@ -207,6 +220,7 @@ export class WorkbenchService {
     this.settings = existsSync(this.configPath)
       ? { ...initial, ...JSON.parse(readFileSync(this.configPath, "utf8")) }
       : initial;
+    this.computer.configure(this.settings.computerEnabled);
     this.timer = setInterval(() => {
       void this.tick().catch(error => this.emit({ kind: "desktop.error", message: `Routine scheduler: ${error instanceof Error ? error.message : "failed"}` }));
     }, 15_000);
@@ -284,6 +298,7 @@ export class WorkbenchService {
       projects: this.settings.projects,
       activeProfile: p.id,
       home: homedir(),
+      computerEnabled: this.settings.computerEnabled,
       dataDir: this.dir(p.id),
       sessions: this.sessions(p.id)
         .all()
@@ -293,14 +308,15 @@ export class WorkbenchService {
           messages: undefined,
           preview: s.messages.at(-1)?.content.slice(0, 160),
           count: s.messages.length,
+          updatedAt: s.messages.at(-1)?.at ?? s.startedAt,
         }))
         .sort(
           (a, b) =>
             Number(b.pinned ?? false) - Number(a.pinned ?? false) ||
-            b.startedAt - a.startedAt,
+            b.updatedAt - a.updatedAt,
         ),
       active: [...this.active.keys()],
-      jobs: this.settings.jobs.map(job => this.jobView(job)),
+      jobs: this.settings.jobs.filter(job => job.profile === p.id).map(job => this.jobView(job)),
       downloads: this.localModels.states(),
       rooms: this.settings.rooms.map(({ messages, ...room }) => ({
         ...room,
@@ -487,6 +503,80 @@ export class WorkbenchService {
             "Stop running conversations in this project before restoring",
           );
         return this.checkpoints.restore(ident(a.id), root);
+      }
+      case "computer.status": return this.computer.status();
+      case "computer.permissions": return this.computer.permissions();
+      case "computer.configure":
+        if (typeof a.enabled !== "boolean") throw new Error("Choose on or off");
+        this.settings.computerEnabled = a.enabled;
+        this.computer.configure(a.enabled); this.save(); return {enabled:a.enabled};
+      case "computer.stop":
+        this.settings.computerEnabled = false; this.computer.configure(false); this.save(); return true;
+      case "system.status": {
+        const p = this.profile(a.profile);
+        const [disk, osVersion] = await Promise.all([statfs(this.dataDir).catch(() => undefined), platform() === "darwin" ? exec("/usr/bin/sw_vers", ["-productVersion"], { timeout:3000 }).then(r => r.stdout.trim()).catch(() => release()) : Promise.resolve(release())]);
+        return { at: Date.now(), os: platform() === "darwin" ? "macOS" : platform(), arch: arch(), release: osVersion,
+          runtime: process.version, cores: cpus().length, memoryFree: freemem(), memoryTotal: totalmem(),
+          uptime: uptime(), processUptime: process.uptime(),
+          diskAvailable: disk ? disk.bavail * disk.bsize : null,
+          diskTotal: disk ? disk.blocks * disk.bsize : null,
+          active: [...this.active.keys()].filter(id => this.settings.sessionMeta[id]?.profile === p.id).length,
+          routines: this.settings.jobs.filter(j => j.profile === p.id).length,
+          mcp: p.mcp?.length ?? 0, usage: this.activityStore.usage(p.id) };
+      }
+      case "activity.list": {
+        const p = this.profile(a.profile);
+        if (a.before !== undefined && (!Number.isSafeInteger(a.before) || Number(a.before) < 1)) throw new Error("Invalid activity cursor");
+        return this.activityStore.list(p.id, { before: a.before as number | undefined, errors: a.errors === true });
+      }
+      case "sessions.list": {
+        const p = this.profile(a.profile), query = text(a.query ?? "", 500).trim().toLowerCase();
+        const state = text(a.state ?? "all", 20), source = text(a.source ?? "all", 20);
+        const offset = Number(a.offset ?? 0);
+        if (!Number.isSafeInteger(offset) || offset < 0) throw new Error("Invalid conversation offset");
+        const rows = this.sessions(p.id).all().map(s => {
+          const meta = this.settings.sessionMeta[s.id];
+          const title = meta?.title || s.title || "Untitled conversation";
+          const matching = query ? s.messages.find(m => m.content.toLowerCase().includes(query)) : undefined;
+          const at = matching?.content.toLowerCase().indexOf(query) ?? 0;
+          return { id: s.id, title, model: meta?.model || null, source: meta?.source ?? "unknown",
+            archived: !!meta?.archived, running: this.active.has(s.id), count: s.messages.length,
+            updatedAt: s.messages.at(-1)?.at ?? s.startedAt, root: meta?.root ?? "",
+            matches: !query || title.toLowerCase().includes(query) || !!matching,
+            snippet: matching ? matching.content.slice(Math.max(0, at - 60), at + 180) : s.messages.at(-1)?.content.slice(0, 200) ?? "" };
+        }).sort((a,b) => b.updatedAt - a.updatedAt);
+        const filtered = rows.filter(s => s.matches && (source === "all" || s.source === source) &&
+          (state === "all" || (state === "archived" ? s.archived : state === "running" ? s.running : !s.archived)));
+        return { rows: filtered.slice(offset, offset + 50), total: filtered.length, offset,
+          stats: { total: rows.length, running: rows.filter(s => s.running).length, archived: rows.filter(s => s.archived).length, messages: rows.reduce((n,s) => n + s.count, 0) } };
+      }
+      case "mcp.list": return this.profile(a.profile).mcp ?? [];
+      case "mcp.save": {
+        const p = this.profile(a.profile), name = ident(a.name), command = text(a.command, 4096).trim();
+        if (!command) throw new Error("Choose an executable command");
+        if (!Array.isArray(a.args) || a.args.length > 100) throw new Error("Arguments must be a list of at most 100 strings");
+        const server = { name, command, args: a.args.map(v => text(v, 4096)), enabled: a.enabled === true };
+        const original = a.original === undefined ? undefined : ident(a.original);
+        const servers = p.mcp ?? [];
+        if (servers.some(m => m.name === name && m.name !== original)) throw new Error("A server already uses this name");
+        if (original && !servers.some(m => m.name === original)) throw new Error("Server no longer exists");
+        if (!original && servers.length >= 20) throw new Error("At most 20 MCP servers per agent");
+        p.mcp = original ? servers.map(m => m.name === original ? server : m) : [...servers, server];
+        this.save(); return server;
+      }
+      case "mcp.remove": {
+        const p = this.profile(a.profile), name = ident(a.name);
+        p.mcp = (p.mcp ?? []).filter(m => m.name !== name); this.save(); return true;
+      }
+      case "mcp.inspect": {
+        const p = this.profile(a.profile), server = p.mcp?.find(m => m.name === a.name);
+        if (!server) throw new Error("Server not found");
+        const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 10_000);
+        let connection: Awaited<ReturnType<typeof connectMcp>> | undefined;
+        try {
+          connection = await connectMcp(server, this.root(a.root), controller.signal);
+          return connection.tools.map(t => ({ name: t.name, description: t.description }));
+        } finally { clearTimeout(timer); connection?.close(); }
       }
       case "boot":
         return this.snapshot(a.profile);
@@ -717,7 +807,7 @@ export class WorkbenchService {
         const p = this.profile(a.profile),
           record = this.sessions(p.id).get(ident(a.id));
         if (!record) throw new Error("Conversation not found");
-        return record;
+        return { ...record, ...this.settings.sessionMeta[record.id] };
       }
       case "profile.export": {
         const p = this.profile(a.id);
@@ -749,7 +839,7 @@ export class WorkbenchService {
         const s = this.sessions(p.id).create({
           title: text(a.title ?? "New conversation", 160),
         });
-        this.settings.sessionMeta[s.id] = { root, profile: p.id };
+        this.settings.sessionMeta[s.id] = { root, profile: p.id, source: "desktop" };
         this.save();
         return s;
       }
@@ -793,6 +883,7 @@ export class WorkbenchService {
         if (!m || m.profile !== p.id)
           throw new Error("Conversation profile mismatch");
         p.model = m.model || p.model;
+        if (!m.model) { m.model = p.model; this.save(); }
         const input = text(a.input);
         if (!input.trim()) throw new Error("Write a message first");
         const images = a.images ?? [];
@@ -1135,17 +1226,19 @@ export class WorkbenchService {
         return true;
       }
       case "job.save": {
+        const existing = a.id ? this.settings.jobs.find(j => j.id === ident(a.id) && j.profile === this.profile(a.profile).id) : undefined;
+        if (a.id && !existing) throw new Error("Routine not found for this profile");
         const interval = Number(a.intervalMinutes);
         if (!Number.isFinite(interval) || interval < 1 || interval > 525600)
           throw new Error("Interval must be 1–525600 minutes");
         const job: Job = {
-          id: randomUUID(),
+          id: existing?.id ?? randomUUID(),
           name: text(a.name, 120),
           prompt: text(a.prompt, 16000),
           root: this.root(a.root),
           profile: this.profile(a.profile).id,
           intervalMinutes: interval,
-          enabled: true,
+          enabled: existing?.enabled ?? true,
           nextAt: Date.now() + interval * 60_000,
         };
         if (a.cron) {
@@ -1155,7 +1248,9 @@ export class WorkbenchService {
             nextFireTime(parseCron(job.cron), Date.now(), job.timeZone) ?? 0;
           if (!job.nextAt) throw new Error("Cron has no upcoming run");
         }
-        this.settings.jobs.push(job);
+        if (!job.name.trim() || !job.prompt.trim()) throw new Error("Name and prompt are required");
+        if (existing) Object.assign(existing, job, {cron:job.cron,timeZone:job.timeZone});
+        else this.settings.jobs.push(job);
         this.save();
         return job;
       }
@@ -1172,7 +1267,13 @@ export class WorkbenchService {
         await this.runJob(j);
         return this.jobView(j);
       }
-      case "job.runs": return this.wakes.history(ident(a.id));
+      case "job.remove": {
+        const id = ident(a.id), profile = this.profile(a.profile).id;
+        if (!this.settings.jobs.some(j => j.id === id && j.profile === profile)) throw new Error("Routine not found for this profile");
+        if (this.wakes.pending(id)) throw new Error("Stop the pending run before removing this routine");
+        this.settings.jobs = this.settings.jobs.filter(j => j.id !== id); this.save(); return true;
+      }
+      case "job.runs": return this.wakes.history(ident(a.id)).filter(w => a.profile === undefined || w.task.profile === this.profile(a.profile).id);
       case "job.cancel": {
         const wake = this.wakes.get(ident(a.id));
         if (!wake) throw new Error("Routine run not found");
@@ -1316,6 +1417,7 @@ export class WorkbenchService {
       }
       for (const tool of [
         ...workspaceTools(root, p.shell).list(),
+        ...(this.settings.computerEnabled ? this.computer.tools(controller.signal) : []),
         ...connected.flatMap((c) => c.tools),
       ])
         tools.register({
@@ -1331,6 +1433,7 @@ export class WorkbenchService {
               status: "running",
             });
             if (
+              tool.name === "computer_action" ||
               tool.name.startsWith("mcp_") ||
               tool.name === "shell" ||
               (tool.name === "file_ops" &&
@@ -1417,6 +1520,7 @@ export class WorkbenchService {
           const result = await new AgentLoop(client, tools, {
             model: p.model,
             maxSteps: 80,
+            maxInputBytes: this.settings.computerEnabled ? 8_000_000 : undefined,
             contextArchive: new FileContextArchive(contextDirectory),
             contextWindow: p.provider === "local" ? () => this.localModels.contextWindow(p.baseUrl, p.model) : undefined,
             signal,
@@ -1444,9 +1548,10 @@ export class WorkbenchService {
             ].join("\n"),
             onText: (chunk) =>
               this.emit({ kind: "desktop.delta", session: id, chunk }),
-            onTool: (call, output) => {
+            onTool: (call, output, ok) => {
               this.emit({
                 kind: "desktop.tool",
+                ok,
                 session: id,
                 tool: call.tool,
                 input: call.input,
@@ -1525,6 +1630,8 @@ export class WorkbenchService {
     const p = this.profile(job.profile), root = this.root(job.root);
     this.client(p);
     const session = job.session ?? (await this.dispatch("session.new", { root, profile: p.id, title: "Slack: " + job.input.slice(0, 50) }) as { id: string }).id;
+    this.settings.sessionMeta[session].source = "slack";
+    this.save();
     bind(session);
     await this.dispatch("chat.send", { id: session, root, profile: p.id, input: job.input });
     await this.turns.get(session);
@@ -1594,6 +1701,8 @@ export class WorkbenchService {
         title: wake.task.name,
       })) as { id: string };
       session = s.id;
+      this.settings.sessionMeta[session].source = "routine";
+      this.save();
       if (this.closed || !this.wakes.bind(wake, session)) throw new Error("Routine ownership was lost before starting");
       const renewal = setInterval(() => {
         if (!this.closed && !this.wakes.renew(wake)) this.active.get(s.id)?.abort();
@@ -1652,6 +1761,8 @@ export class WorkbenchService {
     for (const timer of this.wakeWorkers.values()) clearInterval(timer);
     this.wakes.interruptOwner(this.wakeOwner);
     this.wakes.close();
+    this.activityStore.close();
+    this.computer.stop();
     clearInterval(this.timer);
     this.localModels.close();
     this.codex.close();

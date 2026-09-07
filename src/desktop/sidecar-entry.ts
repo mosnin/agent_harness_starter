@@ -786,6 +786,8 @@ export async function runSidecar(
               "chat.stop",
               "room.stop",
               "job.cancel",
+              "computer.stop",
+              "computer.configure",
               "terminal.write",
               "terminal.resize",
               "local.cancel",

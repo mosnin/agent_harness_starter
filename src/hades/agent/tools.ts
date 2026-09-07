@@ -18,6 +18,8 @@ export interface ToolCall {
 export interface ToolResult {
   ok: boolean;
   output: string;
+  /** Tool-produced screenshots for a multimodal observation. */
+  images?: string[];
 }
 
 export interface Tool {

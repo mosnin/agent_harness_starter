@@ -17,8 +17,9 @@ full product, provider or competitor-parity acceptance.
   A crashed/closed worker leaves an interrupted run for inspection, not an
   automatic replay of potentially completed effects.
 - Routine status reflects actual agent completion/failure and approval waits.
-  The desktop exposes Stop run and the run's conversation. History is available
-  over `job.runs`; a full history/recovery interface remains outstanding.
+  The desktop exposes Stop run and the run's conversation. The native run-history panel shows the latest 100 runs and links to their
+  conversations. Routine editing and removal are available; interrupted-run
+  reconciliation and resumable recovery remain outstanding.
 - Empty model replies, provider truncation, step exhaustion and context overflow
   surface as incomplete runs. Invalid file arguments are rejected before
   approval; missing write content cannot silently truncate a file.
@@ -65,8 +66,11 @@ acceptance. The first archive-backed run stopped after 21 tool calls and 696,790
 exposed a false overflow: after archival, the guard reset measured provider
 usage to a whole-prompt byte estimate. The corrected guard retains measured
 usage and conservatively charges replacement/new messages without subtracting
-guessed token savings. Targeted archive/loop regressions pass; comprehensive
-real-model acceptance after that correction remains outstanding.
+guessed token savings. Targeted archive/loop regressions pass. The real local-model run at
+`e5638e7f967461d5562e4b91a8d2d27f36339f8d` then exceeded its twenty-minute
+limit. It eventually passed the project-visible ledger tests, but did not
+complete the task or reach independent hidden checks, restart, CSV enhancement
+or denied-write acceptance. That is a failed comprehensive run.
 
 All failed evidence is retained under `/tmp/hades-agent-acceptance-*`. This path
 is local temporary evidence, not a durable release asset. The native app build
@@ -104,5 +108,73 @@ checks passed during this change; a separate verified bundle is built with
 `HADES_APP_OUTPUT` to avoid stopping the user's current application.
 
 Live comprehensive local-model acceptance still has no successful receipt. The
-last live attempt predates the final budget correction; its failure remains
-recorded. Codex and OpenRouter live task completion remain separate gates.
+last live attempt includes the final budget correction and failed its twenty-minute
+limit; its evidence remains recorded. Codex and OpenRouter live task completion remain separate gates.
+
+## Native redesign and management continuation
+
+The next source checkpoint follows the user's dark Codex workspace reference:
+compact navigation, a quiet system-font hierarchy, one stroke-icon family,
+restrained composer and a toggleable task-details card. Hades remains a native
+Tauri application. Tools & connections groups the existing skills, memory,
+local models, extensions, Slack, rooms, artifacts and command library with the
+new Computer control, MCP and Activity pages. Sidebar projects and form drafts
+survive background updates. Toolbar icons match their destination. A custom
+routine schedule reveals cron/time-zone fields only when selected.
+
+The new dedicated Conversations page searches full saved message text with
+source/status filters, pagination, rename, export and archive/restore. Search
+currently scans stored messages, so scale acceptance remains open. System reads
+actual macOS/CPU/memory/disk/app-uptime values. Activity persists allowlisted run
+metadata and reported token counts; it is not a raw log viewer, exact spend
+accounting or historical backfill. Structured MCP forms preserve arguments and
+explicitly inspect a configured server's real tool declarations. These tools
+start only on inspection or enabled agent turns.
+
+Computer control has a bundled macOS 14+ accessibility/screen-capture bridge,
+foreground observations, image transport, AX actions, typing, keys, coordinate
+click/scroll and observed-app focus. Access starts off. Every input action uses
+the desktop approval path and a one-use, turn-owned observation; stale app,
+window, focused-field and AX element references fail closed. Actions invalidate
+other turns' observations, overlapping bridge operations are refused, and Stop
+aborts pending requests. Unknown action outcomes are never replayed. Coordinate
+input still cannot prove that every same-window pixel/control is unchanged.
+Drag, clipboard, multiple mouse buttons and full browser lifecycle are separate
+gaps. Only the latest screenshot enters model context, even with archival; the
+local conversation receipt retains originals. Image budgeting is a conservative
+planning allowance rather than exact provider tokenization.
+
+Native dark screenshots and accessibility inspection covered chat, Tools &
+connections, Conversations, System, Computer control and the routine editor.
+The enable/Stop controls changed visible native state correctly. Accessibility
+and Screen Recording permissions remain **not granted**; no live capture/input
+acceptance is claimed. The helper builds for macOS 14.0 and was bundled with
+successful deep/strict ad-hoc signature verification. The earlier foreground
+terminal and comprehensive model acceptance gaps still apply.
+
+The broader source suite passed 526 files / 11,966 tests, with one existing skip.
+Subsequent focused computer-control and workbench checks cover the final small
+UI/concurrency edits; exact final packaging receipts are recorded separately.
+
+### Reference extraction and remaining parity
+
+[The durable capability inventory](reference-capabilities-20260907.json) retains
+33 Hermes dashboard families and 94 Chat On Steroids families with pinned source
+references, limitations and portability decisions. The latter covers all 140
+production text modules (79 full static reads, 61 partial), not exhaustive branch
+semantics or upstream execution. It is an inventory, not 127 integrated features.
+
+Still missing from native Hermes management are generic channels/pairing,
+signed webhook subscriptions, consented shell hooks, credential rotation pools,
+full log/analytics controls, gateway lifecycle and maintenance/backup interfaces.
+The screenshot reference governs presentation; placeholder buttons do not count
+as these integrations. Existing Slack/team paths are distinct from a generic
+messaging gateway.
+
+For goal/plan/loop/child orchestration, retain the actual native authorized
+`WorkbenchService.turn -> ConversationalAgent -> AgentLoop` path. Extract its
+runner for real children before exposing orchestration UI. The default inline
+swarm can use a demo executor, goal cancellation does not currently propagate
+into in-flight worker execution, and state hydration is not active resumption.
+Durable child inboxes, wake admission, effect receipts, bounded budgets and crash
+reconciliation therefore remain required before long-work parity can be claimed.

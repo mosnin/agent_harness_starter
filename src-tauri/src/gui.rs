@@ -211,6 +211,11 @@ pub fn run() {
                 .arg(&sidecar_path)
                 .current_dir(&home)
                 .env("HADES_DATA_DIR", &data)
+                .env("HADES_COMPUTER", if resources.join("hades-computer").exists() {
+                    resources.join("hades-computer")
+                } else {
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../dist/runtime/hades-computer")
+                })
                 .env(
                     "HADES_PTY",
                     if resources.join("hades-pty").exists() {

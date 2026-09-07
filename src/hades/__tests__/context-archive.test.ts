@@ -77,3 +77,18 @@ describe("durable context recall", () => {
     expect(result.toolCalls.at(-1)?.call.tool).toBe("context_read");
   });
 });
+
+it("passes tool screenshots to the model and retains only the latest in the working archive view", async () => {
+  const seen: ChatMessage[][] = [];
+  const client: ModelClient = { chat: async request => {
+    seen.push(structuredClone(request.messages));
+    return {text:seen.length <= 3 ? 'TOOL: computer_observe\nINPUT: {}' : 'ANSWER: Done',tokensIn:100,tokensOut:10,usd:0,model:"vision",provider:"fixture"};
+  }};
+  let observations = 0; const tools = new ToolRegistry();
+  tools.register({name:"computer_observe",description:"screenshot",run:() => ({ok:true,output:"Small AX tree",images:[`data:image/png;base64,image-${++observations}`]})});
+  const result = await new AgentLoop(client,tools,{model:"vision",contextArchive:new FileContextArchive(directory())}).run("Inspect the window");
+  expect(result.answer).toBe("Done");
+  expect(seen.at(-1)!.flatMap(m => m.images ?? [])).toEqual(["data:image/png;base64,image-3"]);
+  expect(result.transcript.flatMap(m => m.images ?? [])).toHaveLength(3);
+  expect(seen.at(-1)!.filter(m => m.content.includes("Earlier screenshot omitted"))).toHaveLength(2);
+});

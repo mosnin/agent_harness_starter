@@ -40,7 +40,7 @@ export interface AgentLoopOptions {
   signal?: AbortSignal;
   history?: ChatMessage[];
   images?: string[];
-  onTool?: (call: ToolCall, result: string) => void;
+  onTool?: (call: ToolCall, result: string, ok: boolean) => void;
   onText?: (chunk: string) => void;
   /** Actual serving window, when known. Never infer this from model marketing. */
   contextWindow?: () => Promise<number | undefined>;
@@ -113,7 +113,7 @@ export class AgentLoop {
       if (this.opts.signal?.aborted) { error = "Run cancelled"; break; }
       let reply: string;
       try {
-        const view = archived ? archived.view(messages, settled) : contextView(messages, observations);
+        const view = contextView(archived ? archived.view(messages, settled) : messages, observations);
         const window = await this.opts.contextWindow?.();
         const maxTokens = this.opts.maxOutputTokens ?? (window ? Math.min(4096, Math.floor(window / 4)) : 4096);
         const estimatedInput = budget.estimate(view);
@@ -183,19 +183,19 @@ export class AgentLoop {
       if (parsed.kind === "tool") {
         // `tools.run` is total — it never throws — so a bad tool becomes
         // a TOOL_ERROR observation the model can react to on the next turn.
-        let result;
+        let result: import("./tools").ToolResult;
         if (parsed.call.tool === "context_read" && archived) {
           try { result = { ok: true, output: archived.read(parsed.call.input) }; }
           catch (error) { result = { ok: false, output: `Context read failed: ${error instanceof Error ? error.message : String(error)}` }; }
         } else result = await this.tools.run(parsed.call);
         toolCalls.push({ call: parsed.call, result: result.output, ok: result.ok });
-        this.opts.onTool?.(parsed.call, result.output);
+        this.opts.onTool?.(parsed.call, result.output, result.ok);
         const observation = result.ok
           ? `TOOL_RESULT: ${result.output}`
           : `TOOL_ERROR: ${result.output}`;
         observations.add(messages.length);
         settled.push({ callIndex: messages.length - 1, resultIndex: messages.length, tool: parsed.call.tool, ok: result.ok });
-        messages.push({ role: "user", content: observation });
+        messages.push({ role: "user", content: observation, ...(result.images?.length ? {images:result.images} : {}) });
         continue;
       }
 

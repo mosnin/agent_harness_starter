@@ -1,5 +1,12 @@
 /** A single 16px stroke family for functional UI symbols. */
 const paths: Record<string, string> = {
+  computer: '<path d="m5 2 11 9-6 1-3 6z"/>',
+  tools: '<path d="M3 5h14M3 10h14M3 15h14"/><circle cx="7" cy="5" r="2"/><circle cx="13" cy="10" r="2"/><circle cx="8" cy="15" r="2"/>',
+  "sidebar-right": '<rect x="2" y="3" width="16" height="14" rx="2"/><path d="M13 3v14"/>',
+  system: '<rect x="3" y="3" width="14" height="10" rx="2"/><path d="M7 17h6m-3-4v4"/>',
+  activity: '<path d="M2 10h4l2-6 4 12 2-6h4"/>',
+  sessions: '<path d="M3 3h14v10H8l-5 4z"/>',
+  mcp: '<path d="M7 2v4m6-4v4M5 6h10v4a5 5 0 0 1-10 0zm5 9v3"/>',
   chat: '<path d="M3 3h14v10H8l-5 4z"/>',
   files: '<path d="M2 5h6l2 2h8v10H2z"/>',
   memory: '<path d="M6 17V3h10v14zM3 6h3m-3 4h3m-3 4h3m3-8h4m-4 4h4"/>',
@@ -12,7 +19,7 @@ const paths: Record<string, string> = {
   agents: '<circle cx="10" cy="6" r="3"/><path d="M4 18v-3a6 6 0 0 1 12 0v3"/>',
   models: '<rect x="4" y="3" width="12" height="14" rx="2"/><path d="M7 7h6m-6 4h6m-6 3h2"/>',
   rooms: '<circle cx="7" cy="6" r="3"/><path d="M2 17v-2a5 5 0 0 1 10 0v2m1-14a3 3 0 0 1 0 6m2 3a4 4 0 0 1 3 4v1"/>',
-  plugins: '<path d="M7 2v4m6-4v4M5 6h10v4a5 5 0 0 1-10 0zm5 9v3"/>',
+  plugins: '<rect x="3" y="3" width="5" height="5" rx="1"/><rect x="12" y="3" width="5" height="5" rx="1"/><rect x="3" y="12" width="5" height="5" rx="1"/><rect x="12" y="12" width="5" height="5" rx="1"/>',
   workspace: '<rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16M7 7v10"/>',
   team: '<circle cx="7" cy="6" r="3"/><path d="M2 17v-2a5 5 0 0 1 10 0v2m1-14a3 3 0 0 1 0 6m2 3a4 4 0 0 1 3 4v1"/>',
   slack: '<path d="M7 2 5 18M15 2l-2 16M2 7h16M2 13h16"/>',

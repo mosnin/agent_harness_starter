@@ -40,7 +40,12 @@ export function contextView(transcript: ChatMessage[], observations: ReadonlySet
     if (observations.has(index) && message.role === "user" && message.content.startsWith("TOOL_RESULT:") && message.content.length > 256 && !message.images?.length)
       latest.set(message.content, index);
   });
+  const latestImage = transcript.findLastIndex((message,index) => observations.has(index) && !!message.images?.length);
   return transcript.map((message, index) => {
+    if (observations.has(index) && message.images?.length && index < latestImage) {
+      const { images, ...text } = message;
+      return { ...text, content: text.content + "\n[Earlier screenshot omitted from working context; observe again for current screen state.]" };
+    }
     const kept = observations.has(index) ? latest.get(message.content) : undefined;
     return kept !== undefined && kept !== index
       ? { ...message, content: `TOOL_RESULT: [Repeated observation; identical full content is retained at message ${kept + 1}.]` }
@@ -51,6 +56,8 @@ export function contextView(transcript: ChatMessage[], observations: ReadonlySet
 /** Conservative estimate, not a tokenizer. Retain measured provider usage even
  * after archival, then charge full UTF-8 bytes for new/replaced messages. Do not
  * subtract guessed savings for removed content. The next response recalibrates.
+ * Images use a conservative planning allowance of 16,384 tokens per image,
+ * not base64 character count or a provider tokenizer. Actual usage recalibrates it.
  * Resetting the entire view to bytes after every archive would falsely report
  * overflow even when the measured serving context is mostly empty.
  */
@@ -62,7 +69,7 @@ export class ContextBudget {
     const changed = previous ? messages.filter((_message, index) => keys[index] !== previous.messages[index]) : messages;
     return (previous?.tokens ?? 0) + changed.reduce((sum, message) =>
       sum + new TextEncoder().encode(message.content).length + 32 +
-      (message.images ?? []).reduce((bytes, image) => bytes + image.length, 0), 0);
+      (message.images?.length ?? 0) * 16_384, 0);
   }
   observe(messages: ChatMessage[], inputTokens: number) {
     if (Number.isSafeInteger(inputTokens) && inputTokens > 0)

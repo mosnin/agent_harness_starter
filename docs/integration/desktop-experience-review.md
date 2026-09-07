@@ -47,3 +47,27 @@ The broad light/dark/compact/large-text and VoiceOver acceptance matrix remains
 open. The latest screenshot also showed an actual provider catalog 401; the
 source now directs authentication failures to API-key/account settings rather
 than incorrectly suggesting that a model-ID change will fix authorization.
+
+
+## Codex-reference redesign continuation
+
+The latest reference replaces the previous sidebar's More section with a short
+primary navigation and dedicated Tools & connections hub. The final native
+style layer is `src/desktop/ui/workbench-design.css`: 250px sidebar, 38px toolbar,
+16px stroke icons, dark charcoal surfaces and system type. The composer and
+optional task card follow the reference's restrained geometry. Dark is the fresh
+installation default; saved themes remain respected. Metadata, controls and page
+headings share a type scale. Status bar remains available through its shortcut.
+
+The right card shows actual session artifacts, the selected agent's current
+running/idle state, computer control and project/memory access. It has no invented
+subagent counts. Compact windows hide it; file/Git/terminal inspectors take its
+place when opened. Toolbar icons follow the current route. Stale persisted tab
+IDs no longer leave an empty tab strip.
+
+Native screenshots were emitted from the built app for the dark chat, Tools &
+connections and routine editor, plus the earlier light Conversations/System and
+Computer control screens. This verifies those observed layouts at the inspected
+1162x768 window. It does not close the complete light/dark/compact/large-text,
+VoiceOver, provider, terminal or reconnect matrix. The source status report tracks
+functional implementation and remaining Hermes management gaps separately.
