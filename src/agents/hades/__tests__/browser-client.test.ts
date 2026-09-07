@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { HadesBrowserClient, BrowserToolError, type BrowserConnection } from "../browser/client";
+import {
+  HadesBrowserClient,
+  BrowserToolError,
+  type BrowserConnection,
+} from "../browser/client";
 import { PROTOCOL_VERSION, type Envelope } from "../protocol";
 
 /**
@@ -15,7 +19,10 @@ class FakeBrowser implements BrowserConnection {
   #closeListener: (() => void) | null = null;
 
   constructor(
-    private readonly respond: (envelope: Envelope, browser: FakeBrowser) => unknown | undefined,
+    private readonly respond: (
+      envelope: Envelope,
+      browser: FakeBrowser,
+    ) => unknown | undefined,
   ) {}
 
   send(data: string): void {
@@ -65,7 +72,10 @@ class FakeBrowser implements BrowserConnection {
 const AGENTS = [{ id: "hermes-1", name: "Hermes", allowedTools: [] }];
 
 /** Connect once and report the URL the transport was asked to open. */
-async function connectUrl(options: { token: string; url?: string }): Promise<string> {
+async function connectUrl(options: {
+  token: string;
+  url?: string;
+}): Promise<string> {
   const seen: string[] = [];
   const client = new HadesBrowserClient({
     ...options,
@@ -141,7 +151,9 @@ describe("HadesBrowserClient handshake", () => {
     const saved = process.env.HADES_BROWSER_URL;
     process.env.HADES_BROWSER_URL = "ws://127.0.0.1:9999";
     try {
-      expect(await connectUrl({ token: "t" })).toContain("ws://127.0.0.1:9999?");
+      expect(await connectUrl({ token: "t" })).toContain(
+        "ws://127.0.0.1:9999?",
+      );
     } finally {
       if (saved === undefined) delete process.env.HADES_BROWSER_URL;
       else process.env.HADES_BROWSER_URL = saved;
@@ -210,22 +222,44 @@ describe("HadesBrowserClient tool calls", () => {
     if (envelope.type === "handshake") return handshakeOk();
     if (envelope.type === "agents.announce") return { ok: true };
     if (envelope.type === "tool.call") {
-      const call = envelope.payload as { callId: string; name: string; args: Record<string, unknown> };
+      const call = envelope.payload as {
+        callId: string;
+        name: string;
+        args: Record<string, unknown>;
+      };
       if (call.name === "browser.listTabs") {
         return {
           callId: call.callId,
           ok: true,
-          value: { tabs: [{ id: "t1", workspaceId: "w1", url: "https://a.com", title: "A", pinned: false, lastActiveAt: 0 }] },
+          value: {
+            tabs: [
+              {
+                id: "t1",
+                workspaceId: "w1",
+                url: "https://a.com",
+                title: "A",
+                pinned: false,
+                lastActiveAt: 0,
+              },
+            ],
+          },
         };
       }
       if (call.name === "activity.digest") {
         return {
           callId: call.callId,
           ok: false,
-          error: { code: "blocked-by-policy", message: "Activity tracking is switched off." },
+          error: {
+            code: "blocked-by-policy",
+            message: "Activity tracking is switched off.",
+          },
         };
       }
-      return { callId: call.callId, ok: false, error: { code: "not-found", message: "Unknown tool." } };
+      return {
+        callId: call.callId,
+        ok: false,
+        error: { code: "not-found", message: "Unknown tool." },
+      };
     }
     return { ok: true };
   };
@@ -246,14 +280,20 @@ describe("HadesBrowserClient tool calls", () => {
 
   it("opens tabs in the background unless told otherwise", async () => {
     const { client, browser } = await connected(respond);
-    await client.openTab("hermes-1", "https://example.com").catch(() => undefined);
-    const call = browser.sent("tool.call")!.payload as { args: { background: boolean } };
+    await client
+      .openTab("hermes-1", "https://example.com")
+      .catch(() => undefined);
+    const call = browser.sent("tool.call")!.payload as {
+      args: { background: boolean };
+    };
     expect(call.args.background).toBe(true);
   });
 
   it("turns a consent refusal into a typed error, not a silent undefined", async () => {
     const { client } = await connected(respond);
-    await expect(client.activityDigest("hermes-1")).rejects.toBeInstanceOf(BrowserToolError);
+    await expect(client.activityDigest("hermes-1")).rejects.toBeInstanceOf(
+      BrowserToolError,
+    );
     await expect(client.activityDigest("hermes-1")).rejects.toMatchObject({
       code: "blocked-by-policy",
     });
@@ -309,7 +349,14 @@ describe("HadesBrowserClient inbound events", () => {
       type: "capture.submit",
       at: Date.now(),
       payload: {
-        capture: { id: "c1", kind: "tab", dataUrl: "data:image/png;base64,AA", width: 1, height: 1, capturedAt: 0 },
+        capture: {
+          id: "c1",
+          kind: "tab",
+          dataUrl: "data:image/png;base64,AA",
+          width: 1,
+          height: 1,
+          capturedAt: 0,
+        },
         prompt: "what is this",
       },
     });
@@ -349,20 +396,24 @@ describe("answering the browser's Max requests", () => {
       const reply = browser.received.find(
         (envelope) => envelope.kind === "response" && envelope.replyTo === id,
       );
-      if (reply) return reply.payload as { ok: boolean; text: string; error?: string };
+      if (reply)
+        return reply.payload as { ok: boolean; text: string; error?: string };
     }
     throw new Error("no response to ai.complete");
   }
 
   it("answers with the handler's text", async () => {
     const { browser } = await connected(
-      (envelope) => (envelope.type === "handshake" ? handshakeOk() : { ok: true }),
+      (envelope) =>
+        envelope.type === "handshake" ? handshakeOk() : { ok: true },
       { onComplete: (request) => `answered ${request.task}` },
     );
-    await expect(askBrowserSide(browser, { task: "preview" })).resolves.toEqual({
-      ok: true,
-      text: "answered preview",
-    });
+    await expect(askBrowserSide(browser, { task: "preview" })).resolves.toEqual(
+      {
+        ok: true,
+        text: "answered preview",
+      },
+    );
   });
 
   it("says so when no handler is configured, rather than going quiet", async () => {
@@ -378,7 +429,8 @@ describe("answering the browser's Max requests", () => {
 
   it("reports a handler that threw instead of hanging", async () => {
     const { browser } = await connected(
-      (envelope) => (envelope.type === "handshake" ? handshakeOk() : { ok: true }),
+      (envelope) =>
+        envelope.type === "handshake" ? handshakeOk() : { ok: true },
       {
         onComplete: () => {
           throw new Error("model unavailable");
@@ -405,5 +457,166 @@ describe("answering the browser's Max requests", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     const reply = browser.received.find((envelope) => envelope.replyTo === id);
     expect(reply?.payload).toMatchObject({ ok: false });
+  });
+});
+
+describe("agent mode over the bridge", () => {
+  it("sends page actions as tool calls carrying the run id, and unwraps the result", async () => {
+    const { client, browser } = await connected((envelope) => {
+      if (envelope.type === "handshake") return handshakeOk();
+      if (envelope.type === "agents.announce") return { ok: true };
+      if (envelope.type === "tool.call") {
+        const call = envelope.payload as {
+          name: string;
+          runId?: string;
+          args: Record<string, unknown>;
+        };
+        if (call.name === "page.click") {
+          return {
+            callId: "c",
+            ok: true,
+            value: { ok: true, url: "https://a.example/next", navigated: true },
+          };
+        }
+        if (call.name === "page.snapshot") {
+          return {
+            callId: "c",
+            ok: true,
+            value: {
+              snapshotId: 1,
+              tabId: call.args.tabId,
+              url: "u",
+              title: "t",
+              nodes: [],
+              truncated: false,
+            },
+          };
+        }
+      }
+      return undefined;
+    });
+    const tree = await client.snapshot("hermes-1", "tab-1", { runId: "run-1" });
+    expect(tree.snapshotId).toBe(1);
+    const result = await client.click("hermes-1", "tab-1", "r3", {
+      runId: "run-1",
+    });
+    expect(result.navigated).toBe(true);
+    const calls = browser.received.filter(
+      (envelope) => envelope.type === "tool.call",
+    );
+    expect(calls).toHaveLength(2);
+    expect(
+      calls.every(
+        (envelope) =>
+          (envelope.payload as { runId?: string }).runId === "run-1",
+      ),
+    ).toBe(true);
+  });
+
+  it("surfaces a paused or declined action as a refusal the model can read", async () => {
+    const { client } = await connected((envelope) => {
+      if (envelope.type === "handshake") return handshakeOk();
+      if (envelope.type === "agents.announce") return { ok: true };
+      if (envelope.type === "tool.call") {
+        return {
+          callId: "c",
+          ok: false,
+          error: { code: "paused", message: "The person is using this page." },
+        };
+      }
+      return undefined;
+    });
+    await expect(
+      client.type("hermes-1", "tab-1", "r1", "hello"),
+    ).rejects.toMatchObject({
+      code: "paused",
+      message: "The person is using this page.",
+    });
+  });
+
+  it("reports a run's life as events and hears the person's control back", async () => {
+    const controls: unknown[] = [];
+    const { client, browser } = await connected(
+      (envelope) => {
+        if (envelope.type === "handshake") return handshakeOk();
+        if (envelope.type === "agents.announce") return { ok: true };
+        return undefined;
+      },
+      { onTaskControl: (control) => controls.push(control) },
+    );
+    client.startRun({
+      runId: "run-1",
+      agentId: "hermes-1",
+      title: "Book a table",
+      threadId: "thr-1",
+    });
+    client.reportStep({
+      runId: "run-1",
+      stepId: "s1",
+      text: "Opening the site",
+      status: "running",
+    });
+    client.askUser("run-1", "Which time?", ["7pm", "8pm"]);
+    client.finishRun("run-1", "done", "Booked for 8.", [
+      { kind: "tab", id: "t1", label: "Booking" },
+    ]);
+    expect(browser.received.map((envelope) => envelope.type)).toEqual(
+      expect.arrayContaining([
+        "task.started",
+        "task.step",
+        "task.needsInput",
+        "task.finished",
+      ]),
+    );
+    expect(browser.sent("task.needsInput")?.payload).toMatchObject({
+      question: { prompt: "Which time?", options: ["7pm", "8pm"] },
+    });
+
+    browser.deliver({
+      id: "evt-1",
+      protocol: PROTOCOL_VERSION,
+      kind: "event",
+      type: "task.control",
+      at: Date.now(),
+      payload: { runId: "run-1", action: "pause", reason: "user-input" },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(controls).toEqual([
+      { runId: "run-1", action: "pause", reason: "user-input" },
+    ]);
+  });
+
+  it("hands the thread id along with a chat turn so the reply lands in the right conversation", async () => {
+    const chats: unknown[] = [];
+    const { browser } = await connected(
+      (envelope) => {
+        if (envelope.type === "handshake") return handshakeOk();
+        if (envelope.type === "agents.announce") return { ok: true };
+        return undefined;
+      },
+      { onChat: (message) => chats.push(message) },
+    );
+    browser.deliver({
+      id: "evt-2",
+      protocol: PROTOCOL_VERSION,
+      kind: "event",
+      type: "chat.send",
+      at: Date.now(),
+      payload: {
+        text: "hi",
+        agentId: "hermes-1",
+        threadId: "thr-9",
+        context: { selection: "quoted" },
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(chats).toEqual([
+      {
+        text: "hi",
+        agentId: "hermes-1",
+        threadId: "thr-9",
+        context: { selection: "quoted" },
+      },
+    ]);
   });
 });

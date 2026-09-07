@@ -66,11 +66,22 @@ that is what decides whose wallet and whose consent grant apply.
 | `browser_open_tab` | `control-tabs` |
 | `browser_list_collections`, `browser_search_collections` | `collections` (only collections the user marked agent-readable) |
 | `browser_activity_digest` | `activity` (only while the user has tracking on) |
+| `browser_snapshot`, `browser_extract`, `browser_wait_for` | `read-content` — agent mode's eyes: the page as a numbered accessibility tree |
+| `browser_click`, `browser_type`, `browser_press`, `browser_select`, `browser_scroll` | `control-page` — agent mode's hands. Run only in the browser's Agent space or on a site the user granted; stop when the user touches the page; ask before paying, sending, deleting; never type credentials. Pass `meta.runId` to attribute them to a run. |
+| `browser_remember`, `browser_recall` | `context` — the shared memory, synced sealed to the desktop app |
 | `wallet_address`, `wallet_balance`, `wallet_policy`, `wallet_sign_message`, `wallet_send` | the agent's own wallet; `wallet_send` runs the spend policy and may escalate through `onApprovalRequired` |
 
 Consent is granted per agent by the user inside the browser, and additionally
 scoped per workspace (`full` / `metadata-only` / `none`). A refused call comes
 back as a `ToolResult` with an error code, never as a dropped frame.
+
+### Runs
+
+Wrap a multi-step task in a run so the browser can show it: `client.startRun({ runId, agentId, title, threadId })`,
+`client.reportStep(...)` per step, `client.askUser(runId, prompt, options)` when you need the person,
+`client.finishRun(runId, "done", summary, artifacts)` at the end. Pass `meta.runId` in the tool context so
+each page action badges the tab it drives. Handle `onTaskControl` — the person can pause, resume, stop or
+answer from the browser, and a paused run's page actions fail with `paused` until they resume.
 
 ## The sync endpoint, in one paragraph
 

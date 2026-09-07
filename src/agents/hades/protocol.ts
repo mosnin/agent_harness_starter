@@ -1,7 +1,7 @@
 /**
  * The Hades wire contract, as this harness needs it.
  *
- * This mirrors `@hades/protocol` v1.0.0 from the hades-browser repository.
+ * This mirrors `@hades/protocol` v1.1.0 from the hades-browser repository.
  * The two ship as separate packages today, so the slice the harness actually
  * uses is restated here rather than pulled in as a dependency; once
  * `@hades/protocol` is published, both sides should import it and this file
@@ -10,7 +10,7 @@
  * is negotiated on every handshake.
  */
 
-export const PROTOCOL_VERSION = "1.0.0" as const;
+export const PROTOCOL_VERSION = "1.1.0" as const;
 
 export interface Envelope<P = unknown> {
   id: string;
@@ -64,13 +64,30 @@ export type BrowserToolName =
   | "collections.search"
   | "collections.addPage"
   | "collections.create"
-  | "activity.digest";
+  | "activity.digest"
+  // ── Agent mode: seeing and acting in a page ──
+  | "page.snapshot"
+  | "page.extract"
+  | "page.waitFor"
+  | "page.click"
+  | "page.hover"
+  | "page.type"
+  | "page.press"
+  | "page.select"
+  | "page.scroll"
+  | "page.screenshot"
+  // ── Shared memory ──
+  | "context.write"
+  | "context.search"
+  | "context.list";
 
 export interface ToolCall {
   callId: string;
   agentId: string;
   name: BrowserToolName;
   args: Record<string, unknown>;
+  /** The run this call is part of, so the browser badges the tab and logs the step. */
+  runId?: string;
 }
 
 export interface ToolResult<T = unknown> {
@@ -78,7 +95,16 @@ export interface ToolResult<T = unknown> {
   ok: boolean;
   value?: T;
   error?: {
-    code: "consent-denied" | "not-found" | "invalid-args" | "blocked-by-policy" | "timeout" | "internal";
+    code:
+      | "consent-denied"
+      | "not-found"
+      | "invalid-args"
+      | "blocked-by-policy"
+      | "timeout"
+      | "internal"
+      | "stale-ref"
+      | "paused"
+      | "user-declined";
     message: string;
   };
 }
@@ -120,7 +146,13 @@ export interface CollectionSummary {
 export interface CollectionSearchHit {
   collectionId: string;
   collectionName: string;
-  item: { id: string; url: string; title: string; note?: string; tags: string[] };
+  item: {
+    id: string;
+    url: string;
+    title: string;
+    note?: string;
+    tags: string[];
+  };
   score: number;
   excerpt?: string;
 }
@@ -148,6 +180,165 @@ export interface CaptureSubmission {
   capture: CaptureResult;
   prompt?: string;
   agentId?: string;
+}
+
+/** browser -> agent: the person typed in the agent panel. */
+export interface ChatSend {
+  text: string;
+  agentId?: string;
+  /** The conversation to answer into; echo it on `agent.message`. */
+  threadId?: string;
+  context?: {
+    tabs?: Array<{ id: string; url: string; title: string }>;
+    collectionIds?: string[];
+    docIds?: string[];
+    selection?: string;
+    contextIds?: string[];
+  };
+}
+
+// ── Agent mode: the page as the agent sees it ───────────────────────────────
+
+export interface PageNode {
+  ref: string;
+  role: string;
+  name: string;
+  value?: string;
+  href?: string;
+  inputType?: string;
+  options?: string[];
+  state?: {
+    disabled?: boolean;
+    checked?: boolean;
+    expanded?: boolean;
+    focused?: boolean;
+    required?: boolean;
+    offscreen?: boolean;
+  };
+  rect?: { x: number; y: number; width: number; height: number };
+  depth: number;
+  autocomplete?: string;
+}
+
+export interface PageTree {
+  snapshotId: number;
+  tabId: string;
+  url: string;
+  title: string;
+  viewport: { width: number; height: number };
+  scroll: { x: number; y: number; maxX: number; maxY: number };
+  nodes: PageNode[];
+  truncated: boolean;
+  screenshot?: string;
+}
+
+export interface PageActionResult {
+  ok: true;
+  target?: Pick<PageNode, "ref" | "role" | "name">;
+  url: string;
+  navigated?: boolean;
+}
+
+export type PageKey =
+  | "Enter"
+  | "Tab"
+  | "Escape"
+  | "Backspace"
+  | "Delete"
+  | "ArrowUp"
+  | "ArrowDown"
+  | "ArrowLeft"
+  | "ArrowRight"
+  | "Home"
+  | "End"
+  | "PageUp"
+  | "PageDown"
+  | "Space";
+
+// ── Shared memory ───────────────────────────────────────────────────────────
+
+export type ContextKind = "run" | "page" | "note" | "fact" | "preference";
+
+export interface ContextRecord {
+  id: string;
+  kind: ContextKind;
+  title: string;
+  body: string;
+  sourceUrl?: string;
+  workspaceId?: string;
+  createdBy: string;
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ContextSearchHit {
+  record: ContextRecord;
+  score: number;
+  excerpt?: string;
+}
+
+// ── Runs: a task, as the browser shows it ───────────────────────────────────
+
+export type RunStepStatus = "running" | "done" | "failed" | "skipped";
+
+export interface RunArtifact {
+  kind:
+    | "tab"
+    | "collection"
+    | "collection-item"
+    | "note"
+    | "easel"
+    | "file"
+    | "url"
+    | "context";
+  id?: string;
+  label: string;
+  url?: string;
+}
+
+/** agent -> browser */
+export interface TaskStarted {
+  runId: string;
+  agentId: string;
+  title: string;
+  tabIds?: string[];
+  workspaceId?: string;
+  threadId?: string;
+}
+
+/** agent -> browser */
+export interface TaskStep {
+  runId: string;
+  stepId: string;
+  text: string;
+  status: RunStepStatus;
+  tool?: { name: string; callId?: string; ok?: boolean; summary?: string };
+  artifacts?: RunArtifact[];
+  error?: string;
+  tabIds?: string[];
+}
+
+/** agent -> browser */
+export interface TaskNeedsInput {
+  runId: string;
+  question: { prompt: string; options?: string[] };
+}
+
+/** agent -> browser */
+export interface TaskFinished {
+  runId: string;
+  status: "done" | "failed" | "cancelled";
+  summary?: string;
+  artifacts?: RunArtifact[];
+}
+
+/** browser -> agent: the person paused, resumed, stopped or answered. */
+export interface TaskControl {
+  runId: string;
+  action: "pause" | "resume" | "cancel" | "answer";
+  answer?: string;
+  reason?: "user-input" | "user-request" | "approval";
 }
 
 // ── Browser-side language work ──────────────────────────────────────────────
@@ -237,7 +428,10 @@ export function evaluateSpendPolicy(
   recentSpend: SpendRecord[],
   now: number = Date.now(),
 ): PolicyVerdict {
-  if (policy.allowedChains.length > 0 && !policy.allowedChains.includes(request.caip2)) {
+  if (
+    policy.allowedChains.length > 0 &&
+    !policy.allowedChains.includes(request.caip2)
+  ) {
     return {
       allowed: false,
       reason: `Chain ${request.caip2} is not in this wallet's allowed chains.`,
@@ -247,7 +441,9 @@ export function evaluateSpendPolicy(
   if (
     policy.allowedTargets.length > 0 &&
     request.target !== undefined &&
-    !policy.allowedTargets.some((target) => target.toLowerCase() === request.target!.toLowerCase())
+    !policy.allowedTargets.some(
+      (target) => target.toLowerCase() === request.target!.toLowerCase(),
+    )
   ) {
     return {
       allowed: false,
@@ -264,7 +460,9 @@ export function evaluateSpendPolicy(
   }
   const dayAgo = now - 24 * 60 * 60 * 1000;
   const spentToday = recentSpend
-    .filter((record) => record.ownerId === policy.ownerId && record.at >= dayAgo)
+    .filter(
+      (record) => record.ownerId === policy.ownerId && record.at >= dayAgo,
+    )
     .reduce((total, record) => total + record.usdValue, 0);
   if (spentToday + request.usdValue > policy.maxPerDayUsd) {
     return {
@@ -275,7 +473,9 @@ export function evaluateSpendPolicy(
   }
   return {
     allowed: true,
-    requiresApproval: policy.requireApprovalAlways || request.usdValue > policy.autoApproveBelowUsd,
+    requiresApproval:
+      policy.requireApprovalAlways ||
+      request.usdValue > policy.autoApproveBelowUsd,
   };
 }
 
@@ -286,7 +486,10 @@ export function nextMessageId(prefix = "msg"): string {
   return `${prefix}_${Date.now().toString(36)}_${counter.toString(36)}`;
 }
 
-export function isCompatible(remote: string, local: string = PROTOCOL_VERSION): boolean {
+export function isCompatible(
+  remote: string,
+  local: string = PROTOCOL_VERSION,
+): boolean {
   const parse = (value: string) => /^(\d+)\.(\d+)\.(\d+)$/.exec(value.trim());
   const r = parse(remote);
   const l = parse(local);
