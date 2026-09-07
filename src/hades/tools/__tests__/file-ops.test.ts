@@ -350,3 +350,13 @@ describe("createFileOpsTool: jail actually prevents host writes", () => {
     expect(fsSync.existsSync(target)).toBe(false);
   });
 });
+
+it("rejects append through a dangling symlink instead of walking past it", async () => {
+  const outside = await fs.mkdtemp(path.join(os.tmpdir(), "file-ops-outside-"));
+  try {
+    await fs.symlink(path.join(outside, "new.txt"), path.join(root, "dangling"));
+    const result = await run({ op: "append", path: "dangling", content: "escape" });
+    expect(result.ok).toBe(false);
+    expect(fsSync.existsSync(path.join(outside, "new.txt"))).toBe(false);
+  } finally { await fs.rm(outside, { recursive: true, force: true }); }
+});

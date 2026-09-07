@@ -1,5 +1,12 @@
 /** A single 16px stroke family for functional UI symbols. */
 const paths: Record<string, string> = {
+  browser: '<rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16M5 5h1m2 0h1"/>',
+  credentials: '<circle cx="7" cy="7" r="4"/><path d="m10 10 7 7m-4-4 2-2m0 4 2-2"/>',
+  channels: '<path d="M3 4h11v8H8l-5 4zM17 7v10l-4-3"/>',
+  hooks: '<path d="M6 3v8a5 5 0 0 0 10 0V8m-3 3 3-3 3 3M3 3h6"/>',
+  maintenance: '<ellipse cx="10" cy="4" rx="7" ry="2"/><path d="M3 4v12c0 3 14 3 14 0V4M3 10c0 3 14 3 14 0"/>',
+  webhooks: '<circle cx="10" cy="4" r="2"/><circle cx="4" cy="15" r="2"/><circle cx="16" cy="15" r="2"/><path d="M9 6 5 13m1 2h8m-3-9 4 7"/>',
+  work: '<rect x="3" y="4" width="14" height="14" rx="2"/><path d="M7 4V2h6v2M6 9l2 2 5-5M6 14h8"/>',
   computer: '<path d="m5 2 11 9-6 1-3 6z"/>',
   tools: '<path d="M3 5h14M3 10h14M3 15h14"/><circle cx="7" cy="5" r="2"/><circle cx="13" cy="10" r="2"/><circle cx="8" cy="15" r="2"/>',
   "sidebar-right": '<rect x="2" y="3" width="16" height="14" rx="2"/><path d="M13 3v14"/>',

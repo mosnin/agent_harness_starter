@@ -29,6 +29,7 @@ import type { ModelClient, ChatMessage } from "../models/client";
 import type { ToolRegistry, ToolCall } from "./tools";
 import { ArchivedContext, ContextBudget, contextView } from "./context-budget";
 import type { ContextArchive } from "../memory/context-archive";
+import { randomUUID } from "node:crypto";
 
 export interface AgentLoopOptions {
   model: string;
@@ -47,6 +48,8 @@ export interface AgentLoopOptions {
   maxOutputTokens?: number;
   /** Whole-request byte cap when the provider's serving window is unknown. */
   maxInputBytes?: number;
+  /** Account for measured input plus output across this run; stop before another call. */
+  maxTotalTokens?: number;
   /** Optional durable backing for recalling older settled tool exchanges. */
   contextArchive?: ContextArchive;
 }
@@ -58,6 +61,8 @@ export interface AgentLoopResult {
   toolCalls: Array<{ call: ToolCall; result: string; ok?: boolean }>;
   tokensIn: number;
   tokensOut: number;
+  /** Present only when every provider response reported cached input usage. */
+  cachedInputTokens?: number;
   usd: number;
   /** system + user task + every assistant/observation turn. */
   transcript: ChatMessage[];
@@ -65,6 +70,8 @@ export interface AgentLoopResult {
   hitStepLimit: boolean;
   error?: string;
   costMeasured?: boolean;
+  /** False when any model request failed before its full usage was available. */
+  usageComplete?: boolean;
 }
 
 const DEFAULT_MAX_STEPS = 6;
@@ -84,149 +91,181 @@ export class AgentLoop {
     this.client = client;
     this.tools = tools;
     this.opts = opts;
+    if (opts.maxTotalTokens !== undefined && (!Number.isSafeInteger(opts.maxTotalTokens) || opts.maxTotalTokens < 1)) throw new Error("Invalid task token budget");
     const cap = opts.maxSteps ?? DEFAULT_MAX_STEPS;
     // A non-positive cap would never run; clamp to at least one turn.
     this.maxSteps = cap > 0 ? Math.floor(cap) : 1;
   }
 
   async run(task: string): Promise<AgentLoopResult> {
-    const messages: ChatMessage[] = [
-      { role: "system", content: this.buildSystemPrompt() },
-      ...(this.opts.history ?? []),
-      { role: "user", content: task, ...(this.opts.images?.length?{images:this.opts.images}:{}) },
-    ];
+    const transportSessionId = randomUUID();
+    try {
+      const messages: ChatMessage[] = [
+        { role: "system", content: this.buildSystemPrompt() },
+        ...(this.opts.history ?? []),
+        { role: "user", content: task, ...(this.opts.images?.length?{images:this.opts.images}:{}) },
+      ];
 
-    const toolCalls: Array<{ call: ToolCall; result: string; ok?: boolean }> = [];
-    let steps = 0;
-    let tokensIn = 0;
-    let tokensOut = 0;
-    let usd = 0;
-    let error: string | undefined;
-    let costMeasured = true;
-    let emptyReplies = 0;
-    const budget = new ContextBudget();
-    const observations = new Set<number>();
-    const archived = this.opts.contextArchive ? new ArchivedContext(this.opts.contextArchive) : undefined;
-    const settled: Array<{ callIndex: number; resultIndex: number; tool: string; ok: boolean }> = [];
+      const toolCalls: Array<{ call: ToolCall; result: string; ok?: boolean }> = [];
+      let steps = 0;
+      let tokensIn = 0;
+      let tokensOut = 0;
+      let cachedInputTokens = 0, cachedUsageKnown = true;
+      let usd = 0;
+      let error: string | undefined;
+      let costMeasured = true, usageComplete = true;
+      let emptyReplies = 0;
+      const budget = new ContextBudget();
+      const observations = new Set<number>();
+      const archived = this.opts.contextArchive ? new ArchivedContext(this.opts.contextArchive) : undefined;
+      const settled: Array<{ callIndex: number; resultIndex: number; tool: string; ok: boolean }> = [];
 
-    while (steps < this.maxSteps) {
-      if (this.opts.signal?.aborted) { error = "Run cancelled"; break; }
-      let reply: string;
-      try {
-        const view = contextView(archived ? archived.view(messages, settled) : messages, observations);
-        const window = await this.opts.contextWindow?.();
-        const maxTokens = this.opts.maxOutputTokens ?? (window ? Math.min(4096, Math.floor(window / 4)) : 4096);
-        const estimatedInput = budget.estimate(view);
-        const bytes = new TextEncoder().encode(JSON.stringify(view)).length;
-        if (bytes > (this.opts.maxInputBytes ?? 262_144) ||
-          (window !== undefined && estimatedInput + maxTokens + 256 > window)) {
-          error = `Context budget reached before the next model request${window ? ` (serving window ${window} tokens; input estimate ${estimatedInput}, output reserve ${maxTokens})` : ""}. No task history was discarded. Increase the serving context or continue with a smaller, explicit task context.`;
+      while (steps < this.maxSteps) {
+        if (this.opts.signal?.aborted) { error = "Run cancelled"; break; }
+        let reply: string;
+        try {
+          const view = contextView(archived ? archived.view(messages, settled) : messages, observations);
+          const window = await this.opts.contextWindow?.();
+          const maxTokens = this.opts.maxOutputTokens ?? (window ? Math.min(4096, Math.floor(window / 4)) : 4096);
+          const estimatedInput = budget.estimate(view);
+          if (this.opts.maxTotalTokens !== undefined &&
+            tokensIn + tokensOut + estimatedInput + maxTokens > this.opts.maxTotalTokens) {
+            error = "Task token budget reached before the next model request. Completed actions remain saved; increase the budget explicitly to continue.";
+            break;
+          }
+          const bytes = new TextEncoder().encode(JSON.stringify(view)).length;
+          if (bytes > (this.opts.maxInputBytes ?? 262_144) ||
+            (window !== undefined && estimatedInput + maxTokens + 256 > window)) {
+            error = `Context budget reached before the next model request${window ? ` (serving window ${window} tokens; input estimate ${estimatedInput}, output reserve ${maxTokens})` : ""}. No task history was discarded. Increase the serving context or continue with a smaller, explicit task context.`;
+            break;
+          }
+          const res = await this.client.chat({
+            model: this.opts.model,
+            messages: view,
+            transportSessionId,
+            tools: [
+              ...this.tools.list().map(({ name, description }) => ({ name, description })),
+              ...(archived ? [{ name: "context_read", description: "Read exact archived tool evidence by reference, offset and limit." }] : []),
+            ],
+            maxTokens,
+            temperature: this.opts.temperature,
+            signal: this.opts.signal,
+            onText: this.opts.onText,
+          });
+          reply = res.text ?? "";
+          if (![res.tokensIn, res.tokensOut].every(n => Number.isSafeInteger(n) && n >= 0)) throw new Error("Provider returned invalid token usage; no pending tool was executed.");
+          if (res.tokensIn === 0 && res.tokensOut === 0) usageComplete = false;
+          if (res.cachedInputTokens !== undefined && Number.isSafeInteger(res.cachedInputTokens) && res.cachedInputTokens >= 0) cachedInputTokens += res.cachedInputTokens;
+          else cachedUsageKnown = false;
+          budget.observe(view, res.tokensIn);
+          tokensIn += res.tokensIn ?? 0;
+          tokensOut += res.tokensOut ?? 0;
+          usd += res.usd ?? 0;
+          costMeasured = costMeasured && res.costMeasured !== false;
+          if (this.opts.maxTotalTokens !== undefined && tokensIn + tokensOut > this.opts.maxTotalTokens) {
+            steps++; messages.push({ role: "assistant", content: reply });
+            error = "Provider usage exceeded the task token budget. No pending tool was executed; increase the budget explicitly to continue.";
+            break;
+          }
+          if (["length", "max_tokens"].includes(res.finishReason ?? "")) {
+            steps++;
+            messages.push({ role: "assistant", content: reply });
+            error = "Model response was cut off by its token limit. No partial tool call was executed. Increase the model context/output limit before continuing.";
+            break;
+          }
+        } catch (err) {
+          costMeasured = false; cachedUsageKnown = false; usageComplete = false;
+          error = this.opts.signal?.aborted ? "Run cancelled" : `Model request failed: ${err instanceof Error ? err.message : String(err)}`;
           break;
         }
-        const res = await this.client.chat({
-          model: this.opts.model,
-          messages: view,
-          maxTokens,
-          temperature: this.opts.temperature,
-          signal: this.opts.signal,
-          onText: this.opts.onText,
-        });
-        reply = res.text ?? "";
-        budget.observe(view, res.tokensIn);
-        tokensIn += res.tokensIn ?? 0;
-        tokensOut += res.tokensOut ?? 0;
-        usd += res.usd ?? 0;
-        costMeasured = costMeasured && res.costMeasured !== false;
-        if (["length", "max_tokens"].includes(res.finishReason ?? "")) {
-          steps++;
-          messages.push({ role: "assistant", content: reply });
-          error = "Model response was cut off by its token limit. No partial tool call was executed. Increase the model context/output limit before continuing.";
-          break;
+        if (this.opts.signal?.aborted) { error = "Run cancelled"; break; }
+
+        steps++;
+        // The raw model turn is always part of the transcript.
+        messages.push({ role: "assistant", content: reply });
+
+        const parsed = parseReply(reply);
+        if (!reply.trim() || (parsed.kind === "answer" && !parsed.answer.trim())) {
+          emptyReplies++;
+          if (emptyReplies >= 3) {
+            error = "Model returned an empty response three times. The task is incomplete; completed tool actions remain saved.";
+            break;
+          }
+          messages.push({ role: "user", content: "Your response was empty. Continue the task using a TOOL/INPUT call, or provide a nonempty ANSWER stating what was completed and what remains. Do not silently end an unfinished task." });
+          continue;
         }
-      } catch (err) {
-        costMeasured = false;
-        error = this.opts.signal?.aborted ? "Run cancelled" : `Model request failed: ${err instanceof Error ? err.message : String(err)}`;
-        break;
-      }
-      if (this.opts.signal?.aborted) { error = "Run cancelled"; break; }
+        emptyReplies = 0;
 
-      steps++;
-      // The raw model turn is always part of the transcript.
-      messages.push({ role: "assistant", content: reply });
-
-      const parsed = parseReply(reply);
-      if (!reply.trim() || (parsed.kind === "answer" && !parsed.answer.trim())) {
-        emptyReplies++;
-        if (emptyReplies >= 3) {
-          error = "Model returned an empty response three times. The task is incomplete; completed tool actions remain saved.";
-          break;
+        if (parsed.kind === "answer") {
+          return {
+            answer: parsed.answer,
+            steps,
+            toolCalls,
+            tokensIn,
+            tokensOut,
+            cachedInputTokens: cachedUsageKnown ? cachedInputTokens : undefined,
+            usd,
+            transcript: messages,
+            hitStepLimit: false,
+            costMeasured,
+            usageComplete,
+          };
         }
-        messages.push({ role: "user", content: "Your response was empty. Continue the task using a TOOL/INPUT call, or provide a nonempty ANSWER stating what was completed and what remains. Do not silently end an unfinished task." });
-        continue;
-      }
-      emptyReplies = 0;
 
-      if (parsed.kind === "answer") {
+        if (parsed.kind === "tool") {
+          // `tools.run` is total — it never throws — so a bad tool becomes
+          // a TOOL_ERROR observation the model can react to on the next turn.
+          let result: import("./tools").ToolResult;
+          if (parsed.call.tool === "context_read" && archived) {
+            try { result = { ok: true, output: archived.read(parsed.call.input) }; }
+            catch (error) { result = { ok: false, output: `Context read failed: ${error instanceof Error ? error.message : String(error)}` }; }
+          } else result = await this.tools.run(parsed.call);
+          toolCalls.push({ call: parsed.call, result: result.output, ok: result.ok });
+          this.opts.onTool?.(parsed.call, result.output, result.ok);
+          const observation = result.ok
+            ? `TOOL_RESULT: ${result.output}`
+            : `TOOL_ERROR: ${result.output}`;
+          observations.add(messages.length);
+          settled.push({ callIndex: messages.length - 1, resultIndex: messages.length, tool: parsed.call.tool, ok: result.ok });
+          messages.push({ role: "user", content: observation, ...(result.images?.length ? {images:result.images} : {}) });
+          continue;
+        }
+
+        // Malformed: no ANSWER and no complete TOOL/INPUT pair. Be lenient —
+        // treat the whole reply as the final answer and stop.
         return {
-          answer: parsed.answer,
+          answer: stripFences(reply),
           steps,
           toolCalls,
           tokensIn,
           tokensOut,
+          cachedInputTokens: cachedUsageKnown ? cachedInputTokens : undefined,
           usd,
           transcript: messages,
           hitStepLimit: false,
           costMeasured,
+          usageComplete,
         };
       }
 
-      if (parsed.kind === "tool") {
-        // `tools.run` is total — it never throws — so a bad tool becomes
-        // a TOOL_ERROR observation the model can react to on the next turn.
-        let result: import("./tools").ToolResult;
-        if (parsed.call.tool === "context_read" && archived) {
-          try { result = { ok: true, output: archived.read(parsed.call.input) }; }
-          catch (error) { result = { ok: false, output: `Context read failed: ${error instanceof Error ? error.message : String(error)}` }; }
-        } else result = await this.tools.run(parsed.call);
-        toolCalls.push({ call: parsed.call, result: result.output, ok: result.ok });
-        this.opts.onTool?.(parsed.call, result.output, result.ok);
-        const observation = result.ok
-          ? `TOOL_RESULT: ${result.output}`
-          : `TOOL_ERROR: ${result.output}`;
-        observations.add(messages.length);
-        settled.push({ callIndex: messages.length - 1, resultIndex: messages.length, tool: parsed.call.tool, ok: result.ok });
-        messages.push({ role: "user", content: observation, ...(result.images?.length ? {images:result.images} : {}) });
-        continue;
-      }
-
-      // Malformed: no ANSWER and no complete TOOL/INPUT pair. Be lenient —
-      // treat the whole reply as the final answer and stop.
+      // Fell out of the loop on the step cap while still tool-calling.
       return {
-        answer: stripFences(reply),
+        answer: error ?? "Step limit reached before a final answer. Resume with a narrower task.",
         steps,
         toolCalls,
         tokensIn,
         tokensOut,
+        cachedInputTokens: cachedUsageKnown ? cachedInputTokens : undefined,
         usd,
         transcript: messages,
-        hitStepLimit: false,
+        hitStepLimit: !error,
+        error,
         costMeasured,
+        usageComplete,
       };
+    } finally {
+      try { await this.client.releaseSession?.(transportSessionId); } catch { /* Cleanup cannot erase the task result. */ }
     }
-
-    // Fell out of the loop on the step cap while still tool-calling.
-    return {
-      answer: error ?? "Step limit reached before a final answer. Resume with a narrower task.",
-      steps,
-      toolCalls,
-      tokensIn,
-      tokensOut,
-      usd,
-      transcript: messages,
-      hitStepLimit: !error,
-      error,
-      costMeasured,
-    };
   }
 
   private buildSystemPrompt(): string {

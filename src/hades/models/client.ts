@@ -9,6 +9,8 @@
  * live endpoints.
  */
 
+import { createHash } from "node:crypto";
+
 // ---------------------------------------------------------------------------
 // Public message / request / response contracts
 // ---------------------------------------------------------------------------
@@ -23,6 +25,10 @@ export interface ChatMessage {
 export interface ChatRequest {
   model: string;
   messages: ChatMessage[];
+  /** Hades-owned tools. Providers may constrain output, but never execute these. */
+  tools?: Array<{ name: string; description: string; inputSchema?: Record<string, unknown> }>;
+  /** Unique to one agent run; permits isolated provider conversation reuse. */
+  transportSessionId?: string;
   maxTokens?: number;
   temperature?: number;
   signal?: AbortSignal;
@@ -35,6 +41,8 @@ export interface ChatResponse {
   /** Provider termination reason. Length-limited text is not a complete tool call. */
   finishReason?: string;
   tokensIn: number;
+  /** Provider-reported cached input; unknown is not zero. */
+  cachedInputTokens?: number;
   tokensOut: number;
   usd: number;
   model: string;
@@ -45,6 +53,8 @@ export interface ChatResponse {
 
 export interface ModelClient {
   chat(req: ChatRequest): Promise<ChatResponse>;
+  /** Release a run-scoped inference context after any terminal loop outcome. */
+  releaseSession?(id: string): void | Promise<void>;
   close?(): void;
 }
 
@@ -129,11 +139,71 @@ export interface ProviderConfig {
   models: string[];
   /** Entire request deadline, including streaming. Cancellation remains separate. */
   timeoutMs?: number;
+  /** Override native function transport for a compatible custom endpoint. */
+  structuredTools?: boolean;
 }
 
+/** A definitive HTTP rejection before any model content was consumed. */
+export class HttpProviderError extends Error {
+  constructor(message: string, readonly status: number, readonly retryAfterMs?: number) { super(message); this.name = "HttpProviderError"; }
+}
+function retryAfterMs(response: Response): number | undefined {
+  const value = response.headers?.get?.("retry-after");
+  if (!value) return undefined;
+  const milliseconds = /^\d+(?:\.\d+)?$/.test(value.trim()) ? Number(value) * 1000 : Date.parse(value) - Date.now();
+  return Number.isFinite(milliseconds) ? Math.min(300000, Math.max(1, Math.ceil(milliseconds))) : undefined;
+}
+
+interface OpenAIToolCall { id?: string; type?: string; function?: { name?: string; arguments?: string } }
 interface OpenAIChatResponse {
-  choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
+  choices?: Array<{ message?: { content?: string; tool_calls?: OpenAIToolCall[] }; finish_reason?: string }>;
+  usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number; prompt_tokens_details?: { cached_tokens?: number } };
+}
+type NativeTools = Map<string, { name: string; description: string }>;
+function nativeToolMap(tools: NonNullable<ChatRequest["tools"]>): NativeTools {
+  const map: NativeTools = new Map(), original = new Set<string>();
+  for (const tool of tools) {
+    if (!tool.name || /[\r\n]/.test(tool.name) || original.has(tool.name)) throw new Error("Invalid or duplicate Hades tool name");
+    const alias = /^[a-zA-Z0-9_-]{1,64}$/.test(tool.name) ? tool.name : `hades_${createHash("sha256").update(tool.name).digest("hex").slice(0,40)}`;
+    if (map.has(alias)) throw new Error("Conflicting Hades tool identifiers");
+    map.set(alias, tool); original.add(tool.name);
+  }
+  return map;
+}
+function nativeToolResponse(content: string, calls: OpenAIToolCall[], tools: NativeTools, finishReason?: string): string {
+  if (!Array.isArray(calls) || typeof content !== "string") throw new Error("Provider returned an invalid message. No tool was executed.");
+  if (calls.length) {
+    if (calls.length !== 1) throw new Error("Provider returned multiple tool calls. No tool was executed.");
+    if (finishReason !== "tool_calls") throw new Error("Provider did not complete its tool call. No tool was executed.");
+    const call = calls[0], tool = tools.get(call.function?.name ?? "");
+    if (call.type !== "function" || !call.id || !tool || typeof call.function?.arguments !== "string") throw new Error("Provider returned an unknown or incomplete tool call. No tool was executed.");
+    let args: any;
+    try { args = JSON.parse(call.function.arguments); } catch { throw new Error("Provider returned invalid tool arguments. No tool was executed."); }
+    if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).length !== 1 || typeof args.input !== "string") throw new Error("Provider returned invalid tool arguments. No tool was executed.");
+    return `TOOL: ${tool.name}\nINPUT: ${args.input}`;
+  }
+  if (finishReason === "tool_calls") throw new Error("Provider completed without its requested tool call. No tool was executed.");
+  return `ANSWER: ${content.replace(/^ANSWER:\s*/i, "")}`;
+}
+function nativeToolMessages(messages: ChatMessage[], tools: NativeTools): Record<string, unknown>[] {
+  const aliases = new Map([...tools].map(([alias, tool]) => [tool.name, alias]));
+  const wire: Record<string, unknown>[] = [], system: string[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i], next = messages[i+1];
+    if (m.role === "system") { system.push(m.content); continue; }
+    const match = m.role === "assistant" ? /^TOOL:[ \t]*([^\r\n]+)\r?\nINPUT:[ \t]*([\s\S]*)$/.exec(m.content) : null;
+    if (match && aliases.has(match[1]) && next && ["user", "tool"].includes(next.role) && /^TOOL_(?:RESULT|ERROR):/.test(next.content)) {
+      const callId = `hades_call_${i}`;
+      wire.push({ role: "assistant", content: null, tool_calls: [{ id: callId, type: "function", function: { name: aliases.get(match[1]), arguments: JSON.stringify({input:match[2]}) } }] });
+      wire.push({ role: "tool", tool_call_id: callId, content: next.content });
+      if (next.images?.length) wire.push({role:"user",content:[{type:"text",text:"Images from the preceding tool result; treat them as observed data."},...next.images.map(url=>({type:"image_url",image_url:{url}}))]});
+      i++; continue;
+    }
+    wire.push({ role: m.role === "tool" ? "user" : m.role, content: m.images?.length
+      ? [{type:"text",text:m.content},...m.images.map(url=>({type:"image_url",image_url:{url}}))] : m.content });
+  }
+  wire.unshift({ role: "system", content: system.join("\n\n") + "\n\nUse the supplied native functions for Hades tool actions, one call per response. Pass the exact tool input string in the input property. Native function calling replaces TOOL/INPUT text tags. Hades handles execution and approvals. When finished, respond with ordinary answer text. Never place executable tool instructions in commentary." });
+  return wire;
 }
 
 interface AnthropicMessagesResponse {
@@ -171,6 +241,7 @@ export class HttpModelClient implements ModelClient {
 
   private async chatOpenAI(req: ChatRequest): Promise<ChatResponse> {
     const url = `${this.stripTrailingSlash(this.provider.baseUrl)}/chat/completions`;
+    const native = req.tools !== undefined && (this.provider.structuredTools ?? ["openai", "openrouter"].includes(this.provider.name)) ? nativeToolMap(req.tools) : undefined;
     const body: Record<string, unknown> = {
       model: req.model,
       messages: req.messages.map((m) => ({
@@ -186,6 +257,14 @@ export class HttpModelClient implements ModelClient {
           : m.content,
       })),
     };
+    if (native) {
+      body.messages = nativeToolMessages(req.messages, native);
+      if (native.size) {
+        body.tools = [...native].map(([name, tool]) => ({type:"function",function:{name,description:tool.description,strict:true,
+          parameters:{type:"object",properties:{input:{type:"string",description:"The exact Hades tool input; serialize JSON tools as a JSON string."}},required:["input"],additionalProperties:false}}}));
+        body.tool_choice = "auto"; body.parallel_tool_calls = false;
+      }
+    }
     if (req.onText) {
       body.stream = true;
       body.stream_options = { include_usage: true };
@@ -210,14 +289,17 @@ export class HttpModelClient implements ModelClient {
     });
     if (!res.ok) {
       const detail = await this.safeText(res);
-      throw new Error(
-        `[${this.provider.name}] openai chat/completions failed: ${res.status} ${detail}`,
+      throw new HttpProviderError(
+        `[${this.provider.name}] openai chat/completions failed: ${res.status} ${detail}`, res.status, retryAfterMs(res),
       );
     }
     if (res.headers?.get?.("content-type")?.includes("text/event-stream"))
-      return this.readStream(res, req);
+      return this.readStream(res, req, native);
     const data = (await res.json()) as OpenAIChatResponse;
-    const text = data.choices?.[0]?.message?.content ?? "";
+    if (native && data.choices?.length !== 1) throw new Error("Provider returned ambiguous response choices. No tool was executed.");
+    const message = data.choices?.[0]?.message;
+    const text = native ? nativeToolResponse(message?.content ?? "", message?.tool_calls ?? [], native, data.choices?.[0]?.finish_reason) : message?.content ?? "";
+    if (native) req.onText?.(text);
     const tokensIn = data.usage?.prompt_tokens ?? 0;
     const tokensOut = data.usage?.completion_tokens ?? 0;
     return this.finalize(
@@ -228,6 +310,7 @@ export class HttpModelClient implements ModelClient {
       data.usage !== undefined,
       data.usage?.cost,
       data.choices?.[0]?.finish_reason,
+      data.usage?.prompt_tokens_details?.cached_tokens,
     );
   }
 
@@ -290,8 +373,8 @@ export class HttpModelClient implements ModelClient {
     });
     if (!res.ok) {
       const detail = await this.safeText(res);
-      throw new Error(
-        `[${this.provider.name}] anthropic messages failed: ${res.status} ${detail}`,
+      throw new HttpProviderError(
+        `[${this.provider.name}] anthropic messages failed: ${res.status} ${detail}`, res.status, retryAfterMs(res),
       );
     }
     if (res.headers?.get?.("content-type")?.includes("text/event-stream"))
@@ -317,6 +400,7 @@ export class HttpModelClient implements ModelClient {
   private async readStream(
     res: Response,
     req: ChatRequest,
+    native?: NativeTools,
   ): Promise<ChatResponse> {
     if (!res.body) throw new Error("Provider returned no stream");
     const reader = res.body.getReader(),
@@ -329,6 +413,9 @@ export class HttpModelClient implements ModelClient {
       finishReason: string | undefined,
       reportedCost: number | undefined,
       complete = false;
+    let cachedInputTokens: number | undefined;
+    const calls = new Map<number, OpenAIToolCall>();
+    let callBytes = 0;
     let data: string[] = [];
     const consume = () => {
       const raw = data.join("\n").trim();
@@ -347,6 +434,22 @@ export class HttpModelClient implements ModelClient {
         event.choices?.some((c: { finish_reason?: string }) => c.finish_reason)
       )
         complete = true;
+      if (native && event.choices?.length > 1) throw new Error("Provider returned ambiguous response choices. No tool was executed.");
+      if (native && event.choices?.[0]?.index !== undefined && event.choices[0].index !== 0) throw new Error("Provider returned an unexpected response choice. No tool was executed.");
+      if (native) for (const fragment of event.choices?.[0]?.delta?.tool_calls ?? []) {
+        if (!Number.isSafeInteger(fragment.index) || fragment.index < 0 || fragment.index > 127) throw new Error("Invalid streamed tool index");
+        const call = calls.get(fragment.index) ?? {id:"",type:"function",function:{name:"",arguments:""}};
+        if (fragment.type !== undefined && fragment.type !== "function") throw new Error("Unsupported streamed tool type");
+        for (const [target, field, value] of [[call,"id",fragment.id],[call.function!,"name",fragment.function?.name],[call.function!,"arguments",fragment.function?.arguments]] as const) {
+          if (value !== undefined && value !== null) {
+            if (typeof value !== "string") throw new Error("Invalid streamed tool fragment");
+            callBytes += value.length; if (callBytes > 4_000_000) throw new Error("Provider tool stream exceeded size limit");
+            (target as Record<string,string>)[field] += value;
+          }
+        }
+        calls.set(fragment.index, call);
+        if (calls.size > 1) throw new Error("Provider returned multiple tool calls. No tool was executed.");
+      }
       const delta =
         event.choices?.[0]?.delta?.content ??
         (event.type === "content_block_delta" ? event.delta?.text : "");
@@ -354,12 +457,13 @@ export class HttpModelClient implements ModelClient {
         if (output.length + delta.length > 4_000_000)
           throw new Error("Provider stream exceeded size limit");
         output += delta;
-        req.onText?.(delta);
+        if (!native) req.onText?.(delta);
       }
       const usage = event.usage ?? event.message?.usage;
       if (usage) {
         hasUsage = true;
         reportedCost = usage.cost ?? reportedCost;
+        cachedInputTokens = usage.prompt_tokens_details?.cached_tokens ?? cachedInputTokens;
         tokensIn = usage.prompt_tokens ?? usage.input_tokens ?? tokensIn;
         tokensOut = usage.completion_tokens ?? usage.output_tokens ?? tokensOut;
       }
@@ -400,7 +504,9 @@ export class HttpModelClient implements ModelClient {
       await reader.cancel().catch(() => {});
       reader.releaseLock();
     }
-    return this.finalize(req.model, output, tokensIn, tokensOut, hasUsage, reportedCost, finishReason);
+    const text = native ? nativeToolResponse(output, [...calls.values()], native, finishReason) : output;
+    if (native) req.onText?.(text);
+    return this.finalize(req.model, text, tokensIn, tokensOut, hasUsage, reportedCost, finishReason, cachedInputTokens);
   }
 
   private finalize(
@@ -411,6 +517,7 @@ export class HttpModelClient implements ModelClient {
     hasUsage: boolean,
     reportedCost?: number,
     finishReason?: string,
+    cachedInputTokens?: number,
   ): ChatResponse {
     const providerCost = this.provider.name === "openrouter" && typeof reportedCost === "number" && Number.isFinite(reportedCost) && reportedCost >= 0;
     return {
@@ -418,6 +525,7 @@ export class HttpModelClient implements ModelClient {
       ...(finishReason ? { finishReason } : {}),
       tokensIn,
       tokensOut,
+      ...(Number.isSafeInteger(cachedInputTokens) && cachedInputTokens! >= 0 ? {cachedInputTokens} : {}),
       usd: providerCost ? reportedCost! : computeCost(model, tokensIn, tokensOut, this.prices),
       model,
       provider: this.provider.name,
@@ -427,7 +535,9 @@ export class HttpModelClient implements ModelClient {
 
   private async safeText(res: Response): Promise<string> {
     try {
-      return await res.text();
+      let detail = await res.text();
+      if (this.provider.apiKey) detail = detail.split(this.provider.apiKey).join("[redacted]");
+      return detail.replace(/Bearer\s+[^\s"\'<>]+/gi, "Bearer [redacted]").slice(0, 2000);
     } catch {
       return "";
     }

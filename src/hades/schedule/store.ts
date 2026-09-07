@@ -56,6 +56,9 @@ export interface DeliverySpec {
 export interface JobTask {
   kind: string;
   input: string;
+  /** Explicit desktop authority; validated against registered settings at run time. */
+  root?: string;
+  profile?: string;
 }
 
 export type RunOutcome = "delivered" | "abstained" | "withheld" | "failed" | "skipped";
@@ -168,6 +171,11 @@ function assertValidTask(task: unknown): asserts task is JobTask {
     typeof (task as JobTask).input !== "string"
   ) {
     throw new Error("JobTask requires a non-empty 'kind' string and a string 'input'");
+  }
+  for (const field of ["root", "profile"] as const) {
+    const value = (task as JobTask)[field];
+    if (value !== undefined && (typeof value !== "string" || !value.trim() || value.length > (field === "root" ? 4096 : 100)))
+      throw new Error(`JobTask ${field} must be a non-empty bounded string`);
   }
 }
 
@@ -284,6 +292,7 @@ function isValidStoredJob(v: unknown): v is ScheduledJob {
   if (typeof v.cron !== "string") return false;
   if (typeof v.timeZone !== "string") return false;
   if (!isPlainRecord(v.task) || typeof v.task.kind !== "string" || typeof v.task.input !== "string") return false;
+  try { assertValidTask(v.task); } catch { return false; }
   if (typeof v.misfire !== "string" || !MISFIRE_POLICIES.has(v.misfire as MisfirePolicy)) return false;
   if (typeof v.catchUpLimit !== "number") return false;
   if (typeof v.enabled !== "boolean") return false;
@@ -323,7 +332,10 @@ function buildScheduledJob(input: NewJobInput, clock: Clock, idFn: () => string)
     name: input.name,
     cron: input.cron,
     timeZone,
-    task: { kind: input.task.kind, input: input.task.input },
+    task: { kind: input.task.kind, input: input.task.input,
+      ...(input.task.root !== undefined ? { root: input.task.root } : {}),
+      ...(input.task.profile !== undefined ? { profile: input.task.profile } : {}),
+    },
     misfire,
     catchUpLimit,
     enabled,

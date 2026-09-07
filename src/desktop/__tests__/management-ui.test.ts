@@ -25,3 +25,14 @@ it("does not render a stale response from another profile",async () => {
   const {host,view}=setup(rpc);const pending=view.open("mcp","one","One","/one");await view.open("mcp","two","Two","/two");first([{name:"private one",command:"secret"}]);await pending;
   expect(host.textContent).toContain("Two");expect(host.textContent).not.toContain("private one");
 });
+it("offers Work and Webhook filters and submits their exact source values", async () => {
+  const rpc = vi.fn(async () => ({ rows: [], total: 0, offset: 0 }));
+  const { host, view } = setup(rpc); await view.open("sessions", "p", "Agent", "/project");
+  const values = [...host.querySelectorAll<HTMLOptionElement>("#history-source option")].map(option => option.value);
+  expect(values).toContain("work"); expect(values).toContain("webhook");
+  for (const source of ["work", "webhook"]) {
+    input(host, "history-source", source);
+    host.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
+    expect(rpc).toHaveBeenLastCalledWith("sessions.list", expect.objectContaining({ profile: "p", source }));
+  }
+});

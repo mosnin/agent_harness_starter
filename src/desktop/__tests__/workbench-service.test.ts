@@ -636,3 +636,120 @@ it("runs Slack requests through real workbench approvals and keeps denied writes
   expect(existsSync(join(root, "slack-write.txt"))).toBe(false);
   expect(posted.find(p => p.method === "chat.update").body).toMatchObject({ channel: "C1", ts: "9.001", text: "The file change was declined." });
 });
+
+it.each([
+  ['escaped value', String.raw`{"op":"\u0077rite","path":"sentinel.txt","content":"CHANGED"}`],
+  ['escaped key', String.raw`{"\u006fp":"write","path":"sentinel.txt","content":"CHANGED"}`],
+  ['append', '{"op":"append","path":"sentinel.txt","content":"CHANGED"}'],
+  ['delete', '{"op":"delete","path":"sentinel.txt"}'],
+  ['mkdir', '{"op":"mkdir","path":"new-directory"}'],
+  ['duplicate decoded key', String.raw`{"op":"read","\u006fp":"write","path":"sentinel.txt","content":"CHANGED"}`],
+])("requires decoded approval for %s and preserves denied targets", async (_name, input) => {
+  const { root, s, events } = setup();
+  writeFileSync(join(root, "sentinel.txt"), "KEEP");
+  const p = await provider(body => /^TOOL_(RESULT|ERROR):/.test(JSON.parse(body).messages.at(-1).content)
+    ? "ANSWER: Declined." : `TOOL: file_ops\nINPUT: ${input}`);
+  await s.dispatch("project.add", { path: root });
+  await s.dispatch("profile.save", { id: "default", name: "Test", provider: "local", model: "test", baseUrl: p.url });
+  const session: any = await s.dispatch("session.new", { root });
+  await s.dispatch("chat.send", { id: session.id, input: "Try the operation" });
+  await until(() => events.some(e => e.kind === "desktop.approval"));
+  const approval = events.find(e => e.kind === "desktop.approval")!;
+  expect(JSON.parse(approval.input as string).op).toBe(JSON.parse(input).op);
+  expect(readFileSync(join(root, "sentinel.txt"), "utf8")).toBe("KEEP");
+  await s.dispatch("approval.reply", { id: approval.id, allow: false });
+  await until(() => events.some(e => e.kind === "desktop.done"));
+  expect(readFileSync(join(root, "sentinel.txt"), "utf8")).toBe("KEEP");
+  expect(existsSync(join(root, "new-directory"))).toBe(false);
+  expect(await s.dispatch("artifacts.list", {})).toEqual([]);
+});
+
+it("rechecks symlinks after approval and refuses a late approval after stop", async () => {
+  const { root, s, events } = setup();
+  const outside = mkdtempSync(join(tmpdir(), "hades-outside-")); roots.push(outside);
+  writeFileSync(join(outside, "sentinel.txt"), "KEEP");
+  const p = await provider(body => /^TOOL_(RESULT|ERROR):/.test(JSON.parse(body).messages.at(-1).content)
+    ? "ANSWER: Finished." : 'TOOL: file_ops\nINPUT: {"op":"write","path":"target/sentinel.txt","content":"CHANGED"}');
+  await s.dispatch("project.add", { path: root });
+  await s.dispatch("profile.save", { id: "default", name: "Test", provider: "local", model: "test", baseUrl: p.url });
+  for (const stop of [false, true]) {
+    const session: any = await s.dispatch("session.new", { root });
+    await s.dispatch("chat.send", { id: session.id, input: "Try the operation" });
+    await until(() => events.some(e => e.kind === "desktop.approval" && e.session === session.id));
+    const approval = events.find(e => e.kind === "desktop.approval" && e.session === session.id)!;
+    if (!stop) symlinkSync(outside, join(root, "target"));
+    else await s.dispatch("chat.stop", { id: session.id });
+    await s.dispatch("approval.reply", { id: approval.id, allow: true });
+    await until(() => events.some(e => e.kind === "desktop.done" && e.session === session.id));
+    expect(readFileSync(join(outside, "sentinel.txt"), "utf8")).toBe("KEEP");
+  }
+});
+
+it("restores durable tool events and usage after service restart and cancels persisted approvals", async () => {
+  const { root, s, events } = setup();
+  const p = await provider(body => /^TOOL_(RESULT|ERROR):/.test(JSON.parse(body).messages.at(-1).content)
+    ? "ANSWER: Finished." : 'TOOL: file_ops\nINPUT: {"op":"write","path":"journal.txt","content":"written"}');
+  await s.dispatch("project.add", { path: root });
+  await s.dispatch("profile.save", { id: "default", name: "Test", provider: "local", model: "test", baseUrl: p.url });
+  const completed: any = await s.dispatch("session.new", { root });
+  await s.dispatch("chat.send", { id: completed.id, input: "Write" });
+  await until(() => events.some(e => e.kind === "desktop.approval" && e.session === completed.id));
+  await s.dispatch("approval.reply", { id: events.find(e => e.kind === "desktop.approval" && e.session === completed.id)!.id, allow: true });
+  await until(() => events.some(e => e.kind === "desktop.done" && e.session === completed.id));
+  const pending: any = await s.dispatch("session.new", { root });
+  await s.dispatch("chat.send", { id: pending.id, input: "Write again" });
+  await until(() => events.some(e => e.kind === "desktop.approval" && e.session === pending.id));
+  const oldApproval = events.find(e => e.kind === "desktop.approval" && e.session === pending.id)!;
+  s.close();
+  await until(() => events.some(e => e.kind === "desktop.done" && e.session === pending.id));
+  const restored = new WorkbenchService(join(root, "data"), () => {}, { NODE_ENV: "test" }); services.push(restored);
+  const successful: any = await restored.dispatch("session.get", { id: completed.id });
+  expect(successful.progress.tools.some((e: any) => e.status === "done" && e.ok)).toBe(true);
+  expect(successful.progress.usage.tokensIn).toBeGreaterThan(0);
+  expect(successful.progress.approval).toBeUndefined();
+  const interrupted: any = await restored.dispatch("session.get", { id: pending.id });
+  expect(interrupted.progress.interrupted).toBe(true);
+  expect(interrupted.progress.approval).toBeUndefined();
+  expect(interrupted.progress.error).toContain("no actions were replayed");
+  writeFileSync(join(root, "journal.txt"), "KEEP");
+  await restored.dispatch("approval.reply", { id: oldApproval.id, allow: true });
+  expect(readFileSync(join(root, "journal.txt"), "utf8")).toBe("KEEP");
+});
+
+it("fails closed before effects when execution evidence cannot be saved", async () => {
+  const { root, s, events } = setup();
+  writeFileSync(join(root, "sentinel.txt"), "KEEP");
+  const p = await provider(() => 'TOOL: file_ops\nINPUT: {"op":"write","path":"sentinel.txt","content":"CHANGED"}');
+  await s.dispatch("project.add", { path: root });
+  await s.dispatch("profile.save", { id: "default", name: "Test", provider: "local", model: "test", baseUrl: p.url });
+  const session: any = await s.dispatch("session.new", { root });
+  vi.spyOn((s as any).journal, "record").mockImplementation(() => { throw new Error("disk full"); });
+  await s.dispatch("chat.send", { id: session.id, input: "Write" });
+  await until(() => events.some(e => e.kind === "desktop.done"));
+  expect(readFileSync(join(root, "sentinel.txt"), "utf8")).toBe("KEEP");
+  expect(events.some(e => e.kind === "desktop.error" && String(e.message).includes("history could not be saved"))).toBe(true);
+  expect(events.some(e => e.kind === "desktop.approval")).toBe(false);
+});
+
+it("executes each mutating decoded operation only after its own approval", async () => {
+  const { root, s, events } = setup();
+  let input = "";
+  const p = await provider(body => /^TOOL_(RESULT|ERROR):/.test(JSON.parse(body).messages.at(-1).content)
+    ? "ANSWER: Finished." : `TOOL: file_ops\nINPUT: ${input}`);
+  await s.dispatch("project.add", { path: root });
+  await s.dispatch("profile.save", { id: "default", name: "Test", provider: "local", model: "test", baseUrl: p.url });
+  for (const [op, path, content] of [["write", "file.txt", "A"], ["append", "file.txt", "B"], ["mkdir", "folder", undefined], ["delete", "file.txt", undefined]]) {
+    input = JSON.stringify({ op, path, content }).replace('"op"', '"\\u006fp"');
+    const session: any = await s.dispatch("session.new", { root });
+    await s.dispatch("chat.send", { id: session.id, input: "Do the operation" });
+    await until(() => events.some(e => e.kind === "desktop.approval" && e.session === session.id));
+    const approval = events.find(e => e.kind === "desktop.approval" && e.session === session.id)!;
+    await s.dispatch("approval.reply", { id: approval.id, allow: true });
+    await until(() => events.some(e => e.kind === "desktop.done" && e.session === session.id));
+    expect(events.find(e => e.kind === "desktop.tool" && e.status === "done" && e.session === session.id)?.ok).toBe(true);
+    if (op === "write") expect(readFileSync(join(root, "file.txt"), "utf8")).toBe("A");
+    if (op === "append") expect(readFileSync(join(root, "file.txt"), "utf8")).toBe("AB");
+    if (op === "mkdir") expect(existsSync(join(root, "folder"))).toBe(true);
+    if (op === "delete") expect(existsSync(join(root, "file.txt"))).toBe(false);
+  }
+});

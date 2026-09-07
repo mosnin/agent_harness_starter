@@ -274,3 +274,43 @@ describe("runSidecar: default schedule wiring answers over the real stack", () =
     expect(events).toEqual([{ kind: "schedule.error", message: "injected", at: 1 }]);
   });
 });
+
+it("keeps the real schedule pipe responsive to approvals while a native agent is running", async () => {
+  const { createServer } = await import("node:http");
+  const { writeFileSync, readFileSync, rmSync } = await import("node:fs");
+  const { vi } = await import("vitest");
+  const dataDir = mkdtempSync(join(tmpdir(), "hades-schedule-approval-pipe-"));
+  process.env = { ...savedEnv, HADES_DATA_DIR: join(dataDir, "data") };
+  const server = createServer((req, res) => {
+    let body = ""; req.on("data", chunk => body += chunk); req.on("end", () => {
+      const input = JSON.parse(body).messages.at(-1).content;
+      const content = /^TOOL_(RESULT|ERROR):/.test(input) ? "ANSWER: The operation was declined."
+        : 'TOOL: file_ops\nINPUT: {"op":"write","path":"sentinel.txt","content":"CHANGED"}';
+      res.writeHead(200, { "content-type": "text/event-stream" });
+      res.end(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\ndata: [DONE]\n\n`);
+    });
+  });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const store = new JsonFileJobStore(join(dataDir, "data", "schedule.json"), systemClock);
+  const job = store.add({ name: "Protected write", cron: "0 9 * * *", task: { kind: "swarm.goal", input: "Write sentinel.txt", root: dataDir, profile: "default" } });
+  writeFileSync(join(dataDir, "sentinel.txt"), "KEEP");
+  const events: any[] = [];
+  const desktop = (id: string, method: string, args: any) => JSON.stringify({ kind: "desktop.request", id, method, args }) + "\n";
+  async function* commands() {
+    yield desktop("project", "project.add", { path: dataDir });
+    await vi.waitFor(() => expect(events.some(e => e.kind === "desktop.response" && e.id === "project")).toBe(true));
+    yield desktop("profile", "profile.save", { id: "default", name: "Fixture", provider: "local", model: "fixture", baseUrl: `http://127.0.0.1:${(server.address() as any).port}/v1` });
+    await vi.waitFor(() => expect(events.some(e => e.kind === "desktop.response" && e.id === "profile")).toBe(true));
+    yield encodeCommand({ kind: "schedule.job.run", id: job.id });
+    await vi.waitFor(() => expect(events.some(e => e.kind === "desktop.approval")).toBe(true), { timeout: 3000 });
+    const approval = events.find(e => e.kind === "desktop.approval");
+    yield desktop("decline", "approval.reply", { id: approval.id, allow: false });
+    await vi.waitFor(() => expect(events.some(e => e.kind === "schedule.run.receipt")).toBe(true), { timeout: 3000 });
+  }
+  try {
+    await runSidecar(commands(), line => events.push(JSON.parse(line)), { factory: minimalFactory, fleet: { handle: async () => [] }, inference: { kind: "mock", detail: "fixture" } });
+    expect(events.some(e => e.kind === "desktop.response" && e.id === "decline")).toBe(true);
+    expect(readFileSync(join(dataDir, "sentinel.txt"), "utf8")).toBe("KEEP");
+    expect(events.find(e => e.kind === "schedule.run.receipt").run.outcome).toBe("delivered");
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); rmSync(dataDir, { recursive: true, force: true }); }
+}, 10_000);

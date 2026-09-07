@@ -4,6 +4,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import type { ChannelIdentity } from "./channel-access";
 
 export interface SlackConfig { profile: string; root: string; channels: string[]; users: string[] }
 export interface SlackJob { id: string; team: string; channel: string; thread: string; user: string; input: string; profile: string; root: string; session?: string; message?: string; answer?: string; status: string; error?: string }
@@ -27,10 +28,11 @@ export class SlackBot {
   private connection = "Disconnected";
   private closed = false;
   constructor(dir: string, private execute: Execute, private emit: () => void = () => {}, private fetcher: typeof fetch = fetch,
-    private createSocket: (url: string) => Socket = url => new WebSocket(url)) {
+    private createSocket: (url: string) => Socket = url => new WebSocket(url),
+    private access?: { authorize(identity: ChannelIdentity, configured: boolean): boolean }) {
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(join(dir, "slack.sqlite"));
-    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS inbox (id TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS threads (id TEXT PRIMARY KEY, session TEXT NOT NULL)");
+    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS inbox (id TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS threads (id TEXT PRIMARY KEY, session TEXT NOT NULL); CREATE TABLE IF NOT EXISTS rejected_events (id TEXT PRIMARY KEY)");
     const saved = this.db.prepare("SELECT value FROM settings WHERE id=1").get() as { value: string } | undefined;
     if (saved) this.config = JSON.parse(saved.value);
     for (const job of this.jobs()) if (job.status === "running") this.put({ ...job, status: "failed", error: "Hades restarted during this turn. Open the conversation to inspect it before starting another request." });
@@ -60,6 +62,15 @@ export class SlackBot {
     const value = await response.json();
     if (!value.ok) throw new Error(`Slack ${method}: ${/^[a-z_]{1,80}$/.test(value.error) ? value.error : "request_failed"}.`);
     return value;
+  }
+  async testConnection() {
+    if (!this.botToken.startsWith("xoxb-")) throw new Error("Save a Slack bot token first.");
+    const auth = await this.api("auth.test");
+    if (!/^T[A-Z0-9]{1,30}$/.test(auth.team_id) || !/^[UW][A-Z0-9]{1,30}$/.test(auth.user_id)) throw new Error("Slack returned an invalid workspace identity.");
+    return { account: auth.team_id as string, bot: auth.user_id as string };
+  }
+  private allowed(team: string, channel: string, user: string, profile: string, configured: boolean) {
+    return this.access ? this.access.authorize({ transport: "slack", account: team, channel, user, profile }, configured) : configured;
   }
   async channels() {
     let cursor = ""; const channels: Array<{ id: string; name: string }> = [];
@@ -122,13 +133,20 @@ export class SlackBot {
   ingest(payload: any) {
     const e = payload?.event, c = this.config;
     if (!this.enabled || !c || payload.team_id !== this.team || payload.type !== "event_callback" ||
-      e?.type !== "app_mention" || e.bot_id || e.subtype || e.user === this.bot || !c.channels.includes(e.channel) || !c.users.includes(e.user)) return;
+      e?.type !== "app_mention" || e.bot_id || e.subtype || e.user === this.bot || !c.channels.includes(e.channel) || typeof e.user !== "string" || !/^[UW][A-Z0-9]{1,30}$/.test(e.user)) return;
     if (typeof payload.event_id !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(payload.event_id) ||
       typeof e.text !== "string" || e.text.length > 40_000 || !/^\d{1,20}\.\d{1,20}$/.test(e.ts) ||
       (e.thread_ts !== undefined && !/^\d{1,20}\.\d{1,20}$/.test(e.thread_ts))) return;
     if (!e.text.includes(`<@${this.bot}>`)) return;
     const input = e.text.split(`<@${this.bot}>`).join("").trim(); if (!input) return;
     const id = `${this.team}-${payload.event_id}`;
+    if (this.db.prepare("SELECT id FROM rejected_events WHERE id=?").get(id)) return;
+    const rejected = this.db.prepare("SELECT COUNT(*) n FROM rejected_events").get() as { n: number };
+    if (rejected.n >= 10000) throw new Error("Slack rejected-event ledger is full. Review channel access before accepting more messages.");
+    if (!this.allowed(this.team, e.channel, e.user, c.profile, c.users.includes(e.user))) {
+      // Approval never replays previously rejected content, even on Slack redelivery.
+      this.db.prepare("INSERT OR IGNORE INTO rejected_events VALUES (?)").run(id); return;
+    }
     if (this.get(id)) return;
     const pending = this.db.prepare("SELECT COUNT(*) AS count FROM inbox WHERE json_extract(value, '$.status') IN ('queued','running')").get() as { count: number };
     if (pending.count >= 100) throw new Error("Slack queue is full");
@@ -144,7 +162,7 @@ export class SlackBot {
         if (!row) break;
         const job: SlackJob = JSON.parse(row.value);
         const config = this.config!;
-        if (job.team !== this.team || job.root !== config.root || job.profile !== config.profile || !config.channels.includes(job.channel) || !config.users.includes(job.user)) {
+        if (job.team !== this.team || job.root !== config.root || job.profile !== config.profile || !config.channels.includes(job.channel) || !this.allowed(job.team, job.channel, job.user, job.profile, config.users.includes(job.user))) {
           this.put({ ...job, status: "failed", error: "This request no longer matches the connected workspace or access settings." }); continue;
         }
         const threadKey = JSON.stringify([job.team, job.channel, job.thread, job.profile, job.root]);
@@ -154,7 +172,7 @@ export class SlackBot {
           const posted = await this.api("chat.postMessage", { channel: job.channel, thread_ts: job.thread, text: "Working in Hades. File changes and commands may need approval in the desktop app.", unfurl_links: false, unfurl_media: false });
           if (typeof posted.ts !== "string") throw new Error("Slack did not confirm the progress message.");
           job.message = posted.ts; this.put(job);
-          if (!this.enabled) throw new Error("Slack disconnected before the agent started.");
+          if (!this.enabled || !this.allowed(job.team, job.channel, job.user, job.profile, this.config!.users.includes(job.user))) throw new Error("Slack disconnected or access was revoked before the agent started.");
           job.answer = await this.execute(job, session => { job.session = session; this.db.prepare("INSERT OR REPLACE INTO threads VALUES (?, ?)").run(threadKey, session); this.put(job); });
           job.status = "ready"; this.put(job);
           if (this.enabled && job.team === this.team) await this.publish(job.id);
@@ -162,15 +180,20 @@ export class SlackBot {
           job.status = job.answer ? "ready" : "failed";
           job.error = e instanceof Error ? e.message : "Slack request failed";
           this.put(job);
-          if (!job.answer && job.message && this.enabled && job.team === this.team) await this.api("chat.update", { channel: job.channel, ts: job.message, text: "Hades could not complete this request. Open its conversation in the desktop app for details." }).catch(() => {});
+          if (!job.answer && job.message && this.enabled && job.team === this.team && this.allowed(job.team, job.channel, job.user, job.profile, this.config!.users.includes(job.user))) await this.api("chat.update", { channel: job.channel, ts: job.message, text: "Hades could not complete this request. Open its conversation in the desktop app for details." }).catch(() => {});
         }
       }
     } finally { this.working = false; if (this.closed) this.db.close(); }
+  }
+  canRun(job: SlackJob) {
+    const config = this.config;
+    return Boolean(this.enabled && config && job.team === this.team && job.root === config.root && job.profile === config.profile && config.channels.includes(job.channel) && this.allowed(job.team, job.channel, job.user, job.profile, config.users.includes(job.user)));
   }
   async publish(id: string) {
     const job = this.get(id);
     if (!job || job.status !== "ready" || !job.message || !job.answer) throw new Error("No completed reply to publish.");
     if (!this.enabled || this.team !== job.team) throw new Error("Reconnect to the original Slack workspace before publishing.");
+    if (!this.config || job.profile !== this.config.profile || job.root !== this.config.root || !this.config.channels.includes(job.channel) || !this.allowed(job.team, job.channel, job.user, job.profile, this.config.users.includes(job.user))) throw new Error("Channel access was revoked before this reply could be published.");
     const answer = job.answer.length > 35_000 ? job.answer.slice(0, 35_000) + "\n[Full response saved in the Hades conversation.]" : job.answer;
     // Updating an existing message is retryable even after an ambiguous network failure.
     await this.api("chat.update", { channel: job.channel, ts: job.message, text: answer });

@@ -1,0 +1,24 @@
+# Native repair acceptance — September 7, 2026
+
+Work remains on `claude/hermes-swarm-framework-vbhrot`. The native Tauri application and agent runtime are the product surfaces under test.
+
+## Changes under acceptance
+
+The repair adds durable execution journals, work objectives and delegation controls; native schedules and authenticated webhook handling; channel access and shell-hook controls; credential pool and maintenance operations; tool activity and terminal rendering fixes; and an explicit native connection to Hades Browser. Provider transport, typed tool input, approval parsing and bounded agent execution were repaired alongside those surfaces.
+
+The Browser connection is explicit, loopback-only and bound to the selected agent profile and project. Its token is held by the native Keychain/RAM path, not persisted in ordinary connection settings or returned in status. Browser conversations create durable agent sessions. Mutations use normal approvals plus browser consent; disconnect, pause and cancellation do not replay uncertain effects. Exact approval IDs bind answers from the Browser to the pending Agent action. Model context receives compact workspace/tab metadata instead of theme and favicon payloads.
+
+## Verified evidence
+
+- Integrated current-source suite: 116 files, 2,319 tests passed. TypeScript check passed.
+- Real Codex Sol multifile acceptance passed after a storage-related retry, including independent hidden checks. Mini completed a separately documented recovery run; it is not counted as a fresh first-pass success.
+- Real webhook-to-Codex execution produced its checked file and retained its deduplication state across restart.
+- Native parallel work produced two verified reports. Journal/artifact restoration and embedded terminal rendering were exercised.
+- Native backup creation and checksum/schema verification passed for 11 files. Native staged restore remains a separate unexercised gate.
+- Native Browser pairing, opening an isolated tab, page reading and a denied personal-space read were observed. The complete real-model form task did not pass; the failed run exposed scroll validation and approval-placement issues that were repaired in source. Fresh full completion remains pending.
+
+Receipts, original failures, recovery records and native screenshots are retained in the sibling `2026-09-07/hades-fix-verification` directory. Large model task tests use explicitly scoped local fixtures; passing them is evidence for those paths, not universal harness capability.
+
+## Remaining gates
+
+Hades Accessibility and Screen Recording permissions were not granted during this acceptance. No real native computer input is claimed. External Slack delivery, all provider combinations, complete competitor parity and unattended long-duration reliability are not established by the local suite. The app is ad-hoc signed for development, not Developer ID signed/notarized. No pull request or remote release is implied by this local acceptance record.

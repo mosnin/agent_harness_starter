@@ -75,7 +75,7 @@ export interface CatalogEntry {
 
 type FileOp = "read" | "write" | "append" | "list" | "stat" | "mkdir" | "delete";
 
-interface FileOpsInput {
+export interface FileOpsInput {
   op: FileOp;
   path: string;
   content?: string;
@@ -91,7 +91,7 @@ function messageOf(err: unknown): string {
 }
 
 /** Type guard + validation for the parsed JSON input. Never throws. */
-function parseInput(raw: string): { ok: true; value: FileOpsInput } | { ok: false; error: string } {
+export function parseFileOpsInput(raw: string): { ok: true; value: FileOpsInput } | { ok: false; error: string } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -210,6 +210,14 @@ async function realpathOfExistingAncestor(target: string): Promise<string> {
       return await fs.realpath(current);
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+      // realpath(ENOENT) can mean a dangling symlink, not a missing entry.
+      // Never walk past one: append/open could otherwise follow it outside root.
+      try {
+        if ((await fs.lstat(current)).isSymbolicLink())
+          throw new JailViolation("refusing a dangling symlink");
+      } catch (entryError) {
+        if ((entryError as NodeJS.ErrnoException).code !== "ENOENT") throw entryError;
+      }
       const parent = path.dirname(current);
       if (parent === current) {
         // Reached filesystem root without finding anything that
@@ -338,21 +346,22 @@ async function doDelete(absPath: string): Promise<{ result: unknown }> {
  * Factory
  * ------------------------------------------------------------------ */
 
-export function createFileOpsTool(opts: ToolFactoryOptions & { root: string }): CatalogEntry {
-  const root = path.resolve(opts.root);
+/** Decode once and hold an immutable request across an asynchronous approval.
+ * Execution rechecks the filesystem jail after approval, never reinterprets JSON. */
+export function prepareFileOperation(root: string, input: string) {
+  const parsed = parseFileOpsInput(input);
+  if (!parsed.ok) throw new Error(parsed.error);
+  const request = Object.freeze(parsed.value);
+  return Object.freeze({
+    request,
+    input: JSON.stringify(request),
+    mutates: !["read", "list", "stat"].includes(request.op),
+    run: () => executeFileOperation(path.resolve(root), request),
+  });
+}
 
-  const tool: Tool = {
-    name: "file_ops",
-    validate: (input) => { const parsed = parseInput(input); return parsed.ok ? undefined : parsed.error; },
-    description:
-      "Read, write, append, list, stat, mkdir, or delete files/directories within a jailed root. " +
-      'Input JSON: {"op":"read|write|append|list|stat|mkdir|delete","path":string,"content"?:string,"maxBytes"?:number}',
-    run: async (input: string): Promise<ToolResult> => {
-      const parsed = parseInput(input);
-      if (!parsed.ok) {
-        return { ok: false, output: JSON.stringify({ mode: "real", error: parsed.error }) };
-      }
-      const { op, path: reqPath, content, maxBytes } = parsed.value;
+async function executeFileOperation(root: string, request: Readonly<FileOpsInput>): Promise<ToolResult> {
+      const { op, path: reqPath, content, maxBytes } = request;
 
       let absPath: string;
       try {
@@ -409,6 +418,23 @@ export function createFileOpsTool(opts: ToolFactoryOptions & { root: string }): 
           }),
         };
       }
+}
+
+export function createFileOpsTool(opts: ToolFactoryOptions & { root: string }): CatalogEntry {
+  const root = path.resolve(opts.root);
+
+  const tool: Tool = {
+    name: "file_ops",
+    validate: (input) => { const parsed = parseFileOpsInput(input); return parsed.ok ? undefined : parsed.error; },
+    description:
+      "Read, write, append, list, stat, mkdir, or delete files/directories within a jailed root. " +
+      'Input JSON: {"op":"read|write|append|list|stat|mkdir|delete","path":string,"content"?:string,"maxBytes"?:number}',
+    run: async (input: string): Promise<ToolResult> => {
+      const parsed = parseFileOpsInput(input);
+      if (!parsed.ok) {
+        return { ok: false, output: JSON.stringify({ mode: "real", error: parsed.error }) };
+      }
+      return executeFileOperation(root, parsed.value);
     },
   };
 

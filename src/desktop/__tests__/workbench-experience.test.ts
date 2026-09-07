@@ -1,12 +1,14 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureFocus, restoreFocus, dialogFocusable } from "../ui/focus";
-const terminal = vi.hoisted(() => ({ focus: vi.fn(), options: {}, loadAddon: vi.fn(), open: vi.fn(), onData: vi.fn(), onResize: vi.fn(), attachCustomKeyEventHandler: vi.fn(), write: vi.fn(), dispose: vi.fn() }));
+const terminal = vi.hoisted(() => ({ focus: vi.fn(), options: {}, loadAddon: vi.fn(), open: vi.fn(), onData: vi.fn(), onResize: vi.fn(), onRender: vi.fn(() => ({ dispose() {} })), onWriteParsed: vi.fn(() => ({ dispose() {} })), refresh: vi.fn(), attachCustomKeyEventHandler: vi.fn(), write: vi.fn(), dispose: vi.fn() }));
 vi.mock("@xterm/xterm", () => ({ Terminal: class { constructor() { return terminal; } } }));
 vi.mock("@xterm/addon-fit", () => ({ FitAddon: class { fit() {} } }));
 import { mountWorkbench } from "../ui/workbench";
 let root: HTMLDivElement;
 let emit: (event: any) => void;
+let restoredSession: any;
+let restoredArtifacts: any[] = [];
 const profile = { id: "p", name: "Hades", provider: "codex", model: "model", permissionMode: "ask", systemPrompt: "", shell: [], mcp: [], persona: "", baseUrl: "" };
 const boot = { profiles: [profile], activeProfile: "p", projects: ["/project"], sessions: [], active: [], jobs: [], terminals: [{ id: "t", root: "/project", output: "" }] };
 async function settle() { for (let i = 0; i < 8; i++) await Promise.resolve(); }
@@ -19,6 +21,8 @@ async function mount(compact = false) {
       const method = args?.cmd?.method;
       if (method === "boot") return { result: structuredClone(boot) };
       if (method === "codex.status") return { result: { connected: false } };
+      if (method === "session.get") return { result: structuredClone(restoredSession) };
+      if (method === "artifacts.list") return { result: structuredClone(restoredArtifacts) };
       if (method === "files.list") return { result: [{ name: "a.txt", path: "a.txt" }, { name: "b.txt", path: "b.txt" }] };
       if (method === "files.read") return { result: { path: args.cmd.args.path, text: args.cmd.args.path, revision: "v1" } };
       if (method === "git.status") return { result: { status: "clean", diff: "" } };
@@ -30,9 +34,55 @@ async function mount(compact = false) {
   mountWorkbench(root); await settle();
   expect(root.querySelector("#composer")).toBeTruthy();
 }
-beforeEach(() => { root = document.createElement("div"); document.body.append(root); localStorage.clear(); terminal.focus.mockClear(); });
+beforeEach(() => { root = document.createElement("div"); document.body.append(root); localStorage.clear(); terminal.focus.mockClear(); restoredSession = undefined; restoredArtifacts = []; });
 afterEach(() => { window.dispatchEvent(new Event("beforeunload")); document.body.replaceChildren(); vi.unstubAllGlobals(); });
 describe("workbench interaction experience", () => {
+  it("opens all new native management pages from Tools and connections", async () => {
+    await mount();
+    for (const [route, heading] of [["credentials", "Credentials"], ["channels", "Channels"], ["hooks", "Hooks"], ["maintenance", "Maintenance"]]) {
+      click('[data-action="nav"][data-view="tools"]'); await settle();
+      click(`[data-action="nav"][data-view="${route}"]`); await settle();
+      expect(root.querySelector(".breadcrumb")?.textContent).toContain(heading);
+      expect(root.querySelector(`#${route}-host`)?.textContent).toContain(heading);
+      expect(root.querySelector('[role="alert"]')).toBeNull();
+    }
+  });
+
+  it("renders a restored execution journal as completed tool calls with input and result", async () => {
+    const journal = ["a", "b", "c"].flatMap(path => [{ kind: "desktop.tool", tool: "file_ops", status: "running", input: JSON.stringify({ op: "read", path }) }, { kind: "desktop.tool", tool: "file_ops", status: "done", ok: true, input: JSON.stringify({ op: "read", path }), output: "Contents " + path }]);
+    restoredSession = { id: "saved", title: "Saved task", root: "/project", messages: [], progress: { journal: [{ kind: "desktop.started" }, ...journal, { kind: "desktop.done" }], tools: journal } };
+    (boot.sessions as any[]).push({ id: "saved", title: "Saved task", profile: "p" });
+    localStorage.setItem("hades.lastSession", "saved");
+    try {
+      await mount(); await settle();
+      expect(root.querySelector(".activity summary")?.textContent).toBe("3 tool calls");
+      expect(root.querySelectorAll(".tool-activity-card")).toHaveLength(3);
+      expect(root.querySelector(".activity")?.textContent).not.toContain("Running");
+      expect(root.querySelectorAll(".tool-activity-card pre")).toHaveLength(6);
+      emit({ kind: "desktop.started", session: "saved" });
+      emit({ kind: "desktop.tool", session: "saved", tool: "file_ops", status: "running", input: '{"op":"read","path":"d"}' });
+      expect(root.querySelectorAll(".tool-activity-card")).toHaveLength(4);
+      expect(root.querySelector(".tool-activity-card:last-child")?.textContent).toContain("Running");
+      emit({ kind: "desktop.tool", session: "saved", tool: "file_ops", status: "done", input: '{"op":"read","path":"d"}', ok: false, output: "No such file" });
+      expect(root.querySelector(".tool-activity-card:last-child")?.textContent).toContain("Failed");
+      emit({ kind: "desktop.done", session: "saved" }); await settle();
+      expect(root.querySelector(".activity summary")?.textContent).toBe("4 tool calls");
+    } finally { boot.sessions.splice(0); }
+  });
+  it("restores task outputs and persisted failures immediately on native startup", async () => {
+    restoredSession = { id: "saved", title: "Saved task", root: "/project", messages: [], progress: { interrupted: true, tools: [{ tool: "file_ops", status: "done", ok: false, output: "Denied by user" }] } };
+    restoredArtifacts = [{ session: "saved", path: "report.md", at: Date.now() }, { session: "other", path: "private.md", at: Date.now() }];
+    (boot.sessions as any[]).push({ id: "saved", title: "Saved task", profile: "p" });
+    localStorage.setItem("hades.lastSession", "saved");
+    try {
+      await mount(); await settle();
+      expect(root.querySelector(".task-inspector")?.textContent).toContain("report.md");
+      expect(root.querySelector(".task-inspector")?.textContent).not.toContain("private.md");
+      expect(root.querySelector(".activity")?.textContent).toContain("file_ops · Failed");
+      expect(root.querySelector(".activity")?.textContent).toContain("Denied by user");
+      expect(root.querySelector('[role="alert"]')?.textContent).toContain("interrupted");
+    } finally { boot.sessions.splice(0); }
+  });
   it("does not show an empty tab strip for conversations outside the current profile", async () => {
     localStorage.setItem("hades.tabs", JSON.stringify(["old-one", "old-two"]));
     await mount(); expect(root.querySelector(".tabs")).toBeNull();
