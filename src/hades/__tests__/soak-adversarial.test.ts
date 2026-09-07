@@ -163,19 +163,19 @@ describe("soak — throughput arithmetic is internally consistent", () => {
 /* ================================================================== */
 describe("soak — throughput does not collapse under sustained load", () => {
   it("last window keeps >=40% of the first window's throughput (no monotonic decay)", async () => {
-    // Tolerance rationale: a genuine accumulating leak (unbounded subs / pending
-    // RPC growth) makes per-op cost grow and throughput trend toward zero over
-    // 12 windows. 40% is loose enough to absorb GC pauses / normal jitter yet
-    // tight enough to catch a real downward trend (a 60%+ sustained drop is not
-    // jitter). If this fails, throughput is collapsing => real degradation bug.
-    const r = await runSoak({ windows: 12, messagesPerWindow: 3000 });
+    // At 3,000 messages, CI windows measured roughly 2-7 ms: a single
+    // scheduler/GC pause dominated the first/last ratio even in a serial run.
+    // Use 100,000 real round-trips per window to amortize that noise. Keep
+    // the 40% first/last threshold unchanged; do not retry away slow samples.
+    const r = await runSoak({ windows: 12, messagesPerWindow: 100_000 });
     expect(r.windows.length).toBe(12);
+    expect(r.totalMessages).toBe(1_200_000);
     const first = r.windows[0].throughputPerSec;
     const last = r.windows[r.windows.length - 1].throughputPerSec;
     expect(isFinitePos(first)).toBe(true);
     expect(isFinitePos(last)).toBe(true);
     expect(last).toBeGreaterThanOrEqual(first * 0.4);
-  });
+  }, 30_000);
 });
 
 /* ================================================================== */
