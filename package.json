@@ -2,7 +2,7 @@
   "name": "@agent-harness/core",
   "version": "0.1.0",
   "private": false,
-  "description": "Drop-in agent infrastructure for Next.js SaaS — memory, guardrails, governance, capability tokens.",
+  "description": "Drop-in agent infrastructure for Next.js SaaS \u2014 memory, guardrails, governance, capability tokens.",
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -115,7 +115,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "test:watch": "vitest",
-    "runner:gateway": "node --experimental-strip-types src/agents/transport/ws-node-server.ts"
+    "runner:gateway": "tsx src/agents/transport/ws-node-server.ts"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",
@@ -159,6 +159,7 @@
     "react-dom": "19.1.0",
     "tailwindcss": "^4.1.4",
     "tsup": "^8.5.1",
+    "tsx": "^4.20.0",
     "typescript": "^5.8.3",
     "vitest": "^4.1.5",
     "zod": "^4.0.0"

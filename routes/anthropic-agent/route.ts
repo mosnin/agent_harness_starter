@@ -28,7 +28,7 @@
 import { z } from "zod";
 import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
-import { sseStream } from "@/agents/lib/utils";
+import { sseEventStream } from "@/agents/transport/sse";
 import { createAnthropicHarness } from "@/agents/providers/anthropic";
 
 export const runtime = "nodejs";
@@ -87,18 +87,19 @@ export async function POST(req: Request) {
         });
 
         for await (const event of stream) {
-          yield JSON.stringify({
+          // Yield the event OBJECT, not a JSON string — see routes/agent/route.ts.
+          yield {
             threadId: resolvedThreadId,
             runId: run.id,
             sessionId: harness.getSessionId(),
             ...event,
-          });
+          };
           if (event.type === "message_done") finalOutput = event.content;
           if (event.type === "done") finalOutput = event.finalOutput;
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        yield JSON.stringify({ type: "error", error: msg });
+        yield { type: "error" as const, error: msg };
         await db.updateRun(run.id, { status: "failed", error: msg, completedAt: new Date() });
         return;
       }
@@ -111,7 +112,7 @@ export async function POST(req: Request) {
 
     const currentSessionId = harness.getSessionId();
 
-    return new Response(sseStream(eventGenerator()), {
+    return new Response(sseEventStream(eventGenerator()), {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",

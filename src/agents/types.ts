@@ -310,6 +310,11 @@ export type AgentEvent =
   | { type: "tool_call"; name: string; input: unknown; callId: string }
   | { type: "tool_result"; name: string; output: unknown; callId: string }
   | { type: "handoff"; from: string; to: string }
+  /**
+   * Long-running out-of-band work (a cap-runner recording or export). Mirrors the Rust
+   * `RunnerEvent::Progress`: `fraction` is 0.0–1.0 when the producer knows it, absent otherwise.
+   */
+  | { type: "progress"; stage: string; fraction?: number; detail?: string }
   | {
       type: "approval_required";
       runId: string;

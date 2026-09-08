@@ -161,7 +161,7 @@ export class SessionMultiplexer {
 			kind: "command",
 			id: conn.handshakeId,
 			token: "",
-			command: { type: "handshake", protocol_version: PROTOCOL_VERSION },
+			command: { type: "handshake", protocolVersion: PROTOCOL_VERSION },
 		});
 
 		return {

@@ -2,19 +2,14 @@
  * Director Protocol v1 — TypeScript mirror of `cap-hades/crates/hades-protocol`.
  *
  * Wire subtleties that are easy to get wrong (verified against the Rust source):
- *   - `#[serde(rename_all = "camelCase")]` on an *enum* renames the VARIANTS, not the
- *     fields of its struct variants. Only variants carrying their own `rename_all`
- *     attribute have camelCase fields; the rest keep the Rust snake_case field name.
- *     The exceptions below are therefore intentional, not typos:
- *       Command::Handshake        → "protocol_version"
- *       CommandResult::StoryboardApplied → "project_path"
- *       RunnerEvent::Heartbeat    → "unix_ms"
- *       Target::Element           → "element_id"
- *       InputAction::Wait         → "duration_ms"
- *       CaptureTarget::*          → "display_id" / "window_id"
- *       Background::*             → "from_hex" / "to_hex" / "hex" / "name"
+ *   - `#[serde(rename_all = "camelCase")]` on an *enum* renames the VARIANTS, not the fields
+ *     of its struct variants — those need the attribute repeated on each variant. Every
+ *     struct variant in the crate now carries it, so EVERY object key on the wire is
+ *     camelCase; the crate has a test that walks serialized output and rejects any key
+ *     containing an underscore. A snake_case key here would be a bug.
  *   - `Envelope` is tagged with `kind`; every other tagged union uses `type`.
- *   - Plain unit enums (Scope, ErrorCode, …) are snake_case values.
+ *   - Plain unit enums (Scope, ErrorCode, …) still have snake_case *values* — those are
+ *     variant names, not keys, and `rename_all = "snake_case"` is set on them deliberately.
  */
 
 import { z } from "zod";
@@ -155,7 +150,7 @@ export type KeyModifier = z.infer<typeof KeyModifierSchema>;
 
 export const TargetSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("point"), point: PointSchema }),
-	z.object({ type: z.literal("element"), element_id: z.string() }),
+	z.object({ type: z.literal("element"), elementId: z.string() }),
 	z.object({
 		type: z.literal("elementQuery"),
 		role: z.string().nullish(),
@@ -194,7 +189,7 @@ export const InputActionSchema = z.discriminatedUnion("type", [
 		key: z.string(),
 		modifiers: z.array(KeyModifierSchema),
 	}),
-	z.object({ type: z.literal("wait"), duration_ms: u64 }),
+	z.object({ type: z.literal("wait"), durationMs: u64 }),
 	z.object({ type: z.literal("focusApplication"), bundleId: z.string() }),
 	z.object({
 		type: z.literal("launchApplication"),
@@ -286,9 +281,9 @@ export type ObserveRequest = z.infer<typeof ObserveRequestSchema>;
 // ── record.rs ────────────────────────────────────────────────────────────────
 
 export const CaptureTargetSchema = z.discriminatedUnion("type", [
-	z.object({ type: z.literal("display"), display_id: z.string() }),
-	z.object({ type: z.literal("window"), window_id: z.string() }),
-	z.object({ type: z.literal("area"), display_id: z.string(), bounds: RectSchema }),
+	z.object({ type: z.literal("display"), displayId: z.string() }),
+	z.object({ type: z.literal("window"), windowId: z.string() }),
+	z.object({ type: z.literal("area"), displayId: z.string(), bounds: RectSchema }),
 ]);
 export type CaptureTarget = z.infer<typeof CaptureTargetSchema>;
 
@@ -366,7 +361,7 @@ export const ShotSchema = z.object({
 export type Shot = z.infer<typeof ShotSchema>;
 
 export const BackgroundSchema = z.discriminatedUnion("type", [
-	z.object({ type: z.literal("gradient"), from_hex: z.string(), to_hex: z.string() }),
+	z.object({ type: z.literal("gradient"), fromHex: z.string(), toHex: z.string() }),
 	z.object({ type: z.literal("solid"), hex: z.string() }),
 	z.object({ type: z.literal("wallpaper"), name: z.string() }),
 ]);
@@ -492,7 +487,7 @@ export const RunnerInfoSchema = z.object({
 export type RunnerInfo = z.infer<typeof RunnerInfoSchema>;
 
 export const CommandSchema = z.discriminatedUnion("type", [
-	z.object({ type: z.literal("handshake"), protocol_version: z.string() }),
+	z.object({ type: z.literal("handshake"), protocolVersion: z.string() }),
 	z.object({
 		type: z.literal("sessionStart"),
 		runId: z.string(),
@@ -554,7 +549,7 @@ export const CommandResultSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("acted"), beat: BeatSchema.nullish() }),
 	z.object({ type: z.literal("recordingStarted"), handle: RecordingHandleSchema }),
 	z.object({ type: z.literal("recordingStopped"), result: StopRecordingResultSchema }),
-	z.object({ type: z.literal("storyboardApplied"), project_path: z.string() }),
+	z.object({ type: z.literal("storyboardApplied"), projectPath: z.string() }),
 	z.object({ type: z.literal("exported"), result: ExportResultSchema }),
 ]);
 export type CommandResult = z.infer<typeof CommandResultSchema>;
@@ -580,7 +575,7 @@ export const RunnerEventSchema = z.discriminatedUnion("type", [
 		approvalId: z.string(),
 		summary: z.string(),
 	}),
-	z.object({ type: z.literal("heartbeat"), unix_ms: u64 }),
+	z.object({ type: z.literal("heartbeat"), unixMs: u64 }),
 ]);
 export type RunnerEvent = z.infer<typeof RunnerEventSchema>;
 
