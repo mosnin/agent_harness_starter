@@ -1,3 +1,4 @@
+import { parseBrowserTask, type BrowserTask } from './browser-task';
 /** Native, local-only Hades Browser protocol 1.0 transport. No credentials or
  * browser content are persisted here. The caller owns admission and approvals. */
 import { randomUUID } from 'node:crypto';
@@ -21,9 +22,9 @@ export const BROWSER_TOOL_SPECS = BROWSER_TOOL_NAMES.map(name => ({ name, mutati
 export interface BrowserAgentBinding { id: string; profile: string; name: string; description?: string; allowedTools: readonly BrowserToolName[] }
 export interface BrowserAuthority { profile: string; agentId: string; signal: AbortSignal }
 export interface BrowserAdmission { ok: true; threadId?: string; runId?: string }
-export interface BrowserChat { text: string; threadId?: string; context?: Record<string, unknown> }
+export interface BrowserChat { text: string; threadId?: string; context?: Record<string, unknown>; task?: BrowserTask }
 export interface BrowserCapture { threadId?: string; capture: Record<string, unknown>; prompt?: string; context?: Record<string, unknown> }
-export interface BrowserControl { runId: string; action: 'pause' | 'resume' | 'cancel' | 'answer'; answer?: string; questionId?: string; reason?: string }
+export interface BrowserControl { runId: string; action: 'pause' | 'resume' | 'cancel' | 'answer' | 'extend'; budget?: {maxTokens:number;maxDurationMs:number}; answer?: string; questionId?: string; reason?: string }
 export interface BrowserToolResult { callId: string; ok: boolean; value?: unknown; error?: { code: string; message: string } }
 export interface HadesBrowserOptions {
   endpoint: string; token: string; agents: readonly BrowserAgentBinding[];
@@ -31,6 +32,7 @@ export interface HadesBrowserOptions {
   onCapture?: (authority: BrowserAuthority, payload: BrowserCapture) => Promise<BrowserAdmission>;
   onTaskControl?: (authority: BrowserAuthority, payload: BrowserControl) => void | Promise<void>;
   onDisconnect?: (reason: string) => void;
+  onRequest?: (authority: BrowserAuthority, type: string, payload: Record<string, unknown>) => Promise<unknown>;
   requestTimeoutMs?: number;
 }
 type Envelope = { id: string; protocol: string; kind: 'request' | 'response' | 'event'; type: string; at: number;
@@ -153,10 +155,14 @@ export class HadesBrowserClient {
       this.tabOwners.set(result.value.tab.id, options.runId);
     return result as BrowserToolResult;
   }
-  emit(profile: string, type: 'agent.message' | 'task.started' | 'task.step' | 'task.needsInput' | 'task.finished', payload: Record<string, unknown>) {
+  emit(profile: string, type: 'agent.message' | 'task.started' | 'task.step' | 'task.needsInput' | 'task.finished' | 'notebook.deliver' | 'task.paused' | 'task.resumed', payload: Record<string, unknown>) {
     this.requireConnected(); const agent = this.agent(profile);
     if (!object(payload)) throw new Error('Invalid browser event');
     if (payload.agentId !== undefined && payload.agentId !== agent.id) throw new Error('Browser event agent does not match profile');
+    if (type === "notebook.deliver") {
+      if (!identifier(payload.runId) || !object(payload.notebook)) throw new Error("Invalid notebook delivery");
+      this.send({id:randomUUID(),protocol:BROWSER_PROTOCOL,kind:"event",type,at:Date.now(),sessionId:this.sessionId,payload:{...payload,agentId:agent.id}}); return;
+    }
     let run: BoundRun | undefined;
     if (type !== 'agent.message') {
       if (!identifier(payload.runId)) throw new Error('Invalid browser run identity');
@@ -172,6 +178,8 @@ export class HadesBrowserClient {
     const body = { ...payload, ...(type === 'task.started' || type === 'agent.message' ? { agentId: agent.id } : {}) };
     this.send({ id: randomUUID(), protocol: BROWSER_PROTOCOL, kind: 'event', type, at: Date.now(), sessionId: this.sessionId, payload: body });
     if (type === 'task.started') this.runs.set(String(payload.runId), { profile, agentId: agent.id, state: 'running' });
+    if (type === 'task.paused' && run) run.state = 'paused';
+    if (type === 'task.resumed' && run) run.state = 'running';
     if (type === 'task.finished' && run) { run.state = 'finished'; this.releaseTabs(String(payload.runId)); }
   }
   private releaseTabs(runId: string) { for (const [tab, owner] of this.tabOwners) if (owner === runId) this.tabOwners.delete(tab); }
@@ -215,6 +223,15 @@ export class HadesBrowserClient {
     if (this.seen.size >= 4096) throw new Error('Browser connection request limit reached');
     this.seen.add(e.id);
     if (e.type === 'task.control') return this.control(e);
+    if (['recipe.schedule', 'recipe.list', 'recipe.cancel', 'notebook.ack'].includes(e.type) && e.kind === 'request') {
+      try {
+        if (!object(e.payload) || !this.options.onRequest) throw new Error('Unavailable browser request');
+        const agent = this.agents.length === 1 ? this.agents[0] : this.agents.find(a => a.id === e.payload.agentId);
+        if (!agent) throw new Error('Unknown browser agent');
+        this.reply(e, await this.options.onRequest({profile: agent.profile, agentId: agent.id, signal: this.lifetime.signal}, e.type, e.payload));
+      } catch (error) { if (!this.closed) this.reply(e, undefined, error instanceof Error ? error.message.slice(0, 300).replaceAll(this.options.token, '[redacted]') : 'Browser routine request failed'); }
+      return;
+    }
     if (!['chat.send', 'capture.submit'].includes(e.type) || e.kind !== 'request') { if (e.kind === 'request') this.reply(e, undefined, 'Unsupported browser request'); return; }
     if (this.callbacks >= 8) { this.reply(e, undefined, 'Browser admission queue is full'); return; }
     this.callbacks++;
@@ -237,7 +254,7 @@ export class HadesBrowserClient {
         if (!this.options.onChat) throw new Error('Browser chat is not available');
         if (e.payload.threadId !== undefined && !identifier(e.payload.threadId)) throw new Error('Invalid browser thread');
         result = await admitted(this.options.onChat(authority, { text: string(e.payload.text, 64_000, 'chat'),
-          ...(e.payload.threadId ? { threadId: e.payload.threadId } : {}), ...(context ? { context } : {}) }));
+          ...(e.payload.threadId ? { threadId: e.payload.threadId } : {}), ...(context ? { context } : {}), ...(e.payload.task === undefined ? {} : { task: parseBrowserTask(e.payload.task) }) }));
       } else {
         if (!this.options.onCapture || !object(e.payload.capture)) throw new Error('Browser capture is not available');
         if (e.payload.threadId !== undefined && !identifier(e.payload.threadId)) throw new Error('Invalid browser capture thread');
@@ -262,22 +279,24 @@ export class HadesBrowserClient {
   }
   private async control(e: Envelope) {
     const p = e.payload;
-    if (!object(p) || !identifier(p.runId) || !['pause', 'resume', 'cancel', 'answer'].includes(p.action) ||
+    if (!object(p) || !identifier(p.runId) || !['pause', 'resume', 'cancel', 'answer', 'extend'].includes(p.action) ||
       (p.questionId !== undefined && !identifier(p.questionId)) ||
       (p.answer !== undefined && (typeof p.answer !== 'string' || p.answer.length > 64_000))) { if (e.kind === 'request') this.reply(e, undefined, 'Invalid browser control'); return; }
+    if (p.action === 'extend' && (!object(p.budget) || !Number.isSafeInteger(p.budget.maxTokens) || !Number.isSafeInteger(p.budget.maxDurationMs) || p.budget.maxTokens < 0 || p.budget.maxDurationMs < 0 || !(p.budget.maxTokens || p.budget.maxDurationMs))) { if (e.kind === 'request') this.reply(e, undefined, 'Invalid additional task budget'); return; }
     const run = this.runs.get(p.runId);
     if (!run || run.state === 'finished' || run.state === 'cancelled') { if (e.kind === 'request') this.reply(e, undefined, 'Unknown or finished browser run'); return; }
+    const previousState = run.state;
     if (p.action === 'pause' || p.action === 'cancel') {
       run.state = p.action === 'pause' ? 'paused' : 'cancelled';
       if (p.action === 'cancel') this.releaseTabs(p.runId);
       for (const [id, pending] of this.pending) if (pending.runId === p.runId) { this.pending.delete(id); pending.cleanup(); pending.reject(new Error('Browser run ' + p.action + 'd; pending action was not replayed')); }
     }
     // Only the explicit browser resume/answer action clears a pause.
-    if (p.action === 'resume' || p.action === 'answer') run.state = 'running';
+    if (p.action === 'resume' || p.action === 'answer' || p.action === 'extend') run.state = 'running';
     try {
       await this.options.onTaskControl?.({ profile: run.profile, agentId: run.agentId, signal: this.lifetime.signal },
-        { runId: p.runId, action: p.action, ...(p.answer !== undefined ? { answer: p.answer } : {}), ...(p.questionId ? { questionId: p.questionId } : {}), ...(typeof p.reason === 'string' ? { reason: p.reason.slice(0,100) } : {}) });
+        { runId: p.runId, action: p.action, ...(p.budget ? {budget:p.budget} : {}), ...(p.answer !== undefined ? { answer: p.answer } : {}), ...(p.questionId ? { questionId: p.questionId } : {}), ...(typeof p.reason === 'string' ? { reason: p.reason.slice(0,100) } : {}) });
       if (e.kind === 'request' && !this.closed) this.reply(e, { ok: true });
-    } catch { if (e.kind === 'request' && !this.closed) this.reply(e, undefined, 'Hades could not apply browser control'); }
+    } catch { if (!this.closed) run.state = previousState; if (e.kind === 'request' && !this.closed) this.reply(e, undefined, 'Hades could not apply browser control'); }
   }
 }

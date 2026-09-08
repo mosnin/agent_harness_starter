@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-export interface WakeTask { job: string; profile: string; root: string; name: string; prompt: string }
+export interface WakeTask { job: string; profile: string; root: string; name: string; prompt: string; browser?: string }
 export type WakeStatus = "queued" | "running" | "completed" | "failed" | "interrupted" | "cancelled";
 export interface Wake {
   id: string; source: string; sourceId: string; task: WakeTask; dueAt: number;
@@ -39,7 +39,7 @@ export class WakeStore {
       !task.job || !task.profile || !task.root || !task.name || !task.prompt)
       throw new Error("Invalid wake request");
     // Explicit field order makes identity independent of caller object order.
-    const payload = JSON.stringify({ job: task.job, profile: task.profile, root: task.root, name: task.name, prompt: task.prompt });
+    const payload = JSON.stringify({ job: task.job, profile: task.profile, root: task.root, name: task.name, prompt: task.prompt, ...(task.browser ? {browser:task.browser} : {}) });
     const hash = createHash("sha256").update(JSON.stringify([payload, dueAt])).digest("hex");
     const now = this.now();
     this.db.prepare(`INSERT INTO wakes (id,source,source_id,payload,payload_hash,profile,job,due_at,status,created_at,updated_at)
