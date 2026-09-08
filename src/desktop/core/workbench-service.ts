@@ -1798,7 +1798,7 @@ export class WorkbenchService {
             if (controller.signal.aborted)
               return { ok: false, output: "Cancelled" };
             if (this.journalFailure) return { ok: false, output: this.journalFailure };
-            const file = tool.name === "file_ops" ? prepareFileOperation(root, value) : undefined;
+            const file = tool.name === "file_ops" ? prepareFileOperation(root, value, { signal: controller.signal }) : undefined;
             const canonicalInput = file?.input ?? value;
             this.emit({
               kind: "desktop.tool",

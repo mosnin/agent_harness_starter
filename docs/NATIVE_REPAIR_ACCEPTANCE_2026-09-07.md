@@ -10,7 +10,7 @@ The Browser connection is explicit, loopback-only and bound to the selected agen
 
 ## Verified evidence
 
-- Integrated current-source suite: 280 files, 3,710 tests passed. TypeScript check passed.
+- Integrated current-source suite: 282 files, 3,767 tests passed. TypeScript check passed.
 - Real Codex Sol multifile acceptance passed after a storage-related retry, including independent hidden checks. Mini completed a separately documented recovery run; it is not counted as a fresh first-pass success.
 - Real webhook-to-Codex execution produced its checked file and retained its deduplication state across restart.
 - Native parallel work produced two verified reports. Journal/artifact restoration and embedded terminal rendering were exercised.
@@ -30,3 +30,13 @@ Codex inference no longer repeats tool descriptions already present in the base 
 Receipts retain per-inference usage, request byte counts, effective tools and budget reservations. The acceptance runner checks the live subscription model catalog, stores receipts outside temporary directories when configured, and records interrupted outcomes before bounded process cleanup. It confines every browser call to one local fixture tab and never permits shell/files or personal-page actions.
 
 The earlier 60,000-token run completed six browser actions but stopped before verification; it remains failed. Under the explicit 100,000-token test cap, the scoped Sol run passed in approximately 48 seconds with 65,196 input tokens (39,296 cached) and 526 output tokens. A second run with native Browser approvals passed with 65,292 input (39,424 cached) and 542 output tokens. Monetary cost is unmeasured. This proves the bounded browser workflow, not economical completion of arbitrary long-running tasks. Full raw receipts: `live-browser-runs/hades-real-browser-EWJooP/receipt.json` and `hades-real-browser-Ls2w7Z/receipt.json` in the verification directory.
+
+## Native filesystem permission recovery
+
+A fresh native GUI read exposed a real macOS boundary: the ad-hoc rebuild no longer matched its existing Documents-folder TCC grant. The native Node open remained blocked and the old tool ignored Stop while awaiting it. TCC logs and a process sample confirm this original failure; it is not counted as successful file access.
+
+Read/list/stat now have one 10-second deadline spanning jail resolution and filesystem stages, and the desktop Stop signal reaches the operation. Late results never advance to further reads; late handles are closed. A process-wide guard refuses additional reads while any abandoned syscall or cleanup remains pending, preventing repeated attempts from consuming more filesystem workers. The kernel syscall itself cannot be cancelled. Mutations retain their existing semantics; no timeout-induced write retry was introduced.
+
+Independent review corrected concurrent cleanup tracking and a queued-close cancellation race. All 96 focused checks and TypeScript passed; the final integrated suite passed 3,767 tests. The rebuilt native app returned an actionable permission error after a 10,008ms read and became idle. The final bundle repeated the timeout path and passed native Stop during a blocked read. After restarting to release the old native syscall, the same public fixture in `/Users/preston/hades-native-qa` was read successfully through Codex Sol: one real file operation, correct reference/button labels, unchanged file and completed native conversation. Protected Documents access itself remains ungranted; stable signing and permission acceptance remain release requirements.
+
+Persistent evidence: `native-agent-file-read-acceptance.json`, `native-file-timeout-journal.json`, `native-file-normal-journal.json`, `native-file-read-diagnosis.md`, and screenshots 09/10 in the sibling verification directory.

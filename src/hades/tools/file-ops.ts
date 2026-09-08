@@ -85,6 +85,63 @@ export interface FileOpsInput {
 const DEFAULT_MAX_READ_BYTES = 262_144;
 const VALID_OPS: readonly FileOp[] = ["read", "write", "append", "list", "stat", "mkdir", "delete"];
 
+export interface FileOperationOptions { signal?: AbortSignal; readTimeoutMs?: number }
+const interruptedReads = new Map<string, Set<ReadDeadline>>();
+/** One deadline covers jail resolution and every read stage. The kernel may
+ * still be waiting for macOS permission after the caller is released. Never
+ * advance a late result to another stage; close late-opened handles only. */
+class ReadDeadline {
+  error?: Error;
+  private reject!: (error: Error) => void;
+  private interrupted = new Promise<never>((_resolve, reject) => { this.reject = reject; });
+  private timer?: ReturnType<typeof setTimeout>;
+  private pending = new Set<Promise<unknown>>();
+  private abort = () => this.stop(new Error("File access cancelled. No read was retried."));
+  constructor(private root: string, private options: FileOperationOptions) {
+    const timeout = options.readTimeoutMs ?? 10000;
+    if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 60000) throw new Error("Invalid file read timeout");
+    void this.interrupted.catch(() => {});
+    this.timer = setTimeout(() => this.stop(new Error("File access timed out. Check filesystem permissions and any macOS permission prompt. In System Settings, check Hades under Privacy & Security > Files & Folders, or choose the project in Finder. This operation was not retried.")), timeout);
+    options.signal?.addEventListener("abort", this.abort, { once: true });
+    if (options.signal?.aborted) this.abort();
+  }
+  private stop(error: Error) {
+    if (!this.error) {
+      this.error = error;
+      if (this.pending.size) { const blocked = interruptedReads.get(this.root) ?? new Set<ReadDeadline>(); blocked.add(this); interruptedReads.set(this.root, blocked); }
+      this.reject(error);
+    }
+  }
+  private tracked<T>(operation: Promise<T>): Promise<T> {
+    this.pending.add(operation);
+    if (this.error) { const blocked = interruptedReads.get(this.root) ?? new Set<ReadDeadline>(); blocked.add(this); interruptedReads.set(this.root, blocked); }
+    const settled = () => {
+      this.pending.delete(operation);
+      if (!this.pending.size) { const blocked = interruptedReads.get(this.root); blocked?.delete(this); if (blocked?.size === 0) interruptedReads.delete(this.root); }
+    };
+    void operation.then(settled, settled);
+    return operation;
+  }
+  cleanup(operation: () => Promise<unknown>) { void this.tracked(Promise.resolve().then(operation)).catch(() => {}); }
+  async wait<T>(operation: () => Promise<T>, late?: (value: T) => Promise<unknown>, cleanup = false): Promise<T> {
+    // Once a handle exists its close must run even if cancellation arrives
+    // between entering finally and the queued cleanup microtask.
+    if (cleanup) return Promise.race([this.tracked(Promise.resolve().then(operation)), this.interrupted]);
+    if (this.error) throw this.error;
+    const pending = Promise.resolve().then(() => {
+      if (this.error) throw this.error;
+      if (!cleanup && interruptedReads.size) throw new Error("A previous file read is still waiting for the operating system. Resolve its filesystem permission prompt before trying again; no additional read was started.");
+      return this.tracked(operation().then(async value => {
+        if (this.error) { if (late) await Promise.resolve().then(() => late(value)).catch(() => {}); throw this.error; }
+        return value;
+      }));
+    });
+    return Promise.race([pending, this.interrupted]);
+  }
+  dispose() { clearTimeout(this.timer); this.options.signal?.removeEventListener("abort", this.abort); }
+}
+const readStage = <T>(deadline: ReadDeadline | undefined, operation: () => Promise<T>, late?: (value: T) => Promise<unknown>, cleanup = false) => deadline ? deadline.wait(operation, late, cleanup) : operation();
+
 function messageOf(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
@@ -148,7 +205,7 @@ class JailViolation extends Error {}
  * Deliberately does NOT decode percent-escapes — a literal `%2e%2e` in
  * the input is just a filename component, not `..`.
  */
-async function resolveInJail(root: string, requestedPath: string): Promise<string> {
+async function resolveInJail(root: string, requestedPath: string, deadline?: ReadDeadline): Promise<string> {
   // Reject NUL bytes outright — these break every OS path API and are a
   // classic smuggling vector.
   if (requestedPath.includes("\0")) {
@@ -172,7 +229,7 @@ async function resolveInJail(root: string, requestedPath: string): Promise<strin
     ? path.normalize(requestedPath)
     : path.normalize(path.join(rootAbs, requestedPath));
 
-  const rootReal = await realpathOfExistingAncestor(rootAbs);
+  const rootReal = await realpathOfExistingAncestor(rootAbs, deadline);
   const relFromRoot = path.relative(rootAbs, resolved);
   const canonicalRelative = path.relative(rootReal, resolved);
   const lexicallyInside =
@@ -187,7 +244,7 @@ async function resolveInJail(root: string, requestedPath: string): Promise<strin
   // still inside the root's real path. If a symlink anywhere on the
   // existing prefix points outside the jail, its real path will land
   // outside `rootReal` and we reject.
-  const existingAncestorReal = await realpathOfExistingAncestor(resolved);
+  const existingAncestorReal = await realpathOfExistingAncestor(resolved, deadline);
   const relFromRootReal = path.relative(rootReal, existingAncestorReal);
   const reallyInside =
     relFromRootReal === "" ||
@@ -203,17 +260,17 @@ async function resolveInJail(root: string, requestedPath: string): Promise<strin
  *  ITS real (symlink-resolved) absolute path. `target` itself need not
  *  exist (e.g. a `write` to a new file) — its nearest existing parent
  *  is what matters for the jail check. */
-async function realpathOfExistingAncestor(target: string): Promise<string> {
+async function realpathOfExistingAncestor(target: string, deadline?: ReadDeadline): Promise<string> {
   let current = target;
   for (;;) {
     try {
-      return await fs.realpath(current);
+      return await readStage(deadline, () => fs.realpath(current));
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
       // realpath(ENOENT) can mean a dangling symlink, not a missing entry.
       // Never walk past one: append/open could otherwise follow it outside root.
       try {
-        if ((await fs.lstat(current)).isSymbolicLink())
+        if ((await readStage(deadline, () => fs.lstat(current))).isSymbolicLink())
           throw new JailViolation("refusing a dangling symlink");
       } catch (entryError) {
         if ((entryError as NodeJS.ErrnoException).code !== "ENOENT") throw entryError;
@@ -242,24 +299,26 @@ function toRootRelative(root: string, absPath: string): string {
 
 async function doRead(
   absPath: string,
-  maxBytes: number
+  maxBytes: number,
+  deadline?: ReadDeadline,
 ): Promise<{ result: unknown; truncated?: boolean }> {
-  const handle = await fs.open(absPath, "r");
+  const handle = await readStage(deadline, () => fs.open(absPath, "r"), handle => handle.close());
   try {
-    const stat = await handle.stat();
+    const stat = await readStage(deadline, () => handle.stat());
     if (stat.isDirectory()) {
       throw new Error("cannot read: path is a directory");
     }
     const cap = Math.min(maxBytes, stat.size);
     const buffer = Buffer.alloc(cap);
-    const { bytesRead } = await handle.read(buffer, 0, cap, 0);
+    const { bytesRead } = await readStage(deadline, () => handle.read(buffer, 0, cap, 0));
     const truncated = stat.size > bytesRead;
     return {
       result: buffer.subarray(0, bytesRead).toString("utf8"),
       truncated: truncated ? true : undefined,
     };
   } finally {
-    await handle.close();
+    if (deadline?.error) deadline.cleanup(() => handle.close());
+    else await readStage(deadline, () => handle.close(), undefined, true);
   }
 }
 
@@ -301,8 +360,8 @@ async function doAppend(absPath: string, content: string): Promise<{ result: unk
   return { result: { bytesAppended: Buffer.byteLength(content, "utf8") } };
 }
 
-async function doList(absPath: string): Promise<{ result: unknown }> {
-  const entries = await fs.readdir(absPath, { withFileTypes: true });
+async function doList(absPath: string, deadline?: ReadDeadline): Promise<{ result: unknown }> {
+  const entries = await readStage(deadline, () => fs.readdir(absPath, { withFileTypes: true }));
   const items = entries
     .map((e) => ({
       name: e.name,
@@ -312,8 +371,8 @@ async function doList(absPath: string): Promise<{ result: unknown }> {
   return { result: items };
 }
 
-async function doStat(absPath: string): Promise<{ result: unknown }> {
-  const stat = await fs.lstat(absPath);
+async function doStat(absPath: string, deadline?: ReadDeadline): Promise<{ result: unknown }> {
+  const stat = await readStage(deadline, () => fs.lstat(absPath));
   return {
     result: {
       type: stat.isDirectory() ? "dir" : stat.isSymbolicLink() ? "symlink" : stat.isFile() ? "file" : "other",
@@ -348,7 +407,7 @@ async function doDelete(absPath: string): Promise<{ result: unknown }> {
 
 /** Decode once and hold an immutable request across an asynchronous approval.
  * Execution rechecks the filesystem jail after approval, never reinterprets JSON. */
-export function prepareFileOperation(root: string, input: string) {
+export function prepareFileOperation(root: string, input: string, options: FileOperationOptions = {}) {
   const parsed = parseFileOpsInput(input);
   if (!parsed.ok) throw new Error(parsed.error);
   const request = Object.freeze(parsed.value);
@@ -356,16 +415,21 @@ export function prepareFileOperation(root: string, input: string) {
     request,
     input: JSON.stringify(request),
     mutates: !["read", "list", "stat"].includes(request.op),
-    run: () => executeFileOperation(path.resolve(root), request),
+    run: () => executeFileOperation(path.resolve(root), request, options),
   });
 }
 
-async function executeFileOperation(root: string, request: Readonly<FileOpsInput>): Promise<ToolResult> {
+async function executeFileOperation(root: string, request: Readonly<FileOpsInput>, options: FileOperationOptions = {}): Promise<ToolResult> {
+  const deadline = ["read", "list", "stat"].includes(request.op) ? new ReadDeadline(root, options) : undefined;
+  try { return await performFileOperation(root, request, deadline); }
+  finally { deadline?.dispose(); }
+}
+async function performFileOperation(root: string, request: Readonly<FileOpsInput>, deadline?: ReadDeadline): Promise<ToolResult> {
       const { op, path: reqPath, content, maxBytes } = request;
 
       let absPath: string;
       try {
-        absPath = await resolveInJail(root, reqPath);
+        absPath = await resolveInJail(root, reqPath, deadline);
       } catch (err) {
         return {
           ok: false,
@@ -377,7 +441,7 @@ async function executeFileOperation(root: string, request: Readonly<FileOpsInput
         let outcome: { result: unknown; truncated?: boolean };
         switch (op) {
           case "read":
-            outcome = await doRead(absPath, maxBytes ?? DEFAULT_MAX_READ_BYTES);
+            outcome = await doRead(absPath, maxBytes ?? DEFAULT_MAX_READ_BYTES, deadline);
             break;
           case "write":
             outcome = await doWrite(absPath, content ?? "");
@@ -386,10 +450,10 @@ async function executeFileOperation(root: string, request: Readonly<FileOpsInput
             outcome = await doAppend(absPath, content ?? "");
             break;
           case "list":
-            outcome = await doList(absPath);
+            outcome = await doList(absPath, deadline);
             break;
           case "stat":
-            outcome = await doStat(absPath);
+            outcome = await doStat(absPath, deadline);
             break;
           case "mkdir":
             outcome = await doMkdir(absPath);
@@ -420,7 +484,7 @@ async function executeFileOperation(root: string, request: Readonly<FileOpsInput
       }
 }
 
-export function createFileOpsTool(opts: ToolFactoryOptions & { root: string }): CatalogEntry {
+export function createFileOpsTool(opts: ToolFactoryOptions & FileOperationOptions & { root: string }): CatalogEntry {
   const root = path.resolve(opts.root);
 
   const tool: Tool = {
@@ -434,7 +498,7 @@ export function createFileOpsTool(opts: ToolFactoryOptions & { root: string }): 
       if (!parsed.ok) {
         return { ok: false, output: JSON.stringify({ mode: "real", error: parsed.error }) };
       }
-      return executeFileOperation(root, parsed.value);
+      return executeFileOperation(root, parsed.value, opts);
     },
   };
 
@@ -454,4 +518,5 @@ export const __internal = {
   resolveInJail,
   realpathOfExistingAncestor,
   DEFAULT_MAX_READ_BYTES,
+  ReadDeadline,
 };
