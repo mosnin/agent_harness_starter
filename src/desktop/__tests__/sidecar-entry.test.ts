@@ -1,8 +1,24 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { runSidecar } from "../sidecar-entry";
 import { decodeEvent, encodeCommand } from "../ipc/contract";
 import type { AppEvent, Command, RunView, TaskView, WorkerView } from "../ipc/contract";
 import type { SwarmFactory, SwarmHandle } from "../core/sidecar";
+
+// runSidecar always constructs a real WorkbenchService even with a fake swarm.
+// Keep its SQLite files away from both the checkout and any native app data.
+const savedEnv = {...process.env};
+let isolatedDataDir: string;
+beforeEach(() => {
+  isolatedDataDir = mkdtempSync(join(tmpdir(),"hades-sidecar-entry-test-"));
+  process.env = {...savedEnv,HADES_DATA_DIR:isolatedDataDir,HADES_WEBHOOK_PORT:"0",HADES_BROWSER_RUNTIME:"0"};
+});
+afterEach(() => {
+  process.env = {...savedEnv};
+  rmSync(isolatedDataDir,{recursive:true,force:true});
+});
 
 // ---------------------------------------------------------------------------
 // A scripted fake swarm handle/factory. No real engine (`buildSwarm` /

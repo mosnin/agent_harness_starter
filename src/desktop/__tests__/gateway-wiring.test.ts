@@ -7,8 +7,8 @@
  * real env probes (variable NAMES only), real pairing guard, pure engine
  * probe.
  */
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -58,8 +58,15 @@ async function* fakeInput(lines: string[]): AsyncGenerator<string> {
 }
 
 const savedEnv = { ...process.env };
+let isolatedDataDir: string;
+// Handler overrides do not replace runSidecar's real WorkbenchService.
+beforeEach(() => {
+  isolatedDataDir = mkdtempSync(join(tmpdir(),"hades-sidecar-gateway-wiring-"));
+  process.env = {...savedEnv,HADES_DATA_DIR:isolatedDataDir,HADES_WEBHOOK_PORT:"0",HADES_BROWSER_RUNTIME:"0"};
+});
 afterEach(() => {
   process.env = { ...savedEnv };
+  rmSync(isolatedDataDir,{recursive:true,force:true});
 });
 
 // ---------------------------------------------------------------------------

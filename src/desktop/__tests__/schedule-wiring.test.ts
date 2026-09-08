@@ -8,8 +8,8 @@
  * and every delivery receipt appended to the real hash-chained ledger at
  * `<dataDir>/schedule-receipts.json`.
  */
-import { describe, it, expect, afterEach } from "vitest";
-import { mkdtempSync, existsSync } from "node:fs";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -39,8 +39,15 @@ async function* fakeInput(lines: string[]): AsyncGenerator<string> {
 }
 
 const savedEnv = { ...process.env };
+let isolatedDataDir: string;
+// Handler overrides do not replace runSidecar's real WorkbenchService.
+beforeEach(() => {
+  isolatedDataDir = mkdtempSync(join(tmpdir(),"hades-sidecar-schedule-wiring-"));
+  process.env = {...savedEnv,HADES_DATA_DIR:isolatedDataDir,HADES_WEBHOOK_PORT:"0",HADES_BROWSER_RUNTIME:"0"};
+});
 afterEach(() => {
   process.env = { ...savedEnv };
+  rmSync(isolatedDataDir,{recursive:true,force:true});
 });
 
 const JOB_VIEW: ScheduleJobView = {
