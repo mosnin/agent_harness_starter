@@ -12,6 +12,16 @@ function setup() {
   return {control,invoke,signal,call,observe,advance:() => {now += 120001;}};
 }
 describe("native computer authority", () => {
+  it("does not report success for a late action response after Stop", async () => {
+    const s = setup(), snapshot = await s.observe();
+    let finish!:(value:Record<string,any>)=>void;
+    s.invoke.mockImplementationOnce(() => new Promise(resolve => {finish = resolve;}));
+    const action = s.call("computer_action",{snapshot,action:"press",element:0});
+    s.control.stop(); finish({performed:true});
+    const result = await action;
+    expect(result.ok).toBe(false); expect(result.output).toContain("outcome may be unknown");
+    expect((await s.call("computer_action",{snapshot,action:"press",element:0})).ok).toBe(false);
+  });
   it("uses an issued one-use element reference, keeps native paths private, and consumes it before dispatch", async () => {
     const s = setup(), result = await s.call("computer_observe",{op:"type",text:"injected"});
     expect(s.invoke.mock.calls[0][0]).toEqual({op:"observe",display:undefined});

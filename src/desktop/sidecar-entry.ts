@@ -22,6 +22,7 @@
  */
 
 import { NativeScheduleExecutor, freshScheduleStore } from "./core/native-schedule";
+import { nativeLifetime } from "./core/native-lifetime";
 import { WorkbenchService } from "./core/workbench-service";
 import { encodeEvent, decodeCommand } from "./ipc/contract";
 import type { AppEvent, Command } from "./ipc/contract";
@@ -808,11 +809,20 @@ export async function main(): Promise<void> {
   };
 
   let stopping = false;
+  const lifetime = process.env.HADES_NATIVE_PROCESS_GROUP === "1" && process.platform !== "win32"
+    ? nativeLifetime({ parent: Number(process.env.HADES_NATIVE_PARENT), parentNow: () => process.ppid,
+      stop: () => { stopping = true; process.stdin.destroy(); },
+      terminate: () => { try { process.kill(-process.pid, "SIGKILL"); } catch { process.exit(1); } },
+    }) : undefined;
+  const inputEnded = () => lifetime?.stop();
+  process.stdin.once("end", inputEnded);
+  process.stdin.once("close", inputEnded);
   try {
     // No explicit factory: runSidecar wires the real engine factory itself,
     // decorated with the real fleet's worker->backend attribution.
     const stop = () => {
       stopping = true;
+      lifetime?.stop();
       process.stdin.destroy();
     };
     process.once("SIGTERM", stop);
@@ -837,6 +847,10 @@ export async function main(): Promise<void> {
       }),
     );
     process.exitCode = 1;
+  } finally {
+    process.stdin.removeListener("end", inputEnded);
+    process.stdin.removeListener("close", inputEnded);
+    lifetime?.finish();
   }
 }
 

@@ -407,4 +407,28 @@ describe("realSpawn: real process integration", () => {
     expect(r.ok).toBe(true);
     expect(r.body.stdout).toContain("4");
   }, 10000);
+  it("Stop kills a real command and its descendant without waiting for timeout", async () => {
+    const {mkdtempSync,existsSync,readFileSync,rmSync} = await import("node:fs");
+    const {tmpdir} = await import("node:os");
+    const {join} = await import("node:path");
+    const root = mkdtempSync(join(tmpdir(),"hades-shell-stop-")), marker = join(root,"ready");
+    const controller = new AbortController();
+    const pending = realSpawn()(process.execPath,["-e",`const c=require('node:child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});require('node:fs').writeFileSync(${JSON.stringify(marker)},JSON.stringify([process.pid,c.pid]));setInterval(()=>{},1000);`],{timeoutMs:10000,maxOutputBytes:1000,signal:controller.signal});
+    try {
+      const deadline = Date.now()+4000;
+      while(!existsSync(marker) && Date.now()<deadline) await new Promise(r=>setTimeout(r,20));
+      expect(existsSync(marker)).toBe(true);
+      const pids = JSON.parse(readFileSync(marker,"utf8")) as number[];
+      const start = Date.now(); controller.abort();
+      const result = await pending;
+      expect(result.cancelled).toBe(true); expect(result.timedOut).toBe(false);
+      expect(Date.now()-start).toBeLessThan(2000);
+      for(const pid of pids) {
+        const gone = () => {try {process.kill(pid,0);return false;} catch {return true;}};
+        const until = Date.now()+1000;
+        while(!gone() && Date.now()<until) await new Promise(r=>setTimeout(r,20));
+        expect(gone()).toBe(true);
+      }
+    } finally {controller.abort();await pending;rmSync(root,{recursive:true,force:true});}
+  },10000);
 });

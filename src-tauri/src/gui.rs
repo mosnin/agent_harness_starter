@@ -27,6 +27,14 @@
 #[cfg(feature = "gui")]
 const EVENT_NAME: &str = "hades_event";
 
+#[cfg(all(feature = "gui", unix))]
+fn kill_owned_group(group: u32) {
+    let _ = std::process::Command::new("/bin/kill")
+        .args(["-KILL", "--", &format!("-{group}")])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null()).status();
+}
+
 /// Shared handles to the currently-running sidecar child process. Held as Tauri
 /// managed state so the [`hades_command`] invoke handler can write to the
 /// sidecar's stdin, and so the `Child` lives for the app's lifetime rather than
@@ -34,6 +42,7 @@ const EVENT_NAME: &str = "hades_event";
 #[cfg(feature = "gui")]
 #[derive(Default)]
 struct SidecarState {
+    keychain_busy: std::sync::atomic::AtomicBool,
     stdin: std::sync::Mutex<Option<std::process::ChildStdin>>,
     child: std::sync::Mutex<Option<std::process::Child>>,
     pending: std::sync::Mutex<
@@ -146,7 +155,7 @@ async fn hades_team(action: String, args: serde_json::Value, state: tauri::State
     if let Some(error) = response.get("error").and_then(|v| v.as_str()) { return Err(error.to_string()); }
     let token = response.get("result").and_then(|v| v.get("token")).and_then(|v| v.as_str()).ok_or("Team connection did not return credentials")?;
     if token.is_empty() { return Err("No pending team connection to save".into()); }
-    hades_key("team-access".into(), Some(token.to_string()), state)?;
+    hades_key("team-access".into(), Some(token.to_string()), state).await?;
     Ok(true)
 }
 
@@ -207,7 +216,15 @@ pub fn run() {
             std::fs::create_dir_all(&data)?;
             crate::log(&format!("gui: launching sidecar: node {sidecar_path}"));
 
-            let mut child = Command::new(node)
+            let mut command = Command::new(node);
+            #[cfg(unix)]
+            {
+                use std::os::unix::process::CommandExt;
+                command.process_group(0)
+                    .env("HADES_NATIVE_PROCESS_GROUP", "1")
+                    .env("HADES_NATIVE_PARENT", std::process::id().to_string());
+            }
+            let mut child = command
                 .arg(&sidecar_path)
                 .current_dir(&home)
                 .env("HADES_DATA_DIR", &data)
@@ -245,6 +262,7 @@ pub fn run() {
                 .stdin
                 .take()
                 .expect("child spawned with Stdio::piped() stdin");
+            let sidecar_group = child.id();
             let child_stdout = child
                 .stdout
                 .take()
@@ -307,6 +325,11 @@ pub fn run() {
                         }
                     }
                 }
+                // A closed IPC stream revokes this backend's lifetime even
+                // when the window remains open. Release pending RPC waiters.
+                handle.state::<SidecarState>().pending.lock().ok().map(|mut p| p.clear());
+                #[cfg(unix)]
+                kill_owned_group(sidecar_group);
                 let _ = handle.emit(
                     EVENT_NAME,
                     serde_json::json!({"kind":"desktop.disconnected"}),
@@ -324,6 +347,7 @@ pub fn run() {
                 state.stdin.lock().ok().and_then(|mut s| s.take());
                 if let Ok(mut guard) = state.child.lock() {
                     if let Some(mut child) = guard.take() {
+                        let group = child.id();
                         // EOF lets the backend cancel turns and reap its PTY children.
                         let deadline =
                             std::time::Instant::now() + std::time::Duration::from_secs(2);
@@ -336,6 +360,10 @@ pub fn run() {
                             let _ = child.kill();
                         }
                         let _ = child.wait();
+                        // Codex and non-detached tool children can outlive Node.
+                        // Only signal the group created for this exact sidecar.
+                        #[cfg(unix)]
+                        kill_owned_group(group);
                     }
                 };
             }
@@ -412,7 +440,7 @@ fn hades_window(
 }
 #[cfg(feature = "gui")]
 #[tauri::command]
-fn hades_key(
+async fn hades_key(
     account: String,
     value: Option<String>,
     state: tauri::State<'_, SidecarState>,
@@ -426,6 +454,13 @@ fn hades_key(
     }
     #[cfg(target_os = "macos")]
     {
+        use std::sync::atomic::Ordering;
+        if state.keychain_busy.swap(true, Ordering::SeqCst) {
+            return Err("Finish or dismiss the existing macOS Keychain request first".into());
+        }
+        // Security.framework may wait for a system credential dialog. Never
+        // block the AppKit thread or allow an unbounded queue of prompts.
+        let result = tauri::async_runtime::spawn_blocking(move || -> Result<(String, String), String> {
         use security_framework::passwords::{
             delete_generic_password, get_generic_password, set_generic_password,
         };
@@ -438,10 +473,15 @@ fn hades_key(
                     .map_err(|e| format!("Keychain: {e}"))?;
             }
         }
-        let key = get_generic_password(service, &account)
-            .ok()
-            .and_then(|b| String::from_utf8(b).ok())
-            .unwrap_or_default();
+        let key = match get_generic_password(service, &account) {
+            Ok(bytes) => String::from_utf8(bytes).map_err(|_| "Invalid saved credential encoding".to_string())?,
+            Err(error) if error.code() == -25300 => String::new(),
+            Err(_) => return Err("macOS did not allow access to the saved credential. Finish the Keychain prompt or reconnect after granting access.".into()),
+        };
+        Ok((account, key))
+        }).await;
+        state.keychain_busy.store(false, Ordering::SeqCst);
+        let (account, key) = result.map_err(|_| "Keychain worker failed".to_string())??;
         let configured = !key.is_empty();
         send_sidecar(
             serde_json::json!({"kind":"desktop.request","id":"native-key","method":"key.set","args":{"account":account,"key":key}}),

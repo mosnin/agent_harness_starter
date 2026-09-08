@@ -1786,7 +1786,7 @@ export class WorkbenchService {
       for (const tool of [
         ...delegated,
         ...this.browserTools(id, p.id, root, controller.signal),
-        ...workspaceTools(root, p.shell).list(),
+        ...workspaceTools(root, p.shell, controller.signal).list(),
         ...(this.settings.computerEnabled ? this.computer.tools(controller.signal) : []),
         ...connected.flatMap((c) => c.tools),
       ].filter(tool => !toolAllowlist || toolAllowlist.includes(tool.name)))

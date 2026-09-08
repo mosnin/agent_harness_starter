@@ -32,9 +32,15 @@ export class ComputerControl {
       if (!this.enabled || signal.aborted) throw new Error("Computer control is off or this turn was stopped.");
       if (this.busy) throw new Error("Another agent is using computer control. Observe again after it finishes.");
       this.busy = true;
+      const epoch = this.epoch;
       const controller = new AbortController(); const cancel = () => controller.abort();
       signal.addEventListener("abort",cancel,{once:true}); this.pending.add(controller);
-      try { return await this.invoke(request,controller.signal); }
+      try {
+        const result = await this.invoke(request,controller.signal);
+        if (controller.signal.aborted || signal.aborted || !this.enabled || epoch !== this.epoch)
+          throw new Error("Computer control stopped. The action outcome may be unknown; observe again before continuing.");
+        return result;
+      }
       finally { signal.removeEventListener("abort",cancel); this.pending.delete(controller); this.busy = false; }
     };
     const parse = (raw:string) => {

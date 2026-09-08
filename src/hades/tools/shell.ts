@@ -159,13 +159,14 @@ export interface SpawnResult {
   stderr: string;
   timedOut: boolean;
   truncated: boolean;
+  cancelled?: boolean;
 }
 
 export interface SpawnLike {
   (
     cmd: string,
     args: string[],
-    opts: { cwd?: string; timeoutMs: number; maxOutputBytes: number }
+    opts: { cwd?: string; timeoutMs: number; maxOutputBytes: number; signal?: AbortSignal }
   ): Promise<SpawnResult>;
 }
 
@@ -174,9 +175,11 @@ export interface SpawnLike {
 export function realSpawn(): SpawnLike {
   return (cmd, args, opts) => {
     return new Promise<SpawnResult>((resolve) => {
+      if (opts.signal?.aborted) { resolve({code:null,stdout:"",stderr:"",timedOut:false,truncated:false,cancelled:true}); return; }
       const child = spawn(cmd, args, {
         cwd: opts.cwd,
         shell: false,
+        detached: process.platform !== "win32",
         stdio: ["ignore", "pipe", "pipe"],
       });
 
@@ -187,10 +190,20 @@ export function realSpawn(): SpawnLike {
       let truncated = false;
       let timedOut = false;
       let settled = false;
+      let cancelled = false;
+      const kill = () => {
+        if (child.pid && process.platform !== "win32") {
+          try { process.kill(-child.pid, "SIGKILL"); return; } catch { /* already gone */ }
+        }
+        child.kill("SIGKILL");
+      };
+      const cancel = () => { cancelled = true; kill(); };
+      opts.signal?.addEventListener("abort", cancel, {once:true});
+      if (opts.signal?.aborted) cancel();
 
       const timer = setTimeout(() => {
         timedOut = true;
-        child.kill("SIGKILL");
+        kill();
       }, opts.timeoutMs);
 
       function appendCapped(
@@ -226,12 +239,16 @@ export function realSpawn(): SpawnLike {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        resolve({ code, stdout, stderr, timedOut, truncated });
+        opts.signal?.removeEventListener("abort", cancel);
+        resolve({ code, stdout, stderr, timedOut, truncated, ...(cancelled ? {cancelled:true} : {}) });
       }
 
       child.on("error", () => {
         finish(null);
       });
+      // Descendants may hold output pipes open after their command exits.
+      // An invocation owns its process group only for the command lifetime.
+      child.on("exit", kill);
       child.on("close", (code) => {
         finish(code);
       });
@@ -348,7 +365,7 @@ function checkPolicy(policy: ShellPolicy, cmd: string, args: string[]): string |
  * ------------------------------------------------------------------ */
 
 export function createShellTool(
-  opts: ToolFactoryOptions & { policy: ShellPolicy; spawn?: SpawnLike; cwd?: string }
+  opts: ToolFactoryOptions & { policy: ShellPolicy; spawn?: SpawnLike; cwd?: string; signal?: AbortSignal }
 ): CatalogEntry {
   const doSpawn = opts.spawn ?? realSpawn();
   const timeoutMs = opts.policy.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -379,8 +396,9 @@ export function createShellTool(
           cwd: opts.cwd,
           timeoutMs,
           maxOutputBytes,
+          ...(opts.signal ? {signal:opts.signal} : {}),
         });
-        const ok = result.code === 0 && !result.timedOut;
+        const ok = result.code === 0 && !result.timedOut && !result.cancelled && !opts.signal?.aborted;
         return {
           ok,
           output: JSON.stringify({
@@ -392,6 +410,7 @@ export function createShellTool(
             stderr: result.stderr,
             timedOut: result.timedOut,
             truncated: result.truncated,
+            ...(result.cancelled ? {cancelled:true} : {}),
           }),
         };
       } catch (err) {

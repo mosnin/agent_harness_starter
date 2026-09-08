@@ -25,9 +25,13 @@ cargo build --manifest-path src-tauri/Cargo.toml --features gui -j "${HADES_BUIL
 APP="${HADES_APP_OUTPUT:-$ROOT/dist-mac/Hades.app}"
 # Stop only the previously built application. Other Node processes are untouched.
 pgrep -f "^${APP}/Contents/MacOS/Hades$" | while read -r pid; do
-  pkill -TERM -P "$pid" || true
-  sleep 1
   kill "$pid" 2>/dev/null || true
+  # The native sidecar watches its parent and cleans its owned group even
+  # when the window process exits without a graceful Tauri shutdown event.
+  for attempt in {1..30}; do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.1
+  done
 done || true
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp src-tauri/target/debug/hades-desktop "$APP/Contents/MacOS/Hades"
