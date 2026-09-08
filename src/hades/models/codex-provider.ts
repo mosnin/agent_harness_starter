@@ -9,7 +9,8 @@ import { tmpdir } from "node:os";
 import type { ChatRequest, ChatResponse, ModelClient } from "./client";
 
 type Json = Record<string, any>;
-type InferenceThread = { id: string; signature: string; prefix: string[]; touched: number; busy: boolean };
+type TokenUsage = { inputTokens: number; outputTokens: number; cachedInputTokens: number };
+type InferenceThread = { id: string; signature: string; prefix: string[]; touched: number; busy: boolean; usageTotal: TokenUsage };
 const fingerprint = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
 /** A constrained final message is one Hades action, never executable commentary. */
@@ -245,7 +246,7 @@ export class CodexProvider implements ModelClient {
     const system = req.messages.filter(m => m.role === "system").map(m => m.content).join("\n\n");
     const history = req.messages.filter(m => m.role !== "system");
     const tools = req.tools ?? [];
-    const signature = fingerprint([req.model, system, tools]);
+    const signature = fingerprint([req.model, system, tools, req.toolCatalogInSystem === true]);
     const hashes = history.map(fingerprint);
     const key = req.transportSessionId;
     if (key && this.activeSessions.has(key)) throw new Error("This Codex inference session already has an active turn.");
@@ -276,13 +277,17 @@ export class CodexProvider implements ModelClient {
             "Use project-relative file paths for Hades tools. Never prepend the isolated Codex working directory to a project path.",
             "Keep tool and input empty strings for answers; keep answer empty for tool actions. Report completion only after verifying requested work.",
           ...(tools.some(t => t.name === "file_ops") ? ["For file_ops, always use the typed input object with op, path, content, maxBytes. Put source code directly in content, preserving its exact quotes and newlines. Do not serialize a second JSON document inside input. Set unused content and maxBytes to null. For other tools, use their documented input string."] : []),
-            "Available Hades tools: " + JSON.stringify(tools),
+            ...(req.toolCatalogInSystem ? [
+              "Available Hades tool names and descriptions are in the base instructions.",
+              ...(tools.some(tool => tool.inputSchema) ? ["Hades tool argument schemas: " + JSON.stringify(tools.filter(tool => tool.inputSchema).map(({ name, inputSchema }) => ({ name, inputSchema })))] : []),
+            ] : ["Available Hades tools: " + JSON.stringify(tools)]),
           ].join("\n"),
         });
-        cached = { id: thread.id, signature, prefix: [], touched: Date.now(), busy: false };
+        cached = { id: thread.id, signature, prefix: [], touched: Date.now(), busy: false, usageTotal: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 } };
         if (key) this.inferenceThreads.set(key, cached);
       }
       const state = cached;
+      const usageBefore = state.usageTotal;
       state.busy = true;
       let turnId = "", tokensIn = 0, tokensOut = 0, cachedInputTokens = 0, success = false, keepAlive = false;
       const messages = new Map<string, ActionItem>();
@@ -304,9 +309,28 @@ export class CodexProvider implements ModelClient {
           messages.set(item.id, { text: item.text ?? messages.get(item.id)?.text ?? "", phase: item.phase, complete: method === "item/completed" });
         }
         if (method === "thread/tokenUsage/updated") {
-          // total accumulates across a persistent thread. last belongs to this turn.
-          const usage = p.tokenUsage.last ?? p.tokenUsage.total;
-          tokensIn = usage.inputTokens; tokensOut = usage.outputTokens; cachedInputTokens = usage.cachedInputTokens ?? 0;
+          // Repeated notifications replace the current turn's usage. A total-only
+          // notification needs a delta from the fixed start-of-turn baseline;
+          // returning the cumulative thread total would charge earlier turns twice.
+          try {
+            const parse = (value: Json): TokenUsage => {
+              const usage = { inputTokens: value.inputTokens, outputTokens: value.outputTokens, cachedInputTokens: value.cachedInputTokens ?? 0 };
+              if (!Object.values(usage).every(n => Number.isSafeInteger(n) && n >= 0) || usage.cachedInputTokens > usage.inputTokens)
+                throw new Error("Codex returned invalid token usage. No pending action was executed.");
+              return usage;
+            };
+            const total = p.tokenUsage?.total ? parse(p.tokenUsage.total) : undefined;
+            if (total && Object.keys(usageBefore).some(key => total[key as keyof TokenUsage] < usageBefore[key as keyof TokenUsage]))
+              throw new Error("Codex cumulative token usage moved backwards. No pending action was executed.");
+            const usage = p.tokenUsage?.last ? parse(p.tokenUsage.last) : total ? {
+              inputTokens: total.inputTokens - usageBefore.inputTokens,
+              outputTokens: total.outputTokens - usageBefore.outputTokens,
+              cachedInputTokens: total.cachedInputTokens - usageBefore.cachedInputTokens,
+            } : undefined;
+            if (!usage) throw new Error("Codex token usage is missing. No pending action was executed.");
+            tokensIn = usage.inputTokens; tokensOut = usage.outputTokens; cachedInputTokens = usage.cachedInputTokens;
+            state.usageTotal = total ?? { inputTokens: usageBefore.inputTokens + tokensIn, outputTokens: usageBefore.outputTokens + tokensOut, cachedInputTokens: usageBefore.cachedInputTokens + cachedInputTokens };
+          } catch (error) { rejectTurn(error instanceof Error ? error : new Error("Codex token usage was invalid.")); }
         }
         if (method === "turn/completed") {
           if (!turnId || p.turn.id !== turnId) return;
@@ -322,6 +346,9 @@ export class CodexProvider implements ModelClient {
             for (const item of items.filter(item => item.phase !== "commentary")) try { decodeCodexAction(item.text, tools); validActions++; } catch {}
             this.emit({ kind: "desktop.codex.transport", thread: state.id, turn: p.turn.id, status: p.turn.status,
               snapshotItems: p.turn.items?.length ?? 0, itemsView: p.turn.itemsView ?? "unspecified", validActions,
+              usage: { tokensIn, tokensOut, cachedInputTokens },
+              request: { systemBytes: Buffer.byteLength(system), historyBytes: Buffer.byteLength(JSON.stringify(history)),
+                appendedBytes: Buffer.byteLength(JSON.stringify(history.slice(offset))), toolCount: tools.length, tools: tools.map(tool => tool.name), reusedThread: offset > 0 },
               items: items.map(item => ({ phase: item.phase ?? "unknown", chars: item.text.length, complete: item.complete })) });
             const text = selectCodexAction(items, tools);
             req.onText?.(text);

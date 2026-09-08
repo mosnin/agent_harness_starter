@@ -99,6 +99,8 @@ interface SessionMeta {
   workOwner?: string;
   delegatedWork?: string[];
   delegationReserved?: { goals: number; tasks: number; tokens: number; minutes: number };
+  /** Trusted session scope, inherited by every later message and resume. */
+  toolAllowlist?: string[];
 }
 interface Job {
   id: string;
@@ -364,6 +366,23 @@ export class WorkbenchService {
     const config = this.settings.browser;
     if (run.client !== this.browser || !run.client.status().connected || run.state !== "running" || !config?.enabled || config.profile !== run.profile || config.root !== run.root)
       throw new Error("Browser work was paused, stopped or disconnected");
+  }
+  private taskToolScope(value: unknown, meta: SessionMeta, profile: Profile, root: string): string[] | undefined {
+    const selected = value === undefined ? meta.toolAllowlist : value;
+    if (selected === undefined) return undefined;
+    if (!Array.isArray(selected) || !selected.length || selected.length > 128 ||
+      selected.some(name => typeof name !== "string" || !/^[a-zA-Z0-9_-]+$/.test(name)) || new Set(selected).size !== selected.length)
+      throw new Error("Tool scope must be a nonempty list of unique tool names");
+    if (meta.toolAllowlist && selected.some(name => !meta.toolAllowlist!.includes(name)))
+      throw new Error("This conversation's tool scope cannot be widened. Start a new conversation to choose different capabilities.");
+    // Scoped delegation and MCP need explicit child/discovery propagation. Refuse
+    // them until that contract exists; do not start unselected MCP processes.
+    const available = new Set(workspaceTools(root, profile.shell).names());
+    if (this.settings.computerEnabled) for (const tool of this.computer.tools(new AbortController().signal)) available.add(tool.name);
+    const browser = this.settings.browser;
+    if (this.browser?.status().connected && browser?.enabled && browser.profile === profile.id && browser.root === root) available.add("hades_browser");
+    if (selected.some(name => !available.has(name))) throw new Error("Tool scope contains an unknown, unavailable or unsupported tool");
+    return [...selected].sort();
   }
   private async browserControl(client: HadesBrowserClient, authority: BrowserAuthority, control: BrowserControl) {
     const entry = [...this.browserRuns].find(([, run]) => run.client === client && run.profile === authority.profile && run.runId === control.runId);
@@ -1218,14 +1237,16 @@ export class WorkbenchService {
           throw new Error(
             "Invalid image attachments (maximum five images, 6 MB each)",
           );
-        const client = this.client(p);
         const root = this.root(m.root);
         const controller = new AbortController();
         const maxTokens = a.maxTokens === undefined ? undefined : Number(a.maxTokens);
         const maxRuntimeMs = a.maxRuntimeMs === undefined ? undefined : Number(a.maxRuntimeMs);
         if (maxTokens !== undefined && (!Number.isSafeInteger(maxTokens) || maxTokens < 1 || maxTokens > 10000000)) throw new Error("Invalid task token budget");
         if (maxRuntimeMs !== undefined && (!Number.isSafeInteger(maxRuntimeMs) || maxRuntimeMs < 1 || maxRuntimeMs > 86400000)) throw new Error("Invalid task time budget");
-        this.bindBrowserRun(id, p, root, input);
+        const toolAllowlist = this.taskToolScope(a.toolAllowlist, m, p, root);
+        if (toolAllowlist) { m.toolAllowlist = toolAllowlist; this.save(); }
+        const client = this.client(p);
+        if (!toolAllowlist || toolAllowlist.includes("hades_browser")) this.bindBrowserRun(id, p, root, input);
         const deadline = maxRuntimeMs === undefined ? undefined : setTimeout(() => controller.abort(), maxRuntimeMs);
         this.active.set(id, controller);
         const task = this.turn(
@@ -1237,6 +1258,7 @@ export class WorkbenchService {
           controller,
           images as string[],
           maxTokens,
+          toolAllowlist,
         ).finally(() => {
           clearTimeout(deadline);
           this.active.delete(id);
@@ -1716,6 +1738,7 @@ export class WorkbenchService {
     controller: AbortController,
     images: string[] = [],
     maxTotalTokens?: number,
+    toolAllowlist?: string[],
   ) {
     const connections: Array<{ close: () => void }> = [];
     try {
@@ -1733,10 +1756,10 @@ export class WorkbenchService {
           enabled: true,
         })),
       );
-      for (const server of [
+      for (const server of (toolAllowlist ? [] : [
         ...(p.mcp ?? []).filter((m) => m.enabled),
         ...pluginServers,
-      ]) {
+      ])) {
         const connection = await connectMcp(server, root, controller.signal);
         connections.push(connection);
         connected.push(connection);
@@ -1766,7 +1789,7 @@ export class WorkbenchService {
         ...workspaceTools(root, p.shell).list(),
         ...(this.settings.computerEnabled ? this.computer.tools(controller.signal) : []),
         ...connected.flatMap((c) => c.tools),
-      ])
+      ].filter(tool => !toolAllowlist || toolAllowlist.includes(tool.name)))
         tools.register({
           ...tool,
           run: async (value) => {
@@ -1889,10 +1912,12 @@ export class WorkbenchService {
         contextFiles: { dataDir: this.dir(p.id), projectDir: root },
         brain: async (ctx, _stream, signal) => {
           const contextDirectory = join(this.dir(p.id), "context", id, randomUUID());
+          const modelBudgets: Array<Record<string, unknown>> = [];
           const result = await new AgentLoop(client, tools, {
             model: p.model,
             maxSteps: 80,
             maxTotalTokens,
+            onBudget: budget => { modelBudgets.push(budget); },
             maxInputBytes: this.settings.computerEnabled ? 8_000_000 : undefined,
             contextArchive: new FileContextArchive(contextDirectory),
             contextWindow: p.provider === "local" ? () => this.localModels.contextWindow(p.baseUrl, p.model) : undefined,
@@ -1964,7 +1989,7 @@ export class WorkbenchService {
           // Retain the full original turn, including failures, independently of
           // the smaller model-facing view. This does not authorize tool replay.
           const receiptPath = join(contextDirectory, "run.json");
-          writeFileSync(receiptPath + ".pending", JSON.stringify(result), { mode: 0o600, flush: true });
+          writeFileSync(receiptPath + ".pending", JSON.stringify({ ...result, toolAllowlist, effectiveTools: [...tools.names(), "context_read"], modelBudgets }), { mode: 0o600, flush: true });
           renameSync(receiptPath + ".pending", receiptPath);
           this.emit({
             kind: "desktop.usage",

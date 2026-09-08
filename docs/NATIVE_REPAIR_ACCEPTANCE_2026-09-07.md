@@ -10,15 +10,23 @@ The Browser connection is explicit, loopback-only and bound to the selected agen
 
 ## Verified evidence
 
-- Integrated current-source suite: 116 files, 2,319 tests passed. TypeScript check passed.
+- Integrated current-source suite: 280 files, 3,710 tests passed. TypeScript check passed.
 - Real Codex Sol multifile acceptance passed after a storage-related retry, including independent hidden checks. Mini completed a separately documented recovery run; it is not counted as a fresh first-pass success.
 - Real webhook-to-Codex execution produced its checked file and retained its deduplication state across restart.
 - Native parallel work produced two verified reports. Journal/artifact restoration and embedded terminal rendering were exercised.
 - Native backup creation and checksum/schema verification passed for 11 files. Native staged restore remains a separate unexercised gate.
-- Native Browser pairing, opening an isolated tab, page reading and a denied personal-space read were observed. The complete real-model form task did not pass; the failed run exposed scroll validation and approval-placement issues that were repaired in source. Fresh full completion remains pending.
+- Native Browser pairing, opening an isolated tab, page reading and a denied personal-space read were observed. Earlier failed form runs exposed scroll validation, approval placement and token-budget issues. Fresh real Codex Sol runs subsequently completed read/snapshot/type/click/read/answer with independent final page checks. One used scoped test-runner approvals and another used both approval buttons in the native Browser UI.
 
 Receipts, original failures, recovery records and native screenshots are retained in the sibling `2026-09-07/hades-fix-verification` directory. Large model task tests use explicitly scoped local fixtures; passing them is evidence for those paths, not universal harness capability.
 
 ## Remaining gates
 
 Hades Accessibility and Screen Recording permissions were not granted during this acceptance. No real native computer input is claimed. External Slack delivery, all provider combinations, complete competitor parity and unattended long-duration reliability are not established by the local suite. The app is ad-hoc signed for development, not Developer ID signed/notarized. No pull request or remote release is implied by this local acceptance record.
+
+## September 8 scope and subscription acceptance
+
+Codex inference no longer repeats tool descriptions already present in the base instructions; JSON argument schemas and action restrictions remain. Persistent-thread cumulative usage fallback now reports per-turn deltas, rejecting invalid backwards totals. Trusted `chat.send.toolAllowlist` filters the actual tool registry and model schema; scope persists across continuation and restart, cannot silently widen, and scoped tasks do not start unrelated MCP processes. The initial scoped execution interface deliberately rejects delegation/MCP scope until child propagation and MCP discovery contracts exist. Default unrestricted task behavior is unchanged.
+
+Receipts retain per-inference usage, request byte counts, effective tools and budget reservations. The acceptance runner checks the live subscription model catalog, stores receipts outside temporary directories when configured, and records interrupted outcomes before bounded process cleanup. It confines every browser call to one local fixture tab and never permits shell/files or personal-page actions.
+
+The earlier 60,000-token run completed six browser actions but stopped before verification; it remains failed. Under the explicit 100,000-token test cap, the scoped Sol run passed in approximately 48 seconds with 65,196 input tokens (39,296 cached) and 526 output tokens. A second run with native Browser approvals passed with 65,292 input (39,424 cached) and 542 output tokens. Monetary cost is unmeasured. This proves the bounded browser workflow, not economical completion of arbitrary long-running tasks. Full raw receipts: `live-browser-runs/hades-real-browser-EWJooP/receipt.json` and `hades-real-browser-Ls2w7Z/receipt.json` in the verification directory.

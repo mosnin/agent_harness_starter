@@ -28,6 +28,7 @@ describe("AgentLoop budget and transport lifecycle",()=>{
  });
  it("keeps one transport identity across iterations and isolates separate runs",async()=>{
   const h=harness(index=>result({text:index%2===0?action:"ANSWER: Verified",cachedInputTokens:50}));const loop=new AgentLoop(h.client,h.tools,{model:"fixture"});const first=await loop.run("Work");await loop.run("Work");
+  expect(h.requests[0].toolCatalogInSystem).toBe(true);expect(h.requests[0].messages[0].content).toContain("- write: A confined test write");
   expect(h.requests[0].tools).toEqual([{name:"write",description:"A confined test write"}]);expect(h.requests[0].transportSessionId).toBe(h.requests[1].transportSessionId);expect(h.requests[2].transportSessionId).not.toBe(h.requests[0].transportSessionId);expect(h.released).toEqual([h.requests[0].transportSessionId,h.requests[2].transportSessionId]);expect(first.cachedInputTokens).toBe(100);
  });
  it("releases transport after step limits, provider errors and context exhaustion",async()=>{

@@ -27,6 +27,9 @@ export interface ChatRequest {
   messages: ChatMessage[];
   /** Hades-owned tools. Providers may constrain output, but never execute these. */
   tools?: Array<{ name: string; description: string; inputSchema?: Record<string, unknown> }>;
+  /** Caller already included every tool name and description in system messages.
+   * Argument schemas are separate and must still be supplied by the provider. */
+  toolCatalogInSystem?: boolean;
   /** Unique to one agent run; permits isolated provider conversation reuse. */
   transportSessionId?: string;
   maxTokens?: number;

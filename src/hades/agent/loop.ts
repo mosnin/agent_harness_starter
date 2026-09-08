@@ -50,6 +50,8 @@ export interface AgentLoopOptions {
   maxInputBytes?: number;
   /** Account for measured input plus output across this run; stop before another call. */
   maxTotalTokens?: number;
+  /** Numeric planning diagnostics; contains no task text or tool arguments. */
+  onBudget?: (budget: { step: number; usedTokens: number; estimatedInput: number; maxOutputTokens: number; maxTotalTokens?: number }) => void;
   /** Optional durable backing for recalling older settled tool exchanges. */
   contextArchive?: ContextArchive;
 }
@@ -128,6 +130,7 @@ export class AgentLoop {
           const window = await this.opts.contextWindow?.();
           const maxTokens = this.opts.maxOutputTokens ?? (window ? Math.min(4096, Math.floor(window / 4)) : 4096);
           const estimatedInput = budget.estimate(view);
+          this.opts.onBudget?.({ step: steps + 1, usedTokens: tokensIn + tokensOut, estimatedInput, maxOutputTokens: maxTokens, maxTotalTokens: this.opts.maxTotalTokens });
           if (this.opts.maxTotalTokens !== undefined &&
             tokensIn + tokensOut + estimatedInput + maxTokens > this.opts.maxTotalTokens) {
             error = "Task token budget reached before the next model request. Completed actions remain saved; increase the budget explicitly to continue.";
@@ -143,6 +146,7 @@ export class AgentLoop {
             model: this.opts.model,
             messages: view,
             transportSessionId,
+            toolCatalogInSystem: true,
             tools: [
               ...this.tools.list().map(({ name, description }) => ({ name, description })),
               ...(archived ? [{ name: "context_read", description: "Read exact archived tool evidence by reference, offset and limit." }] : []),

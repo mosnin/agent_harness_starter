@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { randomUUID } from 'node:crypto';
-import { mkdtempSync, readFileSync, statSync, rmSync, realpathSync } from 'node:fs';
+import { mkdtempSync, readFileSync, statSync, rmSync, realpathSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { WorkbenchService } from '../core/workbench-service';
@@ -20,6 +20,7 @@ async function fixture(mode='flow') {
  let content='ANSWER: Completed the browser task.';
  if(mode==='flow'&&index<3)content='TOOL: hades_browser\nINPUT: '+JSON.stringify(index===0?{name:'browser.listTabs',args:{}}:index===1?{name:'page.snapshot',args:{tabId:'tab'}}:{name:'page.click',args:{tabId:'tab',ref:'s1r1'}});
  if(mode==='pause'&&index<2)content='TOOL: hades_browser\nINPUT: '+JSON.stringify({name:'page.click',args:{tabId:'tab',ref:'s1r1'}});
+ if(mode==='scope-escape'&&index===0)content='TOOL: file_ops\nINPUT: '+JSON.stringify({op:'write',path:'escaped.txt',content:'must not write'});
  res.writeHead(200,{'content-type':'text/event-stream'});res.end('data: '+JSON.stringify({choices:[{delta:{content}}],usage:{prompt_tokens:10,completion_tokens:5}})+'\n\ndata: [DONE]\n\n');});});servers.push(server);await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
  const env:NodeJS.ProcessEnv={NODE_ENV:'test',HADES_WEBHOOK_PORT:'0'};const data=join(root,'data');const service=new WorkbenchService(data,e=>events.push(e),env);services.push(service);
  await service.dispatch('project.add',{path:root});await service.dispatch('profile.save',{id:'default',name:'Bound profile',provider:'local',model:'fixture',baseUrl:'http://127.0.0.1:'+(server.address() as any).port+'/v1'});
@@ -77,4 +78,54 @@ it('mirrors approvals in the browser and binds answers to the exact pending acti
  f.send('task.control',{runId:question.runId,action:'answer',questionId:question.question.id,answer:'Allow once'});
  await vi.waitFor(()=>expect(f.frames.some(e=>e.type==='task.finished')).toBe(true));
  expect(f.frames.filter(e=>e.type==='tool.call')).toHaveLength(3);
+});
+
+it('enforces a browser-only tool registry, records its scope, and refuses an unselected model action',async()=>{
+ const f=await fixture('scope-escape');
+ await f.service.dispatch('profile.save',{id:'default',name:'Bound profile',provider:'local',model:'fixture',baseUrl:'http://127.0.0.1:'+(servers.at(-1)!.address() as any).port+'/v1',mcp:JSON.stringify([{name:'unselected',enabled:true,command:process.execPath,args:['-e',`require('node:fs').writeFileSync(${JSON.stringify(join(f.root,'mcp-started'))},'started')`]}])});
+ const session:any=await f.service.dispatch('session.new',{root:f.root});
+ await f.service.dispatch('chat.send',{id:session.id,input:'Only use the browser',toolAllowlist:['hades_browser']});
+ await vi.waitFor(()=>expect(f.events.some(e=>e.kind==='desktop.done')).toBe(true));
+ const system=f.modelRequests[0].messages[0].content;
+ expect(system).toContain('- hades_browser:');expect(system).not.toContain('- file_ops:');expect(system).not.toContain('- delegate_work:');expect(system).not.toContain('- calc:');
+ expect(existsSync(join(f.root,'escaped.txt'))).toBe(false);expect(f.events.some(e=>e.kind==='desktop.approval')).toBe(false);
+ expect(existsSync(join(f.root,'mcp-started'))).toBe(false);
+ expect(f.events.some(e=>e.kind==='desktop.tool'&&e.tool==='file_ops'&&e.ok===false&&e.output.includes('unknown tool'))).toBe(true);
+ const context=join(f.data,'context',session.id);const receipt=JSON.parse(readFileSync(join(context,readdirSync(context)[0],'run.json'),'utf8'));
+ expect(receipt.toolAllowlist).toEqual(['hades_browser']);expect(receipt.effectiveTools).toEqual(['hades_browser','context_read']);
+ expect(receipt.modelBudgets).toHaveLength(2);expect(receipt.modelBudgets[1].usedTokens).toBe(15);
+});
+
+it('validates tool scopes before starting work and refuses unknown, duplicate, unavailable and unsupported names',async()=>{
+ const f=await fixture('answer');const session:any=await f.service.dispatch('session.new',{root:f.root});
+ for(const toolAllowlist of [[],['hades_browser','hades_browser'],['unknown'],['shell'],['delegate_work'],['mcp_unknown'],'hades_browser',[null]])
+  await expect(f.service.dispatch('chat.send',{id:session.id,input:'Work',toolAllowlist})).rejects.toThrow(/Tool scope/);
+ expect(f.modelRequests).toHaveLength(0);expect(f.events.some(e=>e.kind==='desktop.started')).toBe(false);expect(f.frames.some(e=>e.type==='task.started')).toBe(false);
+});
+
+it('inherits scope across normal continuation and restart, and refuses widening',async()=>{
+ const f=await fixture('answer');const session:any=await f.service.dispatch('session.new',{root:f.root});
+ await f.service.dispatch('chat.send',{id:session.id,input:'First',toolAllowlist:['hades_browser']});
+ await vi.waitFor(()=>expect(f.events.filter(e=>e.kind==='desktop.done')).toHaveLength(1));
+ await f.service.dispatch('chat.send',{id:session.id,input:'Continue'});
+ await vi.waitFor(()=>expect(f.events.filter(e=>e.kind==='desktop.done')).toHaveLength(2));
+ await expect(f.service.dispatch('chat.send',{id:session.id,input:'Widen',toolAllowlist:['hades_browser','file_ops']})).rejects.toThrow('cannot be widened');
+ f.service.close();const restored=new WorkbenchService(f.data,e=>f.events.push(e),f.env);services.push(restored);
+ expect(await restored.dispatch('session.get',{id:session.id})).toMatchObject({toolAllowlist:['hades_browser']});
+ await expect(restored.dispatch('chat.send',{id:session.id,input:'Continue without connection'})).rejects.toThrow('unavailable');
+ await restored.dispatch('key.set',{account:'hades-browser',key:'fixture-browser-token-123456789'});await restored.dispatch('browser.connect',{});
+ await restored.dispatch('chat.send',{id:session.id,input:'Continue after restart'});
+ await vi.waitFor(()=>expect(f.events.filter(e=>e.kind==='desktop.done')).toHaveLength(3));
+ expect(f.modelRequests).toHaveLength(3);expect(f.modelRequests.every(r=>r.messages[0].content.includes('- hades_browser:')&&!r.messages[0].content.includes('- file_ops:'))).toBe(true);
+});
+
+it('preserves a scoped browser run during automatic pause/resume continuation',async()=>{
+ const f=await fixture('pause');const session:any=await f.service.dispatch('session.new',{root:f.root});
+ await f.service.dispatch('chat.send',{id:session.id,input:'Click Save',toolAllowlist:['hades_browser']});
+ await vi.waitFor(()=>expect(f.events.some(e=>e.kind==='desktop.approval')).toBe(true));const runId=f.frames.find(e=>e.type==='task.started').payload.runId;
+ f.send('task.control',{runId,action:'pause'},'event');await vi.waitFor(()=>expect(f.events.some(e=>e.kind==='desktop.done')).toBe(true));
+ f.send('task.control',{runId,action:'resume'},'event');await vi.waitFor(()=>expect(f.events.filter(e=>e.kind==='desktop.approval')).toHaveLength(2));
+ const approval=f.events.filter(e=>e.kind==='desktop.approval')[1];await f.service.dispatch('approval.reply',{id:approval.id,allow:true});
+ await vi.waitFor(()=>expect(f.frames.some(e=>e.type==='task.finished')).toBe(true));
+ expect(f.modelRequests.every(r=>r.messages[0].content.includes('- hades_browser:')&&!r.messages[0].content.includes('- file_ops:'))).toBe(true);
 });

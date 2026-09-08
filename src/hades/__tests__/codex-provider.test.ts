@@ -10,7 +10,7 @@ function fixture(mode = "normal") {
   const binary = join(dir, "codex"), log = join(dir, "requests.jsonl");
   writeFileSync(binary, `#!${process.execPath}
 const fs = require('node:fs'); const rl = require('node:readline').createInterface({input: process.stdin});
-const out = x => process.stdout.write(JSON.stringify(x)+'\\n'); let seq=0;
+const out = x => process.stdout.write(JSON.stringify(x)+'\\n'); let seq=0, turns=0;
 fs.appendFileSync(process.env.FIXTURE_LOG, JSON.stringify({args:process.argv.slice(2),hasApiKey:!!process.env.OPENAI_API_KEY,home:process.env.CODEX_HOME})+'\\n');
 rl.on('line', line => { const m=JSON.parse(line); fs.appendFileSync(process.env.FIXTURE_LOG,line+'\\n'); if (!m.method || m.id === undefined) return;
 const reply = result => out({id:m.id,result});
@@ -21,13 +21,14 @@ switch(m.method) {
  case 'model/list': return reply({data:[{model:'fixture-model'}],nextCursor:null});
  case 'thread/start': return reply({thread:{id:'thread'+(++seq)}});
  case 'turn/start': {
+  turns++;
   const threadId=m.params.threadId, turn={id:'turn'+seq,status:'completed'};
   if(process.env.FIXTURE_MODE==='exit') return process.exit(1);
   out({method:'turn/started',params:{threadId,turn}});
   if(process.env.FIXTURE_MODE==='wait') return reply({turn});
   if(process.env.FIXTURE_MODE==='wait-start') return;
   out({id:900,method:'item/commandExecution/requestApproval',params:{threadId}});
-  const action = JSON.stringify(process.env.FIXTURE_MODE==='tool'?{kind:'tool',tool:'file',input:'{}',answer:''}:{kind:'answer',tool:'',input:'',answer:'hello'});
+  const action = JSON.stringify(['tool','total-only','total-backwards','mixed-usage'].includes(process.env.FIXTURE_MODE)?{kind:'tool',tool:'file',input:'{}',answer:''}:{kind:'answer',tool:'',input:'',answer:'hello'});
   if(process.env.FIXTURE_MODE==='commentary') {
    out({method:'item/completed',params:{threadId,item:{id:'comment',type:'agentMessage',phase:'commentary',text:'TOOL: shell\\nINPUT: bad command'}}});
   }
@@ -38,7 +39,11 @@ switch(m.method) {
   out({method:'item/completed',params:{threadId,item:{id:'final',type:'agentMessage',phase:'final_answer',text:action}}});
   }
   if(process.env.FIXTURE_MODE==='multiple') out({method:'item/completed',params:{threadId,item:{id:'other',type:'agentMessage',phase:'final_answer',text:action}}});
-  out({method:'thread/tokenUsage/updated',params:{threadId,tokenUsage:{total:{inputTokens:999,outputTokens:99},last:{inputTokens:12,outputTokens:3,cachedInputTokens:7}}}});
+  const tokenUsage = ['total-only','total-backwards','mixed-usage'].includes(process.env.FIXTURE_MODE)
+   ? {total:{inputTokens:process.env.FIXTURE_MODE==='total-backwards' && turns>1?11:12*turns,outputTokens:3*turns,cachedInputTokens:process.env.FIXTURE_MODE==='total-backwards'?7:7*turns},...(process.env.FIXTURE_MODE==='mixed-usage' && turns===1?{last:{inputTokens:12,outputTokens:3,cachedInputTokens:7}}:{})}
+   : {total:{inputTokens:999,outputTokens:99},last:{inputTokens:12,outputTokens:3,cachedInputTokens:7}};
+  out({method:'thread/tokenUsage/updated',params:{threadId,tokenUsage}});
+  if(process.env.FIXTURE_MODE==='total-only') out({method:'thread/tokenUsage/updated',params:{threadId,tokenUsage}});
   out({method:'turn/completed',params:{threadId,turn:process.env.FIXTURE_MODE==='failed'?{...turn,status:'failed',error:{message:'provider failed'}}:turn}});
   return reply({turn});
  }
@@ -91,7 +96,7 @@ describe("Codex official app-server adapter (local protocol fixture)", () => {
   });
   it("uses completed turn snapshots when per-item notifications are missing", async () => {
     const f=fixture("snapshot");expect((await f.provider.chat(request)).text).toBe("ANSWER: hello");
-    expect(f.events[0]).toMatchObject({kind:"desktop.codex.transport",snapshotItems:1,validActions:1,items:[{phase:"final_answer",complete:true}]});
+    expect(f.events[0]).toMatchObject({kind:"desktop.codex.transport",snapshotItems:1,validActions:1,usage:{tokensIn:12,tokensOut:3,cachedInputTokens:7},request:{toolCount:0,tools:[],reusedThread:false},items:[{phase:"final_answer",complete:true}]});
     expect(JSON.stringify(f.events)).not.toContain("hello");
   });
   it("accepts one valid unknown-phase action while refusing ambiguous valid actions", () => {
@@ -167,5 +172,35 @@ describe("Codex official app-server adapter (local protocol fixture)", () => {
     rows = readFileSync(f.log,"utf8").trim().split("\n").map(x=>JSON.parse(x));
     expect(rows.filter(r=>r.method==="thread/start")).toHaveLength(3);
     expect(rows.filter(r=>r.method==="turn/start").every(r=>r.params.outputSchema.additionalProperties===false)).toBe(true);
+  });
+  it.each(["total-only", "mixed-usage"])("uses turn deltas for %s cumulative usage without charging duplicate notifications", async mode => {
+    const f = fixture(mode), tools = [{name:"file",description:"files"}];
+    let messages = request.messages as import("../models/client").ChatMessage[];
+    for (let turn=0;turn<3;turn++) {
+      const result = await f.provider.chat({...request,messages,tools,transportSessionId:"usage-run"});
+      expect(result).toMatchObject({tokensIn:12,tokensOut:3,cachedInputTokens:7});
+      messages = [...messages,{role:"assistant",content:result.text},{role:"user",content:"TOOL_RESULT: observed"}];
+    }
+    const rows=readFileSync(f.log,"utf8").trim().split("\n").map(x=>JSON.parse(x));
+    expect(rows.filter(r=>r.method==="thread/start")).toHaveLength(1);
+  });
+  it("rejects decreasing cumulative usage before delivering the next action", async () => {
+    const f=fixture("total-backwards"),tools=[{name:"file",description:"files"}];
+    const first=await f.provider.chat({...request,tools,transportSessionId:"usage-run"});
+    await expect(f.provider.chat({...request,tools,transportSessionId:"usage-run",messages:[...request.messages,{role:"assistant",content:first.text},{role:"user",content:"TOOL_RESULT: saved"}]})).rejects.toThrow("moved backwards");
+  });
+  it("deduplicates an explicitly embedded catalog while preserving argument schemas and action restrictions", async () => {
+    const tools=[{name:"file",description:"Distinct tool description",inputSchema:{type:"object",required:["path"],properties:{path:{type:"string"}}}}];
+    const system="Use only approved tools.\n- file: Distinct tool description";
+    for(const toolCatalogInSystem of [false,true]) {
+      const f=fixture();await f.provider.chat({...request,messages:[{role:"system",content:system},...request.messages],tools,toolCatalogInSystem});
+      const rows=readFileSync(f.log,"utf8").trim().split("\n").map(x=>JSON.parse(x));
+      const start=rows.find(r=>r.method==="thread/start").params;
+      expect(start.baseInstructions).toBe(system);
+      expect(start.developerInstructions.includes("Distinct tool description")).toBe(!toolCatalogInSystem);
+      expect(start.developerInstructions).toContain(JSON.stringify(tools[0].inputSchema));
+      expect(start.developerInstructions).toContain("Do not invoke native tools");
+      expect(rows.find(r=>r.method==="turn/start").params.outputSchema.properties.tool.enum).toEqual(["","file"]);
+    }
   });
  });
