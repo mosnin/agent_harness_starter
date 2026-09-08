@@ -22,6 +22,8 @@ export default defineConfig({
     "embeddings/index":    "src/agents/embeddings/index.ts",
     "federation/index":    "src/agents/federation/index.ts",
     "codex/index":         "src/agents/codex/index.ts",
+    "runner/index":        "src/agents/runner/index.ts",
+    "transport/index":     "src/agents/transport/index.ts",
     "runtime":             "src/agents/runtime.ts",
   },
   format: ["esm", "cjs"],
@@ -35,6 +37,7 @@ export default defineConfig({
     "@supabase/supabase-js", "@pinecone-database/pinecone",
     "@prisma/client", "convex", "modal", "@daytonaio/sdk",
     "composio-core", "@modelcontextprotocol/sdk", "@upstash/redis",
+    "@browserbasehq/sdk", "@tavily/core", "playwright-core", "ws",
     "next", "react", "react-dom",
   ],
 });

@@ -2,7 +2,7 @@
   "name": "@agent-harness/core",
   "version": "0.1.0",
   "private": false,
-  "description": "Drop-in agent infrastructure for Next.js SaaS \u2014 memory, guardrails, governance, capability tokens.",
+  "description": "Drop-in agent infrastructure for Next.js SaaS — memory, guardrails, governance, capability tokens.",
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -17,6 +17,16 @@
       "import": "./dist/security/index.mjs",
       "require": "./dist/security/index.js",
       "types": "./dist/security/index.d.ts"
+    },
+    "./runner": {
+      "import": "./dist/runner/index.mjs",
+      "require": "./dist/runner/index.js",
+      "types": "./dist/runner/index.d.ts"
+    },
+    "./transport": {
+      "import": "./dist/transport/index.mjs",
+      "require": "./dist/transport/index.js",
+      "types": "./dist/transport/index.d.ts"
     },
     "./governance": {
       "import": "./dist/governance/index.mjs",
