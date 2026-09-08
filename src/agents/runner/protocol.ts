@@ -344,6 +344,11 @@ export const CameraPoseSchema = z.object({
 	tiltX: f64,
 	tiltY: f64,
 	rotateX: f64,
+	// Defaulted on the Rust side, so a storyboard omitting them still deserializes; pinning them
+	// to 0/0/45 makes the reference poses unreproducible.
+	roll: f64.default(0),
+	rotateY: f64.default(0),
+	fov: f64.default(45),
 	focusX: f64,
 	focusY: f64,
 	focusSize: f64,
@@ -432,7 +437,9 @@ export const ErrorCodeSchema = z.enum([
 	"token_expired",
 	"scope_denied",
 	"no_active_session",
+	"session_already_active",
 	"session_expired",
+	"user_kill_switch",
 	"guard_violation",
 	"approval_required",
 	"approval_denied",

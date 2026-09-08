@@ -157,6 +157,9 @@ export const NEUTRAL_CAMERA: CameraPose = {
 	tiltX: 0,
 	tiltY: 0,
 	rotateX: 0,
+	roll: 0,
+	rotateY: 0,
+	fov: 45,
 	focusX: 0.5,
 	focusY: 0.5,
 	focusSize: 1,
@@ -195,6 +198,7 @@ function punchIn(beat: Beat): CameraPose {
 	if (!beat.landmark) return { ...NEUTRAL_CAMERA, zoom: 1.15 };
 	const { x, y, width, height } = beat.landmark;
 	return {
+		...NEUTRAL_CAMERA,
 		zoom: beat.kind === "typing" ? 1.6 : 1.35,
 		tiltX: 0,
 		tiltY: 0,
