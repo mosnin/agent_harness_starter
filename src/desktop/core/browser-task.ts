@@ -32,22 +32,50 @@ export function parseBrowserTask(value: unknown): BrowserTask | undefined {
 }
 /** Reads plus navigation to obtain a page; no form, script, memory or collection writes. */
 export const READ_ONLY_BROWSER_TOOLS = new Set(["browser.listWorkspaces", "browser.listTabs", "browser.openTab", "browser.navigate", "browser.readPage", "browser.findInPage", "page.snapshot", "page.extract", "page.waitFor", "page.screenshot", "browser.capture", "collections.list", "collections.read", "collections.search", "activity.digest", "context.search", "context.list"]);
+function evidenceExcerpt(value: string, limit: number): string {
+  if (value.length <= limit) return value;
+  const marker = "\n[Excerpt shortened]\n";
+  if (limit <= marker.length) return marker.slice(0,limit);
+  const head = Math.ceil((limit-marker.length)*0.7), tail = limit-marker.length-head;
+  return value.slice(0,head)+marker+(tail ? value.slice(-tail) : "");
+}
 export class BrowserEvidence {
   readonly sources: BrowserSource[] = [];
   private hashes = new Map<string, string>();
+  private observations = new Map<string, {priority:number;base:string;focused:Map<string,{label:string;excerpt:string;hash:string}>}>();
   fingerprint() { return createHash("sha256").update(JSON.stringify([...this.hashes].sort(([a],[b])=>a.localeCompare(b)))).digest("hex"); }
   readonly artifacts: BrowserArtifact[] = [];
-  observe(name: string, value: unknown, now = Date.now()) {
+  observe(name: string, value: unknown, now = Date.now(), args: Record<string, unknown> = {}) {
     if (!record(value)) return;
     if (["browser.readPage", "page.extract"].includes(name) && typeof value.url === "string") {
       let url: URL; try { url = new URL(value.url); } catch { return; }
       if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return;
       const excerpt = typeof value.content === "string" ? value.content : typeof value.text === "string" ? value.text : "";
-      if (excerpt && this.sources.length < 100) {
-        this.hashes.set(url.href, createHash("sha256").update(excerpt).digest("hex"));
-        const source = { url: url.href, label: String(value.title || url.hostname).slice(0, 300), excerpt: excerpt.slice(0, 2000), retrievedAt: now,
-          ...(typeof value.tabId === "string" ? { tabId: value.tabId } : {}) };
-        const index = this.sources.findIndex(s => s.url === source.url);
+      const index = this.sources.findIndex(source => source.url === url.href);
+      if (excerpt && (index >= 0 || this.sources.length < 100)) {
+        const selector = typeof args.selector === "string" ? args.selector : "";
+        const priority = name === "browser.readPage" ? 3 : !args.ref && (!selector || ["body","html"].includes(selector)) ? 2 : 1;
+        const previous = this.observations.get(url.href);
+        let observed = previous;
+        if (!observed || priority > observed.priority || (priority === observed.priority && priority > 1)) {
+          observed = {priority,base:priority > 1 ? evidenceExcerpt(excerpt,2000) : "",focused:new Map()};
+          this.observations.set(url.href,observed);
+          if (priority > 1) this.hashes.set(url.href,createHash("sha256").update(excerpt).digest("hex"));
+        }
+        if (priority === 1 || priority < observed.priority) {
+          const hash = createHash("sha256").update(excerpt).digest("hex");
+          // Snapshot refs are ephemeral. Without a stable selector, identity is
+          // the actual content, so identical reads deduplicate across snapshots.
+          const key = selector ? "selector:"+selector : "content:"+hash;
+          if (observed.focused.has(key) || observed.focused.size < 10) observed.focused.set(key,{label:selector ? evidenceExcerpt(selector,128) : "observed content",excerpt:evidenceExcerpt(excerpt,400),hash});
+        }
+        if (observed.priority === 1) this.hashes.set(url.href,createHash("sha256").update(JSON.stringify([...observed.focused].map(([key,value])=>[key,value.hash]).sort(([a],[b])=>a.localeCompare(b)))).digest("hex"));
+        const supplement = [...observed.focused.values()].map(value=>"Focused extract ("+value.label+"): "+value.excerpt).join("\n");
+        const focusedDisplay = evidenceExcerpt(supplement,observed.base ? 800 : 2000);
+        const broadDisplay = observed.base ? evidenceExcerpt(observed.base,2000-(focusedDisplay ? focusedDisplay.length+2 : 0)) : "";
+        const combined = [broadDisplay,focusedDisplay].filter(Boolean).join("\n\n");
+        const source = {url:url.href,label:String(value.title || this.sources[index]?.label || url.hostname).slice(0,300),excerpt:combined,retrievedAt:now,
+          ...(typeof value.tabId === "string" ? {tabId:value.tabId} : this.sources[index]?.tabId ? {tabId:this.sources[index].tabId} : {})};
         if (index < 0) this.sources.push(source); else this.sources[index] = source;
       }
     }

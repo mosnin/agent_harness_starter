@@ -206,7 +206,7 @@ it('replays a durable pending notebook after restart and advances its baseline o
  const first=f.frames.find(e=>e.type==='notebook.deliver').payload;let settings=JSON.parse(readFileSync(join(f.data,'desktop.json'),'utf8'));
  expect(settings.jobs[0].browser.baseline).toBeUndefined();expect(settings.jobs[0].browser.pendingOutput.runId).toBe(first.runId);
  f.service.close();const restored=new WorkbenchService(f.data,e=>f.events.push(e),f.env);services.push(restored);
- await restored.dispatch('browser.pair',{endpoint:f.endpoint,token:'fixture-reconnect-token'});
+ await restored.dispatch('browser.pair',{endpoint:f.endpoint,token:'fixture-reconnect-token',root:f.root});
  await vi.waitFor(()=>expect(f.frames.filter(e=>e.type==='notebook.deliver')).toHaveLength(2));
  const second=f.frames.filter(e=>e.type==='notebook.deliver')[1].payload;expect(second).toEqual(first);
  const ack=f.send('notebook.ack',{runId:first.runId});await vi.waitFor(()=>expect(f.frames.some(e=>e.replyTo===ack)).toBe(true));expect(f.frames.find(e=>e.replyTo===ack).payload.ok).toBe(true);
@@ -221,7 +221,7 @@ it('retains pending output across a transport reconnect and refuses wrong acknow
  const wrong=f.send('notebook.ack',{runId:'wrong-run'});await vi.waitFor(()=>expect(f.frames.some(e=>e.replyTo===wrong)).toBe(true));expect(f.frames.find(e=>e.replyTo===wrong).payload.error).toBeTruthy();
  const edit=f.send('recipe.schedule',{...recipe,prompt:'Overwrite this'});await vi.waitFor(()=>expect(f.frames.some(e=>e.replyTo===edit)).toBe(true));expect(f.frames.find(e=>e.replyTo===edit).payload.error).toContain('pending notebook');
  await f.service.dispatch('job.run',{id:job.id});await vi.waitFor(()=>expect(f.frames.filter(e=>e.type==='notebook.deliver')).toHaveLength(2));expect(f.modelRequests).toHaveLength(2);
- await f.service.dispatch('browser.disconnect',{});await f.service.dispatch('browser.pair',{endpoint:f.endpoint,token:'fixture-reconnect-token'});await vi.waitFor(()=>expect(f.frames.filter(e=>e.type==='notebook.deliver')).toHaveLength(3));
+ await f.service.dispatch('browser.disconnect',{});await f.service.dispatch('browser.pair',{endpoint:f.endpoint,token:'fixture-reconnect-token',root:f.root});await vi.waitFor(()=>expect(f.frames.filter(e=>e.type==='notebook.deliver')).toHaveLength(3));
  expect(f.frames.filter(e=>e.type==='notebook.deliver').every(e=>JSON.stringify(e.payload)===JSON.stringify(output))).toBe(true);
  const persisted=JSON.parse(readFileSync(join(f.data,'desktop.json'),'utf8')).jobs[0].browser;expect(persisted.baseline).toBeUndefined();expect(persisted.pendingOutput.notebook.sources[0].excerpt).toBe('Price: $10');
 });
@@ -266,4 +266,14 @@ it('explains host notebook persistence on every research turn and keeps memory w
  for(const request of f.modelRequests){expect(request.messages[0].content).toContain('automatic ResearchNotebook storage');expect(request.messages[0].content).toContain('A refused memory write does not mean ResearchNotebook saving failed');}
  expect(JSON.stringify(f.modelRequests[2])).toContain('no context.write is needed');expect(f.frames.filter(e=>e.type==='tool.call').map(e=>e.payload.name)).toEqual(['browser.readPage']);
  expect(f.frames.find(e=>e.type==='task.finished').payload.notebook.sources[0].excerpt).toBe('Price: $10');
+});
+
+it('defaults browser pairing to a private workspace without replacing existing projects',async()=>{
+ const f=await fixture('answer');const before=JSON.parse(readFileSync(join(f.data,'desktop.json'),'utf8')).projects;
+ const paired:any=await f.service.dispatch('browser.pair',{endpoint:f.endpoint,token:'fixture-private-root-token'});
+ expect(paired.root).toBe(realpathSync(join(f.data,'browser-workspace')));expect(JSON.parse(readFileSync(join(f.data,'desktop.json'),'utf8')).projects).toEqual(before);
+ f.send('chat.send',{text:'Read the attached page'});await vi.waitFor(()=>expect(f.frames.some(e=>e.type==='task.finished')).toBe(true));
+ const system=f.modelRequests[0].messages[0].content;expect(system).toContain('Workspace: '+paired.root);expect(system).toContain('Use attached tab IDs directly');expect(system).toContain('only when the target workspace or tab IDs are unknown');expect(system).toContain('Once the requested facts and source evidence are sufficient, return the final answer directly');
+ expect(system).not.toContain('First browser.listWorkspaces');expect(system).not.toContain('Then page.snapshot');
+ const explicit:any=await f.service.dispatch('browser.pair',{endpoint:f.endpoint,token:'fixture-explicit-root-token',root:f.root});expect(explicit.root).toBe(realpathSync(f.root));
 });
