@@ -23,7 +23,7 @@ export class HookService {
     const content = readFileSync(path);
     // Interpreter command-line modes can execute mutable code absent from this consent.
     // Choose the executable script itself, with an absolute shebang, instead.
-    if (/^(?:node|python[\d.]*|ruby|perl|bash|sh|zsh|fish|env|osascript)(?:\.exe)?$/.test(path.split("/").at(-1)!)) throw new Error("Choose the script itself, with a shebang and executable permission, rather than an interpreter.");
+    if (/^(?:node|python[\d.]*|ruby|perl|bash|dash|ash|ksh[\d.]*|mksh|csh|tcsh|sh|zsh|fish|env|osascript)(?:\.exe)?$/.test(path.split("/").at(-1)!)) throw new Error("Choose the script itself, with a shebang and executable permission, rather than an interpreter.");
     return createHash("sha256").update(JSON.stringify({ name: hook.name, profile: hook.profile, root: hook.root, phase: hook.phase, executable: path, args: hook.args, matcher: hook.matcher, timeoutSeconds: hook.timeoutSeconds, dev: info.dev, ino: info.ino, mode: info.mode })).update(content).digest("hex");
   }
   list(profile: string) { this.deps.profile(profile); return this.rows(profile).map(h => { const { consent, ...publicHook } = h; try { const fingerprint = this.fingerprint(h); return { ...publicHook, status: consent ? fingerprint === consent ? "active" : "needs_review" : "inactive" }; } catch (error) { return { ...publicHook, status: "needs_review", error: error instanceof Error ? error.message : String(error) }; } }); }

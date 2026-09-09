@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HookService, type HookEvent } from "../core/shell-hooks";
@@ -23,6 +23,13 @@ describe("Consented native shell hooks (temporary executable fixtures)", () => {
     expect(f.service.list("default")[0].status).toBe("needs_review"); expect((await f.service.run(f.event, new AbortController().signal))[0].status).toBe("failed"); expect(existsSync(join(f.dir, "forbidden"))).toBe(false);
     f.service.consent(row.id, "default", true); f.save(path, { id: row.id, name: "Edited" }); expect(f.service.list("default")[0].status).toBe("inactive");
     expect(() => f.save("/bin/sh", { args: ["-c", "anything"] })).toThrow("interpreter");
+  });
+  it.each(["dash", "ash", "ksh", "ksh93", "mksh", "csh", "tcsh"])("rejects canonical %s shell launchers and their sh aliases", name => {
+    const f = fixture(), canonical = f.script("printf should-not-run", name), alias = join(f.dir, "sh");
+    symlinkSync(canonical, alias);
+    expect(() => f.save(canonical, {args:["-c", "anything"]})).toThrow("interpreter");
+    expect(() => f.save(alias, {args:["-c", "anything"]})).toThrow("interpreter");
+    expect(f.service.list("default")).toEqual([]);
   });
   it("stops remaining pre hooks after failure but retains post hook failure receipts", async () => {
     const f = fixture(); for (const [path, phase] of [[f.script("exit 2", "fail"), "pre_tool"], [f.script("touch forbidden", "next"), "pre_tool"], [f.script("exit 3", "post"), "post_tool"]] as const) { const row = f.save(path, { phase }); f.service.consent(row.id, "default", true); }

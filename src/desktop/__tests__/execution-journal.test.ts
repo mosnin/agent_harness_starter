@@ -46,6 +46,7 @@ it("retains successful tools over turns, clears completed streams and redacts kn
     expect(JSON.stringify(state)).not.toMatch(/private-fixture-value|abc.secret|mypassword/);
   } finally { journal.close(); }
 });
+// Exercises 1,200 synchronous FULL durability commits, not a latency contract.
 it("evicts old excerpts within the global byte bound", () => {
   const { path, journal } = setup();
   try {
@@ -54,9 +55,13 @@ it("evicts old excerpts within the global byte bound", () => {
     try {
       expect((db.prepare("SELECT SUM(bytes) AS n FROM events").get() as any).n).toBeLessThanOrEqual(8 * 1024 * 1024);
       expect((db.prepare("SELECT MAX(bytes) AS n FROM events").get() as any).n).toBeLessThan(13000);
+      const retained = db.prepare("SELECT COUNT(*) AS count, MIN(id) AS oldest FROM events").get() as {count: number; oldest: number};
+      expect(retained.count).toBeGreaterThan(0);
+      expect(retained.count).toBeLessThan(1200);
+      expect(retained.oldest).toBeGreaterThan(1);
     } finally { db.close(); }
   } finally { journal.close(); }
-});
+}, 20000);
 
 it("clears prior-turn usage and preserves measured cached input tokens", () => {
   const { journal } = setup();
