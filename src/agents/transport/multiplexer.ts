@@ -97,6 +97,12 @@ const DEFAULTS = {
 	heartbeatTimeoutMs: 45_000,
 };
 
+/**
+ * Once a connection is bound to a runner id, a second handshake reply is the only way for it to
+ * claim a different id — and evict whoever legitimately holds it. It is a violation, not a retry.
+ */
+const REPEATED_HANDSHAKE = protocolError("internal", "Runner answered the handshake a second time.");
+
 export class SessionMultiplexer {
 	private readonly opts: Required<Omit<MultiplexerOptions, "logger">> & { logger: TransportLogger };
 	private readonly connections = new Set<Connection>();
@@ -190,7 +196,15 @@ export class SessionMultiplexer {
 			);
 		}
 
-		const id = this.opts.newId();
+		// Correlation is by id alone, so an id already in flight on this connection would let one
+		// reply settle the wrong command and one timer clear the wrong entry.
+		let id = this.opts.newId();
+		for (let attempt = 0; conn.pending.has(id) && attempt < 8; attempt++) id = this.opts.newId();
+		if (conn.pending.has(id)) {
+			throw new RunnerTransportError(
+				protocolError("internal", `Could not allocate a unique command id for "${command.type}".`),
+			);
+		}
 		const timeoutMs = options.timeoutMs ?? this.opts.commandTimeoutMs;
 
 		return new Promise<CommandResult>((resolve, reject) => {
@@ -337,6 +351,10 @@ export class SessionMultiplexer {
 				return;
 			case "reply":
 				if (envelope.id === conn.handshakeId) {
+					if (conn.runnerId !== null) {
+						this.kill(conn, REPEATED_HANDSHAKE);
+						return;
+					}
 					this.completeHandshake(conn, envelope.result);
 					return;
 				}
@@ -344,7 +362,7 @@ export class SessionMultiplexer {
 				return;
 			case "failure":
 				if (envelope.id === conn.handshakeId) {
-					this.kill(conn, envelope.error);
+					this.kill(conn, conn.runnerId === null ? envelope.error : REPEATED_HANDSHAKE);
 					return;
 				}
 				this.settle(conn, envelope.id, { ok: false, error: envelope.error });

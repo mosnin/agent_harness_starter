@@ -219,6 +219,49 @@ describe("SessionMultiplexer correlation", () => {
 	});
 });
 
+describe("SessionMultiplexer identity binding", () => {
+	it("kills a connection that answers the handshake a second time under another runner id", async () => {
+		const mux = new SessionMultiplexer();
+		const victim = await connect(mux, runnerInfo({ runnerId: "runner-b" }));
+		const { socket, attached } = await connect(mux);
+		const handshake = socket.sent[0];
+		if (handshake.kind !== "command") throw new Error("expected handshake command");
+
+		attached.receive(
+			JSON.stringify({
+				kind: "reply",
+				id: handshake.id,
+				result: { type: "handshake", runner: runnerInfo({ runnerId: "runner-b" }) },
+			}),
+		);
+
+		expect(mux.connection("runner-b")).not.toBeNull();
+		expect(victim.socket.closed).toBeNull();
+		expect(mux.isConnected("runner-a")).toBe(false);
+		expect(socket.closed).not.toBeNull();
+		expect(mux.listConnections().map((c) => c.runnerId)).toEqual(["runner-b"]);
+	});
+
+	it("never puts two in-flight commands on the wire with the same id", async () => {
+		const ids = ["handshake", "dup", "dup", "fresh"];
+		const mux = new SessionMultiplexer({ newId: () => ids.shift() ?? globalThis.crypto.randomUUID() });
+		const { socket, attached } = await connect(mux);
+
+		const first = mux.send("runner-a", OBSERVE, "tok");
+		const second = mux.send("runner-a", { type: "listWindows" }, "tok");
+		const wire = socket.sent.flatMap((e) =>
+			e.kind === "command" && e.command.type !== "handshake" ? [e] : [],
+		);
+		expect(wire).toHaveLength(2);
+		expect(wire[0].id).not.toBe(wire[1].id);
+
+		attached.receive(JSON.stringify({ kind: "reply", id: wire[1].id, result: { type: "windows", windows: [] } }));
+		await expect(second).resolves.toMatchObject({ type: "windows" });
+		attached.disconnected("done");
+		await expect(first).rejects.toThrow();
+	});
+});
+
 describe("SessionMultiplexer timeouts", () => {
 	beforeEach(() => vi.useFakeTimers());
 	afterEach(() => vi.useRealTimers());
@@ -240,6 +283,36 @@ describe("SessionMultiplexer timeouts", () => {
 		const assertion = expect(pending).rejects.toThrow(/did not reply to "observe" within 5000ms/);
 		vi.advanceTimersByTime(5_001);
 		await assertion;
+	});
+
+	it("ignores a reply that arrives after its command timed out and leaves later commands alone", async () => {
+		const mux = new SessionMultiplexer({ commandTimeoutMs: 100 });
+		const socket = new FakeSocket();
+		const attached = mux.attach(socket);
+		attached.receive(
+			JSON.stringify({
+				kind: "reply",
+				id: socket.lastCommandId(),
+				result: { type: "handshake", runner: runnerInfo() },
+			}),
+		);
+		await attached.ready;
+
+		const stale = mux.send("runner-a", OBSERVE, "tok");
+		const staleId = socket.lastCommandId();
+		const staleAssertion = expect(stale).rejects.toThrow(/within 100ms/);
+		vi.advanceTimersByTime(101);
+		await staleAssertion;
+
+		const later = mux.send("runner-a", { type: "listWindows" }, "tok");
+		const laterId = socket.lastCommandId();
+		expect(laterId).not.toBe(staleId);
+
+		attached.receive(JSON.stringify({ kind: "reply", id: staleId, result: { type: "windows", windows: [] } }));
+		expect(mux.connection("runner-a")?.inFlight).toBe(1);
+
+		attached.receive(JSON.stringify({ kind: "reply", id: laterId, result: { type: "windows", windows: [] } }));
+		await expect(later).resolves.toMatchObject({ type: "windows" });
 	});
 
 	it("honours a per-command timeout override", async () => {

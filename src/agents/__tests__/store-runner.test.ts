@@ -195,6 +195,35 @@ for (const { name, create } of IMPLEMENTATIONS) {
 			).rejects.toMatchObject({ code: "PAIRING_SCOPE_WIDENED" });
 		});
 
+		it("refuses to hand a runner id owned by one user to a second user", async () => {
+			const owner = await startPairing(IDENTITY, ["observe_screen"], store);
+			await approvePairing(owner.userCode, "user-1", ["observe_screen"], store);
+
+			const hijack = await startPairing(IDENTITY, ["observe_screen", "control_keyboard"], store);
+			await expect(
+				approvePairing(hijack.userCode, "user-2", ["observe_screen", "control_keyboard"], store),
+			).rejects.toMatchObject({ code: "PAIRING_RUNNER_OWNED" });
+			expect((await store.getRunner(IDENTITY.runnerId))?.userId).toBe("user-1");
+		});
+
+		it("treats a code as valid at exactly its expiry instant and expired one ms later", async () => {
+			const t0 = 1_700_000_000_000;
+			const started = await startPairing(IDENTITY, ["observe_screen"], store, t0);
+			await approvePairing(started.userCode, "user-1", ["observe_screen"], store, started.expiresAt);
+			expect((await claimPairing(started.deviceCode, store, started.expiresAt)).status).toBe("approved");
+
+			const again = await startPairing(
+				{ ...IDENTITY, runnerId: "runner-late" },
+				["observe_screen"],
+				store,
+				t0,
+			);
+			await expect(
+				approvePairing(again.userCode, "user-1", ["observe_screen"], store, again.expiresAt + 1),
+			).rejects.toMatchObject({ code: "PAIRING_EXPIRED" });
+			expect((await claimPairing(again.deviceCode, store, again.expiresAt + 1)).status).toBe("expired");
+		});
+
 		it("reports a denied code to the runner without minting a record", async () => {
 			const started = await startPairing(IDENTITY, ["observe_screen"], store);
 			await denyPairing(started.userCode, store);

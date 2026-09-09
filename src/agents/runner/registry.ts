@@ -291,6 +291,9 @@ export async function startPairing(
  * Step 2 — an authenticated user approves the code shown on the machine.
  * `grantedScopes` may only narrow what the runner asked for; a user cannot be tricked into
  * granting an authority the runner did not request, and Hades cannot widen one silently.
+ * A runner id already paired to a different user is refused: the id is self-asserted by the
+ * machine, so a second pairing under it would otherwise transfer the record — and every future
+ * session on that machine — to whoever approved second.
  */
 export async function approvePairing(
 	userCode: string,
@@ -315,6 +318,14 @@ export async function approvePairing(
 		throw new PairingError(
 			`Cannot grant scopes the runner did not request: ${widened.join(", ")}.`,
 			"PAIRING_SCOPE_WIDENED",
+		);
+	}
+
+	const existing = await store.getRunner(request.identity.runnerId);
+	if (existing && existing.userId !== userId) {
+		throw new PairingError(
+			`Runner "${request.identity.runnerId}" is already paired to another user.`,
+			"PAIRING_RUNNER_OWNED",
 		);
 	}
 

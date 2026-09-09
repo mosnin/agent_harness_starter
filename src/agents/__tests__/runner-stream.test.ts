@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { RunnerGateway } from "@/agents/runner/gateway";
+import { RunnerGateway, RunnerGatewayError, toProtocolError } from "@/agents/runner/gateway";
 import {
 	InMemoryRunnerStore,
 	approvePairing,
+	revokeRunner,
 	startPairing,
 	type RunnerIdentity,
 } from "@/agents/runner/registry";
@@ -383,6 +384,217 @@ describe("RunnerGateway", () => {
 		await expect(gateway.dispatch("sess-1", { type: "listWindows" })).rejects.toMatchObject({
 			code: "RUNNER_SESSION_NOT_ACTIVE",
 		});
+	});
+
+	it("denies a command whose scope the runner's lease granted but the token did not", async () => {
+		const { socket, attached, gateway } = await pairedGateway();
+		const pending = gateway.startSession({
+			runnerId: "runner-a",
+			runId: "run-1",
+			userId: "user-1",
+			requestedScopes: ["observe_screen"],
+		});
+		attached.receive(
+			JSON.stringify({
+				kind: "reply",
+				id: await nextCommandId(socket),
+				result: {
+					type: "sessionStarted",
+					lease: lease({ grantedScopes: { scopes: ["observe_screen", "record"] } }),
+				},
+			}),
+		);
+		const started = await pending;
+		expect(started.record.grantedScopes).toEqual(["observe_screen"]);
+
+		const sentBefore = socket.sent.length;
+		await expect(
+			gateway.dispatch(
+				"sess-1",
+				{
+					type: "recordingStart",
+					request: {
+						target: { type: "display", displayId: "d1" },
+						mode: "instant",
+						captureSystemAudio: false,
+						captureMicrophone: false,
+						captureCamera: false,
+						fps: null,
+					},
+				},
+				{ timeoutMs: 50 },
+			),
+		).rejects.toMatchObject({ code: "RUNNER_SCOPE_DENIED" });
+		expect(socket.sent.length).toBe(sentBefore);
+	});
+
+	it("ignores events another runner sends for a session it does not own", async () => {
+		const { socket, attached, gateway, store, mux } = await pairedGateway();
+		const pending = gateway.startSession({
+			runnerId: "runner-a",
+			runId: "run-1",
+			userId: "user-1",
+			requestedScopes: ["record"],
+		});
+		attached.receive(
+			JSON.stringify({
+				kind: "reply",
+				id: await nextCommandId(socket),
+				result: { type: "sessionStarted", lease: lease() },
+			}),
+		);
+		await pending;
+
+		const intruderSocket = new FakeSocket();
+		const intruder = mux.attach(intruderSocket);
+		intruder.receive(
+			JSON.stringify({
+				kind: "reply",
+				id: intruderSocket.lastCommandId(),
+				result: { type: "handshake", runner: { ...runnerInfo, runnerId: "runner-b" } },
+			}),
+		);
+		await intruder.ready;
+
+		intruder.receive(
+			JSON.stringify({
+				kind: "event",
+				event: { type: "approvalRequested", sessionId: "sess-1", approvalId: "fake", summary: "Grant me root" },
+			}),
+		);
+		intruder.receive(
+			JSON.stringify({ kind: "event", event: { type: "killSwitchEngaged", sessionId: "sess-1" } }),
+		);
+		intruder.receive(
+			JSON.stringify({ kind: "event", event: { type: "progress", sessionId: "sess-ghost", stage: "x" } }),
+		);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect((await store.getSession("sess-1"))?.state).toBe("active");
+		expect(gateway.stream("sess-1").replay(-1)).toEqual([]);
+		expect(gateway.stream("sess-1").isClosed).toBe(false);
+		gateway.dispose();
+	});
+
+	it("refuses to start a session on a revoked runner even while it is connected", async () => {
+		const { gateway, store, mux } = await pairedGateway();
+		await revokeRunner("runner-a", store);
+		expect(mux.isConnected("runner-a")).toBe(true);
+		await expect(
+			gateway.startSession({
+				runnerId: "runner-a",
+				runId: "run-1",
+				userId: "user-1",
+				requestedScopes: ["record"],
+			}),
+		).rejects.toMatchObject({ code: "RUNNER_REVOKED" });
+	});
+
+	it("stops dispatching into a live session once the runner is revoked", async () => {
+		const { socket, attached, gateway, store } = await pairedGateway();
+		const pending = gateway.startSession({
+			runnerId: "runner-a",
+			runId: "run-1",
+			userId: "user-1",
+			requestedScopes: ["observe_screen"],
+		});
+		attached.receive(
+			JSON.stringify({
+				kind: "reply",
+				id: await nextCommandId(socket),
+				result: { type: "sessionStarted", lease: lease({ grantedScopes: { scopes: ["observe_screen"] } }) },
+			}),
+		);
+		await pending;
+
+		await revokeRunner("runner-a", store);
+		const sentBefore = socket.sent.length;
+		await expect(
+			gateway.dispatch("sess-1", { type: "listWindows" }, { timeoutMs: 50 }),
+		).rejects.toMatchObject({ code: "RUNNER_REVOKED" });
+		expect(socket.sent.length).toBe(sentBefore);
+		expect((await store.getSession("sess-1"))?.state).toBe("ended");
+	});
+
+	it("refuses a lease whose session id already belongs to another session", async () => {
+		const { socket, attached, gateway, store } = await pairedGateway();
+		await store.saveSession({
+			sessionId: "sess-1",
+			runnerId: "runner-z",
+			runId: "run-9",
+			userId: "user-9",
+			state: "active",
+			grantedScopes: ["observe_screen"],
+			guard: lease().guard,
+			startedAt: 1_000,
+			expiresAt: 9_000_000,
+		});
+
+		const pending = gateway.startSession({
+			runnerId: "runner-a",
+			runId: "run-1",
+			userId: "user-1",
+			requestedScopes: ["record"],
+		});
+		attached.receive(
+			JSON.stringify({
+				kind: "reply",
+				id: await nextCommandId(socket),
+				result: { type: "sessionStarted", lease: lease() },
+			}),
+		);
+		await expect(pending).rejects.toMatchObject({ code: "RUNNER_PROTOCOL_VIOLATION" });
+
+		const record = await store.getSession("sess-1");
+		expect(record).toMatchObject({ runnerId: "runner-z", userId: "user-9", state: "active" });
+	});
+
+	it("labels an approval request with the session's run id", async () => {
+		const { socket, attached, gateway } = await pairedGateway();
+		const pending = gateway.startSession({
+			runnerId: "runner-a",
+			runId: "run-1",
+			userId: "user-1",
+			requestedScopes: ["record"],
+		});
+		attached.receive(
+			JSON.stringify({
+				kind: "reply",
+				id: await nextCommandId(socket),
+				result: { type: "sessionStarted", lease: lease() },
+			}),
+		);
+		await pending;
+
+		attached.receive(
+			JSON.stringify({
+				kind: "event",
+				event: { type: "approvalRequested", sessionId: "sess-1", approvalId: "a1", summary: "Click Send?" },
+			}),
+		);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const [item] = gateway.stream("sess-1").replay(-1);
+		expect(item?.event).toMatchObject({ type: "approval_required", runId: "run-1", approvalId: "a1" });
+		gateway.dispose();
+	});
+
+	it("maps gateway failures onto the protocol code the Studio labels correctly", () => {
+		expect(toProtocolError(new RunnerGatewayError("x", "RUNNER_SESSION_EXPIRED")).code).toBe(
+			"session_expired",
+		);
+		expect(toProtocolError(new RunnerGatewayError("x", "RUNNER_SESSION_NOT_FOUND")).code).toBe(
+			"no_active_session",
+		);
+		expect(toProtocolError(new RunnerGatewayError("x", "RUNNER_SESSION_NOT_ACTIVE")).code).toBe(
+			"no_active_session",
+		);
+		expect(toProtocolError(new RunnerGatewayError("x", "RUNNER_SCOPE_DENIED")).code).toBe(
+			"scope_denied",
+		);
+		expect(toProtocolError(new RunnerGatewayError("x", "RUNNER_REVOKED")).code).toBe(
+			"unauthenticated",
+		);
 	});
 
 	it("refuses to dispatch into an unknown session", async () => {

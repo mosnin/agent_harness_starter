@@ -16,6 +16,7 @@ import { RunnerTransportError, type SessionMultiplexer } from "../transport/mult
 import {
 	type Command,
 	type CommandResult,
+	type ErrorCode,
 	type RunnerEvent,
 	type Scope,
 	type SessionEndReason,
@@ -79,7 +80,8 @@ export class RunnerGateway {
 	private readonly defaultSessionMs: number;
 	private readonly audience: string;
 	private readonly now: () => number;
-	private readonly tokens = new Map<string, string>();
+	private readonly tokens = new Map<string, { token: string; scopes: Scope[] }>();
+	private readonly owners = new Map<string, { runnerId: string; runId: string }>();
 	private readonly streams = new Map<string, RunStream>();
 	private readonly unsubscribe: () => void;
 
@@ -101,6 +103,7 @@ export class RunnerGateway {
 		for (const stream of this.streams.values()) stream.close();
 		this.streams.clear();
 		this.tokens.clear();
+		this.owners.clear();
 	}
 
 	/**
@@ -171,6 +174,20 @@ export class RunnerGateway {
 		}
 
 		const lease = result.lease;
+		const existing = await this.store.getSession(lease.sessionId);
+		if (existing) {
+			void this.mux
+				.send(options.runnerId, { type: "sessionEnd", reason: "control_plane_cancelled" }, minted.token)
+				.catch(() => {});
+			throw new RunnerGatewayError(
+				`Runner answered sessionStart with a session id that is already in use ("${lease.sessionId}").`,
+				"RUNNER_PROTOCOL_VIOLATION",
+			);
+		}
+
+		// The lease is the runner's word; the token is ours. A command is authorized only by what
+		// both grant, so a lease that widens the request cannot widen the session.
+		const tokenScopes = new Set(minted.scopes);
 		const startedAt = this.now();
 		const record: RunnerSessionRecord = {
 			sessionId: lease.sessionId,
@@ -178,14 +195,15 @@ export class RunnerGateway {
 			runId: options.runId,
 			userId: options.userId,
 			state: "active",
-			grantedScopes: lease.grantedScopes.scopes,
+			grantedScopes: lease.grantedScopes.scopes.filter((s) => tokenScopes.has(s)).sort(),
 			guard: lease.guard,
 			startedAt,
 			expiresAt: lease.expiresAtUnixMs || startedAt + this.defaultSessionMs,
 		};
 
 		await this.store.saveSession(record);
-		this.tokens.set(lease.sessionId, minted.token);
+		this.tokens.set(lease.sessionId, { token: minted.token, scopes: minted.scopes });
+		this.owners.set(lease.sessionId, { runnerId: options.runnerId, runId: options.runId });
 		this.streams.set(lease.sessionId, new RunStream());
 		await touchRunner(options.runnerId, this.store, startedAt);
 
@@ -219,9 +237,27 @@ export class RunnerGateway {
 			throw new RunnerGatewayError(`Session "${sessionId}" expired.`, "RUNNER_SESSION_EXPIRED");
 		}
 
-		const granted = new Set(record.grantedScopes);
+		const runner = await this.store.getRunner(record.runnerId);
+		if (!runner || runner.revokedAt) {
+			await this.markEnded(record, "control_plane_cancelled");
+			throw new RunnerGatewayError(
+				`Runner "${record.runnerId}" was revoked; session "${sessionId}" is closed.`,
+				"RUNNER_REVOKED",
+			);
+		}
+
+		const held = this.tokens.get(sessionId);
+		if (!held) {
+			throw new RunnerGatewayError(
+				`No capability token held for session "${sessionId}". Start a new session.`,
+				"RUNNER_TOKEN_MISSING",
+			);
+		}
+
+		const leaseGranted = new Set(record.grantedScopes);
+		const tokenGranted = new Set(held.scopes);
 		const needed = requiredScopesForCommand(command);
-		const missing = needed.filter((s) => !granted.has(s));
+		const missing = needed.filter((s) => !leaseGranted.has(s) || !tokenGranted.has(s));
 		if (missing.length > 0) {
 			throw new RunnerGatewayError(
 				`Command "${command.type}" needs ungranted scopes: ${missing.join(", ")}.`,
@@ -229,15 +265,7 @@ export class RunnerGateway {
 			);
 		}
 
-		const token = this.tokens.get(sessionId);
-		if (!token) {
-			throw new RunnerGatewayError(
-				`No capability token held for session "${sessionId}". Start a new session.`,
-				"RUNNER_TOKEN_MISSING",
-			);
-		}
-
-		return this.mux.send(record.runnerId, command, token, options);
+		return this.mux.send(record.runnerId, command, held.token, options);
 	}
 
 	async endSession(
@@ -248,13 +276,13 @@ export class RunnerGateway {
 		const record = await this.store.getSession(sessionId);
 		if (!record) return;
 
-		const token = this.tokens.get(sessionId);
-		if (token && this.mux.isConnected(record.runnerId)) {
+		const held = this.tokens.get(sessionId);
+		if (held && this.mux.isConnected(record.runnerId)) {
 			try {
 				await this.mux.send(
 					record.runnerId,
 					{ type: "sessionEnd", reason },
-					token,
+					held.token,
 					options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {},
 				);
 			} catch (err) {
@@ -291,7 +319,15 @@ export class RunnerGateway {
 			endReason: reason,
 		});
 		this.tokens.delete(record.sessionId);
+		this.owners.delete(record.sessionId);
 		this.streams.get(record.sessionId)?.close();
+	}
+
+	private async storedOwner(
+		sessionId: string,
+	): Promise<{ runnerId: string; runId: string } | null> {
+		const record = await this.store.getSession(sessionId);
+		return record ? { runnerId: record.runnerId, runId: record.runId } : null;
 	}
 
 	private async handleRunnerEvent(runnerId: string, event: RunnerEvent): Promise<void> {
@@ -300,8 +336,19 @@ export class RunnerGateway {
 			return;
 		}
 
+		// A runner may only speak for sessions it owns. Sessions this process opened resolve
+		// synchronously so their events land in the stream on the same tick; anything else is
+		// looked up, and an unknown session is nobody's.
+		const owner =
+			this.owners.get(event.sessionId) ?? (await this.storedOwner(event.sessionId));
+		if (!owner || owner.runnerId !== runnerId) return;
+
 		const agentEvent = runnerEventToAgentEvent(event);
-		if (agentEvent) this.stream(event.sessionId).push(agentEvent);
+		if (agentEvent) {
+			this.stream(event.sessionId).push(
+				agentEvent.type === "approval_required" ? { ...agentEvent, runId: owner.runId } : agentEvent,
+			);
+		}
 
 		if (event.type === "sessionEnded") {
 			const record = await this.store.getSession(event.sessionId);
@@ -320,9 +367,27 @@ export class RunnerGateway {
 export function toProtocolError(err: unknown) {
 	if (err instanceof RunnerTransportError) return err.protocol;
 	if (err instanceof RunnerGatewayError) {
-		return protocolError("scope_denied", err.message, err.remediation);
+		return protocolError(gatewayErrorCode(err.code), err.message, err.remediation);
 	}
 	return protocolError("internal", err instanceof Error ? err.message : String(err));
+}
+
+function gatewayErrorCode(code: string): ErrorCode {
+	switch (code) {
+		case "RUNNER_SESSION_EXPIRED":
+			return "session_expired";
+		case "RUNNER_SESSION_NOT_FOUND":
+		case "RUNNER_SESSION_NOT_ACTIVE":
+		case "RUNNER_TOKEN_MISSING":
+			return "no_active_session";
+		case "RUNNER_NOT_PAIRED":
+		case "RUNNER_REVOKED":
+			return "unauthenticated";
+		case "RUNNER_PROTOCOL_VIOLATION":
+			return "internal";
+		default:
+			return "scope_denied";
+	}
 }
 
 // ── Process-wide gateway ──────────────────────────────────────────────────────

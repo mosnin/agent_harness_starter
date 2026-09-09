@@ -16,7 +16,7 @@ import { auth } from "@/agents/auth";
 import { getRunnerGateway } from "@/agents/runner/gateway";
 import { getRunnerStore } from "@/agents/runner/registry";
 import { parseLastEventId } from "@/agents/runner/stream";
-import { sseEventStream } from "@/agents/transport/sse";
+import { sseFrame } from "@/agents/transport/sse";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,14 +47,34 @@ export async function GET(req: Request) {
 
 	const after = parseLastEventId(req.headers.get("Last-Event-ID"));
 	const stream = gateway.stream(sessionId);
+	const runId = session.runId;
 
-	async function* events() {
-		for await (const { seq, event } of stream.subscribe(after, req.signal)) {
-			yield { seq, sessionId, runId: session?.runId, ...event };
-		}
+	// An EventSource reconnects forever after a 200 that closes; 204 is the spec's "stop".
+	if (session.state === "ended" && after >= stream.lastSeq) {
+		return new Response(null, { status: 204 });
 	}
 
-	return new Response(sseEventStream(events(), { withIds: true, startSeq: after + 1 }), {
+	// Each frame's `id:` is the event's own sequence number, not a counter started at the
+	// cursor: after the retained buffer has dropped events the two diverge, and a client that
+	// resumes from a counter value replays or skips. No `[DONE]` sentinel — every `data:` line
+	// here must JSON.parse for an EventSource consumer.
+	const encoder = new TextEncoder();
+	const body = new ReadableStream<Uint8Array>({
+		async start(controller) {
+			try {
+				for await (const { seq, event } of stream.subscribe(after, req.signal)) {
+					controller.enqueue(encoder.encode(sseFrame({ seq, sessionId, runId, ...event }, seq)));
+				}
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				controller.enqueue(encoder.encode(sseFrame({ type: "error", error: message })));
+			} finally {
+				controller.close();
+			}
+		},
+	});
+
+	return new Response(body, {
 		headers: {
 			"Content-Type": "text/event-stream",
 			"Cache-Control": "no-cache, no-transform",

@@ -97,6 +97,32 @@ describe("device-code pairing", () => {
 		expect(await claimPairing(started.deviceCode, store)).toEqual({ status: "denied" });
 	});
 
+	it("refuses to let a second user re-pair a runner id that another user owns", async () => {
+		const store = new InMemoryRunnerStore();
+		const victim = await startPairing(identity, ["record"], store);
+		await approvePairing(victim.userCode, "user-1", ["record"], store);
+
+		const hijack = await startPairing(identity, ["record", "control_keyboard"], store);
+		await expect(
+			approvePairing(hijack.userCode, "user-2", ["record", "control_keyboard"], store),
+		).rejects.toMatchObject({ code: "PAIRING_RUNNER_OWNED" });
+
+		const runner = await store.getRunner("runner-a");
+		expect(runner?.userId).toBe("user-1");
+		expect(runner?.grantedScopes).toEqual(["record"]);
+		await expect(claimPairing(hijack.deviceCode, store)).resolves.toMatchObject({ status: "pending" });
+	});
+
+	it("lets the owning user re-pair their own runner to change its scopes", async () => {
+		const store = new InMemoryRunnerStore();
+		const first = await startPairing(identity, ["record"], store);
+		await approvePairing(first.userCode, "user-1", ["record"], store);
+
+		const again = await startPairing(identity, ["record", "observe_screen"], store);
+		const runner = await approvePairing(again.userCode, "user-1", ["observe_screen", "record"], store);
+		expect(runner.grantedScopes).toEqual(["observe_screen", "record"]);
+	});
+
 	it("rejects an unknown user code and an unknown device code", async () => {
 		const store = new InMemoryRunnerStore();
 		await expect(approvePairing("AAAA-BBBB", "u", [], store)).rejects.toBeInstanceOf(PairingError);
