@@ -27,8 +27,6 @@ import {
 	ObserveRequestSchema,
 	StartRecordingRequestSchema,
 	StoryboardSchema,
-	captureGeometry,
-	observationExtensions,
 	scopeForAction,
 	guardRedactsTitle,
 } from "./types";
@@ -85,10 +83,10 @@ export interface ObservationSummary {
 	focusedWindow: WindowInfo | null;
 	redactedWindows: string[];
 	/**
-	 * Protocol v1.2 `maskedRegions`: areas blacked out in the image itself. An element whose
-	 * bounds fall inside one cannot be visually verified from this frame.
+	 * Areas blacked out in the image itself. An element whose bounds fall inside one cannot be
+	 * visually verified from this frame.
 	 */
-	maskedRegions?: Rect[];
+	maskedRegions: Rect[];
 	elementCount: number;
 	elementsTruncated: boolean;
 	elements: Array<{
@@ -136,7 +134,7 @@ export function summarizeFrame(
 		display: frame.display,
 		focusedWindow: frame.focusedWindow ?? null,
 		redactedWindows: frame.redactedWindows,
-		maskedRegions: observationExtensions(frame).maskedRegions,
+		maskedRegions: frame.maskedRegions,
 		elementCount: frame.elements.length,
 		elementsTruncated: frame.elements.length > elements.length,
 		elements,
@@ -160,7 +158,7 @@ export function observationFingerprint(observation: ObservationSummary): string 
 
 export interface CapToolPack {
 	observe: ToolDefinition<z.ZodTypeAny, ObservationSummary>;
-	listWindows: ToolDefinition<z.ZodTypeAny, { count: number; windows: WindowInfo[] }>;
+	listWindows: ToolDefinition<z.ZodTypeAny, ListWindowsResult>;
 	act: ToolDefinition<z.ZodTypeAny, ActToolResult>;
 	recordingStart: ToolDefinition<
 		z.ZodTypeAny,
@@ -183,12 +181,22 @@ export interface ActToolResult {
 	beat: Beat | null;
 }
 
+export interface ListWindowsResult {
+	count: number;
+	windows: WindowInfo[];
+	/**
+	 * Ids of windows withheld by the runner's guard and by the local title redaction, so the model
+	 * can tell "no such window" from "you may not see it" without learning what the title was.
+	 */
+	redacted: string[];
+}
+
 export interface RecordingStopResult {
 	recordingId: string;
 	projectPath: string;
 	durationMs: number;
 	measuredFps: number;
-	/** Protocol v1.2 capture geometry, in physical pixels. Zero when the runner predates v1.2. */
+	/** Capture geometry, in physical pixels. */
 	width: number;
 	height: number;
 	beatCount: number;
@@ -270,14 +278,19 @@ export function createCapToolPack(options: CapToolPackOptions): CapToolPack {
 		description:
 			"List the windows currently open on the paired Mac. Windows whose titles match the session guard's redaction patterns are withheld.",
 		parameters: z.object(sessionFields),
-		async execute({ sessionId, approvalId }, ctx) {
+		async execute({ sessionId, approvalId }, ctx): Promise<ListWindowsResult> {
 			const result = await dispatch(sessionId, { type: "listWindows" }, approvalId, ctx);
 			if (result.type !== "windows") throw unexpected(sessionId, "windows", result.type);
 			const guard = sessions.getSession(sessionId)?.lease.guard;
-			const windows = guard
-				? result.windows.filter((w) => !guardRedactsTitle(guard, w.title))
-				: result.windows;
-			return { count: windows.length, windows };
+			const withheld = guard
+				? result.windows.filter((w) => guardRedactsTitle(guard, w.title))
+				: [];
+			const windows = result.windows.filter((w) => !withheld.includes(w));
+			return {
+				count: windows.length,
+				windows,
+				redacted: [...result.redacted, ...withheld.map((w) => w.windowId)],
+			};
 		},
 	});
 
@@ -351,14 +364,13 @@ export function createCapToolPack(options: CapToolPackOptions): CapToolPack {
 				throw unexpected(sessionId, "recordingStopped", result.type);
 			}
 			const stopped = result.result;
-			const geometry = captureGeometry(stopped);
 			return {
 				recordingId: stopped.recordingId,
 				projectPath: stopped.projectPath,
 				durationMs: stopped.durationMs,
 				measuredFps: stopped.measuredFps,
-				width: geometry.width,
-				height: geometry.height,
+				width: stopped.width,
+				height: stopped.height,
 				beatCount: stopped.beats.length,
 				beats: stopped.beats,
 			};

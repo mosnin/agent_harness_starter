@@ -596,7 +596,7 @@ async function runStep(
 				focused: element.focused,
 			})),
 			elementsTruncated: summary.elementsTruncated,
-			maskedRegions: summary.maskedRegions ?? [],
+			maskedRegions: summary.maskedRegions,
 		};
 	} catch (error) {
 		const finished = context.now();

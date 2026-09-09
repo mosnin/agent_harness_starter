@@ -12,7 +12,6 @@
  * the ends. Everything here is pure and deterministic.
  */
 
-import { shotExtensions } from "../tools/cap/types";
 import { storyboardDurationMs, validateStoryboard } from "../tools/cap/storyboard";
 import type { StoryboardIssue } from "../tools/cap/storyboard";
 import type { EditorialLimits, Shot, Storyboard } from "../tools/cap/types";
@@ -168,7 +167,7 @@ export function cutDurationMs(storyboard: Storyboard): number {
 	const shots = storyboard.shots;
 	const transitions = shots
 		.slice(1)
-		.reduce((total, shot) => total + shotExtensions(shot).transitionDurationMs, 0);
+		.reduce((total, shot) => total + shot.transitionDurationMs, 0);
 	return storyboardDurationMs(storyboard) + transitions;
 }
 

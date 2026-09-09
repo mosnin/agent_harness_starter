@@ -501,3 +501,121 @@ describe("apply_storyboard", () => {
 		expect(sent).toHaveLength(0);
 	});
 });
+
+describe("cap tool audit", () => {
+	const validStoryboard = (): Storyboard =>
+		StoryboardSchema.parse({
+			version: 1,
+			projectPath: "/tmp/demo.cap",
+			sourceFps: 60,
+			shots: [
+				{
+					shotId: "s1",
+					sourceStartMs: 0,
+					sourceEndMs: 4_000,
+					camera: NEUTRAL_CAMERA,
+					aimBeatId: null,
+					transitionIn: "none",
+				},
+			],
+			background: { type: "solid", hex: "#000000" },
+			cursor: { synthesize: true, size: 1, smoothing: 0.7 },
+			music: null,
+			captions: null,
+		});
+
+	it("denies all seven tools without a lease and never reaches the client", async () => {
+		const { pack, sent } = makePack({ lease: null });
+		const calls: Array<Promise<unknown>> = [
+			pack.observe.execute({ sessionId: "sess-1", request: { includeElements: false } }, {}),
+			pack.listWindows.execute({ sessionId: "sess-1" }, {}),
+			pack.act.execute({ sessionId: "sess-1", action: { type: "wait", durationMs: 1 } }, {}),
+			pack.recordingStart.execute(
+				{
+					sessionId: "sess-1",
+					request: {
+						target: { type: "display", displayId: "disp-1" },
+						mode: "studio",
+						captureSystemAudio: false,
+						captureMicrophone: false,
+						captureCamera: false,
+					},
+				},
+				{}
+			),
+			pack.recordingStop.execute({ sessionId: "sess-1" }, {}),
+			pack.applyStoryboard.execute({ sessionId: "sess-1", storyboard: validStoryboard() }, {}),
+			pack.exportVideo.execute(
+				{
+					sessionId: "sess-1",
+					request: {
+						projectPath: "/tmp/demo.cap",
+						outputPath: "/tmp/out.mp4",
+						resolution: "source",
+					},
+				},
+				{}
+			),
+		];
+		expect(calls).toHaveLength(pack.all.length);
+		for (const call of calls) await expectDenied(call, "no_active_session");
+		expect(sent).toHaveLength(0);
+	});
+
+	it("denies a lease at the exact instant it expires", async () => {
+		const { pack, sent } = makePack({ lease: makeLease({ expiresAtUnixMs: NOW }) });
+		await expectDenied(
+			pack.observe.execute({ sessionId: "sess-1", request: { includeElements: false } }, {}),
+			"session_expired"
+		);
+		expect(sent).toHaveLength(0);
+	});
+
+	it.each([
+		"DATA:IMAGE/PNG;base64,AAAA",
+		" data:image/png;base64,AAAA",
+		"\tdata:image/png;base64,AAAA",
+		"data:application/octet-stream;base64,AAAA",
+		"blob:https://studio.example/9f8e2c",
+	])("refuses an inline or in-memory image reference %j", (imageRef) => {
+		expect(() => summarizeFrame("sess-1", makeFrame({ imageRef }), 10)).toThrow(
+			DesktopAuthorizationError
+		);
+	});
+
+	it.each(["cap://frames/frame-1", "file:///tmp/frame-1.png", "https://frames.example/1.png"])(
+		"accepts the out-of-band reference %j",
+		(imageRef) => {
+			expect(summarizeFrame("sess-1", makeFrame({ imageRef }), 10).imageRef).toBe(imageRef);
+		}
+	);
+
+	it("surfaces withheld window ids from the runner and the guard instead of dropping them", async () => {
+		const { pack } = makePack({
+			reply: () => ({
+				type: "windows",
+				redacted: ["w-runner-hidden"],
+				windows: [
+					{
+						windowId: "w1",
+						bundleId: "com.apple.Safari",
+						title: "Cap — Safari",
+						bounds: { x: 0, y: 0, width: 1, height: 1 },
+					},
+					{
+						windowId: "w2",
+						bundleId: "com.agilebits.onepassword",
+						title: "My 1Password Vault",
+						bounds: { x: 0, y: 0, width: 1, height: 1 },
+					},
+				],
+			}),
+		});
+
+		const result = await pack.listWindows.execute({ sessionId: "sess-1" }, {});
+		expect(result.windows.map((w) => w.windowId)).toEqual(["w1"]);
+		expect(result.count).toBe(1);
+		expect(result.redacted).toEqual(["w-runner-hidden", "w2"]);
+		expect(JSON.stringify(result)).not.toContain("1Password");
+	});
+});

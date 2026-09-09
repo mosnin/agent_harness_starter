@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { DesktopAuthorizationError } from "../tools/cap/authorization";
 import {
 	createInMemoryDesktopSessionStore,
 	type DirectorClient,
@@ -715,5 +714,57 @@ describe("regression verdict", () => {
 		expect(verdict.status).toBe("pass");
 		expect(verdict.policy).toEqual(DEFAULT_REGRESSION_POLICY);
 		expect(renderVerdict(verdict)).toContain("nothing drifted, nothing broke.");
+	});
+});
+
+describe("replay audit", () => {
+	it("refuses a fallback candidate that carries a different identifier", async () => {
+		const screen = [newProjectButton(), nameField(), saveButton({ identifier: "save-button-v2" })];
+		const { run } = await replayAgainst([unchangedScreen(), unchangedScreen(), screen]);
+
+		expect(run.steps[2].status).toBe("broken");
+		expect(run.steps[2].targets[0].breakage).toBe("unresolved");
+		expect(run.steps[2].targets[0].resolved).toBeNull();
+	});
+
+	it("degrades the time warp gracefully with zero, one and duplicate anchors", () => {
+		const identity = buildTimeWarp([]);
+		expect(identity(0)).toBe(0);
+		expect(identity(4_321)).toBe(4_321);
+
+		const shifted = buildTimeWarp([{ baselineMs: 1_000, replayMs: 1_500 }]);
+		expect(shifted(0)).toBe(500);
+		expect(shifted(1_000)).toBe(1_500);
+		expect(shifted(8_000)).toBe(8_500);
+
+		const duplicated = buildTimeWarp([
+			{ baselineMs: 0, replayMs: 0 },
+			{ baselineMs: 0, replayMs: 900 },
+			{ baselineMs: 8_000, replayMs: 8_000 },
+		]);
+		for (const ms of [0, 1, 4_000, 8_000, 9_000]) expect(Number.isFinite(duplicated(ms))).toBe(true);
+		expect(duplicated(4_000)).toBeGreaterThanOrEqual(duplicated(1));
+	});
+
+	it("honours a policy that ignores every category", async () => {
+		const { diff } = await replayAgainst([[nameField(), saveButton()]], { clock: SLOW_CLOCK });
+		expect(diff.summary.broken).toBe(1);
+		expect(diff.summary.skipped).toBe(2);
+
+		const lenient = evaluateReplay(diff, {
+			onBroken: "ignore",
+			onDrift: "ignore",
+			onEditorial: "ignore",
+			onTimingRegression: "ignore",
+			onSkipped: "ignore",
+			maxDriftedSteps: null,
+		});
+		expect(lenient.status).toBe("pass");
+		expect(lenient.exitCode).toBe(0);
+		expect(lenient.findings).toEqual([]);
+
+		const strict = evaluateReplay(diff, STRICT_REGRESSION_POLICY);
+		expect(strict.status).toBe("fail");
+		expect(strict.findings.map((finding) => finding.code)).toContain("steps_broken");
 	});
 });

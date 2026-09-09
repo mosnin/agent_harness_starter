@@ -483,6 +483,19 @@ export async function runOperatorLoop(
 			break;
 		}
 
+		if (signal?.aborted) {
+			steps.push(step);
+			stoppedBy = "aborted";
+			summary = "The run was cancelled before the decided action was performed.";
+			break;
+		}
+		if (isKillSwitchEngaged?.()) {
+			steps.push(step);
+			stoppedBy = "kill_switch";
+			summary = "The user engaged the kill switch before the decided action was performed.";
+			break;
+		}
+
 		try {
 			const result = await act(decision.action, decision.beatLabel);
 			step.result = result;

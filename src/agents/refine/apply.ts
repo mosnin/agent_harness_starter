@@ -8,7 +8,6 @@
  */
 
 import type { Shot, Storyboard } from "../runner/protocol";
-import { type ShotExtensions, shotExtensions } from "../tools/cap/types";
 import {
 	POSE_AXIS_BOUNDS,
 	TRANSITION_DURATION_BOUNDS,
@@ -20,9 +19,6 @@ import {
 } from "./resolve";
 import type { ClampNote, Edit, RefineIssue, ShotTarget } from "./types";
 
-/** A shot with the v1.2 fields the protocol module still defaults rather than declares. */
-export type RefineShot = Shot & ShotExtensions;
-
 export interface ApplyEditsResult {
 	storyboard: Storyboard;
 	clamps: ClampNote[];
@@ -32,14 +28,8 @@ export interface ApplyEditsResult {
 
 const SOURCE_TIME_BOUNDS = { min: 0, max: Number.MAX_SAFE_INTEGER };
 
-export function normalizeShot(shot: Shot): RefineShot {
-	const extensions = shotExtensions(shot);
-	return {
-		...shot,
-		camera: { ...shot.camera },
-		recordingSegment: extensions.recordingSegment,
-		transitionDurationMs: extensions.transitionDurationMs,
-	};
+export function normalizeShot(shot: Shot): Shot {
+	return { ...shot, camera: { ...shot.camera } };
 }
 
 export function describeTarget(target: ShotTarget): string {
@@ -104,6 +94,14 @@ export function applyEdits(storyboard: Storyboard, edits: Edit[]): ApplyEditsRes
 			});
 			continue;
 		}
+		const requested = requestedNumber(edit);
+		if (requested !== null && !Number.isFinite(requested)) {
+			issues.push({
+				code: "malformed_edits",
+				message: `${edit.op} on ${describeTarget(edit.target)} asks for ${String(requested)}, which is not a number that can be applied or clamped.`,
+			});
+			continue;
+		}
 		shots[index] = applyShotEdit(shots[index], index, edit, clamps);
 	}
 
@@ -116,12 +114,25 @@ export function applyEdits(storyboard: Storyboard, edits: Edit[]): ApplyEditsRes
 
 type ShotEdit = Extract<Edit, { target: ShotTarget }>;
 
+/** The literal number an edit carries, or null when it carries an intent rather than a number. */
+function requestedNumber(edit: ShotEdit): number | null {
+	if (!("amount" in edit)) return null;
+	switch (edit.amount.kind) {
+		case "relative":
+			return null;
+		case "scale":
+			return edit.amount.factor;
+		case "absolute":
+			return edit.amount.value;
+	}
+}
+
 function applyShotEdit(
-	shot: RefineShot,
+	shot: Shot,
 	index: number,
 	edit: ShotEdit,
 	clamps: ClampNote[]
-): RefineShot {
+): Shot {
 	const prefix = `shots[${index}]`;
 	switch (edit.op) {
 		case "adjustZoom":
@@ -183,11 +194,11 @@ function applyShotEdit(
 	}
 }
 
-function reorder(shots: RefineShot[], order: string[]): RefineShot[] | undefined {
+function reorder(shots: Shot[], order: string[]): Shot[] | undefined {
 	if (order.length !== shots.length) return undefined;
 	const byId = new Map(shots.map((shot) => [shot.shotId, shot]));
 	if (byId.size !== shots.length) return undefined;
-	const next: RefineShot[] = [];
+	const next: Shot[] = [];
 	for (const shotId of order) {
 		const shot = byId.get(shotId);
 		if (shot === undefined) return undefined;

@@ -235,3 +235,35 @@ describe("the rendered script", () => {
 		expect(script.lines.map((line) => line.text)).toEqual(["First.", "Second.", "Third."]);
 	});
 });
+
+describe("the budget at the exact boundary", () => {
+	const slot = {
+		beatId: "n1",
+		kind: "action" as const,
+		label: "Sign up",
+		startMs: 0,
+		endMs: 2_000 + NARRATION_TAIL_MS,
+		budgetMs: 2_000,
+	};
+
+	it("fits a line that fills its budget to the millisecond", () => {
+		const script = composeNarration([slot], [{ beatId: "n1", text: "one two three four five" }]);
+		expect(script.issues).toEqual([]);
+		expect(script.lines[0]).toMatchObject({ spokenMs: 2_000, wordCount: 5, shortened: false });
+	});
+
+	it("rejects the line one word past the budget", () => {
+		const script = composeNarration([slot], [{ beatId: "n1", text: "one two three four five six" }]);
+		expect(script.lines).toEqual([]);
+		expect(script.issues.map((issue) => issue.code)).toEqual(["line_overruns_slot"]);
+	});
+
+	it("shortens to exactly the budget when asked", () => {
+		const script = composeNarration(
+			[slot],
+			[{ beatId: "n1", text: "one two three four five six" }],
+			{ overrun: "shorten" }
+		);
+		expect(script.lines[0]).toMatchObject({ wordCount: 5, spokenMs: 2_000, shortened: true });
+	});
+});

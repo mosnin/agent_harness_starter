@@ -7,7 +7,6 @@
  */
 
 import type { Background, CameraPose, Storyboard } from "../runner/protocol";
-import { shotExtensions } from "../tools/cap/types";
 import type { DiffChange, StoryboardDiff } from "./types";
 
 function formatValue(value: string | number | boolean | null): string {
@@ -61,14 +60,13 @@ export function flattenStoryboard(storyboard: Storyboard): Map<string, string> {
 
 	storyboard.shots.forEach((shot, index) => {
 		const prefix = `shots[${index}]`;
-		const extensions = shotExtensions(shot);
 		flat.set(`${prefix}.shotId`, shot.shotId);
 		flat.set(`${prefix}.sourceStartMs`, formatValue(shot.sourceStartMs));
 		flat.set(`${prefix}.sourceEndMs`, formatValue(shot.sourceEndMs));
 		flat.set(`${prefix}.aimBeatId`, formatValue(shot.aimBeatId ?? null));
 		flat.set(`${prefix}.transitionIn`, shot.transitionIn);
-		flat.set(`${prefix}.transitionDurationMs`, formatValue(extensions.transitionDurationMs));
-		flat.set(`${prefix}.recordingSegment`, formatValue(extensions.recordingSegment));
+		flat.set(`${prefix}.transitionDurationMs`, formatValue(shot.transitionDurationMs));
+		flat.set(`${prefix}.recordingSegment`, formatValue(shot.recordingSegment));
 		for (const key of POSE_KEYS) {
 			flat.set(`${prefix}.camera.${key}`, formatValue(shot.camera[key]));
 		}

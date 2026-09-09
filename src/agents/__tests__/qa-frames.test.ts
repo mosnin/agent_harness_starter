@@ -299,3 +299,34 @@ describe("probeAudioWindow", () => {
 		expect(levels).toBeNull();
 	});
 });
+
+describe("extractFrames at the edges", () => {
+	it("clamps a timestamp exactly equal to the duration back inside the video", async () => {
+		const frames = await extractFrames(
+			{
+				videoPath: "/tmp/demo.mp4",
+				outputDir: "/tmp/qa",
+				samples: [sample({ timestampMs: 12_010 })],
+				durationMs: 12_010,
+			},
+			env()
+		);
+		expect(frames[0].clamped).toBe(true);
+		expect(frames[0].timestampMs).toBe(11_910);
+	});
+
+	it("bounds the stderr it repeats from a chatty ffmpeg", async () => {
+		const chatty = "frame=    1 fps=0.0 q=0.0 size=       0kB time=00:00:00.00 bitrate=N/A\n".repeat(20_000);
+		const failure: unknown = await extractFrames(
+			{
+				videoPath: "/tmp/demo.mp4",
+				outputDir: "/tmp/qa",
+				samples: [sample()],
+				durationMs: 12_010,
+			},
+			env({ run: async () => ({ code: 1, stdout: "", stderr: chatty }) })
+		).catch((error: unknown) => error);
+		expect(failure).toBeInstanceOf(FrameExtractionError);
+		expect((failure as FrameExtractionError).message.length).toBeLessThan(1_000);
+	});
+});

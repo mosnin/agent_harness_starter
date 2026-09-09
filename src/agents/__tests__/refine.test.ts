@@ -671,3 +671,107 @@ describe("the offline phrase reader", () => {
 		expect(outcome.edits[0]).toMatchObject({ amount: { magnitude: "slight" } });
 	});
 });
+
+describe("refinement audit", () => {
+	it("rejects two edits that are each legal alone but together overrun the cut", () => {
+		const holdLast: Edit = {
+			op: "adjustSpan",
+			target: { by: "id", shotId: "shot-3" },
+			edge: "end",
+			amount: { kind: "absolute", value: 5_500 },
+		};
+		const openEarlier: Edit = {
+			op: "adjustSpan",
+			target: { by: "id", shotId: "shot-1" },
+			edge: "start",
+			amount: { kind: "absolute", value: 4_000 },
+		};
+		expect(applyRefinement(cleanStoryboard(), [holdLast], { context: CONTEXT }).status).toBe(
+			"applied"
+		);
+		expect(applyRefinement(cleanStoryboard(), [openEarlier], { context: CONTEXT }).status).toBe(
+			"applied"
+		);
+		const both = applyRefinement(cleanStoryboard(), [holdLast, openEarlier], { context: CONTEXT });
+		expect(both.status).toBe("rejected");
+		expect(codesOf(both)).toContain("total_too_long");
+	});
+
+	it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+		"rejects a span adjustment of %s instead of applying it",
+		(value) => {
+			const outcome = applyRefinement(
+				cleanStoryboard(),
+				[
+					{
+						op: "adjustSpan",
+						target: { by: "id", shotId: "shot-3" },
+						edge: "end",
+						amount: { kind: "absolute", value },
+					},
+				],
+				{ context: CONTEXT }
+			);
+			expect(outcome.status).toBe("rejected");
+			expect(codesOf(outcome)).toContain("malformed_edits");
+		}
+	);
+
+	it.each(["adjustZoom", "adjustTransitionDuration"] as const)(
+		"rejects a non-finite %s rather than clamping it",
+		(op) => {
+			const outcome = applyRefinement(
+				cleanStoryboard(),
+				[{ op, target: { by: "id", shotId: "shot-2" }, amount: { kind: "scale", factor: Number.NaN } }],
+				{ context: CONTEXT }
+			);
+			expect(outcome.status).toBe("rejected");
+			expect(codesOf(outcome)).toContain("malformed_edits");
+		}
+	);
+
+	it("rejects a non-finite pose axis edit rather than applying it", () => {
+		const outcome = applyRefinement(
+			cleanStoryboard(),
+			[
+				{
+					op: "adjustPoseAxis",
+					target: { by: "id", shotId: "shot-1" },
+					axis: "roll",
+					amount: { kind: "absolute", value: Number.NaN },
+				},
+			],
+			{ context: CONTEXT }
+		);
+		expect(outcome.status).toBe("rejected");
+	});
+
+	it("reports a NaN span as an empty shot", () => {
+		const board = cleanStoryboard();
+		board.shots[2].sourceEndMs = Number.NaN;
+		expect(validateEditorial(board, CONTEXT).map((i) => i.code)).toContain("empty_shot");
+	});
+
+	it.each(["roll", "rotateY", "fov"] as const)(
+		"catches a non-finite %s, which the Rust checker also inspects",
+		(axis) => {
+			const board = cleanStoryboard();
+			board.shots[0].camera[axis] = Number.NaN;
+			expect(validateEditorial(board, CONTEXT).map((i) => i.code)).toContain("non_finite_pose");
+		}
+	);
+
+	it("is a no-op with no clamp note when 'tighter' lands on a shot already at maximum zoom", () => {
+		const board = cleanStoryboard();
+		board.shots[1].camera.zoom = ZOOM_BOUNDS.max;
+		const result = applyEdits(board, [
+			{
+				op: "adjustZoom",
+				target: { by: "id", shotId: "shot-2" },
+				amount: { kind: "relative", direction: "increase", magnitude: "strong" },
+			},
+		]);
+		expect(result.storyboard.shots[1].camera.zoom).toBe(ZOOM_BOUNDS.max);
+		expect(result.clamps).toEqual([]);
+	});
+});

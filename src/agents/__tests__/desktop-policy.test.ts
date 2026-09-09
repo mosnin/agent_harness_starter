@@ -19,6 +19,7 @@ import { denyAllGuard, type SessionLease } from "../tools/cap/types";
 import type { ToolDefinition } from "../tools/types";
 import type { PluginRunContext } from "../types";
 import { z } from "zod";
+import { INTRUSIVE_SCOPES, ScopeSchema } from "../runner/protocol";
 
 const NOW = 1_700_000_000_000;
 
@@ -304,5 +305,33 @@ describe("withDesktopGovernance", () => {
 		).resolves.toBe("ok");
 		expect(executed).toEqual(["ran"]);
 		expect(compliance.query({}).length).toBeGreaterThan(0);
+	});
+});
+
+describe("desktop rules at the boundaries", () => {
+	it("treats a lease as dead at the exact instant it expires, the way the tool does", async () => {
+		const rule = requireActiveLeaseForIntrusiveScope();
+		expect(await rule.check(ctx({ lease: lease({ expiresAtUnixMs: NOW }) }))).toBe(true);
+		expect(await rule.check(ctx({ lease: lease({ expiresAtUnixMs: NOW + 1 }) }))).toBe(false);
+	});
+
+	it("gates exactly the scopes the protocol calls intrusive", async () => {
+		const rule = requireActiveLeaseForIntrusiveScope();
+		for (const scope of INTRUSIVE_SCOPES) {
+			expect(await rule.check(ctx({ lease: null, requiredScopes: [scope] }))).toBe(true);
+		}
+		const passive = ScopeSchema.options.filter((scope) => !INTRUSIVE_SCOPES.includes(scope));
+		expect(passive).toEqual(["observe_screen", "record", "edit", "export"]);
+		for (const scope of passive) {
+			expect(await rule.check(ctx({ lease: null, requiredScopes: [scope] }))).toBe(false);
+		}
+	});
+
+	it("does not fire the kill-switch rule on a non-desktop action", async () => {
+		expect(
+			await blockAfterKillSwitch().check(
+				ctx({ action: "tool:web_search", killSwitchEngaged: true })
+			)
+		).toBe(false);
 	});
 });

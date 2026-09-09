@@ -40,6 +40,7 @@ function observation(overrides: Partial<ObservationSummary> = {}): ObservationSu
 			bounds: { x: 0, y: 0, width: 1440, height: 900 },
 		},
 		redactedWindows: [],
+		maskedRegions: [],
 		elementCount: 1,
 		elementsTruncated: false,
 		elements: [
@@ -168,17 +169,16 @@ describe("runOperatorLoop", () => {
 	});
 
 	it("stops immediately when the kill switch is engaged", async () => {
-		const act = vi.fn(async () => actResult());
 		let engaged = false;
+		const act = vi.fn(async () => {
+			engaged = true;
+			return actResult();
+		});
 		const result = await runOperatorLoop(
 			loopOptions({
 				observe: async (i) => observation({ elementCount: i }),
 				act,
-				isKillSwitchEngaged: () => {
-					const value = engaged;
-					engaged = true;
-					return value;
-				},
+				isKillSwitchEngaged: () => engaged,
 				maxSteps: 10,
 			})
 		);
@@ -300,5 +300,91 @@ describe("createDirectorTeam", () => {
 		});
 		expect(team.operator.tools).toContain("demo_act");
 		expect(team.operator.constraints?.requireApproval).toContain("demo_act");
+	});
+});
+
+describe("runOperatorLoop mid-step stops", () => {
+	it("does not act once the kill switch engages while the model is deciding", async () => {
+		const act = vi.fn(async () => actResult());
+		let engaged = false;
+		const result = await runOperatorLoop(
+			loopOptions({
+				act,
+				isKillSwitchEngaged: () => engaged,
+				decide: async () => {
+					engaged = true;
+					return { type: "act", action: CLICK };
+				},
+				maxSteps: 5,
+			})
+		);
+		expect(act).not.toHaveBeenCalled();
+		expect(result.stoppedBy).toBe("kill_switch");
+		expect(result.steps).toHaveLength(1);
+		expect(result.steps[0].result).toBeUndefined();
+	});
+
+	it("does not act once the caller aborts while the model is deciding", async () => {
+		const act = vi.fn(async () => actResult());
+		const controller = new AbortController();
+		const result = await runOperatorLoop(
+			loopOptions({
+				act,
+				signal: controller.signal,
+				decide: async () => {
+					controller.abort();
+					return { type: "act", action: CLICK };
+				},
+				maxSteps: 5,
+			})
+		);
+		expect(act).not.toHaveBeenCalled();
+		expect(result.stoppedBy).toBe("aborted");
+	});
+
+	it("calls a stall at exactly stallLimit repeats and not one before", async () => {
+		const stalled = vi.fn(async () => actResult());
+		const stalledRun = await runOperatorLoop(
+			loopOptions({ act: stalled, stallLimit: 3, maxSteps: 20 })
+		);
+		expect(stalledRun.stoppedBy).toBe("stalled");
+		expect(stalled).toHaveBeenCalledTimes(3);
+
+		const screens = [0, 0, 0, 1];
+		const changing = vi.fn(async () => actResult());
+		const changingRun = await runOperatorLoop(
+			loopOptions({
+				act: changing,
+				observe: async (i) => observation({ elementCount: screens[i] ?? 9 }),
+				stallLimit: 3,
+				maxSteps: 4,
+			})
+		);
+		expect(changingRun.stoppedBy).toBe("max_steps");
+		expect(changing).toHaveBeenCalledTimes(4);
+	});
+});
+
+describe("runReviewLoop indeterminate passes", () => {
+	it("never converts a review that keeps throwing into an accept", async () => {
+		const onReshoot = vi.fn(async () => {});
+		const onReExport = vi.fn(async () => {});
+		const onIndeterminate = vi.fn(async () => {});
+		const result = await runReviewLoop({
+			review: async () => {
+				throw new Error("model returned garbage");
+			},
+			onReshoot,
+			onReExport,
+			onIndeterminate,
+			maxPasses: 3,
+		});
+		expect(result.accepted).toBe(false);
+		expect(result.stoppedBy).toBe("qa_failed");
+		expect(result.passes).toEqual([]);
+		expect(result.indeterminate).toHaveLength(3);
+		expect(onIndeterminate).toHaveBeenCalledTimes(3);
+		expect(onReshoot).not.toHaveBeenCalled();
+		expect(onReExport).not.toHaveBeenCalled();
 	});
 });

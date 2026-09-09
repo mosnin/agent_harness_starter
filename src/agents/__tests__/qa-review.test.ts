@@ -416,3 +416,40 @@ describe("runExportQa", () => {
 		expect(model).not.toHaveBeenCalled();
 	});
 });
+
+describe("verdict severity ordering", () => {
+	it("rejects a re_export decision whose own findings demand a reshoot", async () => {
+		await expect(
+			runExportQa(input(), {
+				env: frameEnv(),
+				model: modelReturning(
+					visionResponse({
+						decision: "re_export",
+						findings: [
+							passing("beat_readable"),
+							passing("typing_aim"),
+							passing("loading_leak"),
+							{
+								check: "window_bleed",
+								status: "fail",
+								beatId: "b1",
+								shotId: "s1",
+								sampleId: "shot-1-beat",
+								defect: "Finder window chrome bleeds in along the right edge.",
+								remedy: "reshoot",
+							},
+						],
+					})
+				),
+			})
+		).rejects.toBeInstanceOf(QaVerdictInvalidError);
+	});
+
+	it("lets a model be more severe than its findings, never less", async () => {
+		const report = await runExportQa(input(), {
+			env: frameEnv(),
+			model: modelReturning(visionResponse({ decision: "reshoot", confidence: 0.4 })),
+		});
+		expect(report.decision).toBe("reshoot");
+	});
+});

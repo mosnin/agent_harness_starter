@@ -58,9 +58,18 @@ const REUSED_CODES: Record<string, RefineIssueCode> = {
 
 function poseIsFinite(shot: Shot): boolean {
 	const c = shot.camera;
-	return [c.zoom, c.tiltX, c.tiltY, c.rotateX, c.focusX, c.focusY, c.focusSize].every((value) =>
-		Number.isFinite(value)
-	);
+	return [
+		c.zoom,
+		c.tiltX,
+		c.tiltY,
+		c.roll,
+		c.rotateX,
+		c.rotateY,
+		c.fov,
+		c.focusX,
+		c.focusY,
+		c.focusSize,
+	].every((value) => Number.isFinite(value));
 }
 
 function reusedSeverity(
@@ -122,7 +131,7 @@ export function validateEditorial(
 		}
 		seen.add(shot.shotId);
 
-		if (shot.sourceEndMs <= shot.sourceStartMs) {
+		if (!(shot.sourceEndMs > shot.sourceStartMs)) {
 			issues.push({
 				code: "empty_shot",
 				message: `Shot ${shot.shotId} ends at ${shot.sourceEndMs}ms, at or before its start of ${shot.sourceStartMs}ms.`,

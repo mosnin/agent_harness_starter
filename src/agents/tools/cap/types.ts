@@ -6,16 +6,11 @@
  * command subset the pack exposes, and the guard predicates the tools evaluate locally.
  */
 
-import { z } from "zod";
 import {
 	type Command,
 	type CommandResult,
 	type InputAction,
-	type ObservationFrame,
-	RectSchema,
 	type SessionGuard,
-	type Shot,
-	type StopRecordingResult,
 	requiredScopeForAction,
 	requiredScopesForCommand as protocolRequiredScopes,
 } from "../../runner/protocol";
@@ -140,46 +135,4 @@ export function guardAllowsBundle(guard: SessionGuard, bundleId: string): boolea
 export function guardRedactsTitle(guard: SessionGuard, title: string): boolean {
 	const lowered = title.toLowerCase();
 	return guard.redactedTitlePatterns.some((p) => lowered.includes(p.toLowerCase()));
-}
-
-// ── Director Protocol v1.2 additions ─────────────────────────────────────────
-//
-// `src/agents/runner/protocol.ts` still mirrors v1.0.0 and is owned by another team, so the v1.2
-// fields the replay pipeline reads are decoded here instead. Each schema mirrors the Rust
-// `#[serde(default)]` on the corresponding field, so a v1.0 payload parses and yields the same
-// default the crate would.
-
-const u32 = z.number().int().min(0);
-const u64 = z.number().int().min(0);
-
-/** `ObservationFrame::masked_regions` — pixels blacked out before encoding. */
-export const ObservationExtensionsSchema = z.object({
-	maskedRegions: z.array(RectSchema).default([]),
-});
-export type ObservationExtensions = z.infer<typeof ObservationExtensionsSchema>;
-
-export function observationExtensions(frame: ObservationFrame): ObservationExtensions {
-	return ObservationExtensionsSchema.parse(frame);
-}
-
-/** `StopRecordingResult::width` / `height` — capture geometry in physical pixels. */
-export const CaptureGeometrySchema = z.object({
-	width: u32.default(0),
-	height: u32.default(0),
-});
-export type CaptureGeometry = z.infer<typeof CaptureGeometrySchema>;
-
-export function captureGeometry(result: StopRecordingResult): CaptureGeometry {
-	return CaptureGeometrySchema.parse(result);
-}
-
-/** `Shot::recording_segment` / `transition_duration_ms`. */
-export const ShotExtensionsSchema = z.object({
-	recordingSegment: u32.default(0),
-	transitionDurationMs: u64.default(0),
-});
-export type ShotExtensions = z.infer<typeof ShotExtensionsSchema>;
-
-export function shotExtensions(shot: Shot): ShotExtensions {
-	return ShotExtensionsSchema.parse(shot);
 }

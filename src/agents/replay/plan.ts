@@ -19,13 +19,16 @@ import { DEFAULT_EDITORIAL_LIMITS } from "../tools/cap/types";
 import type {
 	Beat,
 	BeatKind,
-	CaptureGeometry,
 	EditorialLimits,
 	InputAction,
 	Rect,
+	StopRecordingResult,
 	Storyboard,
 	Target,
 } from "../tools/cap/types";
+
+/** Capture geometry in physical pixels, as `recordingStop` reports it. */
+export type CaptureGeometry = Pick<StopRecordingResult, "width" | "height">;
 
 // ── Element identity ─────────────────────────────────────────────────────────
 
@@ -189,7 +192,7 @@ export interface ShootRecord {
 	actions: ShootAction[];
 	durationMs: number;
 	measuredFps?: number;
-	/** Protocol v1.2 capture geometry. Lets bounds drift be reported as a fraction of the frame. */
+	/** Capture geometry. Lets bounds drift be reported as a fraction of the frame. */
 	capture?: CaptureGeometry;
 }
 

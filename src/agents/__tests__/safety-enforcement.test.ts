@@ -384,6 +384,7 @@ function observation(extra: NonNullable<ScreenTextSource["elements"]> = []): Obs
 			bounds: { x: 0, y: 0, width: 1440, height: 900 },
 		},
 		redactedWindows: [],
+		maskedRegions: [],
 		elementCount: 2 + extra.length,
 		elementsTruncated: false,
 		elements: elements(extra).map((e) => ({

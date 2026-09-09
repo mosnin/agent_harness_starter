@@ -237,3 +237,20 @@ describe("fail-closed behaviour", () => {
 		).toBe("hostile");
 	});
 });
+
+describe("fail-closed under a broken pattern", () => {
+	it("returns an unsafe unknown verdict when a matcher throws mid-screen", () => {
+		const broken = {
+			test() {
+				throw new Error("catastrophic backtracking");
+			},
+		} as unknown as RegExp;
+		const assessment = screenUntrustedSegments(untrustedFromScreen(observation(DELETE_FLOW)), {
+			additionalPatterns: [{ pattern: broken, type: "task_redefinition", confidence: 0.9 }],
+		});
+		expect(assessment.verdict).toBe("unknown");
+		expect(assessment.confidence).toBe(1);
+		expect(assessment.error).toContain("catastrophic backtracking");
+		expect(assessmentIsUnsafe(assessment)).toBe(true);
+	});
+});

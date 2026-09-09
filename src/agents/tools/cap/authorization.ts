@@ -139,7 +139,11 @@ export function authorizeDesktopCommand(
 	return { lease, requiredScopes, intrusive };
 }
 
-const INLINE_IMAGE_PATTERN = /^data:image\//i;
+/**
+ * `data:` carries the bytes inline whatever media type it claims; `blob:` names memory inside a
+ * single browsing context, which no other consumer can dereference. Neither is a reference.
+ */
+const INLINE_IMAGE_PATTERN = /^\s*(?:data|blob):/i;
 
 /**
  * Observation frames must reference image bytes out of band. Inlining a screenshot would put
