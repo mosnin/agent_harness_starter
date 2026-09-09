@@ -27,6 +27,8 @@ import {
 	ObserveRequestSchema,
 	StartRecordingRequestSchema,
 	StoryboardSchema,
+	captureGeometry,
+	observationExtensions,
 	scopeForAction,
 	guardRedactsTitle,
 } from "./types";
@@ -36,6 +38,7 @@ import type {
 	DirectorCommandResult,
 	EditorialLimits,
 	ObservationFrame,
+	Rect,
 	UiElement,
 	WindowInfo,
 } from "./types";
@@ -81,6 +84,11 @@ export interface ObservationSummary {
 	display: ObservationFrame["display"];
 	focusedWindow: WindowInfo | null;
 	redactedWindows: string[];
+	/**
+	 * Protocol v1.2 `maskedRegions`: areas blacked out in the image itself. An element whose
+	 * bounds fall inside one cannot be visually verified from this frame.
+	 */
+	maskedRegions?: Rect[];
 	elementCount: number;
 	elementsTruncated: boolean;
 	elements: Array<{
@@ -128,6 +136,7 @@ export function summarizeFrame(
 		display: frame.display,
 		focusedWindow: frame.focusedWindow ?? null,
 		redactedWindows: frame.redactedWindows,
+		maskedRegions: observationExtensions(frame).maskedRegions,
 		elementCount: frame.elements.length,
 		elementsTruncated: frame.elements.length > elements.length,
 		elements,
@@ -179,6 +188,9 @@ export interface RecordingStopResult {
 	projectPath: string;
 	durationMs: number;
 	measuredFps: number;
+	/** Protocol v1.2 capture geometry, in physical pixels. Zero when the runner predates v1.2. */
+	width: number;
+	height: number;
 	beatCount: number;
 	beats: Beat[];
 }
@@ -339,11 +351,14 @@ export function createCapToolPack(options: CapToolPackOptions): CapToolPack {
 				throw unexpected(sessionId, "recordingStopped", result.type);
 			}
 			const stopped = result.result;
+			const geometry = captureGeometry(stopped);
 			return {
 				recordingId: stopped.recordingId,
 				projectPath: stopped.projectPath,
 				durationMs: stopped.durationMs,
 				measuredFps: stopped.measuredFps,
+				width: geometry.width,
+				height: geometry.height,
 				beatCount: stopped.beats.length,
 				beats: stopped.beats,
 			};
