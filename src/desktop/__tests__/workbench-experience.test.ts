@@ -20,6 +20,7 @@ async function mount(compact = false) {
     core: { invoke: vi.fn(async (_method: string, args: any) => {
       const method = args?.cmd?.method;
       if (method === "boot") return { result: structuredClone(boot) };
+      if (method === "project.add") return { result: args.cmd.args.path };
       if (method === "codex.status") return { result: { connected: false } };
       if (method === "session.get") return { result: structuredClone(restoredSession) };
       if (method === "artifacts.list") return { result: structuredClone(restoredArtifacts) };
@@ -184,4 +185,44 @@ describe("inspector file ownership", () => {
     click('[data-action="file"][data-path="b.txt"]'); await settle();
     expect(root.querySelector<HTMLTextAreaElement>("#file-content")!.value).toBe("b.txt");
   });
+});
+
+it("opens Helm in the native workbench without replacing chat or workspace", async () => {
+  await mount();
+  click('[data-action="nav"][data-view="helm"]'); await settle();
+  expect(root.querySelector(".breadcrumb")?.textContent).toContain("Helm");
+  expect(root.querySelector("#helm-host")?.textContent).toContain("Code with Helm");
+  expect(root.querySelector('[data-action="nav"][data-view="sessions"]')).toBeTruthy();
+  expect(root.querySelector('[data-action="nav"][data-view="workspace"]')).toBeTruthy();
+});
+
+it("opens a typed project folder from Helm and stays in the coding workspace", async () => {
+  await mount();
+  click('[data-action="nav"][data-view="helm"]'); await settle();
+  click('[data-helm="project"]'); await settle();
+  const path = root.querySelector<HTMLInputElement>("#project-path")!;
+  expect(path).toBeTruthy();
+  expect(root.querySelector('[data-action="project-pick"]')?.textContent).toContain("Choose in Finder");
+  path.value = "/typed-project";
+  click('[data-action="project-add"]'); await settle();
+  expect(root.querySelector("#project-path")).toBeNull();
+  expect(root.querySelector(".breadcrumb")?.textContent).toContain("Helm");
+  expect(root.querySelector("#helm-host")?.textContent).toContain("Code with Helm");
+  const invoke = (globalThis as any).__TAURI__.core.invoke;
+  expect(invoke).toHaveBeenCalledWith("hades_request", expect.objectContaining({ cmd: expect.objectContaining({ method: "project.add", args: { path: "/typed-project" } }) }));
+  expect(invoke).toHaveBeenCalledWith("hades_request", expect.objectContaining({ cmd: expect.objectContaining({ method: "helm.list", args: expect.objectContaining({ root: "/typed-project" }) }) }));
+});
+
+it("keeps restored conversation errors in chat rather than the Helm workspace", async () => {
+  restoredSession = { id: "saved", title: "Saved task", root: "/project", messages: [], progress: { error: "Run cancelled" } };
+  (boot.sessions as any[]).push({ id: "saved", title: "Saved task", profile: "p" });
+  localStorage.setItem("hades.lastSession", "saved");
+  try {
+    await mount(); await settle();
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain("Run cancelled");
+    click('[data-action="nav"][data-view="helm"]'); await settle();
+    expect(root.textContent).not.toContain("Run cancelled");
+    click('[data-action="session"][data-id="saved"]'); await settle();
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain("Run cancelled");
+  } finally { boot.sessions.splice(0); }
 });

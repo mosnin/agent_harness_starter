@@ -48,7 +48,9 @@
       "../dist/desktop/sidecar-entry.js": "sidecar-entry.js",
       "../dist/runtime/node": "node",
       "../dist/runtime/hades-pty": "hades-pty",
-      "runtime-package.json": "package.json"
+      "runtime-package.json": "package.json",
+      "../dist/runtime/helm-opencode": "helm-opencode",
+      "../dist/helm-ui/": "helm-ui/"
     },
     "macOS": {
       "minimumSystemVersion": "12.0"

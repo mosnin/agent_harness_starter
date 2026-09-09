@@ -1,4 +1,5 @@
 import { ManagementView, managementViews } from "./management";
+import { HelmView } from "./helm";
 import { WorkGoalsView } from "./work-goals";
 import { ChannelsView } from "./channels";
 import { ShellHooksView } from "./shell-hooks";
@@ -68,6 +69,7 @@ export function mountWorkbench(root: HTMLElement) {
   let draftImages: string[] = [];
   let draft = "",
     error = "",
+    sessionError = "",
     notice = "",
     modal = "",
     modalData: Row = {},
@@ -141,6 +143,12 @@ export function mountWorkbench(root: HTMLElement) {
     await refresh(); await selectSession(result.session);
   });
   const management = new ManagementView(rpc, id => { void selectSession(id).catch(toast); }, next => { void navigate(next).catch(toast); }, (name, value) => download(name, JSON.stringify(value, null, 2)));
+  const helm = new HelmView(rpc, {
+    chooseProject: () => { modal = "project"; view = "helm"; render(); },
+    selectProject: async next => {setProject(next);view="helm";await refresh();},
+    openWorkspace: async (next,nextPane) => {setProject(await rpc("project.add",{path:next}));await navigate("workspace");if(nextPane!=="files")await loadPane(nextPane);},
+    openSession: id => {void selectSession(id).catch(toast);},
+  });
   const workGoals = new WorkGoalsView(rpc, id => { void selectSession(id).catch(toast); });
   const browserView = new BrowserView(rpc, (account, value) => tauri().core.invoke("hades_key", { account, value }));
   const credentials = new CredentialsView(rpc, (account, value) => tauri().core.invoke("hades_key", { account, value }));
@@ -200,6 +208,7 @@ export function mountWorkbench(root: HTMLElement) {
     }
     if (managementViews.has(view)) await management.open(view, profile.id, profile.name, project);
     if (view === "work") await workGoals.open(workContext());
+    if (view === "helm") await helm.open({root:project,profile:profile.id,projects:boot.projects});
     if (view === "webhooks") await webhooks.open(webhookContext());
     if (view === "browser") await browserView.open({ profile: profile.id, root: project, name: profile.name });
     if (view === "credentials") await credentials.open(profile.id);
@@ -243,7 +252,7 @@ export function mountWorkbench(root: HTMLElement) {
     activity = s.progress?.journal?.length ? s.progress.journal : s.progress?.tools ?? [];
     usage = s.progress?.usage ?? {};
     pendingApproval = s.progress?.approval;
-    error = s.progress?.error ?? (s.progress?.interrupted ? "This task was interrupted. Review its saved activity before continuing." : "");
+    error = sessionError = s.progress?.error ?? (s.progress?.interrupted ? "This task was interrupted. Review its saved activity before continuing." : "");
     notice = "";
     if (!tabs.includes(id)) tabs.push(id);
     rememberTabs();
@@ -355,6 +364,7 @@ export function mountWorkbench(root: HTMLElement) {
   let modalReturnFocus: ReturnType<typeof captureFocus>;
   let renderedPane = "";
   function render() {
+    const visibleError = view !== "chat" && error === sessionError ? "" : error;
     const modalKey = `${modal}:${profile?.id ?? ""}`;
     const paneKey = `${pane}:${project}:${preview?.path ?? ""}`;
     const modalChanged = renderedModal !== modalKey;
@@ -383,7 +393,7 @@ export function mountWorkbench(root: HTMLElement) {
     root.innerHTML = `<div class="workbench ${!sidebar ? "hide-sidebar" : ""} ${location.search.includes("hud=1") ? "hud" : ""}">
    <aside class="sidebar" id="sidebar" aria-label="Workspace navigation"><div class="window-space" data-tauri-drag-region></div><div class="sidebar-content"><div class="brand"><img src="./assets/hades-icon.png" alt="Hades logo"><strong>Hades</strong></div>
    ${button(icon("+") + `<span class="truncate">New chat</span><kbd>${esc(formatShortcut(bindings.new))}</kbd>`, "new", 'class="new-chat"')}
-   <nav class="sidebar-nav" aria-label="Main">${nav("sessions", "Conversations")}${nav("work", "Work")}${nav("workspace", "Workspace")}${nav("team", "Team chat")}${nav("jobs", "Scheduled")}${nav("agents", "Agents")}${nav("tools", "Tools & connections")}${nav("system", "System")}</nav>
+   <nav class="sidebar-nav" aria-label="Main">${nav("sessions", "Conversations")}${nav("helm", "Helm")}${nav("work", "Work")}${nav("workspace", "Workspace")}${nav("team", "Team chat")}${nav("jobs", "Scheduled")}${nav("agents", "Agents")}${nav("tools", "Tools & connections")}${nav("system", "System")}</nav>
    <details class="sidebar-projects" ${projectsOpen ? "open" : ""}><summary>Projects</summary><div class="section-label">Project folders ${button(icon("+"), "project", 'aria-label="Open project"')}</div><div class="project-list">${boot.projects.length ? boot.projects.map((p: string) => `<div class="project-row ${project === p ? "active" : ""}">${button(icon("files") + `<span class="truncate">${esc(labelProject(p))}</span>`, "project-select", `data-path="${esc(p)}" title="${esc(p)}"`)}${button(icon("close"), "project-hide", `data-path="${esc(p)}" class="hide-project" aria-label="Hide project ${esc(labelProject(p))}"`)}</div>`).join("") : `<p class="sidebar-hint">Open a project folder.</p>`}</div>
    </details><div class="section-label">${archived ? "Archived" : "Recent"} ${button(icon(archived ? "back" : "more"), "archive-view", 'aria-label="Toggle archived conversations"')}</div>
    <input id="session-search" class="search" aria-label="Search conversations" placeholder="Search conversations" value="${esc(search)}">
@@ -406,7 +416,7 @@ export function mountWorkbench(root: HTMLElement) {
      '<p class="sidebar-hint">Your conversations appear here.</p>'
    }</div>
    </div><div class="sidebar-footer"><select id="profile-switch" aria-label="Agent profile">${boot.profiles.map((p: Profile) => `<option value="${p.id}" ${p.id === profile?.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>${button(icon("settings"), "settings", `class="icon-button" aria-label="Settings" title="Settings ${esc(formatShortcut(bindings.settings))}"`)}</div></aside>
-   ${button("", "sidebar", 'class="sidebar-scrim" aria-label="Close sidebar" tabindex="-1"')}<main class="main"><header class="toolbar" data-tauri-drag-region>${button(icon("sidebar"), "sidebar", 'id="toggle-sidebar" class="icon-button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="' + sidebar + '"')}<div class="breadcrumb">${icon(view)}<strong>${esc(view === "chat" ? session?.title || "New conversation" : ({ browser: "Hades Browser", channels: "Channels", hooks: "Hooks", maintenance: "Maintenance", credentials: "Credentials", webhooks: "Webhooks", work: "Work", tools: "Tools & connections", sessions: "Conversations", system: "System", activity: "Activity", mcp: "MCP servers", computer: "Computer control", slack: "Slack", harness: "Harness", team: "Team chat", workspace: "Workspace", artifact: "Artifacts", memory: "Memory", skills: "Skills", jobs: "Routines", agents: "Agents", models: "Local models", rooms: "Team rooms", plugins: "Extensions" } as Row)[view])}</strong></div><div class="toolbar-actions">${boot.computerEnabled ? button("Stop computer control", "computer-stop", 'class="computer-stop"') : ""}${button(icon("search"), "palette", `class="icon-button" aria-label="Command palette" title="Command palette ${esc(formatShortcut(bindings.palette))}"`)}${view === "chat" ? button(icon("files"), "files", 'class="icon-button" aria-label="File browser"') : ""}${view === "chat" ? button(icon("git"), "git", 'class="icon-button" aria-label="Git review"') : ""}${view === "chat" ? button(icon("terminal"), "terminal", 'class="icon-button" aria-label="Terminal"') : ""}${view === "chat" ? button(icon("sidebar-right"), "task-inspector", 'class="icon-button" aria-label="Task details" aria-pressed="' + taskInspector + '"') : ""}<details class="toolbar-menu"><summary id="window-actions" class="icon-button" aria-label="Window actions" title="Window actions">${icon("more")}</summary><div>${button(icon("external") + "New window", "popout")}${button(icon("floating") + "Floating chat", "hud")}</div></details></div></header>
+   ${button("", "sidebar", 'class="sidebar-scrim" aria-label="Close sidebar" tabindex="-1"')}<main class="main"><header class="toolbar" data-tauri-drag-region>${button(icon("sidebar"), "sidebar", 'id="toggle-sidebar" class="icon-button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="' + sidebar + '"')}<div class="breadcrumb">${icon(view)}<strong>${esc(view === "chat" ? session?.title || "New conversation" : ({ helm: "Helm", browser: "Hades Browser", channels: "Channels", hooks: "Hooks", maintenance: "Maintenance", credentials: "Credentials", webhooks: "Webhooks", work: "Work", tools: "Tools & connections", sessions: "Conversations", system: "System", activity: "Activity", mcp: "MCP servers", computer: "Computer control", slack: "Slack", harness: "Harness", team: "Team chat", workspace: "Workspace", artifact: "Artifacts", memory: "Memory", skills: "Skills", jobs: "Routines", agents: "Agents", models: "Local models", rooms: "Team rooms", plugins: "Extensions" } as Row)[view])}</strong></div><div class="toolbar-actions">${boot.computerEnabled ? button("Stop computer control", "computer-stop", 'class="computer-stop"') : ""}${button(icon("search"), "palette", `class="icon-button" aria-label="Command palette" title="Command palette ${esc(formatShortcut(bindings.palette))}"`)}${view === "chat" ? button(icon("files"), "files", 'class="icon-button" aria-label="File browser"') : ""}${view === "chat" ? button(icon("git"), "git", 'class="icon-button" aria-label="Git review"') : ""}${view === "chat" ? button(icon("terminal"), "terminal", 'class="icon-button" aria-label="Terminal"') : ""}${view === "chat" ? button(icon("sidebar-right"), "task-inspector", 'class="icon-button" aria-label="Task details" aria-pressed="' + taskInspector + '"') : ""}<details class="toolbar-menu"><summary id="window-actions" class="icon-button" aria-label="Window actions" title="Window actions">${icon("more")}</summary><div>${button(icon("external") + "New window", "popout")}${button(icon("floating") + "Floating chat", "hud")}</div></details></div></header>
    ${
      view === "chat" && visibleTabs.length > 1
        ? `<div class="tabs">${tabs
@@ -418,8 +428,8 @@ export function mountWorkbench(root: HTMLElement) {
            .join("")}${button(icon("+"), "new", 'aria-label="New tab"')}</div>`
        : ""
    }
-   ${error || notice ? `<div class="error ${error ? "" : "notice"}" role="${error ? "alert" : "status"}">${esc(error || notice)}${button(icon("close"), "dismiss", `aria-label="${error ? "Dismiss error" : "Dismiss notification"}"`)}</div>` : ""}
-   <div class="body"><section class="primary">${view === "chat" ? chatHTML() : view === "workspace" ? workspaceHTML() : view === "work" ? '<div id="work-goals-host"></div>' : view === "channels" ? '<div id="channels-host"></div>' : view === "hooks" ? '<div id="hooks-host"></div>' : view === "maintenance" ? '<div id="maintenance-host"></div>' : view === "browser" ? '<div id="browser-host"></div>' : view === "credentials" ? '<div id="credentials-host"></div>' : view === "webhooks" ? '<div id="webhooks-host"></div>' : view === "team" ? '<div id="team-chat-host"></div>' : view === "slack" ? '<div id="slack-host"></div>' : pageHTML()}</section>${pane ? paneHTML() : view === "chat" && taskInspector ? taskInspectorHTML() : ""}</div>
+   ${visibleError || notice ? `<div class="error ${visibleError ? "" : "notice"}" role="${visibleError ? "alert" : "status"}">${esc(visibleError || notice)}${button(icon("close"), "dismiss", `aria-label="${visibleError ? "Dismiss error" : "Dismiss notification"}"`)}</div>` : ""}
+   <div class="body"><section class="primary">${view === "chat" ? chatHTML() : view === "helm" ? '<div id="helm-host"></div>' : view === "workspace" ? workspaceHTML() : view === "work" ? '<div id="work-goals-host"></div>' : view === "channels" ? '<div id="channels-host"></div>' : view === "hooks" ? '<div id="hooks-host"></div>' : view === "maintenance" ? '<div id="maintenance-host"></div>' : view === "browser" ? '<div id="browser-host"></div>' : view === "credentials" ? '<div id="credentials-host"></div>' : view === "webhooks" ? '<div id="webhooks-host"></div>' : view === "team" ? '<div id="team-chat-host"></div>' : view === "slack" ? '<div id="slack-host"></div>' : pageHTML()}</section>${pane ? paneHTML() : view === "chat" && taskInspector ? taskInspectorHTML() : ""}</div>
    ${statusbar ? `<footer class="statusbar"><span><i class="${running() ? "busy" : connected ? "connected" : ""}"></i>${running() ? "Working" : connected ? "Ready" : "Disconnected"} <span class="muted">/</span> ${esc(profile?.name || "Connecting")}</span><span>${usage.tokensIn !== undefined ? `${usage.tokensIn.toLocaleString()} in · ${usage.tokensOut.toLocaleString()} out · ${usage.costMeasured ? "~$" + usage.usd.toFixed(4) : profile?.provider === "codex" ? "subscription" : "price unavailable"}` : "Workspace files · ask before changes"} <span class="muted">${esc(formatShortcut(bindings.palette))}</span></span></footer>` : ""}</main></div>${modal ? modalHTML() : ""}`;
     for (const field of savedFields) { const input = root.querySelector<HTMLInputElement>(`#${CSS.escape(field.id)}`); if (input) { input.value = field.value; if (field.checked !== undefined) input.checked = field.checked; } }
     root.querySelectorAll<HTMLDetailsElement>(".modal details").forEach((el, i) => { if (savedDetails[i] !== undefined) el.open = savedDetails[i]; });
@@ -438,6 +448,8 @@ export function mountWorkbench(root: HTMLElement) {
     if (credentialHost) credentials.mount(credentialHost);
     const webhookHost = root.querySelector<HTMLElement>("#webhooks-host");
     if (webhookHost) webhooks.mount(webhookHost);
+    const helmHost = root.querySelector<HTMLElement>("#helm-host");
+    if(helmHost)helm.mount(helmHost);
     const workHost = root.querySelector<HTMLElement>("#work-goals-host");
     if (workHost) workGoals.mount(workHost);
     const editorHost = root.querySelector<HTMLElement>("#workspace-editor-host");
@@ -672,6 +684,7 @@ export function mountWorkbench(root: HTMLElement) {
           ["session-export", "Export conversation", ""],
           ["hud", "Floating chat", "⌘ ⇧ H"],
           ["popout", "New window", "⌘ ⇧ N"],
+          ["nav-helm", "Helm coding workspace", ""],
           ["nav-tools", "Tools & connections", ""],
           ["nav-sessions", "Conversation history", ""],
           ["nav-computer", "Computer control", ""],
@@ -739,6 +752,7 @@ export function mountWorkbench(root: HTMLElement) {
     modal = "";
     if (managementViews.has(view)) await management.open(view, profile.id, profile.name, project);
     if (view === "work") await workGoals.open(workContext());
+    if (view === "helm") await helm.open({root:project,profile:profile.id,projects:boot.projects});
     if (view === "webhooks") await webhooks.open(webhookContext());
     if (view === "browser") await browserView.open({ profile: profile.id, root: project, name: profile.name });
     if (view === "credentials") await credentials.open(profile.id);
@@ -1104,7 +1118,7 @@ export function mountWorkbench(root: HTMLElement) {
         setProject(await rpc("project.add", { path: val("project-path") }));
         modal = "";
         await refresh();
-        await newChat();
+        if (view !== "helm") await newChat();
         return;
       case "project-select":
         setProject(el!.dataset.path!);
@@ -2018,6 +2032,7 @@ export function mountWorkbench(root: HTMLElement) {
           if (view === "webhooks") void webhooks.refresh();
           return;
         }
+        if (e.kind === "desktop.helm") { if(view === "helm")void helm.refresh(); return; }
         if (e.kind === "desktop.work") {
           if (view === "work" && (!e.profile || e.profile === profile.id)) void workGoals.refresh();
           return;
@@ -2116,7 +2131,7 @@ export function mountWorkbench(root: HTMLElement) {
         }
         if (e.kind === "desktop.usage") usage = e;
         if (e.kind === "desktop.error") {
-          error = e.message;
+          error = sessionError = e.message;
           paused.add(current());
         }
         if (e.kind === "desktop.approval") pendingApproval = e;

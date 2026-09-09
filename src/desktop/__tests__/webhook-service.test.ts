@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { DatabaseSync } from "node:sqlite";
 import { WebhookService } from "../core/webhook-service";
 
 let path: string, service: WebhookService, created: ReturnType<WebhookService["create"]>;
@@ -21,6 +22,20 @@ beforeEach(async () => {
 });
 afterEach(() => { service.close(); rmSync(path, { recursive: true, force: true }); });
 describe("authenticated native webhook execution", () => {
+  it("stops webhook admission without crashing when lease storage becomes unwritable", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const subject = new WebhookService(join(path, "unwritable.db"), { execute, root: root => root, profile() {} }, { port: 0 });
+    try {
+      expect((await subject.status()).running).toBe(true);
+      // Real SQLite write rejection exercises the same renewal failure path as
+      // the native disk-full crash, without exhausting the test machine.
+      (subject as unknown as { db: DatabaseSync }).db.exec("PRAGMA query_only=ON");
+      expect(() => vi.advanceTimersByTime(15000)).not.toThrow();
+      expect(await subject.status()).toMatchObject({ running: false, error: expect.stringContaining("storage is unavailable") });
+      expect(() => subject.create(config, "p")).toThrow("storage is unavailable");
+      expect(() => subject.close()).not.toThrow();
+    } finally { subject.close(); vi.useRealTimers(); }
+  });
   it("binds loopback, stores only token hashes and rejects unauthenticated/browser/unsubscribed events", async () => {
     expect(created.subscription.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/webhooks\//);
     expect(created.token).toHaveLength(43);

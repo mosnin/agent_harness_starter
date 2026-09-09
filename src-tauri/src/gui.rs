@@ -22,6 +22,39 @@
 // GUI (feature-gated) — the real Tauri app. Not compiled in the default build.
 // ---------------------------------------------------------------------------
 
+/// WebKit caches these defaults when its native text checker initializes.
+/// Set them before constructing Tauri/WKWebView. The volatile argument domain
+/// is in-memory and app-local: it changes neither macOS global preferences nor
+/// persisted per-app settings. Preserve unrelated launch overrides.
+/// Source: WebKit/Source/WebKit/UIProcess/mac/TextCheckerMac.mm.
+#[cfg(all(feature = "gui", target_os = "macos"))]
+const LITERAL_INPUT_DEFAULTS: [&str; 6] = [
+    "WebAutomaticDashSubstitutionEnabled",
+    "WebAutomaticQuoteSubstitutionEnabled",
+    "WebAutomaticTextReplacementEnabled",
+    "WebAutomaticSpellingCorrectionEnabled",
+    "WebContinuousSpellCheckingEnabled",
+    "WebGrammarCheckingEnabled",
+];
+
+#[cfg(all(feature = "gui", target_os = "macos"))]
+fn configure_literal_coding_input() {
+    use objc2_foundation::{NSMutableDictionary, NSNumber, NSString, NSUserDefaults, NSArgumentDomain};
+    let defaults = NSUserDefaults::standardUserDefaults();
+    // SAFETY: Foundation owns the immutable domain-name constant for the
+    // process lifetime; this typed dictionary retains property-list values.
+    unsafe {
+        let domain = NSArgumentDomain;
+        let overrides = NSMutableDictionary::new();
+        overrides.setDictionary(&defaults.volatileDomainForName(domain));
+        let disabled = NSNumber::new_bool(false);
+        for key in LITERAL_INPUT_DEFAULTS {
+            overrides.insert(&*NSString::from_str(key), &*disabled);
+        }
+        defaults.setVolatileDomain_forName(&overrides, domain);
+    }
+}
+
 /// Window event name carrying a sidecar AppEvent to the renderer. Must match
 /// `EVENT_NAME` in `src/desktop/ui/bridge.ts`.
 #[cfg(feature = "gui")]
@@ -170,6 +203,9 @@ pub fn run() {
     use std::io::{BufRead, BufReader};
     use std::process::{Command, Stdio};
     use tauri::{Emitter, Manager};
+
+    #[cfg(target_os = "macos")]
+    configure_literal_coding_input();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -603,5 +639,30 @@ mod tests {
             event_line_payload("  {\"kind\":\"log\",\"line\":\"hi\",\"at\":1}  "),
             Some("{\"kind\":\"log\",\"line\":\"hi\",\"at\":1}")
         );
+    }
+}
+
+#[cfg(all(test, feature = "gui", target_os = "macos"))]
+mod literal_input_tests {
+    #[test]
+    fn disables_native_substitution_in_memory_and_preserves_other_launch_defaults() {
+        use objc2_foundation::{NSMutableDictionary, NSNumber, NSString, NSUserDefaults, NSArgumentDomain};
+        let defaults = NSUserDefaults::standardUserDefaults();
+        unsafe {
+            let domain = NSArgumentDomain;
+            let original = defaults.volatileDomainForName(domain);
+            let test_defaults = NSMutableDictionary::new();
+            test_defaults.setDictionary(&original);
+            let marker = NSString::from_str("HadesLiteralInputTestMarker");
+            test_defaults.insert(&*marker, &*NSNumber::new_bool(true));
+            defaults.setVolatileDomain_forName(&test_defaults, domain);
+            super::configure_literal_coding_input();
+            let preserved = defaults.boolForKey(&marker);
+            let all_disabled = super::LITERAL_INPUT_DEFAULTS.iter().all(|key|
+                !defaults.boolForKey(&NSString::from_str(key)));
+            defaults.setVolatileDomain_forName(&original, domain);
+            assert!(preserved);
+            assert!(all_disabled);
+        }
     }
 }

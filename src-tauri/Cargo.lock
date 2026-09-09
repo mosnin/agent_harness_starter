@@ -1211,6 +1211,7 @@ dependencies = [
 name = "hades-desktop"
 version = "0.1.0"
 dependencies = [
+ "objc2-foundation",
  "security-framework",
  "serde_json",
  "tauri",

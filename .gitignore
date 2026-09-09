@@ -56,3 +56,7 @@ src-tauri/gen/
 
 # Retained upstream research snapshots and evidence archives (local only).
 .research/
+
+# Built OpenCode fork UI and optional local source checkout.
+dist/helm-ui/
+vendor/opencode/

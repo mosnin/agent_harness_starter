@@ -1,5 +1,6 @@
 /** A single 16px stroke family for functional UI symbols. */
 const paths: Record<string, string> = {
+  helm: '<circle cx="10" cy="10" r="5"/><circle cx="10" cy="10" r="1"/><path d="M10 2v3m0 10v3M2 10h3m10 0h3M4 4l3 3m6 6 3 3M4 16l3-3m6-6 3-3"/>',
   browser: '<rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16M5 5h1m2 0h1"/>',
   credentials: '<circle cx="7" cy="7" r="4"/><path d="m10 10 7 7m-4-4 2-2m0 4 2-2"/>',
   channels: '<path d="M3 4h11v8H8l-5 4zM17 7v10l-4-3"/>',

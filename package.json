@@ -199,7 +199,8 @@
     "doctor": "tsx src/hades/bin/hades.ts doctor",
     "test:smoke": "node scripts/smoke-agent.mjs && node scripts/smoke-swarm.mjs",
     "desktop:mac": "./script/build_and_run.sh --build-only",
-    "desktop:package:mac": "./script/package_mac.sh"
+    "desktop:package:mac": "./script/package_mac.sh",
+    "helm:build": "node scripts/build-helm.mjs"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",

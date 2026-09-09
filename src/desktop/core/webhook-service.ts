@@ -57,8 +57,12 @@ export class WebhookService {
     if (this.owns) {
       this.heartbeat = setInterval(() => {
         if (this.closed) return;
-        const renewed = this.db.prepare("UPDATE webhook_owner SET lease=? WHERE id=1 AND owner=? AND lease>?").run(Date.now() + 60000, this.owner, Date.now()).changes;
-        if (renewed !== 1) { this.owns = false; this.serverError = "Webhook ownership was lost. Restart Hades to recover."; for (const active of this.active.values()) active.controller.abort(new Error(this.serverError)); this.server.close(); }
+        try {
+          const renewed = this.db.prepare("UPDATE webhook_owner SET lease=? WHERE id=1 AND owner=? AND lease>?").run(Date.now() + 60000, this.owner, Date.now()).changes;
+          if (renewed !== 1) this.stopListener("Webhook ownership was lost. Restart Hades to recover.");
+        } catch {
+          this.stopListener("Webhook storage is unavailable. Check free disk space and restart Hades to recover.");
+        }
       }, 15000);
       this.heartbeat.unref();
     }
@@ -81,7 +85,12 @@ export class WebhookService {
     this.admissionPaused = true;
     return () => { this.admissionPaused = false; };
   }
-  async status() { await this.ready; return { running: this.server.listening && !this.closed, baseUrl: this.baseUrl, error: this.serverError || undefined, active: this.active.size, admissionPaused: this.admissionPaused, limit: 10, authentication: "Bearer token", scope: "This Mac only" }; }
+  private stopListener(error: string) {
+    this.owns = false; this.serverError = error; clearInterval(this.heartbeat);
+    for (const active of this.active.values()) active.controller.abort(new Error(error));
+    this.server.close(); this.server.closeAllConnections();
+  }
+  async status() { await this.ready; return { running: this.owns && this.server.listening && !this.closed, baseUrl: this.baseUrl, error: this.serverError || undefined, active: this.active.size, admissionPaused: this.admissionPaused, limit: 10, authentication: "Bearer token", scope: "This Mac only" }; }
   private stored(id: string, profile?: string) {
     const row = this.db.prepare("SELECT payload FROM webhook_subscriptions WHERE id=?").get(id) as { payload: string } | undefined;
     if (!row) throw new Error("Subscription not found");
@@ -193,10 +202,12 @@ export class WebhookService {
     clearInterval(this.heartbeat);
     for (const [id, active] of this.active) {
       active.controller.abort(new Error("Hades stopped"));
-      const row = this.db.prepare("SELECT payload FROM webhook_receipts WHERE id=?").get(id) as { payload: string };
-      try { this.saveReceipt({ ...JSON.parse(row.payload), status: "interrupted", finishedAt: Date.now(), error: "Hades stopped. This event will not be replayed." }); } catch { /* Never change another owner's receipts. */ }
+      try {
+        const row = this.db.prepare("SELECT payload FROM webhook_receipts WHERE id=?").get(id) as { payload: string };
+        this.saveReceipt({ ...JSON.parse(row.payload), status: "interrupted", finishedAt: Date.now(), error: "Hades stopped. This event will not be replayed." });
+      } catch { /* The next owner reconciles interrupted receipts. */ }
     }
-    this.db.prepare("DELETE FROM webhook_owner WHERE id=1 AND owner=?").run(this.owner);
+    try { this.db.prepare("DELETE FROM webhook_owner WHERE id=1 AND owner=?").run(this.owner); } catch { /* Unwritable storage must not prevent process cleanup. The lease expires. */ }
     this.closed = true; this.server.close(); this.server.closeAllConnections(); this.db.close();
   }
 }

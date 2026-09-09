@@ -10,6 +10,11 @@ import { ActivityStore } from "./activity-store";
 import { CredentialPool } from "./credential-pool";
 import { MaintenanceService } from "./maintenance-service";
 import { delegationTools } from "./delegation-tools";
+import { HelmService } from "./helm-service";
+import { HelmCodeService } from "./helm-code-service";
+import type { HelmBuiltinInput } from "./helm-types";
+import { HelmContextStore } from "./helm-context";
+import { helmTools } from "./helm-tools";
 import { WebhookService } from "./webhook-service";
 import { DurableWork, type WorkExecution, type WorkGoal } from "./durable-work";
 import { WakeStore, type Wake } from "./wake-store";
@@ -93,7 +98,7 @@ interface SessionMeta {
   archived?: boolean;
   pinned?: boolean;
   model?: string;
-  source?: "desktop" | "routine" | "slack" | "team" | "work" | "webhook" | "browser";
+  source?: "desktop" | "routine" | "slack" | "team" | "work" | "webhook" | "browser" | "helm";
   browserThread?: string;
   browserEndpoint?: string;
   browserTask?: BrowserTask;
@@ -103,6 +108,8 @@ interface SessionMeta {
   workOwner?: string;
   delegatedWork?: string[];
   delegationReserved?: { goals: number; tasks: number; tokens: number; minutes: number };
+  helmRuns?: string[];
+  helmReserved?: { runs: number; minutes: number };
   /** Trusted session scope, inherited by every later message and resume. */
   toolAllowlist?: string[];
 }
@@ -194,6 +201,9 @@ export class WorkbenchService {
   private maintenanceAdmissions = 0;
   private closeAfterMaintenance = false;
   private work: DurableWork;
+  private helm: HelmService;
+  private helmCode: HelmCodeService;
+  private helmContext: HelmContextStore;
   private webhooks: WebhookService;
   private effectGuards = new Map<string, () => void>();
   private wakeOwner = randomUUID();
@@ -273,6 +283,17 @@ export class WorkbenchService {
     this.settings = existsSync(this.configPath)
       ? { ...initial, ...JSON.parse(readFileSync(this.configPath, "utf8")) }
       : initial;
+    this.helmContext = new HelmContextStore(join(dataDir, "helm-context"));
+    this.helm = new HelmService(dataDir, event => this.emit({ ...event, kind: "desktop.helm" }), {
+      env: { ...env, HADES_CODEX_HOME: env.HADES_CODEX_HOME ?? join(dataDir, "codex"),
+        HADES_CODEX_BIN: env.HADES_CODEX_BIN ?? (existsSync(join(dirname(process.execPath), "codex")) ? join(dirname(process.execPath), "codex") : undefined) },
+      runBuiltin: (input, signal, bind) => this.runHelmSession(input, signal, bind),
+    });
+    this.helmCode = new HelmCodeService(dataDir, {
+      env, ownsWorkspace: (candidate, sourceRoot, owner) => this.helm.ownsWorkspace(candidate) &&
+        this.helm.list(sourceRoot).some(run => run.workspace === candidate && run.owner === owner),
+      context: root => this.helmContext.snapshot(root).text,
+    });
     this.hooks = new HookService(join(dataDir, "shell-hooks.sqlite"), { root: path => this.root(path), profile: id => this.profile(id), changed: () => this.emit({ kind: "desktop.hooks.changed" }) });
     this.credentials = new CredentialPool(join(dataDir, "credential-pools.sqlite"), account => this.keys.get(account));
     this.computer.configure(this.settings.computerEnabled);
@@ -304,6 +325,62 @@ export class WorkbenchService {
   private browserStatus() {
     const config = this.settings.browser ?? { enabled: false, endpoint: "ws://127.0.0.1:8787/", profile: this.settings.activeProfile, root: this.settings.projects[0] ?? "" };
     return { ...config, connected: false, protocol: BROWSER_PROTOCOL, agents: [], capabilities: [], ...this.browser?.status() };
+  }
+  private helmRun(value: unknown, owner: string, parentSession?: string) {
+    const run = this.helm.get(ident(value));
+    if (run.owner !== owner || (parentSession !== undefined && run.parentSession !== parentSession)) throw new Error("This conversation or profile does not own that Helm task.");
+    return run;
+  }
+  private helmSessionTools(id: string, owner: string, root: string, signal: AbortSignal) {
+    const meta = this.settings.sessionMeta[id];
+    const view = (run: ReturnType<HelmService["get"]>) => ({ ...run, output: run.output.slice(-12000), contextSnapshot: undefined });
+    const owned = (target: string) => {
+      if (!meta.helmRuns?.includes(target)) throw new Error("This conversation has not delegated that Helm task.");
+      return this.helmRun(target, owner, id);
+    };
+    return helmTools({ signal, canDelegate: meta.source !== "helm" && !meta.toolAllowlist,
+      agents: () => this.helm.agents(),
+      context: () => this.helmContext.snapshot(root),
+      get: target => view(owned(target)), cancel: target => this.helm.cancel(owned(target).id),
+      diff: async target => { const diff = await this.helm.diff(owned(target).id); return { ...diff, text: diff.text.slice(0, 20000) }; },
+      start: async input => {
+        const minutes = Number(input.maxMinutes ?? 15);
+        const previous = meta.helmReserved ?? { runs: 0, minutes: 0 };
+        if (previous.runs >= 4 || previous.minutes + minutes > 60) throw new Error("This conversation has used its Helm allocation. Start a task in Helm to explicitly allocate more work.");
+        const context = this.helmContext.snapshot(root, input.contextIds);
+        // Reserve before asynchronous work. Unknown delivery is never refunded
+        // or silently replayed by a later model turn.
+        meta.helmReserved = { runs: previous.runs + 1, minutes: previous.minutes + minutes }; this.save();
+        signal.throwIfAborted();
+        const run = await this.helm.start({ root, owner, parentSession: id, agent: input.agent as any, prompt: String(input.prompt), ...(input.title ? { title: String(input.title) } : {}), ...(input.model ? { model: String(input.model) } : {}), maxMinutes: minutes, context: context.text });
+        meta.helmRuns = [...(meta.helmRuns ?? []), run.id]; this.save();
+        if (signal.aborted) await this.helm.cancel(run.id);
+        return view(this.helm.get(run.id));
+      },
+    });
+  }
+  private async runHelmSession(input: HelmBuiltinInput, signal: AbortSignal, bind: (update: { sessionId?: string; output?: string }) => void) {
+    signal.throwIfAborted();
+    const profile = this.profile(input.owner), root = this.root(input.root);
+    const session = await this.dispatch("session.new", { root, profile: profile.id, title: "Helm: " + input.prompt.slice(0, 145) }) as { id: string };
+    const meta = this.settings.sessionMeta[session.id]; meta.source = "helm";
+    bind({ sessionId: session.id });
+    if (input.model) meta.model = input.model;
+    // A delegated built-in agent gets only project tools, not another layer of
+    // delegation, browser access, computer control or arbitrary MCP services.
+    const toolAllowlist = workspaceTools(root, profile.shell).names(); meta.toolAllowlist = toolAllowlist; this.save();
+    const abort = () => this.active.get(session.id)?.abort();
+    signal.addEventListener("abort", abort, { once: true });
+    try {
+      signal.throwIfAborted();
+      await this.dispatch("chat.send", { id: session.id, profile: profile.id, input: `${input.context ? input.context + "\n\n" : ""}Helm coding task in an isolated worktree. Keep changes within this project. Do not push, merge, or claim tests passed without observed results.\n\n${input.prompt}`, toolAllowlist, maxTokens: 300000, maxRuntimeMs: input.maxMinutes * 60000 });
+      if (signal.aborted) abort();
+      await this.turns.get(session.id);
+      signal.throwIfAborted();
+      const messages = this.sessions(profile.id).get(session.id)?.messages ?? [];
+      const output = [...messages].reverse().find(message => message.role === "assistant")?.content ?? "";
+      return { sessionId: session.id, output, ...(this.progress.get(session.id)?.error ? { error: this.progress.get(session.id)!.error } : {}) };
+    } finally { signal.removeEventListener("abort", abort); }
   }
   private disconnectBrowser() {
     const client = this.browser, hadConnection = !!client || this.browserRuns.size > 0; this.browser = undefined;
@@ -626,7 +703,7 @@ export class WorkbenchService {
     const r = realpathSync(text(value, 4096));
     if (!statSync(r).isDirectory()) throw new Error("Choose a folder");
     const browserWorkspace = join(this.dataDir,"browser-workspace");
-    if (!this.settings.projects.includes(r) && !(existsSync(browserWorkspace) && realpathSync(browserWorkspace) === r))
+    if (!this.settings.projects.includes(r) && !this.helm?.ownsWorkspace(r) && !(existsSync(browserWorkspace) && realpathSync(browserWorkspace) === r))
       throw new Error("Open this project first");
     return r;
   }
@@ -731,7 +808,7 @@ export class WorkbenchService {
   }
   private async withMaintenanceSnapshot<T>(operation: () => Promise<T>): Promise<T> {
     this.assertMaintenanceAdmission();
-    if (this.maintenanceAdmissions || this.active.size || this.turns.size || this.roomRuns.size || this.fileWrites.size || this.pumpingWakes || this.wakeWorkers.size || this.work.hasActiveWork)
+    if (this.maintenanceAdmissions || this.active.size || this.turns.size || this.roomRuns.size || this.fileWrites.size || this.pumpingWakes || this.wakeWorkers.size || this.work.hasActiveWork || this.helm.hasActiveWork() || this.helmCode.hasActiveWork())
       throw new Error("Wait for active requests, conversations, work plans and routines to finish before creating a backup.");
     if (this.terminals.size) throw new Error("Close embedded terminals before creating a backup.");
     const slack = this.slack.status();
@@ -761,6 +838,34 @@ export class WorkbenchService {
   }
   private async dispatchCommand(method: string, a: Record<string, unknown>): Promise<unknown> {
     switch (method) {
+      case "helm.code.open": return this.helmCode.open(this.root(a.root), this.profile(a.profile).id);
+      case "helm.code.status": return this.helmCode.status(this.root(a.root), this.profile(a.profile).id);
+      case "helm.code.close": return this.helmCode.closeWorkspace(this.root(a.root), this.profile(a.profile).id);
+      case "helm.agents": return this.helm.agents(a.refresh === true);
+      case "helm.list": {
+        const root = a.root === undefined || a.root === "" ? undefined : this.root(a.root), owner = this.profile(a.profile).id;
+        return this.helm.list(root).filter(run => run.owner === owner);
+      }
+      case "helm.get": return this.helmRun(a.id, this.profile(a.profile).id);
+      case "helm.start": {
+        const root = this.root(a.root), owner = this.profile(a.profile).id;
+        const snapshot = this.helmContext.snapshot(root, a.contextIds);
+        return this.helm.start({ root, owner, agent: text(a.agent, 40) as any, prompt: text(a.prompt, 20000),
+          ...(a.title === undefined ? {} : { title: text(a.title, 160) }),
+          ...(a.model === undefined ? {} : { model: text(a.model, 200) }),
+          ...(a.maxMinutes === undefined ? {} : { maxMinutes: Number(a.maxMinutes) }),
+          ...(a.checks === undefined ? {} : { checks: a.checks as any }), context: snapshot.text });
+      }
+      case "helm.cancel": return this.helm.cancel(this.helmRun(a.id, this.profile(a.profile).id).id);
+      case "helm.diff": return this.helm.diff(this.helmRun(a.id, this.profile(a.profile).id).id);
+      case "helm.verify": return this.helm.verify(this.helmRun(a.id, this.profile(a.profile).id).id, a.checks as any);
+      case "helm.context.list": return this.helmContext.list(this.root(a.root));
+      case "helm.context.save": {
+        const result = this.helmContext.save(this.root(a.root), a); this.emit({ kind: "desktop.helm" }); return result;
+      }
+      case "helm.context.delete": {
+        const result = this.helmContext.delete(this.root(a.root), ident(a.id)); this.emit({ kind: "desktop.helm" }); return result;
+      }
       case "browser.readiness": {
         const profile = this.profile(this.settings.browser?.profile ?? this.settings.activeProfile);
         let providerReady = false;
@@ -1952,6 +2057,7 @@ export class WorkbenchService {
       });
       for (const tool of [
         ...delegated,
+        ...this.helmSessionTools(id, p.id, root, controller.signal),
         ...this.browserTools(id, p.id, root, controller.signal),
         ...workspaceTools(root, p.shell, controller.signal).list(),
         ...(this.settings.computerEnabled ? this.computer.tools(controller.signal) : []),
@@ -1977,7 +2083,7 @@ export class WorkbenchService {
             });
             if (this.journalFailure) return { ok: false, output: this.journalFailure };
             if (
-              ["delegate_work", "delegation_message", "delegation_stop"].includes(tool.name) ||
+              ["delegate_work", "delegation_message", "delegation_stop", "helm_delegate"].includes(tool.name) ||
               tool.name === "computer_action" ||
               (tool.name === "hades_browser" && BROWSER_TOOL_SPECS.some(spec => spec.name === JSON.parse(value).name && spec.mutating) && !(this.browserRuns.get(id)?.task?.readOnly && READ_ONLY_BROWSER_TOOLS.has(JSON.parse(value).name))) ||
               tool.name.startsWith("mcp_") ||
@@ -2387,6 +2493,8 @@ export class WorkbenchService {
     this.disconnectBrowser();
     this.browserRuntime?.close();
     this.work.close();
+    this.helm.close();
+    void this.helmCode.close();
     this.webhooks.close();
     this.credentials.close();
     for (const timer of this.wakeWorkers.values()) clearInterval(timer);

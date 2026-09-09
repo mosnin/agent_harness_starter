@@ -8,6 +8,10 @@ for argument in "$@"; do
   case "$argument" in --build-only) MODE="build";; --verify) MODE="verify";; --debug|--logs|--telemetry) MODE="logs";; *) echo "Unknown option: $argument" >&2; exit 2;; esac
 done
 if [[ "$(uname -s)" != Darwin ]]; then echo "This script builds the macOS application." >&2; exit 1; fi
+if [[ ! -f dist/helm-ui/index.html || ! -f dist/runtime/helm-opencode ]]; then
+  echo "Helm's OpenCode fork is not built. Run npm run helm:build -- --source /path/to/the/helm-integration/fork first." >&2
+  exit 1
+fi
 HADES_BUNDLE_PROVIDERS=1 npm run desktop:build
 HADES_BUNDLE_PROVIDERS=1 npm run build:hades
 node scripts/build-team-server.mjs
@@ -42,6 +46,9 @@ node scripts/package-codex-runtime.mjs "$APP/Contents/Resources"
 cp dist/runtime/node "$APP/Contents/Resources/node"
 cp dist/runtime/hades-pty "$APP/Contents/Resources/hades-pty"
 cp dist/runtime/hades-computer "$APP/Contents/Resources/hades-computer"
+cp -c dist/runtime/helm-opencode "$APP/Contents/Resources/helm-opencode"
+rm -rf "$APP/Contents/Resources/helm-ui"
+cp -R dist/helm-ui "$APP/Contents/Resources/helm-ui"
 cp src-tauri/icons/icon.icns "$APP/Contents/Resources/Hades.icns"
 # Keep Node package lookup inside the signed bundle, away from protected parent folders.
 cp src-tauri/runtime-package.json "$APP/Contents/Resources/package.json"
@@ -60,10 +67,16 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>NSDownloadsFolderUsageDescription</key><string>Read project files and attachments you choose from Downloads.</string>
 </dict></plist>
 PLIST
-codesign --force --sign - "$APP/Contents/Resources/codex"
+# Preserve a valid vendor signature; re-signing the large Codex binary creates
+# an unnecessary full-size temporary copy on disk-constrained machines.
+if ! codesign --verify --strict "$APP/Contents/Resources/codex" 2>/dev/null; then
+  codesign --force --sign - "$APP/Contents/Resources/codex"
+fi
 codesign --force --sign - "$APP/Contents/Resources/node"
 codesign --force --sign - "$APP/Contents/Resources/hades-pty"
 codesign --force --sign - "$APP/Contents/Resources/hades-computer"
+codesign --force --sign - "$APP/Contents/Resources/helm-opencode"
+node scripts/stamp-helm-bundle.mjs "$APP/Contents/Resources"
 codesign --force --sign - "$APP"
 codesign --verify --deep --strict "$APP"
 echo "Built: $APP"
