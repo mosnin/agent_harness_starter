@@ -27,6 +27,15 @@ import type { Beat, EditorialLimits, Storyboard } from "../tools/cap/types";
 import type { ActToolResult, ObservationSummary } from "../tools/cap/tools";
 import { observationFingerprint } from "../tools/cap/tools";
 import type { InputAction } from "../tools/cap/types";
+import {
+	type ExportQaDeps,
+	type ExportQaInput,
+	type QaReport,
+	runExportQa,
+	toReviewVerdict,
+} from "../qa/review";
+import { QaVerdictError } from "../qa/model";
+import { AgentError } from "../errors/index";
 
 /** OpenAI's computer-use model. Override per deployment via `createDirectorTeam`. */
 export const OPENAI_COMPUTER_USE_MODEL = "computer-use-preview";
@@ -411,10 +420,21 @@ export const ReviewVerdictSchema = z.object({
 });
 export type ReviewVerdict = z.infer<typeof ReviewVerdictSchema>;
 
+export interface IndeterminatePass {
+	pass: number;
+	reason: string;
+	code: string;
+}
+
 export interface ReviewLoopOptions {
 	review: (pass: number) => Promise<ReviewVerdict>;
 	onReshoot?: (verdict: ReviewVerdict, pass: number) => Promise<void>;
 	onReExport?: (verdict: ReviewVerdict, pass: number) => Promise<void>;
+	/**
+	 * A pass that could not produce a trustworthy verdict — a malformed or low-confidence QA
+	 * response. It is never an accept, so the loop records it and looks again.
+	 */
+	onIndeterminate?: (error: Error, pass: number) => Promise<void>;
 	/** Passes before the loop gives up and hands the defect to the human. Default 3. */
 	maxPasses?: number;
 }
@@ -422,25 +442,54 @@ export interface ReviewLoopOptions {
 export interface ReviewLoopResult {
 	passes: ReviewVerdict[];
 	accepted: boolean;
-	stoppedBy: "accepted" | "max_passes";
+	stoppedBy: "accepted" | "max_passes" | "qa_failed";
+	/** Present only when a pass failed to produce a verdict at all. */
+	indeterminate?: IndeterminatePass[];
 }
 
 /**
  * Explicit accept / reshoot / re-export loop. Written out rather than delegated to
  * `runIterative` so the regrade actions run under the same governed tool path as the shoot.
+ *
+ * A review that throws is a QA pass that did not happen: it is recorded, never converted into an
+ * accept, and if no pass in the budget produced a verdict the loop stops at `qa_failed` and the
+ * export goes to a human.
  */
 export async function runReviewLoop(
 	options: ReviewLoopOptions
 ): Promise<ReviewLoopResult> {
-	const { review, onReshoot, onReExport, maxPasses = 3 } = options;
+	const { review, onReshoot, onReExport, onIndeterminate, maxPasses = 3 } = options;
 	const passes: ReviewVerdict[] = [];
+	const indeterminate: IndeterminatePass[] = [];
+
+	const result = (
+		accepted: boolean,
+		stoppedBy: ReviewLoopResult["stoppedBy"]
+	): ReviewLoopResult => ({
+		passes,
+		accepted,
+		stoppedBy,
+		indeterminate: indeterminate.length > 0 ? indeterminate : undefined,
+	});
 
 	for (let pass = 0; pass < maxPasses; pass++) {
-		const verdict = await review(pass);
+		let verdict: ReviewVerdict;
+		try {
+			verdict = await review(pass);
+		} catch (error) {
+			const failure = error instanceof Error ? error : new Error(String(error));
+			indeterminate.push({
+				pass,
+				reason: failure.message,
+				code: failure instanceof AgentError ? failure.code : "QA_REVIEW_THREW",
+			});
+			await onIndeterminate?.(failure, pass);
+			continue;
+		}
 		passes.push(verdict);
 
 		if (verdict.verdict === "accept") {
-			return { passes, accepted: true, stoppedBy: "accepted" };
+			return result(true, "accepted");
 		}
 		if (verdict.verdict === "reshoot") {
 			await onReshoot?.(verdict, pass);
@@ -449,5 +498,49 @@ export async function runReviewLoop(
 		}
 	}
 
-	return { passes, accepted: false, stoppedBy: "max_passes" };
+	return result(false, passes.length === 0 ? "qa_failed" : "max_passes");
+}
+
+// ── Frame QA wiring ───────────────────────────────────────────────────────────
+
+export interface FrameQaReviewOptions {
+	/**
+	 * The export to look at. A function is re-evaluated per pass, so pass 1 reviews the file the
+	 * re-export actually produced rather than the one that failed.
+	 */
+	input: ExportQaInput | ((pass: number) => ExportQaInput | Promise<ExportQaInput>);
+	deps: ExportQaDeps;
+	onReport?: (report: QaReport) => void | Promise<void>;
+}
+
+/**
+ * The real review: extract beat frames from the export, look at them, and return the verdict the
+ * loop already knows how to route. Both seams (ffmpeg and the model) stay injected.
+ */
+export function createFrameQaReview(
+	options: FrameQaReviewOptions
+): (pass: number) => Promise<ReviewVerdict> {
+	return async (pass) => {
+		const input =
+			typeof options.input === "function" ? await options.input(pass) : options.input;
+		const report = await runExportQa({ ...input, pass }, options.deps);
+		await options.onReport?.(report);
+		return ReviewVerdictSchema.parse(toReviewVerdict(report));
+	};
+}
+
+export interface FrameQaReviewLoopOptions
+	extends FrameQaReviewOptions,
+		Omit<ReviewLoopOptions, "review"> {}
+
+export function runFrameQaReviewLoop(
+	options: FrameQaReviewLoopOptions
+): Promise<ReviewLoopResult> {
+	const { input, deps, onReport, ...loop } = options;
+	return runReviewLoop({ ...loop, review: createFrameQaReview({ input, deps, onReport }) });
+}
+
+/** True when a pass failed because the QA itself could not be trusted, not because the cut was wrong. */
+export function isQaUnavailable(error: unknown): error is QaVerdictError {
+	return error instanceof QaVerdictError;
 }
