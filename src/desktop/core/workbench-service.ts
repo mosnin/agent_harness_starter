@@ -11,6 +11,10 @@ import { CredentialPool } from "./credential-pool";
 import { MaintenanceService } from "./maintenance-service";
 import { delegationTools } from "./delegation-tools";
 import { HelmService } from "./helm-service";
+import { HelmIntegration } from "./helm-integration";
+import { HelmHandoffStore, helmHandoffContext } from "./helm-handoff";
+import { HelmSourceChecks } from "./helm-source-checks";
+import { HelmPreview } from "./helm-preview";
 import { HelmCodeService } from "./helm-code-service";
 import type { HelmBuiltinInput } from "./helm-types";
 import { HelmContextStore } from "./helm-context";
@@ -202,6 +206,10 @@ export class WorkbenchService {
   private closeAfterMaintenance = false;
   private work: DurableWork;
   private helm: HelmService;
+  private helmIntegration: HelmIntegration;
+  private helmHandoffs: HelmHandoffStore;
+  private helmSourceChecks: HelmSourceChecks;
+  private helmPreview: HelmPreview;
   private helmCode: HelmCodeService;
   private helmContext: HelmContextStore;
   private webhooks: WebhookService;
@@ -288,6 +296,27 @@ export class WorkbenchService {
       env: { ...env, HADES_CODEX_HOME: env.HADES_CODEX_HOME ?? join(dataDir, "codex"),
         HADES_CODEX_BIN: env.HADES_CODEX_BIN ?? (existsSync(join(dirname(process.execPath), "codex")) ? join(dirname(process.execPath), "codex") : undefined) },
       runBuiltin: (input, signal, bind) => this.runHelmSession(input, signal, bind),
+    });
+    this.helmIntegration = new HelmIntegration(dataDir, this.helm);
+    this.helmHandoffs = new HelmHandoffStore(dataDir);
+    this.helmSourceChecks = new HelmSourceChecks(dataDir, {
+      review: (id, scope) => this.helmIntegration.get(id, scope),
+      fingerprint: root => this.helmIntegration.sourceFingerprint(root),
+    }, () => this.emit({kind:"desktop.helm"}));
+    this.helmPreview = new HelmPreview(dataDir, {
+      context: async (runId, sourceCheckId, scope) => {
+        const run = this.helmRun(runId, this.profile(scope.owner).id, scope.parentSession);
+        const check = await this.helmSourceChecks.get(sourceCheckId, scope);
+        if(check.runId!==run.id || check.root!==run.root || check.status!=="passed" || !check.after) throw new Error("Run fresh passing source checks before opening this preview.");
+        if(!run.handoffId) throw new Error("This task has no originating Browser notebook. Open its local preview directly in your chosen Browser space.");
+        const handoff=this.helmHandoffs.get(run.handoffId);
+        if(handoff.runId!==run.id || handoff.owner!==run.owner || handoff.root!==run.root) throw new Error("Browser handoff ownership does not match this task.");
+        return {workspaceId:handoff.notebook.workspaceId,profile:run.owner!,sourceRevision:check.after};
+      },
+      client: profile => {
+        if(!this.browser || !this.settings.browser?.enabled || this.settings.browser.profile!==profile || !this.browser.status().connected) throw new Error("Connect Hades Browser using this Hades profile before opening the preview.");
+        return this.browser;
+      },
     });
     this.helmCode = new HelmCodeService(dataDir, {
       env, ownsWorkspace: (candidate, sourceRoot, owner) => this.helm.ownsWorkspace(candidate) &&
@@ -808,7 +837,7 @@ export class WorkbenchService {
   }
   private async withMaintenanceSnapshot<T>(operation: () => Promise<T>): Promise<T> {
     this.assertMaintenanceAdmission();
-    if (this.maintenanceAdmissions || this.active.size || this.turns.size || this.roomRuns.size || this.fileWrites.size || this.pumpingWakes || this.wakeWorkers.size || this.work.hasActiveWork || this.helm.hasActiveWork() || this.helmCode.hasActiveWork())
+    if (this.maintenanceAdmissions || this.active.size || this.turns.size || this.roomRuns.size || this.fileWrites.size || this.pumpingWakes || this.wakeWorkers.size || this.work.hasActiveWork || this.helm.hasActiveWork() || this.helmCode.hasActiveWork() || this.helmSourceChecks.hasActiveWork())
       throw new Error("Wait for active requests, conversations, work plans and routines to finish before creating a backup.");
     if (this.terminals.size) throw new Error("Close embedded terminals before creating a backup.");
     const slack = this.slack.status();
@@ -850,15 +879,74 @@ export class WorkbenchService {
       case "helm.start": {
         const root = this.root(a.root), owner = this.profile(a.profile).id;
         const snapshot = this.helmContext.snapshot(root, a.contextIds);
-        return this.helm.start({ root, owner, agent: text(a.agent, 40) as any, prompt: text(a.prompt, 20000),
+        const handoffId = a.handoffId === undefined ? undefined : ident(a.handoffId);
+        const handoff = handoffId ? this.helmHandoffs.get(handoffId) : undefined;
+        const context = [snapshot.text, handoff ? helmHandoffContext(handoff) : ""].filter(Boolean).join("\n\n");
+        if(context.length>100000) throw new Error("Selected project context and Browser evidence exceed the task context limit. Reduce the selected context before starting.");
+        const input = { root, owner, agent: text(a.agent, 40) as any, prompt: text(a.prompt, 20000),
           ...(a.title === undefined ? {} : { title: text(a.title, 160) }),
           ...(a.model === undefined ? {} : { model: text(a.model, 200) }),
           ...(a.maxMinutes === undefined ? {} : { maxMinutes: Number(a.maxMinutes) }),
-          ...(a.checks === undefined ? {} : { checks: a.checks as any }), context: snapshot.text });
+          ...(a.checks === undefined ? {} : { checks: a.checks as any }), context, ...(handoffId ? {handoffId} : {}) };
+        this.helm.validateStart(input);
+        if(handoffId) this.helmHandoffs.claim(handoffId,{root,owner});
+        const run = await this.helm.start(input);
+        if(handoffId) this.helmHandoffs.complete(handoffId,run.id);
+        return run;
+      }
+      case "browser.helmDraft": {
+        const draft=this.helmHandoffs.receive(a);
+        this.emit({kind:"desktop.helm"});
+        return {id:draft.id,status:draft.status};
+      }
+      case "helm.handoff.list": {
+        const owner=this.profile(a.profile).id;
+        return this.helmHandoffs.list().filter(item=>!item.owner || item.owner===owner);
+      }
+      case "helm.source.start":
+      case "helm.source.list":
+      case "helm.source.get":
+      case "helm.source.cancel": {
+        const run=this.helmRun(a.id,this.profile(a.profile).id);
+        const scope={root:run.root,owner:run.owner,parentSession:run.parentSession};
+        const reviewId=ident(a.reviewId),review=this.helmIntegration.get(reviewId,scope);
+        if(review.runId!==run.id) throw new Error("Review belongs to another Helm task.");
+        if(method==="helm.source.start") return this.helmSourceChecks.start(reviewId,scope,a.checks as any,a.maxSeconds===undefined?300:Number(a.maxSeconds));
+        if(method==="helm.source.list") return this.helmSourceChecks.list(reviewId,scope);
+        const id=ident(a.sourceCheckId),receipt=await this.helmSourceChecks.get(id,scope);
+        if(receipt.reviewId!==reviewId || receipt.runId!==run.id) throw new Error("Source checks belong to another review.");
+        return method==="helm.source.cancel"?this.helmSourceChecks.cancel(id,scope):receipt;
+      }
+      case "helm.preview.open":
+      case "helm.preview.list": {
+        const run=this.helmRun(a.id,this.profile(a.profile).id);
+        const scope={root:run.root,owner:run.owner,parentSession:run.parentSession};
+        if(method==="helm.preview.list") return this.helmPreview.list(run.id,scope);
+        return this.helmPreview.open(ident(a.requestId),run.id,ident(a.sourceCheckId),scope,text(a.url,4000));
       }
       case "helm.cancel": return this.helm.cancel(this.helmRun(a.id, this.profile(a.profile).id).id);
       case "helm.diff": return this.helm.diff(this.helmRun(a.id, this.profile(a.profile).id).id);
       case "helm.verify": return this.helm.verify(this.helmRun(a.id, this.profile(a.profile).id).id, a.checks as any);
+      case "helm.integration.prepare": {
+        const run = this.helmRun(a.id, this.profile(a.profile).id);
+        return this.helmIntegration.prepare(run.id, { root: run.root, owner: run.owner, parentSession: run.parentSession });
+      }
+      case "helm.integration.list": {
+        const run = this.helmRun(a.id, this.profile(a.profile).id);
+        return this.helmIntegration.list(run.id, { root: run.root, owner: run.owner, parentSession: run.parentSession });
+      }
+      case "helm.integration.get":
+      case "helm.integration.apply": {
+        const run = this.helmRun(a.id, this.profile(a.profile).id);
+        const scope = { root: run.root, owner: run.owner, parentSession: run.parentSession };
+        const reviewId = ident(a.reviewId);
+        const review = this.helmIntegration.get(reviewId, scope);
+        if (review.runId !== run.id) throw new Error("Review belongs to another Helm task.");
+        if (method === "helm.integration.get") return review;
+        const result = await this.helmIntegration.apply(reviewId, scope, text(a.patchDigest, 64));
+        this.emit({ kind: "desktop.helm", runId: run.id });
+        return result;
+      }
       case "helm.context.list": return this.helmContext.list(this.root(a.root));
       case "helm.context.save": {
         const result = this.helmContext.save(this.root(a.root), a); this.emit({ kind: "desktop.helm" }); return result;
@@ -2494,6 +2582,7 @@ export class WorkbenchService {
     this.browserRuntime?.close();
     this.work.close();
     this.helm.close();
+    this.helmSourceChecks.close();
     void this.helmCode.close();
     this.webhooks.close();
     this.credentials.close();

@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { createServer, type Server } from "node:http";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, chmodSync, existsSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { WorkbenchService } from "../core/workbench-service";
@@ -72,4 +73,44 @@ it("accepts the same 200-character model limit through the native start API", as
   await vi.waitFor(async () => expect((await service.dispatch("helm.get", { id: started.id }) as any).status).toBe("needs_review"));
   expect((await service.dispatch("helm.get", { id: started.id }) as any).model).toBe(model);
   await expect(service.dispatch("helm.start", { root, agent: "codex", prompt: "Inspect code", model: "m".repeat(201) })).rejects.toThrow();
+});
+
+
+it("keeps Browser draft admission idempotent and binds explicit coding selection", async () => {
+  const {service,root}=await fixture();
+  const input={requestId:randomUUID(),prompt:"Implement this notebook",notebook:{id:"note-1",workspaceId:"browser-space",runId:"browser-run",title:"Research",body:"Keep the source evidence",sources:[{id:"s1",title:"Source",url:"https://example.test/reference",retrievedAt:1,excerpt:"Observed content"}]}};
+  const receipt:any=await service.dispatch("browser.helmDraft",input);
+  expect(await service.dispatch("browser.helmDraft",input)).toEqual(receipt);
+  expect(await service.dispatch("helm.list",{root})).toEqual([]);
+  await expect(service.dispatch("helm.start",{root,profile:"default",agent:"invalid",prompt:"Implement",handoffId:receipt.id,maxMinutes:1})).rejects.toThrow();
+  expect((await service.dispatch("helm.handoff.list",{profile:"default"}) as any[])[0].status).toBe("draft");
+  const attempts=await Promise.allSettled([1,2].map(()=>service.dispatch("helm.start",{root,profile:"default",agent:"codex",prompt:"Implement",handoffId:receipt.id,maxMinutes:1})));
+  expect(attempts.filter(r=>r.status==="fulfilled")).toHaveLength(1);
+  let runs:any[]=[];await vi.waitFor(async()=>{runs=await service.dispatch("helm.list",{root}) as any[];expect(runs[0]?.status).toBe("needs_review");});
+  expect(runs).toHaveLength(1);expect(runs[0].handoffId).toBe(receipt.id);expect(runs[0].contextSnapshot).toContain("browser-run");expect(runs[0].contextSnapshot).toContain("https://example.test/reference");
+  expect((await service.dispatch("helm.handoff.list",{profile:"default"}) as any[])[0]).toMatchObject({status:"started",runId:runs[0].id});
+  const other:any=await service.dispatch("profile.save",{name:"Other",provider:"local",model:"fixture",baseUrl:"http://127.0.0.1:1/v1"});
+  expect(await service.dispatch("helm.handoff.list",{profile:other.id})).toEqual([]);
+  await expect(service.dispatch("browser.helmDraft",{...input,root})).rejects.toThrow(/fields/);
+});
+
+it("requires verified source review through owned RPC and retains its application receipt",async()=>{
+  const {service,root}=await fixture();
+  const run:any=await service.dispatch("helm.start",{root,agent:"codex",prompt:"Fix",maxMinutes:1});
+  await vi.waitFor(async()=>expect((await service.dispatch("helm.get",{id:run.id}) as any).status).toBe("needs_review"));
+  await expect(service.dispatch("helm.integration.prepare",{id:run.id})).rejects.toThrow(/Verify/);
+  await service.dispatch("helm.verify",{id:run.id,checks:[{command:process.execPath,args:["-e","if(require('fs').readFileSync('code.js','utf8')!=='changed\\n')process.exit(1)"]}]});
+  const review:any=await service.dispatch("helm.integration.prepare",{id:run.id});
+  expect(readFileSync(join(root,"code.js"),"utf8")).toBe("original\n");
+  expect((await service.dispatch("helm.integration.list",{id:run.id}) as any[])[0].id).toBe(review.id);
+  const patchDigest=createHash("sha256").update(review.patch).digest("hex");
+  const applied:any=await service.dispatch("helm.integration.apply",{id:run.id,reviewId:review.id,patchDigest});
+  expect(applied).toMatchObject({status:"applied",requiresSourceChecks:true});
+  expect(readFileSync(join(root,"code.js"),"utf8")).toBe("changed\n");
+  expect(await service.dispatch("helm.integration.apply",{id:run.id,reviewId:review.id,patchDigest})).toEqual(applied);
+  const source:any=await service.dispatch("helm.source.start",{id:run.id,reviewId:review.id,checks:[{command:process.execPath,args:["-e","if(require('fs').readFileSync('code.js','utf8')!=='changed\\n')process.exit(1)"]}],maxSeconds:10});
+  await vi.waitFor(async()=>expect((await service.dispatch("helm.source.get",{id:run.id,reviewId:review.id,sourceCheckId:source.id}) as any).status).toBe("passed"),{timeout:5000});
+  await expect(service.dispatch("helm.preview.open",{id:run.id,sourceCheckId:source.id,requestId:randomUUID(),url:"http://127.0.0.1:3000"})).rejects.toThrow(/originating Browser/);
+  writeFileSync(join(root,"code.js"),"later source change\n");
+  expect((await service.dispatch("helm.source.get",{id:run.id,reviewId:review.id,sourceCheckId:source.id}) as any).status).toBe("stale");
 });

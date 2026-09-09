@@ -22,6 +22,7 @@
  */
 
 import { NativeScheduleExecutor, freshScheduleStore } from "./core/native-schedule";
+import { acquireSidecarDataLock, serveSidecarLockFailure, SidecarDataInUseError, type SidecarDataLock } from "./core/sidecar-data-lock";
 import { nativeLifetime } from "./core/native-lifetime";
 import { WorkbenchService } from "./core/workbench-service";
 import { encodeEvent, decodeCommand } from "./ipc/contract";
@@ -809,6 +810,7 @@ export async function main(): Promise<void> {
   };
 
   let stopping = false;
+  let dataLock: SidecarDataLock | undefined;
   const lifetime = process.env.HADES_NATIVE_PROCESS_GROUP === "1" && process.platform !== "win32"
     ? nativeLifetime({ parent: Number(process.env.HADES_NATIVE_PARENT), parentNow: () => process.ppid,
       stop: () => { stopping = true; process.stdin.destroy(); },
@@ -818,6 +820,13 @@ export async function main(): Promise<void> {
   process.stdin.once("end", inputEnded);
   process.stdin.once("close", inputEnded);
   try {
+    // Acquire before fleet restoration or any persistent service construction.
+    try { dataLock = acquireSidecarDataLock(loadConfig({ env: process.env }).dataDir); }
+    catch (error) {
+      if (!(error instanceof SidecarDataInUseError)) throw error;
+      await serveSidecarLockFailure(process.stdin, output, error);
+      return;
+    }
     // No explicit factory: runSidecar wires the real engine factory itself,
     // decorated with the real fleet's worker->backend attribution.
     const stop = () => {
@@ -850,7 +859,7 @@ export async function main(): Promise<void> {
   } finally {
     process.stdin.removeListener("end", inputEnded);
     process.stdin.removeListener("close", inputEnded);
-    lifetime?.finish();
+    try { dataLock?.release(); } finally { lifetime?.finish(); }
   }
 }
 

@@ -60,7 +60,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>ai.hades.desktop</string><key>CFBundleExecutable</key><string>Hades</string>
 <key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>0.1.0</string>
 <key>CFBundleVersion</key><string>1</string><key>CFBundleIconFile</key><string>Hades.icns</string>
-<key>LSMinimumSystemVersion</key><string>12.0</string><key>NSHighResolutionCapable</key><true/>
+<key>LSMinimumSystemVersion</key><string>14.0</string><key>NSHighResolutionCapable</key><true/>
 <key>NSMicrophoneUsageDescription</key><string>Record voice messages when you choose the microphone.</string>
 <key>NSDocumentsFolderUsageDescription</key><string>Read and edit the project folders you open in Hades.</string>
 <key>NSDesktopFolderUsageDescription</key><string>Read and edit project folders you open from your Desktop.</string>
@@ -69,6 +69,17 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 PLIST
 # Preserve a valid vendor signature; re-signing the large Codex binary creates
 # an unnecessary full-size temporary copy on disk-constrained machines.
+if [[ -n "${HADES_SIGN_IDENTITY:-}" ]]; then
+  for binary in codex node hades-pty hades-computer helm-opencode; do
+    if [[ "$binary" == node || "$binary" == helm-opencode ]]; then
+      codesign --force --sign "$HADES_SIGN_IDENTITY" --timestamp --options runtime --entitlements src-tauri/runtime-entitlements.plist "$APP/Contents/Resources/$binary"
+    else
+      codesign --force --sign "$HADES_SIGN_IDENTITY" --timestamp --options runtime "$APP/Contents/Resources/$binary"
+    fi
+  done
+  node scripts/stamp-helm-bundle.mjs "$APP/Contents/Resources"
+  codesign --force --sign "$HADES_SIGN_IDENTITY" --timestamp --options runtime "$APP"
+else
 if ! codesign --verify --strict "$APP/Contents/Resources/codex" 2>/dev/null; then
   codesign --force --sign - "$APP/Contents/Resources/codex"
 fi
@@ -78,6 +89,7 @@ codesign --force --sign - "$APP/Contents/Resources/hades-computer"
 codesign --force --sign - "$APP/Contents/Resources/helm-opencode"
 node scripts/stamp-helm-bundle.mjs "$APP/Contents/Resources"
 codesign --force --sign - "$APP"
+fi
 codesign --verify --deep --strict "$APP"
 echo "Built: $APP"
 if [[ "$MODE" == build ]]; then exit 0; fi

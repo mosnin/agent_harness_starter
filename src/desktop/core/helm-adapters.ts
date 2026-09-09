@@ -1,4 +1,4 @@
-import { accessSync, constants } from 'node:fs';
+import { accessSync, constants, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import type { HelmAgentId } from './helm-types.js';
@@ -10,16 +10,19 @@ export function helmBinary(id: HelmAgentId, env: NodeJS.ProcessEnv): string | un
   if (id === 'hades') return undefined;
   const override = env[`HADES_HELM_${id.toUpperCase()}_BIN`] ?? (id === 'codex' ? env.HADES_CODEX_BIN : undefined);
   const candidates = override ? [override] : (helmEnv(env).PATH ?? '').split(delimiter).map(p => join(p, id));
-  return candidates.find(p => { try { accessSync(p, constants.X_OK); return true; } catch { return false; } });
+  return candidates.find(p => { try { accessSync(p, constants.X_OK); return statSync(p).isFile(); } catch { return false; } });
 }
 // Official CLI contracts: code.claude.com/docs/en/cli-usage,
 // developers.openai.com/codex/cli/reference, geminicli.com/docs/reference/configuration,
 // opencode.ai/docs/cli, github.com/xai-org/grok-build (headless user guide).
 // Keep permission checks active. These modes permit edits, not arbitrary approval bypass.
+export function helmCodexConfig(managed: boolean): string[] {
+  return managed ? ['-c', 'model_provider="openai"', '-c', 'forced_login_method="chatgpt"', '-c', 'cli_auth_credentials_store="keyring"'] : [];
+}
 export function helmArgs(id: HelmAgentId, prompt: string, model?: string, managedCodex=false, workspace?: string): string[] {
   const m = model ? ['--model', model] : [];
   switch (id) {
-    case 'codex': return ['exec', '--sandbox', 'workspace-write', '--json', ...(managedCodex ? ['-c','model_provider="openai"','-c','forced_login_method="chatgpt"','-c','cli_auth_credentials_store="keyring"'] : []), ...m, '--', prompt];
+    case 'codex': return ['exec', '--sandbox', 'workspace-write', '--json', ...helmCodexConfig(managedCodex), ...m, '--', prompt];
     case 'claude': return ['--print', '--output-format', 'json', '--permission-mode', 'acceptEdits', ...m, '--', prompt];
     case 'gemini': return ['--prompt', prompt, '--output-format', 'json', '--approval-mode', 'auto_edit', ...m];
     case 'opencode': return ['run', '--format', 'json', ...(workspace ? ['--dir',workspace] : []), ...m, '--', prompt];

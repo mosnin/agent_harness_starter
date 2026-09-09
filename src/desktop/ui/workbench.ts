@@ -208,7 +208,7 @@ export function mountWorkbench(root: HTMLElement) {
     }
     if (managementViews.has(view)) await management.open(view, profile.id, profile.name, project);
     if (view === "work") await workGoals.open(workContext());
-    if (view === "helm") await helm.open({root:project,profile:profile.id,projects:boot.projects});
+    if (view === "helm") await helm.open({root:project,profile:profile.id,profileName:profile.name,projects:boot.projects});
     if (view === "webhooks") await webhooks.open(webhookContext());
     if (view === "browser") await browserView.open({ profile: profile.id, root: project, name: profile.name });
     if (view === "credentials") await credentials.open(profile.id);
@@ -752,7 +752,7 @@ export function mountWorkbench(root: HTMLElement) {
     modal = "";
     if (managementViews.has(view)) await management.open(view, profile.id, profile.name, project);
     if (view === "work") await workGoals.open(workContext());
-    if (view === "helm") await helm.open({root:project,profile:profile.id,projects:boot.projects});
+    if (view === "helm") await helm.open({root:project,profile:profile.id,profileName:profile.name,projects:boot.projects});
     if (view === "webhooks") await webhooks.open(webhookContext());
     if (view === "browser") await browserView.open({ profile: profile.id, root: project, name: profile.name });
     if (view === "credentials") await credentials.open(profile.id);

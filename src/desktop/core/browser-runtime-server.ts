@@ -79,17 +79,26 @@ export class BrowserRuntimeServer {
     if (!port || typeof port === "string" || request.headers.host !== `127.0.0.1:${port.port}`) {
       this.reply(response, 403, { error: "Invalid local destination." }); return;
     }
-    if (request.method !== "POST" || !["/readiness", "/pair"].includes(request.url ?? "")) {
+    if (request.method !== "POST" || !["/readiness", "/pair", "/helm-draft"].includes(request.url ?? "")) {
       this.reply(response, 404, { error: "Unknown Agent operation." }); return;
     }
-    let raw = "";
+    const chunks: Buffer[] = [];
+    let bytes=0;
+    const limit=request.url==="/helm-draft"?131072:16384;
     for await (const chunk of request) {
-      raw += chunk.toString();
-      if (Buffer.byteLength(raw) > 16_384) { this.reply(response, 413, { error: "Request is too large." }); return; }
+      bytes+=chunk.length;
+      if (bytes > limit) { this.reply(response, 413, { error: "Request is too large." }); return; }
+      chunks.push(Buffer.from(chunk));
     }
+    const raw=Buffer.concat(chunks).toString("utf8");
     let body: Record<string, unknown>;
     try { body = raw ? JSON.parse(raw) : {}; } catch { this.reply(response, 400, { error: "Invalid request." }); return; }
     if (!body || typeof body !== "object" || Array.isArray(body)) { this.reply(response, 400, { error: "Invalid request." }); return; }
+    if(request.url==="/helm-draft") {
+      try { this.reply(response,200,await this.dispatch("browser.helmDraft",body)); }
+      catch { this.reply(response,400,{error:"Could not save this Helm draft. Check notebook size and request identity; no coding task was started."}); }
+      return;
+    }
     if (request.url === "/readiness") {
       this.reply(response, 200, await this.dispatch("browser.readiness", {})); return;
     }

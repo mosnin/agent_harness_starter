@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync, lstatSync, readlinkSync, realpathSync, openSync, closeSync, fsyncSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { HELM_AGENTS, helmArgs, helmBinary, helmEnv, helmProviderError, helmAgentEnv } from './helm-adapters.js';
+import { probeHelmAgent } from './helm-provider-readiness.js';
 import type { HelmAgent, HelmCheck, HelmDiff, HelmOptions, HelmRun, HelmStart } from './helm-types.js';
 const LIMIT = 200_000;
 const WORKTREE_QUEUES = new Map<string,Promise<void>>();
@@ -16,6 +17,7 @@ export class HelmService {
   private closed = false;
   private agentCache?: {expires: number; value: HelmAgent[]};
   private agentPending?: Promise<HelmAgent[]>;
+  private agentPendingRefresh = false;
   private outputTicks = new Map<string,number>();
   constructor(dataDir: string, private emit: (event: {kind: 'helm.changed'; runId?: string}) => void, private options: HelmOptions = {}) {
     this.directory = join(resolve(dataDir), 'helm');
@@ -54,23 +56,31 @@ export class HelmService {
     return {dev:stat.dev,ino:stat.ino,gitFileDigest:createHash('sha256').update(readFileSync(gitFile)).digest('hex')};
   }
   async agents(refresh=false): Promise<HelmAgent[]> {
-    if(this.agentPending)return structuredClone(await this.agentPending);
+    if(this.agentPending) {
+      if(refresh && !this.agentPendingRefresh) { await this.agentPending; return this.agents(true); }
+      return structuredClone(await this.agentPending);
+    }
     if(!refresh && this.agentCache && this.agentCache.expires>Date.now())return structuredClone(this.agentCache.value);
+    this.agentPendingRefresh=refresh;
     this.agentPending=Promise.all(HELM_AGENTS.map(async id => {
+      if(refresh) {
+        const readiness=await probeHelmAgent(id,this.env,{cwd:this.directory,builtinAvailable:!!this.options.runBuiltin});
+        return {id,name:id==='hades'?'Hades':id,installed:readiness.installed,auth:readiness.auth,version:readiness.version,readiness};
+      }
       if (id === 'hades') return {id, name:'Hades', installed: !!this.options.runBuiltin, auth:'unknown' as const};
       const binary = helmBinary(id, this.env);
       if (!binary) return {id, name:id, installed:false, auth:'unknown' as const};
       const result = await this.process(binary, ['--version'], this.directory, new AbortController().signal, 5000);
       return {id, name:id, installed:true, auth:'unknown' as const, ...(result.code === 0 ? {version:result.output.trim().slice(0,200)} : {error:'Version check failed'})};
     }));
-    try{const value=await this.agentPending;this.agentCache={expires:Date.now()+30000,value};return structuredClone(value);}finally{this.agentPending=undefined;}
+    try{const value=await this.agentPending;this.agentCache={expires:refresh?Infinity:Date.now()+30000,value};return structuredClone(value);}finally{this.agentPending=undefined;this.agentPendingRefresh=false;}
   }
   private checks(checks: HelmCheck[] | undefined): HelmCheck[] {
     if (!checks) return [];
     if (!Array.isArray(checks) || checks.length > 12 || checks.some(c => !c || typeof c.command !== 'string' || !c.command.trim() || c.command.includes('\0') || !Array.isArray(c.args) || c.args.length > 100 || c.args.some(a => typeof a !== 'string' || a.includes('\0') || a.length > 10000))) throw new Error('Checks must contain bounded command and argument arrays');
     return structuredClone(checks);
   }
-  async start(input: HelmStart): Promise<HelmRun> {
+  private prepareStart(input: HelmStart): {minutes:number;requestedChecks:HelmCheck[];root:string} {
     if (this.closed) throw new Error('Helm is closed');
     if(this.runs.size>=500)throw new Error('Helm has reached its 500 retained run limit');
     if (this.live.size >= 4) throw new Error('Helm can run four jobs at a time');
@@ -80,8 +90,13 @@ export class HelmService {
     if (input.model && (input.model.startsWith('-') || input.model.length > 200 || input.model.includes('\0'))) throw new Error('Invalid model');
     const requestedChecks = this.checks(input.checks);
     const root = realpathSync(input.root);
+    return {minutes,requestedChecks,root};
+  }
+  validateStart(input: HelmStart): void { this.prepareStart(input); }
+  async start(input: HelmStart): Promise<HelmRun> {
+    const {minutes,requestedChecks,root}=this.prepareStart(input);
     const id = randomUUID();
-    const run: HelmRun = {id,root,workspace:join(this.directory,'workspaces',id),branch:'detached',baseSha:'',agent:input.agent,title:(input.title?.trim() || input.prompt.trim().slice(0,80)).slice(0,200),prompt:input.prompt,status:'starting',createdAt:Date.now(),updatedAt:Date.now(),output:'',maxMinutes:minutes,sourceDirty:false,exclusions:[],requestedChecks,contextSnapshot:input.context,parentSession:input.parentSession,owner:input.owner,model:input.model};
+    const run: HelmRun = {id,root,handoffId:input.handoffId,workspace:join(this.directory,'workspaces',id),branch:'detached',baseSha:'',agent:input.agent,title:(input.title?.trim() || input.prompt.trim().slice(0,80)).slice(0,200),prompt:input.prompt,status:'starting',createdAt:Date.now(),updatedAt:Date.now(),output:'',maxMinutes:minutes,sourceDirty:false,exclusions:[],requestedChecks,contextSnapshot:input.context,parentSession:input.parentSession,owner:input.owner,model:input.model};
     const live: Live = {controller:new AbortController()};
     this.live.set(id, live); this.runs.set(id,run); try{this.changed(run);}catch(error){this.live.delete(id);this.runs.delete(id);throw error;}
     live.timer=setTimeout(()=>{run.error='Task time limit reached';live.controller.abort();},minutes*60000);

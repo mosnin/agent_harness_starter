@@ -12,6 +12,8 @@ on:
       - 'scripts/macos-*'
       - 'scripts/build-team-server.mjs'
       - 'scripts/package-codex-runtime.mjs'
+      - 'scripts/build-helm.mjs'
+      - 'scripts/stamp-helm-bundle.mjs'
       - 'scripts/smoke-team-server.mjs'
       - 'third_party/**'
       - 'docs/integration/slack-app-manifest.json'
@@ -40,6 +42,26 @@ jobs:
             src-tauri/target
           key: mac-desktop-${{ runner.arch }}-${{ hashFiles('src-tauri/Cargo.lock') }}
       - run: npm ci --ignore-scripts
+      - name: Read pinned Helm source
+        id: helm
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("third_party/helm-opencode.json")); for(const k of ["repository","revision","bun"]) fs.appendFileSync(process.env.GITHUB_OUTPUT,`${k}=${p[k]}\n`);'
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.helm.outputs.repository }}
+          ref: ${{ steps.helm.outputs.revision }}
+          path: vendor/opencode
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ steps.helm.outputs.bun }}
+      - name: Install actual Helm fork dependencies
+        working-directory: vendor/opencode
+        run: bun install --frozen-lockfile
+      - name: Build pinned Helm fork
+        run: npm run helm:build -- --source vendor/opencode
+        env:
+          HADES_HELM_REQUIRE_PIN: "1"
       - run: npm run type-check
       - run: npx vitest run src/desktop/__tests__/workbench-service.test.ts src/desktop/__tests__/desktop-additions.test.ts src/desktop/__tests__/mcp-stdio.test.ts src/hades/__tests__/model-stream.test.ts src/hades/__tests__/codex-provider.test.ts src/hades/__tests__/openrouter-provider.test.ts src/desktop/__tests__/team-chat.test.ts src/desktop/__tests__/slack-bot.test.ts src/desktop/__tests__/workspace-editor.test.ts src/desktop/__tests__/harness-catalog.test.ts
       - run: ./script/build_and_run.sh --build-only

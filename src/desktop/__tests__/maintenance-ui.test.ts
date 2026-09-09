@@ -44,3 +44,27 @@ it("surfaces verification errors without enabling import", async () => {
   expect(host.querySelector('[role="alert"]')?.textContent).toContain("Backup checksum mismatch");
   expect(host.querySelector("img")).toBeNull(); expect(host.querySelector<HTMLButtonElement>('[data-maintenance="stage"]')!.disabled).toBe(true);
 });
+it("preserves keyboard focus and literal path editing across refresh and async actions", async () => {
+  const input = host.querySelector<HTMLInputElement>('[name="backupPath"]')!;
+  fill('/backups/literal--path.json'); input.focus(); input.setSelectionRange(9, 16);
+  await view.refresh();
+  expect(document.activeElement?.id).toBe("maintenance-backup-path");
+  expect(host.querySelector<HTMLInputElement>('[name="backupPath"]')!.selectionStart).toBe(9);
+  expect(host.querySelector('[name="backupPath"]')?.getAttribute("autocorrect")).toBe("off");
+  const verify = host.querySelector<HTMLButtonElement>('[data-maintenance="verify"]')!;
+  verify.focus(); click("verify"); await settle();
+  expect(document.activeElement?.id).toBe(verify.id);
+  expect(host.querySelector<HTMLButtonElement>('[data-maintenance="stage"]')!.disabled).toBe(false);
+  const included = host.querySelector<HTMLDetailsElement>("#maintenance-included")!;
+  included.open = true; await view.refresh();
+  expect(host.querySelector<HTMLDetailsElement>("#maintenance-included")!.open).toBe(true);
+});
+it("does not steal focus from an outside control when an operation finishes", async () => {
+  let finish!: (value: any) => void;
+  rpc.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  fill('/backup.json');
+  host.querySelector<HTMLButtonElement>('[data-maintenance="verify"]')!.focus(); click("verify");
+  const outside = document.createElement("button"); document.body.append(outside); outside.focus();
+  finish({ path: '/backup.json', totalBytes: 1, files: [], scope: 'integrity' }); await settle();
+  expect(document.activeElement).toBe(outside);
+});

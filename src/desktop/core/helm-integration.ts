@@ -1,0 +1,154 @@
+import { createHash, randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { mkdirSync, readdirSync, realpathSync, lstatSync, readFileSync, readlinkSync, writeFileSync, renameSync, openSync, closeSync, fsyncSync, unlinkSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import type { HelmRun, HelmDiff } from './helm-types.js';
+const exec = promisify(execFile);
+const digest = (data: string) => createHash('sha256').update(data).digest('hex');
+const queues = new Map<string, Promise<unknown>>();
+export interface HelmIntegrationScope { root: string; owner?: string; parentSession?: string }
+export interface HelmIntegrationHost { get(id: string): HelmRun; diff(id: string): Promise<HelmDiff>; ownsWorkspace(root: string): boolean }
+export interface HelmIntegrationReview {
+  id: string; runId: string; root: string; owner?: string; parentSession?: string;
+  revision: string; sourceRevision: string; patch: string; files: string[];
+  status: 'prepared' | 'applying' | 'applied' | 'unknown'; createdAt: number; appliedAt?: number;
+  /** Checks certify the isolated task only. The resulting source needs new checks. */
+  requiresSourceChecks: true;
+}
+/** Host-only review/apply boundary. No provider dispatch, commits, checkout or index writes.
+ * Application serialization covers this process; unrelated editors/Git remain external actors. */
+export class HelmIntegration {
+  private directory: string;
+  constructor(dataDir: string, private host: HelmIntegrationHost) {
+    this.directory = join(dataDir, 'helm', 'integration');
+    mkdirSync(this.directory, { recursive: true, mode: 0o700 });
+    this.directory = realpathSync(this.directory);
+  }
+  private async git(root: string, args: string[], index?: string): Promise<string> {
+    const env = { ...process.env };
+    for (const name of Object.keys(env)) if (name.startsWith('GIT_')) delete env[name];
+    env.GIT_OPTIONAL_LOCKS = '0';
+    if (index) env.GIT_INDEX_FILE = index;
+    const { stdout } = await exec('git', ['--no-pager', '-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=/dev/null', ...args], {
+      cwd: root, env, timeout: 30000, maxBuffer: 8_000_000, encoding: 'utf8',
+    });
+    return stdout;
+  }
+  private scoped(run: HelmRun, scope: HelmIntegrationScope): void {
+    if (realpathSync(scope.root) !== run.root || run.owner !== scope.owner || run.parentSession !== scope.parentSession) throw new Error('Helm integration scope mismatch');
+    if (!this.host.ownsWorkspace(run.workspace)) throw new Error('Workspace identity changed');
+  }
+  private async supported(root: string, extraPaths: string[] = []): Promise<void> {
+    const config = await this.git(root, ['config', '--null', '--list']);
+    if (config.split('\0').some(entry => /^filter\..*\.(clean|smudge|process)\n[\s\S]+$/.test(entry))) {
+      const paths = (await this.git(root, ['ls-files', '--cached', '--others', '--exclude-standard', '-z'])).split('\0').filter(Boolean).concat(extraPaths);
+      for (let offset=0;offset<paths.length;offset+=100) {
+        const attributes=(await this.git(root,['check-attr','-z','filter','--',...paths.slice(offset,offset+100)])).split('\0');
+        if(attributes.some((value,index)=>index%3===2 && value!=='unspecified' && value!=='unset')) throw new Error('Git clean/smudge/process filters are not supported for integration');
+      }
+    }
+    const files = (await this.git(root, ['ls-files', '-v', '-z'])).split('\0').filter(Boolean);
+    if (files.some(file => file[0] === 'S' || file[0] === file[0].toLowerCase())) throw new Error('Clear skip-worktree and assume-unchanged flags before integration');
+    if ((await this.git(root, ['ls-files', '--stage', '-z'])).split('\0').some(file => file.startsWith('160000 '))) throw new Error('Submodule integration is not supported');
+  }
+  sourceFingerprint(root: string): Promise<string> { return this.source(root); }
+  private async source(root: string): Promise<string> {
+    await this.supported(root);
+    const hash = createHash('sha256');
+    const stat = lstatSync(root);
+    if (!stat.isDirectory() || realpathSync(root) !== root || realpathSync((await this.git(root, ['rev-parse', '--show-toplevel'])).trim()) !== root) throw new Error('Source identity changed');
+    hash.update(`${stat.dev}:${stat.ino}`);
+    hash.update(await this.git(root, ['rev-parse', 'HEAD']));
+    hash.update(await this.git(root, ['diff', '--no-ext-diff', '--no-textconv', '--binary', '--cached']));
+    hash.update(await this.git(root, ['diff', '--no-ext-diff', '--no-textconv', '--binary']));
+    const files = (await this.git(root, ['ls-files', '--others', '--exclude-standard', '-z'])).split('\0').filter(Boolean).sort();
+    let size = 0;
+    for (const file of files) {
+      const path = join(root, file), stat = lstatSync(path);
+      if (!stat.isFile() && !stat.isSymbolicLink()) throw new Error('Unsupported source file');
+      size += stat.size;
+      if (size > 32_000_000) throw new Error('Source exceeds integration snapshot limit');
+      hash.update('\0' + file + '\0' + stat.mode + '\0').update(stat.isSymbolicLink() ? readlinkSync(path) : readFileSync(path));
+    }
+    return hash.digest('hex');
+  }
+  private save(review: HelmIntegrationReview): void {
+    const target = join(this.directory, review.id + '.json'), temp = target + '.' + randomUUID();
+    const fd = openSync(temp, 'wx', 0o600);
+    try { writeFileSync(fd, JSON.stringify(review)); fsyncSync(fd); } finally { closeSync(fd); }
+    renameSync(temp, target);
+    const dir = openSync(this.directory, 'r'); try { fsyncSync(dir); } finally { closeSync(dir); }
+  }
+  get(id: string, scope: HelmIntegrationScope): HelmIntegrationReview {
+    if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid integration identifier');
+    const review: HelmIntegrationReview = JSON.parse(readFileSync(join(this.directory, id + '.json'), 'utf8'));
+    this.scoped(this.host.get(review.runId), scope);
+    if (review.root !== realpathSync(scope.root) || review.owner !== scope.owner || review.parentSession !== scope.parentSession) throw new Error('Helm integration scope mismatch');
+    return review;
+  }
+  list(runId: string, scope: HelmIntegrationScope): HelmIntegrationReview[] {
+    this.scoped(this.host.get(runId), scope);
+    return readdirSync(this.directory).filter(file => /^[a-f0-9-]{36}\.json$/.test(file)).map(file => JSON.parse(readFileSync(join(this.directory, file), 'utf8')) as HelmIntegrationReview).filter(review => review.runId === runId).map(review => this.get(review.id, scope)).sort((a,b) => b.createdAt - a.createdAt);
+  }
+  async prepare(runId: string, scope: HelmIntegrationScope): Promise<HelmIntegrationReview> {
+    const run = this.host.get(runId); this.scoped(run, scope);
+    const previous = this.list(runId, scope);
+    if (previous.some(review => review.status === 'applying' || review.status === 'unknown')) throw new Error('Integration outcome uncertain. Inspect source; unresolved integration blocks a new review.');
+    await this.supported(run.root); await this.supported(run.workspace);
+    const before = await this.host.diff(runId);
+    if (run.status !== 'verified' || !run.verificationRevision || before.stale || before.revision !== run.verificationRevision) throw new Error('Verify the current task revision before integration');
+    const alreadyApplied = previous.find(review => review.status === 'applied' && review.revision === before.revision);
+    if (alreadyApplied) return alreadyApplied;
+    await this.supported(run.root, before.files);
+    const sourceRevision = await this.source(run.root);
+    const index = join(this.directory, randomUUID() + '.index');
+    let patch: string;
+    try {
+      await this.git(run.workspace, ['read-tree', run.baseSha], index);
+      await this.git(run.workspace, ['add', '-A', '--', '.'], index);
+      if ((await this.git(run.workspace, ['ls-files', '--stage', '-z'], index)).split('\0').some(file => file.startsWith('160000 '))) throw new Error('Nested repositories and submodule integration are not supported');
+      patch = await this.git(run.workspace, ['diff', '--cached', '--no-ext-diff', '--no-textconv', '--binary', run.baseSha, '--'], index);
+    } finally { if (existsSync(index)) unlinkSync(index); }
+    if (!patch) throw new Error('Task has no changes to integrate');
+    if ((await this.host.diff(runId)).revision !== before.revision || await this.source(run.root) !== sourceRevision) throw new Error('Workspace or source changed during review preparation');
+    const review: HelmIntegrationReview = { id: randomUUID(), runId, root: run.root, owner: run.owner, parentSession: run.parentSession, revision: before.revision, sourceRevision, patch, files: before.files, status: 'prepared', createdAt: Date.now(), requiresSourceChecks: true };
+    await this.check(review);
+    this.save(review);
+    return review;
+  }
+  private async check(review: HelmIntegrationReview, apply = false): Promise<void> {
+    await this.supported(review.root, review.files);
+    const file = join(this.directory, randomUUID() + '.patch');
+    writeFileSync(file, review.patch, { mode: 0o600, flag: 'wx' });
+    try { await this.git(review.root, ['apply', ...(apply ? [] : ['--check']), '--whitespace=nowarn', '--', file]); }
+    catch { throw new Error(apply ? 'Integration outcome uncertain. Inspect source; do not retry this review.' : 'Source conflicts with the reviewed changes. Resolve separately and prepare a fresh review.'); }
+    finally { unlinkSync(file); }
+  }
+  /** Pass the SHA256 of the exact displayed patch, never an automatic approval. */
+  async apply(id: string, scope: HelmIntegrationScope, reviewedPatchHash: string): Promise<HelmIntegrationReview> {
+    const root = realpathSync(scope.root), previous = queues.get(root) ?? Promise.resolve();
+    const work = previous.catch(() => {}).then(async () => {
+      const review = this.get(id, scope);
+      if (digest(review.patch) !== reviewedPatchHash) throw new Error('Reviewed patch changed');
+      if (review.status === 'applied') return review;
+      if (review.status !== 'prepared') throw new Error('Integration outcome uncertain. Inspect source; do not retry this review.');
+      const run = this.host.get(review.runId);
+      await this.supported(root); await this.supported(run.workspace);
+      const diff = await this.host.diff(review.runId);
+      if (run.status !== 'verified' || run.verificationRevision !== review.revision || diff.revision !== review.revision || diff.stale) throw new Error('Task changed; verify again and prepare a fresh review');
+      if (await this.source(root) !== review.sourceRevision) throw new Error('Source changed; prepare a fresh review');
+      await this.check(review);
+      this.scoped(this.host.get(review.runId), scope);
+      await this.supported(run.workspace);
+      if ((await this.host.diff(review.runId)).revision !== review.revision || this.host.get(review.runId).status !== 'verified') throw new Error('Task changed; verify again and prepare a fresh review');
+      if (await this.source(root) !== review.sourceRevision) throw new Error('Source changed; prepare a fresh review');
+      review.status = 'applying'; this.save(review);
+      try { await this.check(review, true); review.status = 'applied'; review.appliedAt = Date.now(); this.save(review); }
+      catch (error) { review.status = 'unknown'; this.save(review); throw error; }
+      return review;
+    });
+    queues.set(root, work);
+    try { return await work; } finally { if (queues.get(root) === work) queues.delete(root); }
+  }
+}

@@ -29,9 +29,17 @@ const version = JSON.parse(readFileSync(join(source, "packages/opencode/package.
 if (version !== "1.18.21") throw new Error("This Hades integration requires the pinned OpenCode 1.18.21 fork.");
 const revision = run("git", ["rev-parse", "HEAD"], source, true);
 const dirty = !!run("git", ["status", "--porcelain"], source, true);
+let releasePin;
+if (process.env.HADES_HELM_REQUIRE_PIN === "1") {
+  const pin = JSON.parse(readFileSync(join(root, "third_party/helm-opencode.json"), "utf8"));
+  if (dirty || revision !== pin.revision || version !== pin.version) throw new Error("Release build requires the clean OpenCode revision pinned in third_party/helm-opencode.json.");
+  if(run(bun,["--version"],source,true)!==pin.bun) throw new Error("Release build requires the Bun version pinned in third_party/helm-opencode.json.");
+  releasePin=pin;
+}
 run(bun, ["run", "build"], join(source, "packages/app"));
 // The gateway serves the fork UI separately. Do not embed a duplicate in the runtime.
 run(bun, ["run", "script/build.ts", "--single", "--skip-install", "--skip-embed-web-ui"], join(source, "packages/opencode"));
+if(releasePin && (run("git",["rev-parse","HEAD"],source,true)!==releasePin.revision || run("git",["status","--porcelain"],source,true))) throw new Error("OpenCode source changed during release build; packaging refused.");
 
 const assets = join(root, "dist/helm-ui");
 const runtime = join(root, "dist/runtime/helm-opencode");

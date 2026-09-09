@@ -295,3 +295,19 @@
 .helm-page:has(.helm-code-panel.is-ready) .helm-project-bar { padding-bottom: 10px; margin-bottom: 10px; }
 .helm-page:has(.helm-code-panel.is-ready) .helm-destinations { margin-bottom: 8px; }
 .helm-code-panel.is-ready .helm-code-viewport { margin-top: 8px; height: max(360px, calc(100vh - 205px)); }
+
+.helm-scope { flex-basis: 100%; margin: 0; overflow-wrap: anywhere; }
+.helm-scope span { color: var(--text); }
+.helm-page :is(button, summary, select, input, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.helm-page :is(.field, .helm-project-select, .page-actions) { min-width: 0; }
+.helm-page .field :is(input, select, textarea) { min-width: 0; max-width: 100%; }
+.helm-page .page-actions { flex-wrap: wrap; }
+.helm-check-result strong, .helm-context-picker label { overflow-wrap: anywhere; }
+.helm-destinations { flex-wrap: wrap; }
+@media (max-width: 700px) {
+  .helm-project-select { flex: 1 1 100%; }
+  .helm-project-select select { flex: 1; max-width: 100%; min-width: 0; }
+}

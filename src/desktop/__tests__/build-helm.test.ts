@@ -24,3 +24,9 @@ it('accepts a guard-capable fork without hardlocking its commit and only invokes
  for(const args of [['init','-q'],['add','.'],['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','Independent fixture revision']])execFileSync('git',args,{cwd:source});
  const result=invoke(['--source',source]);expect(result.status).not.toBe(0);expect(existsSync(marker)).toBe(true);expect(result.stderr).toContain('failed (9)');expect(result.stderr).not.toContain('missing the managed local UI guard');
 });
+it('rejects a clean but unpinned fork before starting a release build',()=>{
+ writeFileSync(join(source,'packages/opencode/src/server/shared/ui.ts'),'if (process.env.OPENCODE_HELM_LOCAL_UI === "1") return Effect.succeed(notFound());');
+ for(const args of [['init','-q'],['add','.'],['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','Unpinned fixture']])execFileSync('git',args,{cwd:source});
+ const result=spawnSync(process.execPath,[script,'--source',source],{cwd:directory,env:{...process.env,HADES_BUN:bun,HADES_HELM_REQUIRE_PIN:'1'},encoding:'utf8',timeout:5000});
+ expect(result.status).not.toBe(0);expect(result.stderr).toContain('Release build requires the clean OpenCode revision pinned');expect(existsSync(marker)).toBe(false);
+});
