@@ -15,7 +15,7 @@
 import { z } from "zod";
 
 /** Wire-compatibility version. A runner refuses a control plane advertising a different major. */
-export const PROTOCOL_VERSION = "1.0.0";
+export const PROTOCOL_VERSION = "1.2.0";
 export const PROTOCOL_MAJOR = 1;
 
 /** Returns the major component of a semver-ish protocol string, or null if unparseable. */
@@ -267,6 +267,7 @@ export const ObservationFrameSchema = z.object({
 	display: DisplayInfoSchema,
 	focusedWindow: WindowInfoSchema.nullish(),
 	elements: z.array(UiElementSchema),
+	maskedRegions: z.array(RectSchema).default([]),
 	redactedWindows: z.array(z.string()),
 });
 export type ObservationFrame = z.infer<typeof ObservationFrameSchema>;
@@ -330,6 +331,8 @@ export const StopRecordingResultSchema = z.object({
 	projectPath: z.string(),
 	durationMs: u64,
 	measuredFps: f64,
+	width: u32,
+	height: u32,
 	beats: z.array(BeatSchema),
 });
 export type StopRecordingResult = z.infer<typeof StopRecordingResultSchema>;
@@ -362,6 +365,8 @@ export const ShotSchema = z.object({
 	camera: CameraPoseSchema,
 	aimBeatId: z.string().nullish(),
 	transitionIn: TransitionSchema,
+	recordingSegment: u32.default(0),
+	transitionDurationMs: u64.default(0),
 });
 export type Shot = z.infer<typeof ShotSchema>;
 
@@ -552,7 +557,11 @@ export const CommandResultSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("sessionStarted"), lease: SessionLeaseSchema }),
 	z.object({ type: z.literal("sessionEnded"), reason: SessionEndReasonSchema }),
 	z.object({ type: z.literal("observed"), frame: ObservationFrameSchema }),
-	z.object({ type: z.literal("windows"), windows: z.array(WindowInfoSchema) }),
+	z.object({
+		type: z.literal("windows"),
+		windows: z.array(WindowInfoSchema),
+		redacted: z.array(z.string()).default([]),
+	}),
 	z.object({ type: z.literal("acted"), beat: BeatSchema.nullish() }),
 	z.object({ type: z.literal("recordingStarted"), handle: RecordingHandleSchema }),
 	z.object({ type: z.literal("recordingStopped"), result: StopRecordingResultSchema }),

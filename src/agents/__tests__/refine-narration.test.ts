@@ -37,6 +37,8 @@ function shot(shotId: string, sourceStartMs: number, sourceEndMs: number): Shot 
 		camera: { ...NEUTRAL_CAMERA },
 		aimBeatId: null,
 		transitionIn: "none",
+		recordingSegment: 0,
+		transitionDurationMs: 0,
 	};
 }
 

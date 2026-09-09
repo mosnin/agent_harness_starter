@@ -30,6 +30,8 @@ function shot(overrides: Partial<Shot> & Pick<Shot, "shotId">): Shot {
 		camera: pose(),
 		aimBeatId: null,
 		transitionIn: "none",
+		recordingSegment: 0,
+		transitionDurationMs: 0,
 		...overrides,
 	};
 }
@@ -66,6 +68,8 @@ function cleanStoryboard(): Storyboard {
 			aimBeatId: "b1",
 			camera: pose({ zoom: 1, tiltX: 20 }),
 			transitionIn: "none",
+			recordingSegment: 0,
+			transitionDurationMs: 0,
 		}),
 		shot({
 			shotId: "shot-2",
@@ -74,6 +78,8 @@ function cleanStoryboard(): Storyboard {
 			aimBeatId: "b2",
 			camera: pose({ zoom: 1.6 }),
 			transitionIn: "cut",
+			recordingSegment: 0,
+			transitionDurationMs: 0,
 		}),
 		shot({
 			shotId: "shot-3",
@@ -82,6 +88,8 @@ function cleanStoryboard(): Storyboard {
 			aimBeatId: "b3",
 			camera: pose({ zoom: 1.35 }),
 			transitionIn: "cut",
+			recordingSegment: 0,
+			transitionDurationMs: 0,
 		}),
 	]);
 }
@@ -152,6 +160,8 @@ describe("editorial validation mirrored from hades-director/src/validate.rs", ()
 				sourceEndMs: 8_400,
 				aimBeatId: "c3",
 				transitionIn: "cut",
+				recordingSegment: 0,
+				transitionDurationMs: 0,
 			}),
 		]);
 		expect(validateEditorial(midIdle, { beats }).map((i) => i.code)).toContain(
@@ -166,6 +176,8 @@ describe("editorial validation mirrored from hades-director/src/validate.rs", ()
 				sourceEndMs: 8_400,
 				aimBeatId: "c3",
 				transitionIn: "cut",
+				recordingSegment: 0,
+				transitionDurationMs: 0,
 			}),
 		]);
 		expect(validateEditorial(nowhereNear, { beats }).map((i) => i.code)).toContain(

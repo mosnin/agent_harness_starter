@@ -41,6 +41,8 @@ const STORYBOARD: Storyboard = {
 			camera: CAMERA,
 			aimBeatId: "b1",
 			transitionIn: "cut",
+			recordingSegment: 0,
+			transitionDurationMs: 0,
 		},
 		{
 			shotId: "s2",
@@ -49,6 +51,8 @@ const STORYBOARD: Storyboard = {
 			camera: CAMERA,
 			aimBeatId: "b2",
 			transitionIn: "cut",
+			recordingSegment: 0,
+			transitionDurationMs: 0,
 		},
 	],
 	background: { type: "gradient", fromHex: "E4DCF8", toHex: "C6BAEA" },

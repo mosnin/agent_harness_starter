@@ -72,6 +72,7 @@ function makeFrame(overrides: Partial<ObservationFrame> = {}): ObservationFrame 
 			bounds: { x: 0, y: 0, width: 1440, height: 900 },
 		},
 		elements: [],
+		maskedRegions: [],
 		redactedWindows: [],
 		...overrides,
 	};
@@ -292,6 +293,7 @@ describe("observation results", () => {
 		const { pack } = makePack({
 			reply: () => ({
 				type: "windows",
+				redacted: [],
 				windows: [
 					{
 						windowId: "w1",
@@ -446,6 +448,8 @@ describe("apply_storyboard", () => {
 					camera: NEUTRAL_CAMERA,
 					aimBeatId: null,
 					transitionIn: "none",
+					recordingSegment: 0,
+					transitionDurationMs: 0,
 				},
 			],
 			background: { type: "solid", hex: "#000000" },
@@ -485,6 +489,8 @@ describe("apply_storyboard", () => {
 								camera: NEUTRAL_CAMERA,
 								aimBeatId: null,
 								transitionIn: "none",
+								recordingSegment: 0,
+								transitionDurationMs: 0,
 							},
 						],
 					}),

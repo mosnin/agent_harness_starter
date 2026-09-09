@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	BackgroundSchema,
@@ -40,8 +42,18 @@ const clickCommandEnvelope = {
 
 describe("protocol version", () => {
 	it("matches the Rust constants", () => {
-		expect(PROTOCOL_VERSION).toBe("1.0.0");
+		expect(PROTOCOL_VERSION).toBe("1.2.0");
 		expect(PROTOCOL_MAJOR).toBe(1);
+		const rustLib = path.resolve(
+			__dirname,
+			"../../../../cap-hades/crates/hades-protocol/src/lib.rs"
+		);
+		if (existsSync(rustLib)) {
+			const rustVersion = readFileSync(rustLib, "utf8").match(
+				/PROTOCOL_VERSION: &str = "([^"]+)"/
+			)?.[1];
+			expect(rustVersion).toBe(PROTOCOL_VERSION);
+		}
 		expect(protocolMajor("1.4.2")).toBe(1);
 		expect(protocolMajor("2.0.0")).toBe(2);
 		expect(protocolMajor("garbage")).toBeNull();

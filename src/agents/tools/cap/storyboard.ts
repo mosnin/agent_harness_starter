@@ -264,6 +264,8 @@ export function buildStoryboard(input: BuildStoryboardInput): Storyboard {
 			camera: NEUTRAL_CAMERA,
 			aimBeatId: null,
 			transitionIn: "none",
+			recordingSegment: 0,
+			transitionDurationMs: 0,
 		});
 			return assemble(input, shots);
 	}
@@ -287,6 +289,8 @@ export function buildStoryboard(input: BuildStoryboardInput): Storyboard {
 			camera: punchIn(beat),
 			aimBeatId: beat.beatId,
 			transitionIn: shots.length === 0 ? "none" : "cut",
+			recordingSegment: 0,
+			transitionDurationMs: 0,
 		});
 		budget -= span;
 		if (budget < limits.minShotMs) break;
@@ -300,6 +304,8 @@ export function buildStoryboard(input: BuildStoryboardInput): Storyboard {
 			camera: NEUTRAL_CAMERA,
 			aimBeatId: null,
 			transitionIn: "none",
+			recordingSegment: 0,
+			transitionDurationMs: 0,
 		});
 	}
 

@@ -174,6 +174,8 @@ const STORYBOARD: Storyboard = {
 			camera: NEUTRAL_CAMERA,
 			aimBeatId: "b1",
 			transitionIn: "none",
+			recordingSegment: 0,
+			transitionDurationMs: 0,
 		},
 		{
 			shotId: "shot-2",
@@ -182,6 +184,8 @@ const STORYBOARD: Storyboard = {
 			camera: NEUTRAL_CAMERA,
 			aimBeatId: "b2",
 			transitionIn: "cut",
+			recordingSegment: 0,
+			transitionDurationMs: 0,
 		},
 		{
 			shotId: "shot-3",
@@ -190,6 +194,8 @@ const STORYBOARD: Storyboard = {
 			camera: NEUTRAL_CAMERA,
 			aimBeatId: "b3",
 			transitionIn: "cut",
+			recordingSegment: 0,
+			transitionDurationMs: 0,
 		},
 	],
 	background: { type: "solid", hex: "#000000" },

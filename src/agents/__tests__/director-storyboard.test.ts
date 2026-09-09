@@ -29,6 +29,8 @@ function shot(overrides: Partial<Shot> & Pick<Shot, "shotId">): Shot {
 		camera: NEUTRAL_CAMERA,
 		aimBeatId: null,
 		transitionIn: "none",
+		recordingSegment: 0,
+		transitionDurationMs: 0,
 		...overrides,
 	};
 }
@@ -155,6 +157,8 @@ describe("validateStoryboard", () => {
 				sourceEndMs: i * 1_500 + 1_400,
 				aimBeatId: `b${i}`,
 				transitionIn: i === 0 ? "none" : "cut",
+				recordingSegment: 0,
+				transitionDurationMs: 0,
 			})
 		);
 		const issues = validateStoryboard(storyboardOf(shots));
@@ -170,6 +174,8 @@ describe("validateStoryboard", () => {
 				sourceEndMs: 4_000,
 				aimBeatId: null,
 				transitionIn: "cut",
+				recordingSegment: 0,
+				transitionDurationMs: 0,
 			}),
 		];
 		expect(validateStoryboard(storyboardOf(shots)).map((i) => i.code)).toContain(
@@ -190,6 +196,8 @@ describe("validateStoryboard", () => {
 				sourceEndMs: 4_000,
 				aimBeatId: "idle",
 				transitionIn: "cut",
+				recordingSegment: 0,
+				transitionDurationMs: 0,
 			}),
 			shot({
 				shotId: "s3",
@@ -197,6 +205,8 @@ describe("validateStoryboard", () => {
 				sourceEndMs: 6_000,
 				aimBeatId: "far",
 				transitionIn: "cut",
+				recordingSegment: 0,
+				transitionDurationMs: 0,
 			}),
 		];
 		const codes = validateStoryboard(storyboardOf(shots), { beats }).map((i) => i.code);
@@ -212,6 +222,8 @@ describe("validateStoryboard", () => {
 				sourceEndMs: 4_000,
 				aimBeatId: "b2",
 				transitionIn: "cut",
+				recordingSegment: 0,
+				transitionDurationMs: 0,
 			}),
 			shot({
 				shotId: "s3",
@@ -219,6 +231,8 @@ describe("validateStoryboard", () => {
 				sourceEndMs: 6_000,
 				aimBeatId: "b3",
 				transitionIn: "dolly",
+				recordingSegment: 0,
+				transitionDurationMs: 0,
 			}),
 		];
 		expect(validateStoryboard(storyboardOf(shots)).map((i) => i.code)).toContain(
@@ -235,6 +249,8 @@ describe("validateStoryboard", () => {
 				sourceEndMs: 3_000,
 				aimBeatId: "b2",
 				transitionIn: "cut",
+				recordingSegment: 0,
+				transitionDurationMs: 0,
 			}),
 		];
 		expect(validateStoryboard(storyboardOf(shots)).map((i) => i.code)).toContain(
