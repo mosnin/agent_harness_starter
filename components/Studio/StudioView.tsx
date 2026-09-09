@@ -2,20 +2,30 @@
 
 import { ApprovalPrompt } from "./ApprovalPrompt";
 import { ArtifactList } from "./ArtifactList";
+import { DryRunSummary } from "./DryRunSummary";
+import { FailureReport } from "./FailureReport";
 import { KillSwitch } from "./KillSwitch";
 import { ObservationPanel } from "./ObservationPanel";
 import { SessionStatusBar } from "./SessionStatusBar";
 import { StepTimeline } from "./StepTimeline";
 import { currentStep, isSessionLive } from "./format";
-import type { StudioState } from "./types";
+import type { StudioDryRun, StudioState } from "./types";
 
 export interface StudioViewProps extends StudioState {
 	nowUnixMs: number;
 	stopping?: boolean;
 	pendingApprovalId?: string | null;
+	/**
+	 * The plan the agent intends to run, supplied by the control plane before it starts. Absent
+	 * means there is nothing to preview; the Studio never computes a plan itself.
+	 */
+	dryRun?: StudioDryRun | null;
+	startingDryRun?: boolean;
 	onStop: () => void;
 	onApprove: (approvalId: string) => void;
 	onDeny: (approvalId: string) => void;
+	onConfirmDryRun?: () => void;
+	onCancelDryRun?: () => void;
 }
 
 /**
@@ -29,12 +39,17 @@ export function StudioView({
 	approvals,
 	artifacts,
 	error,
+	failure,
 	nowUnixMs,
 	stopping = false,
 	pendingApprovalId = null,
+	dryRun = null,
+	startingDryRun = false,
 	onStop,
 	onApprove,
 	onDeny,
+	onConfirmDryRun,
+	onCancelDryRun,
 }: StudioViewProps) {
 	const live = isSessionLive(session, nowUnixMs);
 
@@ -50,14 +65,18 @@ export function StudioView({
 				<KillSwitch armed={live} stopping={stopping} onStop={onStop} />
 			</header>
 
-			{error && (
-				// biome-ignore lint/a11y/useSemanticElements: alert has no HTML element equivalent
-				<p
-					role="alert"
-					className="mb-4 rounded-lg border border-red-500 bg-red-950/50 p-3 text-sm text-red-100"
-				>
-					{error}
-				</p>
+			<FailureReport failure={failure} fallbackMessage={failure ? null : error} />
+
+			{dryRun && (
+				<div className="mb-4">
+					<DryRunSummary
+						dryRun={dryRun}
+						session={session}
+						starting={startingDryRun}
+						onConfirm={onConfirmDryRun}
+						onCancel={onCancelDryRun}
+					/>
+				</div>
 			)}
 
 			<ApprovalPrompt

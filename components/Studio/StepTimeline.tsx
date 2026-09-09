@@ -1,6 +1,6 @@
 "use client";
 
-import { formatClock } from "./format";
+import { failureCodeLabel, failureRemediation, formatClock } from "./format";
 import type { StudioStep, StudioStepStatus } from "./types";
 
 const STATUS_STYLES: Record<StudioStepStatus, string> = {
@@ -55,8 +55,29 @@ export function StepTimeline({ steps }: StepTimelineProps) {
 							<p className="mt-1 font-mono text-xs text-neutral-400">
 								{step.actionType} · {step.scope}
 							</p>
-							{step.detail && (
+							{step.detail && !step.failure && (
 								<p className="mt-1 text-xs text-neutral-300">{step.detail}</p>
+							)}
+							{step.failure && (
+								<div className="mt-2 rounded border border-red-700 bg-red-950/40 p-2">
+									<p className="text-xs font-semibold text-red-200">
+										{failureCodeLabel(step.failure.code) ?? "Stopped here"}
+									</p>
+									<p className="mt-0.5 text-xs text-neutral-200">{step.failure.message}</p>
+									{step.failure.target && (
+										<p className="mt-0.5 text-xs text-neutral-400">
+											Looking for {step.failure.target}
+											{step.failure.candidateCount != null
+												? ` · ${step.failure.candidateCount} matched`
+												: ""}
+										</p>
+									)}
+									{failureRemediation(step.failure) && (
+										<p className="mt-1 text-xs text-red-100">
+											{failureRemediation(step.failure)}
+										</p>
+									)}
+								</div>
 							)}
 						</li>
 					))}

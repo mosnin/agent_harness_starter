@@ -8,7 +8,10 @@
  *
  * The in-memory default is SINGLE-INSTANCE ONLY: pairing codes and session records live in
  * one process's heap, so a second Next.js instance (or a serverless cold start) will not see
- * a code issued by the first. Install a shared store before running more than one instance.
+ * a code issued by the first. Install a shared store before running more than one instance:
+ *
+ *   import { createRedisRunnerStore, fromUpstashRedis } from "./stores";
+ *   setRunnerStore(createRedisRunnerStore(fromUpstashRedis(Redis.fromEnv())));
  */
 
 import { randomUUID, timingSafeEqual } from "node:crypto";
@@ -81,6 +84,15 @@ export interface RunnerStore {
 	getPairingByUserCode(userCode: string): Promise<PairingRequest | null>;
 	getPairingByDeviceCode(deviceCode: string): Promise<PairingRequest | null>;
 	deletePairing(deviceCode: string): Promise<void>;
+
+	/**
+	 * Single-use guard for a device code. Resolves `true` only for the ONE caller that moved the
+	 * pairing from approved to claimed, `false` for every other caller and for an unknown code.
+	 * A store that can do this atomically (a Redis `SET … NX`, an `UPDATE … WHERE status =
+	 * 'approved'`) makes a device code unredeemable twice across instances. `claimPairing` falls
+	 * back to a read-then-write when a store leaves it out, which is safe only single-instance.
+	 */
+	markPairingClaimed?(deviceCode: string): Promise<boolean>;
 
 	saveSession(record: RunnerSessionRecord): Promise<void>;
 	getSession(sessionId: string): Promise<RunnerSessionRecord | null>;
@@ -157,6 +169,17 @@ export class InMemoryRunnerStore implements RunnerStore {
 		const found = this.pairingsByDeviceCode.get(deviceCode);
 		if (found) this.pairingsByUserCode.delete(found.userCode);
 		this.pairingsByDeviceCode.delete(deviceCode);
+	}
+
+	/**
+	 * Synchronous read-modify-write with no `await` in between, so two racing pollers in this
+	 * process cannot both observe an unclaimed code.
+	 */
+	async markPairingClaimed(deviceCode: string): Promise<boolean> {
+		const found = this.pairingsByDeviceCode.get(deviceCode);
+		if (!found || found.status === "claimed") return false;
+		this.pairingsByDeviceCode.set(deviceCode, { ...clonePairing(found), status: "claimed" });
+		return true;
 	}
 
 	async saveSession(record: RunnerSessionRecord): Promise<void> {
@@ -346,10 +369,18 @@ export async function claimPairing(
 		return { status: "pending", pollIntervalSec: request.pollIntervalSec };
 	}
 
+	// Burn the code before anything else can fail: a device code is single-use even when the
+	// runner lookup below goes wrong, and only the winner of this transition gets the record.
+	if (store.markPairingClaimed) {
+		const won = await store.markPairingClaimed(deviceCode);
+		if (!won) throw new PairingError("Device code already used.", "PAIRING_ALREADY_CLAIMED");
+	} else {
+		await store.savePairing({ ...request, status: "claimed" });
+	}
+
 	const runner = await store.getRunner(request.identity.runnerId);
 	if (!runner) throw new PairingError("Approved runner record is missing.", "PAIRING_RUNNER_MISSING");
 
-	await store.savePairing({ ...request, status: "claimed" });
 	return { status: "approved", runner };
 }
 

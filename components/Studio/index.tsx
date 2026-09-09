@@ -5,7 +5,7 @@ import type { AgentEvent } from "@/agents/types";
 import { StudioView } from "./StudioView";
 import { createStudioReducer, resolveApproval } from "./reducer";
 import { EMPTY_STUDIO_STATE } from "./types";
-import type { StudioSession, StudioState } from "./types";
+import type { StudioDryRun, StudioSession, StudioState } from "./types";
 
 type StudioAction =
 	| { kind: "event"; event: AgentEvent }
@@ -21,6 +21,15 @@ export interface StudioProps {
 	controlUrl?: string;
 	/** Turns a protocol `imageRef` into a loadable URL. */
 	resolveImageUrl?: (imageRef: string) => string;
+	/**
+	 * The plan the agent intends to run, shown before anything moves the cursor. The Studio does
+	 * not ask for it: the control plane resolves the plan and passes it in. Omit it and the
+	 * preview simply does not render.
+	 */
+	dryRun?: StudioDryRun | null;
+	startingDryRun?: boolean;
+	onConfirmDryRun?: () => void;
+	onCancelDryRun?: () => void;
 }
 
 export function Studio({
@@ -28,6 +37,10 @@ export function Studio({
 	streamUrl = `/api/studio/stream?sessionId=${encodeURIComponent(sessionId)}`,
 	controlUrl = "/api/studio/control",
 	resolveImageUrl,
+	dryRun = null,
+	startingDryRun = false,
+	onConfirmDryRun,
+	onCancelDryRun,
 }: StudioProps) {
 	const reduceEvent = useMemo(
 		() => createStudioReducer({ resolveImageUrl }),
@@ -44,7 +57,7 @@ export function Studio({
 				case "approval_answered":
 					return resolveApproval(state, action.approvalId);
 				case "transport_error":
-					return { ...state, error: action.message };
+					return { ...state, error: action.message, failure: null };
 			}
 		},
 		[reduceEvent]
@@ -138,6 +151,10 @@ export function Studio({
 			nowUnixMs={nowUnixMs}
 			stopping={stopping}
 			pendingApprovalId={pendingApprovalId}
+			dryRun={dryRun}
+			startingDryRun={startingDryRun}
+			onConfirmDryRun={onConfirmDryRun}
+			onCancelDryRun={onCancelDryRun}
 			onStop={onStop}
 			onApprove={(approvalId) => void answer(approvalId, true)}
 			onDeny={(approvalId) => void answer(approvalId, false)}

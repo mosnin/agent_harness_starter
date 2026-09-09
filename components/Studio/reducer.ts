@@ -3,6 +3,7 @@ import type { CapScope } from "@/agents/tools/cap/types";
 import type {
 	StudioApproval,
 	StudioArtifact,
+	StudioFailure,
 	StudioObservation,
 	StudioState,
 	StudioStep,
@@ -166,6 +167,68 @@ function artifactFrom(name: string, output: unknown, id: string): StudioArtifact
 	return null;
 }
 
+/**
+ * Names the thing the agent was reaching for. A `Target` is one of three shapes and only the
+ * query form carries anything a human recognises, so the point and element forms fall back to
+ * something at least locatable rather than to nothing at all.
+ */
+function describeTarget(value: unknown): string | null {
+	const target = asRecord(value);
+	switch (str(target.type)) {
+		case "elementQuery": {
+			const parts = [str(target.title), str(target.role), str(target.identifier)].filter(
+				(part): part is string => part !== null && part !== ""
+			);
+			const nth = num(target.nth);
+			const described = parts.length > 0 ? parts.join(" · ") : "an unnamed element";
+			return nth !== null ? `${described} (match ${nth + 1})` : described;
+		}
+		case "element":
+			return str(target.elementId) ? `element ${str(target.elementId)}` : null;
+		case "point": {
+			const point = asRecord(target.point);
+			const x = num(point.x);
+			const y = num(point.y);
+			return x !== null && y !== null ? `the point ${Math.round(x)}, ${Math.round(y)}` : null;
+		}
+		default:
+			return null;
+	}
+}
+
+function targetForToolCall(input: unknown): string | null {
+	const action = asRecord(asRecord(input).action);
+	return describeTarget(action.target) ?? describeTarget(action.from);
+}
+
+/**
+ * `target_ambiguous` is only legible with the number of things that matched. The control plane
+ * should send it as a field; until it does, the count is read out of the message the runner
+ * already writes ("3 elements match …").
+ */
+function candidateCountFrom(event: Record<string, unknown>, message: string): number | null {
+	const structured = num(event.candidateCount);
+	if (structured !== null) return structured;
+	const listed = Array.isArray(event.candidates) ? event.candidates.length : null;
+	if (listed !== null) return listed;
+	const matched = /(\d+)\s+(?:candidates?|elements?|matches?|windows?)/i.exec(message);
+	return matched ? Number.parseInt(matched[1], 10) : null;
+}
+
+function candidateLabelsFrom(event: Record<string, unknown>): string[] {
+	if (!Array.isArray(event.candidates)) return [];
+	return event.candidates
+		.map((candidate) => {
+			if (typeof candidate === "string") return candidate;
+			const record = asRecord(candidate);
+			const parts = [str(record.title), str(record.role), str(record.identifier)].filter(
+				(part): part is string => part !== null && part !== ""
+			);
+			return parts.length > 0 ? parts.join(" · ") : (str(record.elementId) ?? "");
+		})
+		.filter((label) => label !== "");
+}
+
 function approvalScopes(input: unknown, toolName: string): CapScope[] {
 	const record = asRecord(input);
 	if (Array.isArray(record.requiredScopes)) {
@@ -190,6 +253,7 @@ export function createStudioReducer(options: StudioReducerOptions = {}) {
 					status: "running",
 					atUnixMs: now(),
 					beatLabel: str(asRecord(event.input).beatLabel),
+					target: targetForToolCall(event.input),
 				};
 				return { ...state, steps: [...state.steps, step] };
 			}
@@ -233,12 +297,35 @@ export function createStudioReducer(options: StudioReducerOptions = {}) {
 			}
 
 			case "error": {
+				const raw = asRecord(event);
+				const failing = [...state.steps].reverse().find((step) => step.status === "running");
+				const failure: StudioFailure = {
+					message: event.error,
+					code: event.code ?? null,
+					remediation: event.remediation ?? null,
+					stepId: failing?.id ?? null,
+					stepIndex: failing?.index ?? null,
+					stepLabel: failing?.label ?? null,
+					toolName: event.toolName ?? null,
+					target: failing?.target ?? str(raw.target) ?? null,
+					candidateCount: candidateCountFrom(raw, event.error),
+					candidates: candidateLabelsFrom(raw),
+					observationFrameId: state.observation?.frameId ?? null,
+					observationImageUrl: state.observation?.imageUrl ?? null,
+					observationCapturedAtUnixMs: state.observation?.capturedAtUnixMs ?? null,
+					atUnixMs: now(),
+				};
 				const steps = state.steps.map((step) =>
 					step.status === "running"
-						? { ...step, status: "failed" as const, detail: event.error }
+						? { ...step, status: "failed" as const, detail: event.error, failure }
 						: step
 				);
-				return { ...state, steps, error: event.remediation ? `${event.error} — ${event.remediation}` : event.error };
+				return {
+					...state,
+					steps,
+					failure,
+					error: event.remediation ? `${event.error} — ${event.remediation}` : event.error,
+				};
 			}
 
 			case "done": {
