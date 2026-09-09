@@ -29,7 +29,7 @@
 import { z } from "zod";
 import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
-import { sseStream } from "@/agents/lib/utils";
+import { sseEventStream } from "@/agents/transport/sse";
 import { createCustomHarness } from "@/agents/core";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 
@@ -107,13 +107,16 @@ export async function POST(req: Request) {
         });
 
         for await (const event of stream) {
-          yield JSON.stringify({ threadId: resolvedThreadId, runId: run.id, ...event });
+          // Yield the event OBJECT, not a JSON string: the SSE encoder stringifies exactly
+          // once. Yielding a pre-stringified event double-encoded it, so the client's single
+          // JSON.parse produced a string and `event.type` was undefined.
+          yield { threadId: resolvedThreadId, runId: run.id, ...event };
           if (event.type === "message_done") finalOutput = event.content;
           if (event.type === "done") finalOutput = event.finalOutput;
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        yield JSON.stringify({ type: "error", error: msg });
+        yield { type: "error" as const, error: msg };
         await db.updateRun(run.id, { status: "failed", error: msg, completedAt: new Date() });
         return;
       }
@@ -124,7 +127,7 @@ export async function POST(req: Request) {
       await db.updateRun(run.id, { status: "completed", completedAt: new Date() });
     }
 
-    return new Response(sseStream(eventGenerator()), {
+    return new Response(sseEventStream(eventGenerator()), {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",

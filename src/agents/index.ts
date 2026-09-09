@@ -137,3 +137,15 @@ export type { AgentsMdConfig, SkillMarkdown, CodexTomlConfig, MigrationResult } 
 // These are accessible via @/agents/runtime:
 //   import { validateRuntime, getRegisteredTools, getRegisteredSkills, resolveAgentAccess } from "@/agents/runtime";
 //   import type { RuntimeValidationResult } from "@/agents/runtime";
+
+// ── Desktop agent control (Cap-Hades runner) ──────────────────────────────────
+// The full surface lives in submodules:
+//   import { ... } from "@/agents/runner"     // protocol, registry, pairing, gateway, run stream
+//   import { ... } from "@/agents/transport"  // SessionMultiplexer and the SSE bridge
+export { RunnerGateway, setRunnerGateway, getRunnerGateway } from "./runner/gateway";
+export { InMemoryRunnerStore, setRunnerStore, getRunnerStore } from "./runner/registry";
+export { withRunnerProgress } from "./runner/progress-plugin";
+export { withCapabilities, mintRunnerCapabilityToken } from "./security/capability-plugin";
+export { createCapToolPack } from "./tools/cap/tools";
+export { createDirectorTeam } from "./definitions/director";
+export { createDesktopPolicy, withDesktopGovernance } from "./governance/desktop-policy";
