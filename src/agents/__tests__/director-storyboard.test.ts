@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	BOUNDARY_TOLERANCE_MS,
 	buildStoryboard,
 	storyboardDurationMs,
 	validateStoryboard,
@@ -270,5 +271,41 @@ describe("composeStoryboard", () => {
 				beats: [beat({ beatId: "b1", offsetMs: 100 })],
 			})
 		).toThrow(StoryboardInvalidError);
+	});
+});
+
+describe("shot boundaries land within the compiler's beat tolerance", () => {
+	it("keeps every non-first boundary inside BOUNDARY_TOLERANCE_MS of its aim beat", () => {
+		const beats: Beat[] = [
+			{ beatId: "b1", offsetMs: 1_200, kind: "action", label: "open pricing", landmark: null },
+			{ beatId: "b2", offsetMs: 4_000, kind: "reveal", label: "pricing shown", landmark: null },
+			{ beatId: "b3", offsetMs: 7_500, kind: "action", label: "pick a plan", landmark: null },
+		];
+		const board = buildStoryboard({ projectPath: "/tmp/p.cap", durationMs: 11_000, sourceFps: 58.2, beats });
+		const byId = new Map(beats.map((beat) => [beat.beatId, beat]));
+
+		for (const shot of board.shots.slice(1)) {
+			const beat = shot.aimBeatId ? byId.get(shot.aimBeatId) : undefined;
+			if (!beat) continue;
+			expect(Math.abs(shot.sourceStartMs - beat.offsetMs)).toBeLessThanOrEqual(BOUNDARY_TOLERANCE_MS);
+		}
+	});
+
+	it("clamps a caller's oversized lead-in rather than emitting a boundary the compiler rejects", () => {
+		const beats: Beat[] = [
+			{ beatId: "b1", offsetMs: 1_000, kind: "action", label: "one", landmark: null },
+			{ beatId: "b2", offsetMs: 5_000, kind: "action", label: "two", landmark: null },
+		];
+		const board = buildStoryboard({
+			projectPath: "/tmp/p.cap",
+			durationMs: 9_000,
+			sourceFps: 58.2,
+			beats,
+			leadInMs: 4_000,
+		});
+
+		const second = board.shots[1];
+		expect(second).toBeDefined();
+		expect(Math.abs((second?.sourceStartMs ?? 0) - 5_000)).toBeLessThanOrEqual(BOUNDARY_TOLERANCE_MS);
 	});
 });

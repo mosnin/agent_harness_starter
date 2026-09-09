@@ -183,7 +183,11 @@ export interface BuildStoryboardInput {
 	durationMs: number;
 	beats: Beat[];
 	limits?: EditorialLimits;
-	/** Milliseconds of run-up kept before the beat a shot aims at. Default 400. */
+	/**
+	 * Milliseconds of run-up kept before the beat a shot aims at. Clamped below
+	 * BOUNDARY_TOLERANCE_MS, because the run-up is exactly the distance between a shot boundary
+	 * and its aim beat, and the compiler rejects a boundary further than that from a beat.
+	 */
 	leadInMs?: number;
 	/** Length of the final shot when nothing follows it. Default 2500. */
 	tailShotMs?: number;
@@ -217,9 +221,20 @@ function clamp01(value: number): number {
  * Compile a beat log into a storyboard that satisfies the editorial limits by construction.
  * Beats that are idle or pure transitions are never aimed at, so every cut lands on content.
  */
+/**
+ * Mirrors BOUNDARY_TOLERANCE_MS in crates/hades-director/src/validate.rs. A shot boundary further
+ * than this from the beat it aims at is rejected as a cut that does not land on content.
+ */
+export const BOUNDARY_TOLERANCE_MS = 250;
+
+/** Kept strictly inside the tolerance so a boundary is never rejected at the limit. */
+export const MAX_LEAD_IN_MS = BOUNDARY_TOLERANCE_MS - 50;
+
+export const DEFAULT_LEAD_IN_MS = MAX_LEAD_IN_MS;
+
 export function buildStoryboard(input: BuildStoryboardInput): Storyboard {
 	const limits = input.limits ?? DEFAULT_EDITORIAL_LIMITS;
-	const leadInMs = input.leadInMs ?? 400;
+	const leadInMs = Math.min(input.leadInMs ?? DEFAULT_LEAD_IN_MS, MAX_LEAD_IN_MS);
 	const tailShotMs = Math.max(limits.minShotMs, input.tailShotMs ?? 2_500);
 	const duration = Math.max(0, input.durationMs);
 
