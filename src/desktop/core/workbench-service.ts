@@ -698,10 +698,14 @@ export class WorkbenchService {
           const meta = this.settings.sessionMeta[event.session], usage = this.progress.get(event.session)?.usage;
           const consumed = meta.browserTaskUsage ?? {tokens:0,runtimeMs:0};
           consumed.runtimeMs += Math.max(0,Date.now()-run.turnStartedAt);
-          if (usage) {
-            consumed.tokens += Number(usage.tokensIn ?? 0)+Number(usage.tokensOut ?? 0);
-            consumed.usageUnknown ||= usage.usageComplete !== true;
-          }
+          const tokensIn = usage?.tokensIn, tokensOut = usage?.tokensOut;
+          const validCounts = typeof tokensIn === "number" && Number.isSafeInteger(tokensIn) && tokensIn >= 0 &&
+            typeof tokensOut === "number" && Number.isSafeInteger(tokensOut) && tokensOut >= 0 &&
+            Number.isSafeInteger(consumed.tokens) && consumed.tokens >= 0 &&
+            Number.isSafeInteger(consumed.tokens + tokensIn + tokensOut);
+          if (validCounts) consumed.tokens += tokensIn + tokensOut;
+          // Missing/invalid receipts cannot release the in-flight reservation as zero usage.
+          consumed.usageUnknown ||= !validCounts || usage?.usageComplete !== true;
           consumed.inFlight = false; meta.browserTaskUsage = consumed; delete run.turnStartedAt; this.save();
           if (consumed.usageUnknown) budgetError = "Task token usage could not be measured. Allocate a new task budget explicitly before continuing.";
           else if (consumed.tokens >= run.task.budget.maxTokens) budgetError = "Task token budget reached. Allocate a new task budget explicitly before continuing.";
