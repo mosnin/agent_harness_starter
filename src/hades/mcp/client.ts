@@ -58,6 +58,7 @@ export interface McpClientOptions {
   clientName?: string; // default "hades"
   clientVersion?: string; // default "0.1.0"
   timeoutMs?: number; // per-request timeout, default 10000
+  toolTimeoutMs?: number; // optional longer tools/call budget for interactive tools
   setTimeoutFn?: (cb: () => void, ms: number) => ReturnType<typeof setTimeout>;
   clearTimeoutFn?: (t: ReturnType<typeof setTimeout>) => void;
 }
@@ -102,6 +103,7 @@ export class McpClient {
   private readonly clientName: string;
   private readonly clientVersion: string;
   private readonly timeoutMs: number;
+  private readonly toolTimeoutMs: number;
   private readonly setTimeoutFn: (cb: () => void, ms: number) => ReturnType<typeof setTimeout>;
   private readonly clearTimeoutFn: (t: ReturnType<typeof setTimeout>) => void;
 
@@ -114,6 +116,9 @@ export class McpClient {
     this.clientName = opts.clientName ?? "hades";
     this.clientVersion = opts.clientVersion ?? "0.1.0";
     this.timeoutMs = opts.timeoutMs ?? 10000;
+    this.toolTimeoutMs = opts.toolTimeoutMs ?? this.timeoutMs;
+    if (!Number.isSafeInteger(this.toolTimeoutMs) || this.toolTimeoutMs <= 0 || this.toolTimeoutMs > 900_000)
+      throw new Error("MCP tool timeout must be between 1 and 900000 milliseconds");
     // Bind the ambient timer functions so `this` is not required at call time.
     this.setTimeoutFn =
       opts.setTimeoutFn ?? ((cb, ms) => setTimeout(cb, ms));
@@ -169,9 +174,12 @@ export class McpClient {
       const timer = this.setTimeoutFn(() => {
         // On timeout, drop the pending entry so a late response is ignored.
         if (this.pending.delete(id)) {
+          if (method === "tools/call") {
+            this.notify("notifications/cancelled", { requestId: id, reason: "Tool deadline exceeded" });
+          }
           reject(new McpProtocolError(CODE_TIMEOUT, "request timed out"));
         }
-      }, this.timeoutMs);
+      }, method === "tools/call" ? this.toolTimeoutMs : this.timeoutMs);
 
       this.pending.set(id, { resolve, reject, timer });
 
@@ -213,11 +221,15 @@ export class McpClient {
   private notify(method: string, params?: unknown): void {
     if (this.closed) return;
     // Notifications carry no id; failures are non-fatal.
-    void Promise.resolve(
-      this.transport.send({ jsonrpc: "2.0", method, params }),
-    ).catch(() => {
-      /* notifications are best-effort */
-    });
+    try {
+      void Promise.resolve(
+        this.transport.send({ jsonrpc: "2.0", method, params }),
+      ).catch(() => {
+        /* notifications are best-effort */
+      });
+    } catch {
+      /* a synchronous transport failure must not prevent local cancellation */
+    }
   }
 
   /**

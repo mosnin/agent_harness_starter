@@ -82,6 +82,45 @@ function makeClient(extra?: Partial<ConstructorParameters<typeof McpClient>[1]>)
 }
 
 describe("McpClient", () => {
+  it("notifies the server when a tool deadline expires, even if cancellation delivery throws", async () => {
+    for (const failDelivery of [false, true]) {
+      const { transport, clock, client } = makeClient();
+      transport.onSend = (message) => {
+        if (failDelivery && message.method === "notifications/cancelled") throw new Error("transport ended");
+      };
+      const pending = client.callTool("capture_context", {});
+      const requestId = transport.lastOf("tools/call")!.id;
+      const rejected = expect(pending).rejects.toThrow("request timed out");
+      clock.fireAll();
+      await rejected;
+      expect(transport.lastOf("notifications/cancelled")?.params).toEqual({
+        requestId, reason: "Tool deadline exceeded",
+      });
+      expect(clock.pendingCount()).toBe(0);
+      transport.deliver({ jsonrpc: "2.0", id: requestId, result: { content: [] } });
+      expect(transport.sent.filter((message) => message.method === "tools/call")).toHaveLength(1);
+      client.close();
+    }
+  });
+  it("allows interactive tool calls to wait without extending discovery or losing cancellation", async () => {
+    const transport = new MockTransport();
+    const deadlines: number[] = [];
+    const clock = fakeClock();
+    const client = new McpClient(transport, {
+      timeoutMs: 20_000, toolTimeoutMs: 180_000,
+      setTimeoutFn: (callback, ms) => { deadlines.push(ms); return clock.setTimeoutFn(callback, ms); },
+      clearTimeoutFn: clock.clearTimeoutFn,
+    });
+    const discovery = client.listTools();
+    transport.deliver({ jsonrpc: "2.0", id: transport.lastOf("tools/list")!.id, result: { tools: [] } });
+    await discovery;
+    const pointing = client.callTool("request_pointing", {});
+    const rejected = expect(pointing).rejects.toThrow("closed");
+    expect(deadlines).toEqual([20_000, 180_000]);
+    client.close();
+    await rejected;
+    expect(clock.pendingCount()).toBe(0);
+  });
   it("registers its inbound handler exactly once in the constructor", () => {
     const { transport } = makeClient();
     expect(transport.onMessageCalls).toBe(1);

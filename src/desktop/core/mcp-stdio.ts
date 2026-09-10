@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
-import { createInterface } from "node:readline";
 import { McpClient, type JsonRpcMessage } from "../../hades/mcp/client";
-import type { Tool } from "../../hades/agent/tools";
+import type { Tool, ToolResult } from "../../hades/agent/tools";
 export interface DesktopMcpServer {
   name: string;
   command: string;
@@ -27,13 +26,15 @@ export async function connectMcp(
     stdio: "pipe",
     detached: true,
   });
-  const lines = createInterface({ input: child.stdout });
+  let frameParts: Buffer[] = [];
+  let frameBytes = 0;
   let receive: (m: JsonRpcMessage) => void = () => {};
   let closed = false;
   const close = () => {
     if (closed) return;
     closed = true;
-    lines.close();
+    frameParts = [];
+    frameBytes = 0;
     client.close();
     try {
       if (child.pid) process.kill(-child.pid, "SIGTERM");
@@ -52,17 +53,48 @@ export async function connectMcp(
         receive = handler;
       },
     },
-    { timeoutMs: 20_000 },
+    // Discovery stays quick; interactive capture/pointing tools can wait for a person.
+    { timeoutMs: 20_000, toolTimeoutMs: 180_000 },
   );
-  lines.on("line", (line) => {
-    if (line.length > 2_000_000) {
-      close();
-      return;
-    }
-    try {
-      receive(JSON.parse(line));
-    } catch {
-      /* non-protocol stdout is ignored */
+  // Bound bytes before decoding/parsing, including a server that never sends a newline.
+  child.stdout.on("data", (chunk: Buffer) => {
+    let start = 0;
+    while (!closed && start < chunk.length) {
+      const newline = chunk.indexOf(10, start);
+      const end = newline < 0 ? chunk.length : newline;
+      const part = chunk.subarray(start, end);
+      frameBytes += part.length;
+      if (frameBytes > MAX_MCP_FRAME_BYTES) {
+        close();
+        return;
+      }
+      frameParts.push(part);
+      if (newline < 0) break;
+      const line = Buffer.concat(frameParts, frameBytes).toString("utf8");
+      frameParts = [];
+      frameBytes = 0;
+      try {
+        const message = JSON.parse(line);
+        // McpClient normalizes content but otherwise drops structuredContent.
+        if (
+          message?.result &&
+          Object.hasOwn(message.result, "structuredContent")
+        ) {
+          message.result.content = [
+            ...(Array.isArray(message.result.content)
+              ? message.result.content
+              : []),
+            {
+              type: "structuredContent",
+              value: message.result.structuredContent,
+            },
+          ];
+        }
+        receive(message);
+      } catch {
+        /* non-protocol stdout is ignored */
+      }
+      start = newline + 1;
     }
   });
   child.on("error", () => close());
@@ -79,10 +111,7 @@ export async function connectMcp(
         description: `${t.description ?? t.name}. Input JSON matching: ${JSON.stringify(t.inputSchema ?? {})}`,
         run: async (input: string) => {
           const result = await client.callTool(t.name, JSON.parse(input));
-          return {
-            ok: !result.isError,
-            output: JSON.stringify(result.content).slice(0, 100_000),
-          };
+          return mcpToolResult(result.content, !result.isError);
         },
       })),
     };
@@ -90,4 +119,58 @@ export async function connectMcp(
     close();
     throw e;
   }
+}
+
+// Matches desktop image attachments; allow bounded metadata beside five images.
+const MAX_IMAGE_URL_CHARS = 8_000_000;
+const MAX_IMAGES = 5;
+const MAX_MCP_FRAME_BYTES = MAX_IMAGES * MAX_IMAGE_URL_CHARS + 200_000;
+const IMAGE_MIMES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+]);
+
+function mcpToolResult(content: unknown[], ok: boolean): ToolResult {
+  const images: string[] = [];
+  const blocks = content.map((block: unknown) => {
+    if (
+      !block ||
+      typeof block !== "object" ||
+      !("type" in block) ||
+      block.type !== "image"
+    )
+      return block;
+    const image = block as { mimeType?: unknown; data?: unknown };
+    const mime = image.mimeType;
+    const data = image.data;
+    let reason: string | undefined;
+    if (typeof mime !== "string" || !IMAGE_MIMES.has(mime))
+      reason = "unsupported image MIME type";
+    else if (typeof data !== "string" || !data.length)
+      reason = "missing image base64";
+    else if (images.length >= MAX_IMAGES) reason = "maximum five images";
+    else if (data.length + `data:${mime};base64,`.length > MAX_IMAGE_URL_CHARS)
+      reason = "image exceeds 6 MB limit";
+    else if (
+      data.length % 4 !== 0 ||
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(data) ||
+      Buffer.from(data, "base64").toString("base64") !== data
+    )
+      reason = "invalid image base64";
+    if (reason) {
+      ok = false;
+      return { type: "image", omitted: reason };
+    }
+    images.push(`data:${mime};base64,${data}`);
+    return { type: "image", mimeType: mime, imageIndex: images.length - 1 };
+  });
+  const output = JSON.stringify(blocks);
+  const text =
+    output.length > 100_000
+      ? output.slice(0, 100_000) +
+        "\n[MCP text output truncated at 100000 characters]"
+      : output;
+  return { ok, output: text, ...(images.length ? { images } : {}) };
 }
