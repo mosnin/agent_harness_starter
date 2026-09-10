@@ -485,7 +485,9 @@ export class DurableWork {
         }), controller.signal);
       if (controller.signal.aborted || this.closed) return;
       if (!Number.isSafeInteger(result.tokens) || result.tokens < 0) throw new Error(result.error || "Worker did not report valid token usage; review the task before continuing");
-      let failure = result.error || (!result.answer.trim() ? "Worker returned no result" : undefined);
+      let failure = result.tokens > attempt.reservedTokens
+        ? "Worker exceeded its token allocation; review measured usage before continuing"
+        : result.error || (!result.answer.trim() ? "Worker returned no result" : undefined);
       let evidence: WorkOutputEvidence[] | undefined;
       if (!failure) try { evidence = verifyWorkOutputs(goal.root, task.acceptance ?? []); } catch (error) { failure = error instanceof Error ? error.message : "Task output verification failed"; }
       this.edit(id, g => {

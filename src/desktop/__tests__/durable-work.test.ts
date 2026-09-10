@@ -27,6 +27,30 @@ async function settled(f:ReturnType<typeof fixture>,id:string) {
 const task=(id:string,profile="a",dependsOn:string[]=[])=>({id,title:id,prompt:`Complete ${id}`,profile,dependsOn,writes:[]});
 
 describe("DurableWork real SQLite and filesystem integration",()=>{
+ it("accepts exactly the attempt allocation",async()=>{
+  const f=fixture(async input=>({...ok,tokens:input.maxTokens})),g=f.create({maxTokens:1000});
+  f.worker.run(g.id,"owner");const done=await settled(f,g.id);
+  expect(done.status).toBe("completed");expect(done.tokens).toBe(1000);expect(done.tasks[0].reservedTokens).toBe(0);
+ });
+ it("refuses a per-attempt overrun even when the overall goal has room",async()=>{
+  const gate=deferred<Result>(),calls:string[]=[];
+  const f=fixture(async input=>{calls.push(input.task);return input.task==="slow"?gate.promise:{...ok,tokens:input.maxTokens+1};});
+  const g=f.create({maxTokens:10000,maxConcurrent:2,tasks:[task("a"),task("slow"),task("child","b",["a"])]});
+  f.worker.run(g.id,"owner");await new Promise(r=>setTimeout(r,20));gate.resolve({...ok,tokens:1});
+  const done=await settled(f,g.id);expect(done.tokens).toBe(5002);expect(calls).toEqual(["a","slow"]);
+  expect(done.tasks[0].status).toBe("failed");expect(done.status).toBe("needs_review");
+ });
+
+ it("retains measured over-budget usage and does not accept the task or release dependents",async()=>{
+  const calls:string[]=[];const f=fixture(async input=>{calls.push(input.task);return {...ok,tokens:input.maxTokens+1};});
+  const g=f.create({maxTokens:1000,maxConcurrent:1,tasks:[task("a"),task("b","b",["a"])]});
+  f.worker.run(g.id,"owner");const done=await settled(f,g.id);
+  expect(calls).toEqual(["a"]);expect(done.tokens).toBe(1001);
+  expect(done.tasks[0].status).toBe("failed");expect(done.tasks[0].error).toMatch(/exceeded.*token.*allocation/i);
+  expect(done.tasks[0].attempts![0].tokens).toBe(1001);expect(done.tasks[0].reservedTokens).toBe(0);
+  expect(done.tasks[1].status).not.toBe("completed");expect(done.status).toBe("budget_exhausted");
+ });
+
  it("does not release a dependent task on a success message when its artifact check fails",async()=>{
   const calls:string[]=[];const f=fixture(async input=>{calls.push(input.task);return ok;});
   const g=f.create({tasks:[{...task("a"),acceptance:[{path:"missing.txt"}]},task("b","b",["a"])]});
