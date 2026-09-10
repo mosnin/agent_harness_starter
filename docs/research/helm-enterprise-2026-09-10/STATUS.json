@@ -1,6 +1,6 @@
 {
   "schema": "hades.enterprise-program-status.v1",
-  "updatedAt": "2026-09-10T12:11:19.407Z",
+  "updatedAt": "2026-09-10T17:35:43.805Z",
   "goal": "active",
   "productAccepted": false,
   "hadesBaseline": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
@@ -20,7 +20,7 @@
     {
       "id": "G03",
       "status": "blocked_environment",
-      "evidence": "Actual pinned Orca adapter and package recipe exist. Exact build/native dependencies absent; real orcad/PTY boot has not run."
+      "evidence": "Pinned Orca adapter and validated packaging recipe are committed; package staging fixtures pass. Exact runtime build prerequisites remain absent, and real orcad/PTY boot remains unverified."
     },
     {
       "id": "G04",
@@ -50,7 +50,7 @@
     {
       "id": "G09",
       "status": "partial",
-      "evidence": "Explicit replacement retains unknown usage and history; Resume uses saved limits unless explicitly edited and requires new admission allocation/attempts. Host observation deadlines are bounded. The pinned Orca contract has no normalized provider token/spend enforcement or usage receipts; those upstream and live gates remain open."
+      "evidence": "Attempt over-allocation now fails settlement while charging measured usage. Browser missing/malformed receipts remain unknown. These host controls do not implement provider-enforced caps or Orca spend accounting. Explicit replacement continues to retain unknown usage and prior reservations."
     },
     {
       "id": "G10",
@@ -90,12 +90,12 @@
     {
       "id": "G17",
       "status": "partial",
-      "evidence": "Atomic audit export/current-state binding and existing staged backup tests pass. Authenticated organization/RBAC/SSO/credential policy/retention remains incomplete."
+      "evidence": "Team store now revalidates membership and stored roles transactionally; 14 offline SQLite tests pass. Enterprise organization execution policy, SSO and credential policy remain missing. Existing audit/export and staged restore evidence remain source-scoped."
     },
     {
       "id": "G18",
       "status": "partial",
-      "evidence": "Final serialized Work/Helm 391/391 (37 files), Plugins 303/303 (21 files), fresh TypeScript and desktop source bundles pass: 683 distinct cases across 57 files after 11 shared routing cases. Initial parallel Git fixture timeouts and teardown rejection are retained; the unchanged 37 Git cases passed in isolation before the serialized full gate. Native/runtime/provider regression remains open."
+      "evidence": "Current integrated Work/Helm/browser accounting/team authority gate: 423 passed, 3 process-inspection tests skipped, 40 files. TypeScript and UI/sidecar/team source bundles passed. Mac packaging: 21 mocked-flow/compiler-failure fixtures. Historical Plugins 303/303 evidence retained, not rerun for this snapshot. Native/runtime/provider acceptance remains open."
     },
     {
       "id": "G19",
@@ -109,14 +109,22 @@
     }
   ],
   "nextExecutionOrder": [
-    "Implement capability-negotiated usage and mandatory-limit contracts in the actual Orca fork; validate each actual provider transport before advertising enforcement",
-    "Build and package exact foundations on an authorized host with sufficient space; verify actual worker/PTY and provider authentication",
-    "Exercise actual default conversation-to-worker-to-checked-artifact-to-reviewed-apply flow; repair failures",
-    "Deliver seven live OAuth journeys and real general-work and enterprise policy workflows",
-    "Run the real 60-minute recovery exercise, native usability and 24-case three-trial matched comparison, then independent product acceptance"
+    "Complete the exact native candidate build/install gate in CLOSEOUT.md; unavailable native control/dependencies remain explicit",
+    "Deliver the seven live OAuth journeys and Company OS update/rollback acceptance",
+    "Implement actual provider usage/mandatory-limit contracts and authenticated enterprise execution policy; preserve unknown and unsupported states",
+    "Exercise default coding, browser/passkey and spatial workflows; complete 60-minute recovery and 24-case three-trial comparisons, then independent acceptance"
   ],
-  "sourceCandidate": "23490e4c1a2a45fb35522b19dde5269337be7a6d",
-  "sourceState": "Local follow-up to 23490e4, frozen by the replacement receipt. No remote, installed, live or product acceptance.",
+  "sourceCandidate": "cd64fc46284df0b4710b78bcd7a1e918786ea42d",
+  "sourceState": "committed-clean",
   "pluginProgram": "docs/plugins/PROGRAM.md",
-  "sourceReceipt": "docs/research/helm-enterprise-2026-09-10/audit/orca-replacement-v1-receipt.json"
+  "sourceReceipt": "docs/research/helm-enterprise-2026-09-10/CAPABILITIES.v2.json",
+  "currentCapabilityInventory": "CAPABILITIES.v2.json",
+  "latestSourceEvidence": [
+    "audit/integrated-closeout-v1.md",
+    "audit/sidecar-build-failure-v1.md",
+    "audit/team-store-authority-v1.md",
+    "audit/browser-usage-settlement-v1.md",
+    "audit/attempt-usage-settlement-v1.md"
+  ],
+  "previousSourceReceipt": "docs/research/helm-enterprise-2026-09-10/audit/orca-replacement-v1-receipt.json"
 }

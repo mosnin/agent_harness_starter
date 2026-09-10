@@ -1,0 +1,5083 @@
+{
+  "schema": "hades.capability-coverage.v2",
+  "date": "2026-09-10",
+  "scope": "Every top-level English OpenCode docs topic and every local Orca README feature/public skill-guide file, with complete extracted headings. Not every implementation behavior or hosted vendor plan. Unknown entries are deliberately not inferred as supported.",
+  "candidate": {
+    "hades": "cd64fc46284df0b4710b78bcd7a1e918786ea42d",
+    "opencode": "89bac15fcea8f7fb90d50c6d4cf457b25673a7b5",
+    "orca": "bf4e2705046cf9ef9c915929a9646da85717af07",
+    "changes": "All three source trees verified clean at these committed revisions. Desktop source bundles rebuilt; packaged native/provider acceptance remains unverified."
+  },
+  "definitions": {
+    "implemented-source": "Hades behavior implemented with cited deterministic tests; not rebuilt/live proof",
+    "partial": "Some related path exists; named upstream feature is not fully proven",
+    "missing": "Required product capability not supplied by reviewed path",
+    "unknown": "Catalog documented; Hades integration not established",
+    "built/live": "All current candidate entries unverified"
+  },
+  "entries": [
+    {
+      "id": "opencode.acp",
+      "feature": "Acp",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/acp.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 16,
+          "heading": "Configure"
+        },
+        {
+          "line": 26,
+          "heading": "Zed"
+        },
+        {
+          "line": 70,
+          "heading": "JetBrains IDEs"
+        },
+        {
+          "line": 89,
+          "heading": "Avante.nvim"
+        },
+        {
+          "line": 122,
+          "heading": "CodeCompanion.nvim"
+        },
+        {
+          "line": 143,
+          "heading": "Support"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.agents",
+      "feature": "Agents",
+      "origin": "OpenCode fork documentation",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/agents.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 16,
+          "heading": "Types"
+        },
+        {
+          "line": 22,
+          "heading": "Primary agents"
+        },
+        {
+          "line": 35,
+          "heading": "Subagents"
+        },
+        {
+          "line": 43,
+          "heading": "Built-in"
+        },
+        {
+          "line": 49,
+          "heading": "Use build"
+        },
+        {
+          "line": 57,
+          "heading": "Use plan"
+        },
+        {
+          "line": 71,
+          "heading": "Use general"
+        },
+        {
+          "line": 79,
+          "heading": "Use explore"
+        },
+        {
+          "line": 87,
+          "heading": "Use scout"
+        },
+        {
+          "line": 95,
+          "heading": "Use compaction"
+        },
+        {
+          "line": 103,
+          "heading": "Use title"
+        },
+        {
+          "line": 111,
+          "heading": "Use summary"
+        },
+        {
+          "line": 119,
+          "heading": "Usage"
+        },
+        {
+          "line": 142,
+          "heading": "Configure"
+        },
+        {
+          "line": 148,
+          "heading": "JSON"
+        },
+        {
+          "line": 188,
+          "heading": "Markdown"
+        },
+        {
+          "line": 220,
+          "heading": "Options"
+        },
+        {
+          "line": 226,
+          "heading": "Description"
+        },
+        {
+          "line": 244,
+          "heading": "Temperature"
+        },
+        {
+          "line": 291,
+          "heading": "Max steps"
+        },
+        {
+          "line": 317,
+          "heading": "Disable"
+        },
+        {
+          "line": 333,
+          "heading": "Prompt"
+        },
+        {
+          "line": 351,
+          "heading": "Model"
+        },
+        {
+          "line": 373,
+          "heading": "Tools (deprecated)"
+        },
+        {
+          "line": 422,
+          "heading": "Permissions"
+        },
+        {
+          "line": 560,
+          "heading": "Mode"
+        },
+        {
+          "line": 578,
+          "heading": "Hidden"
+        },
+        {
+          "line": 601,
+          "heading": "Task permissions"
+        },
+        {
+          "line": 634,
+          "heading": "Color"
+        },
+        {
+          "line": 655,
+          "heading": "Top P"
+        },
+        {
+          "line": 673,
+          "heading": "Additional"
+        },
+        {
+          "line": 700,
+          "heading": "Create agents"
+        },
+        {
+          "line": 718,
+          "heading": "Use cases"
+        },
+        {
+          "line": 730,
+          "heading": "Examples"
+        },
+        {
+          "line": 740,
+          "heading": "Documentation agent"
+        },
+        {
+          "line": 762,
+          "heading": "Security auditor"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.cli",
+      "feature": "Cli",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/cli.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 22,
+          "heading": "tui"
+        },
+        {
+          "line": 30,
+          "heading": "Flags"
+        },
+        {
+          "line": 49,
+          "heading": "Commands"
+        },
+        {
+          "line": 55,
+          "heading": "agent"
+        },
+        {
+          "line": 65,
+          "heading": "create"
+        },
+        {
+          "line": 75,
+          "heading": "Flags"
+        },
+        {
+          "line": 89,
+          "heading": "list"
+        },
+        {
+          "line": 99,
+          "heading": "attach"
+        },
+        {
+          "line": 110,
+          "heading": "Start the backend server for web/mobile access"
+        },
+        {
+          "line": 113,
+          "heading": "In another terminal, attach the TUI to the running backend"
+        },
+        {
+          "line": 117,
+          "heading": "Flags"
+        },
+        {
+          "line": 130,
+          "heading": "auth"
+        },
+        {
+          "line": 140,
+          "heading": "login"
+        },
+        {
+          "line": 159,
+          "heading": "list"
+        },
+        {
+          "line": 175,
+          "heading": "logout"
+        },
+        {
+          "line": 185,
+          "heading": "github"
+        },
+        {
+          "line": 195,
+          "heading": "install"
+        },
+        {
+          "line": 207,
+          "heading": "run"
+        },
+        {
+          "line": 224,
+          "heading": "mcp"
+        },
+        {
+          "line": 234,
+          "heading": "add"
+        },
+        {
+          "line": 246,
+          "heading": "list"
+        },
+        {
+          "line": 262,
+          "heading": "auth"
+        },
+        {
+          "line": 286,
+          "heading": "logout"
+        },
+        {
+          "line": 296,
+          "heading": "debug"
+        },
+        {
+          "line": 306,
+          "heading": "models"
+        },
+        {
+          "line": 324,
+          "heading": "Flags"
+        },
+        {
+          "line": 339,
+          "heading": "run"
+        },
+        {
+          "line": 356,
+          "heading": "Start a headless server in one terminal"
+        },
+        {
+          "line": 359,
+          "heading": "In another terminal, run commands that attach to it"
+        },
+        {
+          "line": 363,
+          "heading": "Flags"
+        },
+        {
+          "line": 388,
+          "heading": "serve"
+        },
+        {
+          "line": 398,
+          "heading": "Flags"
+        },
+        {
+          "line": 410,
+          "heading": "session"
+        },
+        {
+          "line": 420,
+          "heading": "list"
+        },
+        {
+          "line": 437,
+          "heading": "delete"
+        },
+        {
+          "line": 447,
+          "heading": "stats"
+        },
+        {
+          "line": 455,
+          "heading": "Flags"
+        },
+        {
+          "line": 466,
+          "heading": "export"
+        },
+        {
+          "line": 476,
+          "heading": "Flags"
+        },
+        {
+          "line": 484,
+          "heading": "import"
+        },
+        {
+          "line": 501,
+          "heading": "web"
+        },
+        {
+          "line": 511,
+          "heading": "Flags"
+        },
+        {
+          "line": 523,
+          "heading": "acp"
+        },
+        {
+          "line": 533,
+          "heading": "Flags"
+        },
+        {
+          "line": 546,
+          "heading": "plugin"
+        },
+        {
+          "line": 560,
+          "heading": "Flags"
+        },
+        {
+          "line": 569,
+          "heading": "pr"
+        },
+        {
+          "line": 579,
+          "heading": "db"
+        },
+        {
+          "line": 587,
+          "heading": "Flags"
+        },
+        {
+          "line": 595,
+          "heading": "path"
+        },
+        {
+          "line": 605,
+          "heading": "debug"
+        },
+        {
+          "line": 615,
+          "heading": "uninstall"
+        },
+        {
+          "line": 623,
+          "heading": "Flags"
+        },
+        {
+          "line": 634,
+          "heading": "upgrade"
+        },
+        {
+          "line": 654,
+          "heading": "Flags"
+        },
+        {
+          "line": 662,
+          "heading": "Global Flags"
+        },
+        {
+          "line": 676,
+          "heading": "Environment variables"
+        },
+        {
+          "line": 710,
+          "heading": "Experimental"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.commands",
+      "feature": "Commands",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/commands.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 16,
+          "heading": "Create command files"
+        },
+        {
+          "line": 43,
+          "heading": "Configure"
+        },
+        {
+          "line": 49,
+          "heading": "JSON"
+        },
+        {
+          "line": 78,
+          "heading": "Markdown"
+        },
+        {
+          "line": 105,
+          "heading": "Prompt config"
+        },
+        {
+          "line": 111,
+          "heading": "Arguments"
+        },
+        {
+          "line": 164,
+          "heading": "Shell output"
+        },
+        {
+          "line": 198,
+          "heading": "File references"
+        },
+        {
+          "line": 215,
+          "heading": "Options"
+        },
+        {
+          "line": 221,
+          "heading": "Template"
+        },
+        {
+          "line": 239,
+          "heading": "Description"
+        },
+        {
+          "line": 257,
+          "heading": "Agent"
+        },
+        {
+          "line": 277,
+          "heading": "Subtask"
+        },
+        {
+          "line": 297,
+          "heading": "Model"
+        },
+        {
+          "line": 315,
+          "heading": "Built-in"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.config",
+      "feature": "Config",
+      "origin": "OpenCode fork documentation",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/config.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 10,
+          "heading": "Format"
+        },
+        {
+          "line": 27,
+          "heading": "Locations"
+        },
+        {
+          "line": 42,
+          "heading": "Precedence order"
+        },
+        {
+          "line": 63,
+          "heading": "Remote"
+        },
+        {
+          "line": 99,
+          "heading": "Global"
+        },
+        {
+          "line": 109,
+          "heading": "Per project"
+        },
+        {
+          "line": 125,
+          "heading": "Custom path"
+        },
+        {
+          "line": 138,
+          "heading": "Custom directory"
+        },
+        {
+          "line": 154,
+          "heading": "Managed settings"
+        },
+        {
+          "line": 158,
+          "heading": "File-based"
+        },
+        {
+          "line": 170,
+          "heading": "macOS managed preferences"
+        },
+        {
+          "line": 254,
+          "heading": "Schema"
+        },
+        {
+          "line": 264,
+          "heading": "TUI"
+        },
+        {
+          "line": 300,
+          "heading": "Server"
+        },
+        {
+          "line": 329,
+          "heading": "Shell"
+        },
+        {
+          "line": 344,
+          "heading": "Tools"
+        },
+        {
+          "line": 362,
+          "heading": "Models"
+        },
+        {
+          "line": 402,
+          "heading": "Policies"
+        },
+        {
+          "line": 425,
+          "heading": "Image attachments"
+        },
+        {
+          "line": 454,
+          "heading": "Provider-Specific Options"
+        },
+        {
+          "line": 489,
+          "heading": "Themes"
+        },
+        {
+          "line": 504,
+          "heading": "Agents"
+        },
+        {
+          "line": 530,
+          "heading": "Default agent"
+        },
+        {
+          "line": 547,
+          "heading": "Subagent depth"
+        },
+        {
+          "line": 562,
+          "heading": "Sharing"
+        },
+        {
+          "line": 583,
+          "heading": "Commands"
+        },
+        {
+          "line": 609,
+          "heading": "Keybinds"
+        },
+        {
+          "line": 628,
+          "heading": "Snapshot"
+        },
+        {
+          "line": 645,
+          "heading": "Autoupdate"
+        },
+        {
+          "line": 661,
+          "heading": "Formatters"
+        },
+        {
+          "line": 696,
+          "heading": "LSP Servers"
+        },
+        {
+          "line": 724,
+          "heading": "Permissions"
+        },
+        {
+          "line": 744,
+          "heading": "Compaction"
+        },
+        {
+          "line": 765,
+          "heading": "Watcher"
+        },
+        {
+          "line": 782,
+          "heading": "MCP servers"
+        },
+        {
+          "line": 797,
+          "heading": "Plugins"
+        },
+        {
+          "line": 814,
+          "heading": "Instructions"
+        },
+        {
+          "line": 830,
+          "heading": "Disabled providers"
+        },
+        {
+          "line": 853,
+          "heading": "Enabled providers"
+        },
+        {
+          "line": 874,
+          "heading": "Experimental"
+        },
+        {
+          "line": 891,
+          "heading": "Variables"
+        },
+        {
+          "line": 897,
+          "heading": "Env vars"
+        },
+        {
+          "line": 920,
+          "heading": "Files"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.custom-tools",
+      "feature": "Custom Tools",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/custom-tools.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 10,
+          "heading": "Creating a tool"
+        },
+        {
+          "line": 16,
+          "heading": "Location"
+        },
+        {
+          "line": 25,
+          "heading": "Structure"
+        },
+        {
+          "line": 48,
+          "heading": "Multiple tools per file"
+        },
+        {
+          "line": 82,
+          "heading": "Name collisions with built-in tools"
+        },
+        {
+          "line": 108,
+          "heading": "Arguments"
+        },
+        {
+          "line": 137,
+          "heading": "Context"
+        },
+        {
+          "line": 160,
+          "heading": "Examples"
+        },
+        {
+          "line": 162,
+          "heading": "Write a tool in Python"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.ecosystem",
+      "feature": "Ecosystem",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/ecosystem.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 16,
+          "heading": "Plugins"
+        },
+        {
+          "line": 61,
+          "heading": "Projects"
+        },
+        {
+          "line": 79,
+          "heading": "Agents"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.enterprise",
+      "feature": "Enterprise",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/enterprise.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 21,
+          "heading": "Trial"
+        },
+        {
+          "line": 27,
+          "heading": "Data handling"
+        },
+        {
+          "line": 38,
+          "heading": "Sharing conversations"
+        },
+        {
+          "line": 57,
+          "heading": "Code ownership"
+        },
+        {
+          "line": 63,
+          "heading": "Pricing"
+        },
+        {
+          "line": 69,
+          "heading": "Deployment"
+        },
+        {
+          "line": 77,
+          "heading": "Central Config"
+        },
+        {
+          "line": 85,
+          "heading": "SSO integration"
+        },
+        {
+          "line": 93,
+          "heading": "Internal AI gateway"
+        },
+        {
+          "line": 101,
+          "heading": "Self-hosting"
+        },
+        {
+          "line": 110,
+          "heading": "FAQ"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.formatters",
+      "feature": "Formatters",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/formatters.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 10,
+          "heading": "Built-in"
+        },
+        {
+          "line": 47,
+          "heading": "How it works"
+        },
+        {
+          "line": 59,
+          "heading": "Configure"
+        },
+        {
+          "line": 94,
+          "heading": "Disabling formatters"
+        },
+        {
+          "line": 120,
+          "heading": "Custom formatters"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.github",
+      "feature": "Github",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/github.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 10,
+          "heading": "Features"
+        },
+        {
+          "line": 18,
+          "heading": "Installation"
+        },
+        {
+          "line": 30,
+          "heading": "Manual Setup"
+        },
+        {
+          "line": 82,
+          "heading": "Configuration"
+        },
+        {
+          "line": 104,
+          "heading": "Supported Events"
+        },
+        {
+          "line": 117,
+          "heading": "Schedule Example"
+        },
+        {
+          "line": 157,
+          "heading": "Pull Request Example"
+        },
+        {
+          "line": 198,
+          "heading": "Issues Triage Example"
+        },
+        {
+          "line": 253,
+          "heading": "Custom prompts"
+        },
+        {
+          "line": 272,
+          "heading": "Examples"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.gitlab",
+      "feature": "Gitlab",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/gitlab.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 12,
+          "heading": "GitLab CI"
+        },
+        {
+          "line": 20,
+          "heading": "Features"
+        },
+        {
+          "line": 28,
+          "heading": "Setup"
+        },
+        {
+          "line": 47,
+          "heading": "GitLab Duo"
+        },
+        {
+          "line": 54,
+          "heading": "Features"
+        },
+        {
+          "line": 63,
+          "heading": "Setup"
+        },
+        {
+          "line": 159,
+          "heading": "Examples"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.go",
+      "feature": "Go",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/go.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 20,
+          "heading": "Background"
+        },
+        {
+          "line": 46,
+          "heading": "How it works"
+        },
+        {
+          "line": 89,
+          "heading": "Usage limits"
+        },
+        {
+          "line": 197,
+          "heading": "Usage beyond limits"
+        },
+        {
+          "line": 205,
+          "heading": "Why some models have lower usage"
+        },
+        {
+          "line": 217,
+          "heading": "Endpoints"
+        },
+        {
+          "line": 253,
+          "heading": "Models"
+        },
+        {
+          "line": 263,
+          "heading": "Privacy"
+        },
+        {
+          "line": 297,
+          "heading": "Goals"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.ide",
+      "feature": "Ide",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/ide.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 10,
+          "heading": "Usage"
+        },
+        {
+          "line": 19,
+          "heading": "Installation"
+        },
+        {
+          "line": 31,
+          "heading": "Manual Install"
+        },
+        {
+          "line": 37,
+          "heading": "Troubleshooting"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.index",
+      "feature": "Index",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/index.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 18,
+          "heading": "Prerequisites"
+        },
+        {
+          "line": 32,
+          "heading": "Install"
+        },
+        {
+          "line": 91,
+          "heading": "Windows"
+        },
+        {
+          "line": 133,
+          "heading": "Configure"
+        },
+        {
+          "line": 162,
+          "heading": "Initialize"
+        },
+        {
+          "line": 195,
+          "heading": "Usage"
+        },
+        {
+          "line": 205,
+          "heading": "Ask questions"
+        },
+        {
+          "line": 221,
+          "heading": "Add features"
+        },
+        {
+          "line": 285,
+          "heading": "Make changes"
+        },
+        {
+          "line": 301,
+          "heading": "Undo changes"
+        },
+        {
+          "line": 337,
+          "heading": "Share"
+        },
+        {
+          "line": 356,
+          "heading": "Customize"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.keybinds",
+      "feature": "Keybinds",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/keybinds.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 190,
+          "heading": "Leader Key"
+        },
+        {
+          "line": 204,
+          "heading": "Binding Values"
+        },
+        {
+          "line": 225,
+          "heading": "Disable Keybind"
+        },
+        {
+          "line": 240,
+          "heading": "Desktop Prompt Shortcuts"
+        },
+        {
+          "line": 262,
+          "heading": "Shift+Enter"
+        },
+        {
+          "line": 266,
+          "heading": "Windows Terminal"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.lsp",
+      "feature": "Lsp",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/lsp.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 10,
+          "heading": "Built-in"
+        },
+        {
+          "line": 59,
+          "heading": "How It Works"
+        },
+        {
+          "line": 68,
+          "heading": "Best Practices"
+        },
+        {
+          "line": 76,
+          "heading": "Configure"
+        },
+        {
+          "line": 114,
+          "heading": "Environment variables"
+        },
+        {
+          "line": 134,
+          "heading": "Initialization options"
+        },
+        {
+          "line": 161,
+          "heading": "Disabling LSP servers"
+        },
+        {
+          "line": 187,
+          "heading": "Custom LSP servers"
+        },
+        {
+          "line": 205,
+          "heading": "Additional Information"
+        },
+        {
+          "line": 207,
+          "heading": "PHP Intelephense"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.mcp-servers",
+      "feature": "Mcp Servers",
+      "origin": "OpenCode fork documentation",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/mcp-servers.mdx",
+        "src/desktop/core/mcp-stdio.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/mcp-stdio.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 12,
+          "heading": "Caveats"
+        },
+        {
+          "line": 24,
+          "heading": "Enable"
+        },
+        {
+          "line": 47,
+          "heading": "Overriding remote defaults"
+        },
+        {
+          "line": 70,
+          "heading": "Local"
+        },
+        {
+          "line": 115,
+          "heading": "Options"
+        },
+        {
+          "line": 130,
+          "heading": "Remote"
+        },
+        {
+          "line": 154,
+          "heading": "Options"
+        },
+        {
+          "line": 167,
+          "heading": "OAuth"
+        },
+        {
+          "line": 177,
+          "heading": "Automatic"
+        },
+        {
+          "line": 197,
+          "heading": "Pre-registered"
+        },
+        {
+          "line": 220,
+          "heading": "Authenticating"
+        },
+        {
+          "line": 246,
+          "heading": "Disabling OAuth"
+        },
+        {
+          "line": 268,
+          "heading": "OAuth Options"
+        },
+        {
+          "line": 277,
+          "heading": "Debugging"
+        },
+        {
+          "line": 282,
+          "heading": "View auth status for all OAuth-capable servers"
+        },
+        {
+          "line": 285,
+          "heading": "Debug connection and OAuth flow for a specific server"
+        },
+        {
+          "line": 293,
+          "heading": "Manage"
+        },
+        {
+          "line": 299,
+          "heading": "Global"
+        },
+        {
+          "line": 347,
+          "heading": "Per agent"
+        },
+        {
+          "line": 379,
+          "heading": "Glob patterns"
+        },
+        {
+          "line": 398,
+          "heading": "Examples"
+        },
+        {
+          "line": 404,
+          "heading": "Sentry"
+        },
+        {
+          "line": 437,
+          "heading": "Context7"
+        },
+        {
+          "line": 486,
+          "heading": "Grep by Vercel"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.models",
+      "feature": "Models",
+      "origin": "OpenCode fork documentation",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/models.mdx",
+        "src/desktop/core/helm-provider-readiness.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-provider-readiness.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 10,
+          "heading": "Providers"
+        },
+        {
+          "line": 18,
+          "heading": "Select a model"
+        },
+        {
+          "line": 28,
+          "heading": "Recommended models"
+        },
+        {
+          "line": 49,
+          "heading": "Set a default"
+        },
+        {
+          "line": 67,
+          "heading": "Configure models"
+        },
+        {
+          "line": 138,
+          "heading": "Variants"
+        },
+        {
+          "line": 142,
+          "heading": "Built-in variants"
+        },
+        {
+          "line": 171,
+          "heading": "Custom variants"
+        },
+        {
+          "line": 198,
+          "heading": "Cycle variants"
+        },
+        {
+          "line": 204,
+          "heading": "Loading models"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.network",
+      "feature": "Network",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/network.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 10,
+          "heading": "Proxy"
+        },
+        {
+          "line": 15,
+          "heading": "HTTPS proxy (recommended)"
+        },
+        {
+          "line": 18,
+          "heading": "HTTP proxy (if HTTPS not available)"
+        },
+        {
+          "line": 21,
+          "heading": "Bypass proxy for local server (required)"
+        },
+        {
+          "line": 33,
+          "heading": "Authenticate"
+        },
+        {
+          "line": 49,
+          "heading": "Custom certificates"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.permissions",
+      "feature": "Permissions",
+      "origin": "OpenCode fork documentation",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/permissions.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-workbench-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 12,
+          "heading": "Actions"
+        },
+        {
+          "line": 22,
+          "heading": "Auto mode"
+        },
+        {
+          "line": 42,
+          "heading": "Configuration"
+        },
+        {
+          "line": 68,
+          "heading": "Granular Rules (Object Syntax)"
+        },
+        {
+          "line": 93,
+          "heading": "Wildcards"
+        },
+        {
+          "line": 101,
+          "heading": "Home Directory Expansion"
+        },
+        {
+          "line": 109,
+          "heading": "External Directories"
+        },
+        {
+          "line": 148,
+          "heading": "Available Permissions"
+        },
+        {
+          "line": 168,
+          "heading": "Defaults"
+        },
+        {
+          "line": 191,
+          "heading": "What “Ask” Does"
+        },
+        {
+          "line": 203,
+          "heading": "Agents"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.plugins",
+      "feature": "Plugins",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/plugins.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 12,
+          "heading": "Use a plugin"
+        },
+        {
+          "line": 18,
+          "heading": "From local files"
+        },
+        {
+          "line": 29,
+          "heading": "From npm"
+        },
+        {
+          "line": 46,
+          "heading": "How plugins are installed"
+        },
+        {
+          "line": 54,
+          "heading": "Load order"
+        },
+        {
+          "line": 67,
+          "heading": "Create a plugin"
+        },
+        {
+          "line": 74,
+          "heading": "Dependencies"
+        },
+        {
+          "line": 104,
+          "heading": "Basic structure"
+        },
+        {
+          "line": 126,
+          "heading": "TypeScript support"
+        },
+        {
+          "line": 142,
+          "heading": "Events"
+        },
+        {
+          "line": 146,
+          "heading": "Command Events"
+        },
+        {
+          "line": 150,
+          "heading": "File Events"
+        },
+        {
+          "line": 155,
+          "heading": "Installation Events"
+        },
+        {
+          "line": 159,
+          "heading": "LSP Events"
+        },
+        {
+          "line": 164,
+          "heading": "Message Events"
+        },
+        {
+          "line": 171,
+          "heading": "Permission Events"
+        },
+        {
+          "line": 176,
+          "heading": "Server Events"
+        },
+        {
+          "line": 180,
+          "heading": "Session Events"
+        },
+        {
+          "line": 191,
+          "heading": "Todo Events"
+        },
+        {
+          "line": 195,
+          "heading": "Shell Events"
+        },
+        {
+          "line": 199,
+          "heading": "Tool Events"
+        },
+        {
+          "line": 204,
+          "heading": "TUI Events"
+        },
+        {
+          "line": 212,
+          "heading": "Examples"
+        },
+        {
+          "line": 218,
+          "heading": "Send notifications"
+        },
+        {
+          "line": 243,
+          "heading": ".env protection"
+        },
+        {
+          "line": 261,
+          "heading": "Inject environment variables"
+        },
+        {
+          "line": 278,
+          "heading": "Custom tools"
+        },
+        {
+          "line": 317,
+          "heading": "Logging"
+        },
+        {
+          "line": 338,
+          "heading": "Compaction hooks"
+        },
+        {
+          "line": 350,
+          "heading": "Custom Context"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.policies",
+      "feature": "Policies",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/policies.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 12,
+          "heading": "Configuration"
+        },
+        {
+          "line": 41,
+          "heading": "Available Policies"
+        },
+        {
+          "line": 53,
+          "heading": "Matching"
+        },
+        {
+          "line": 76,
+          "heading": "Rule Order"
+        },
+        {
+          "line": 108,
+          "heading": "Provider Lists"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.providers",
+      "feature": "Providers",
+      "origin": "OpenCode fork documentation",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/providers.mdx",
+        "src/desktop/core/helm-provider-readiness.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-provider-readiness.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 18,
+          "heading": "Credentials"
+        },
+        {
+          "line": 25,
+          "heading": "Config"
+        },
+        {
+          "line": 32,
+          "heading": "Base URL"
+        },
+        {
+          "line": 51,
+          "heading": "Hiding models"
+        },
+        {
+          "line": 87,
+          "heading": "OpenCode Zen"
+        },
+        {
+          "line": 123,
+          "heading": "OpenCode Go"
+        },
+        {
+          "line": 155,
+          "heading": "Directory"
+        },
+        {
+          "line": 166,
+          "heading": "302.AI"
+        },
+        {
+          "line": 193,
+          "heading": "Amazon Bedrock"
+        },
+        {
+          "line": 332,
+          "heading": "Anthropic"
+        },
+        {
+          "line": 373,
+          "heading": "Atomic Chat"
+        },
+        {
+          "line": 411,
+          "heading": "Azure OpenAI"
+        },
+        {
+          "line": 462,
+          "heading": "Azure Cognitive Services"
+        },
+        {
+          "line": 509,
+          "heading": "Baseten"
+        },
+        {
+          "line": 536,
+          "heading": "Cerebras"
+        },
+        {
+          "line": 563,
+          "heading": "Cloudflare AI Gateway"
+        },
+        {
+          "line": 634,
+          "heading": "Cloudflare Workers AI"
+        },
+        {
+          "line": 679,
+          "heading": "Cortecs"
+        },
+        {
+          "line": 706,
+          "heading": "DeepSeek"
+        },
+        {
+          "line": 733,
+          "heading": "Deep Infra"
+        },
+        {
+          "line": 760,
+          "heading": "DigitalOcean"
+        },
+        {
+          "line": 769,
+          "heading": "OAuth (Recommended)"
+        },
+        {
+          "line": 805,
+          "heading": "Using a Model Access Key"
+        },
+        {
+          "line": 830,
+          "heading": "Environment Variable"
+        },
+        {
+          "line": 838,
+          "heading": "Inference Routers"
+        },
+        {
+          "line": 846,
+          "heading": "FrogBot"
+        },
+        {
+          "line": 873,
+          "heading": "Fireworks AI"
+        },
+        {
+          "line": 900,
+          "heading": "GitLab Duo"
+        },
+        {
+          "line": 1074,
+          "heading": "GitHub Copilot"
+        },
+        {
+          "line": 1109,
+          "heading": "GMI Cloud"
+        },
+        {
+          "line": 1138,
+          "heading": "Google Vertex AI"
+        },
+        {
+          "line": 1182,
+          "heading": "Groq"
+        },
+        {
+          "line": 1209,
+          "heading": "Hugging Face"
+        },
+        {
+          "line": 1238,
+          "heading": "Helicone"
+        },
+        {
+          "line": 1267,
+          "heading": "Optional Configs"
+        },
+        {
+          "line": 1297,
+          "heading": "Custom Headers"
+        },
+        {
+          "line": 1351,
+          "heading": "llama.cpp"
+        },
+        {
+          "line": 1389,
+          "heading": "IO.NET"
+        },
+        {
+          "line": 1418,
+          "heading": "LM Studio"
+        },
+        {
+          "line": 1452,
+          "heading": "Moonshot AI"
+        },
+        {
+          "line": 1481,
+          "heading": "MiniMax"
+        },
+        {
+          "line": 1508,
+          "heading": "Modal"
+        },
+        {
+          "line": 1532,
+          "heading": "NVIDIA"
+        },
+        {
+          "line": 1559,
+          "heading": "On-Prem / NIM"
+        },
+        {
+          "line": 1576,
+          "heading": "Environment Variable"
+        },
+        {
+          "line": 1586,
+          "heading": "Nebius Token Factory"
+        },
+        {
+          "line": 1613,
+          "heading": "Ollama"
+        },
+        {
+          "line": 1655,
+          "heading": "Ollama Cloud"
+        },
+        {
+          "line": 1694,
+          "heading": "OpenAI"
+        },
+        {
+          "line": 1731,
+          "heading": "OpenCode Zen"
+        },
+        {
+          "line": 1760,
+          "heading": "OpenRouter"
+        },
+        {
+          "line": 1824,
+          "heading": "LLM Gateway"
+        },
+        {
+          "line": 1892,
+          "heading": "Poolside"
+        },
+        {
+          "line": 1919,
+          "heading": "Poolside deployment"
+        },
+        {
+          "line": 1956,
+          "heading": "SAP AI Core"
+        },
+        {
+          "line": 2011,
+          "heading": "STACKIT"
+        },
+        {
+          "line": 2044,
+          "heading": "OVHcloud AI Endpoints"
+        },
+        {
+          "line": 2071,
+          "heading": "Scaleway"
+        },
+        {
+          "line": 2100,
+          "heading": "SCX.ai"
+        },
+        {
+          "line": 2129,
+          "heading": "Snowflake Cortex"
+        },
+        {
+          "line": 2142,
+          "heading": "Browser OAuth (Recommended)"
+        },
+        {
+          "line": 2189,
+          "heading": "Manual bearer token"
+        },
+        {
+          "line": 2207,
+          "heading": "Environment variable"
+        },
+        {
+          "line": 2232,
+          "heading": "Together AI"
+        },
+        {
+          "line": 2259,
+          "heading": "Venice AI"
+        },
+        {
+          "line": 2286,
+          "heading": "Vercel AI Gateway"
+        },
+        {
+          "line": 2342,
+          "heading": "xAI"
+        },
+        {
+          "line": 2346,
+          "heading": "Option A — SuperGrok subscription"
+        },
+        {
+          "line": 2366,
+          "heading": "Option B — API key"
+        },
+        {
+          "line": 2393,
+          "heading": "Z.AI"
+        },
+        {
+          "line": 2422,
+          "heading": "ZenMux"
+        },
+        {
+          "line": 2464,
+          "heading": "Custom provider"
+        },
+        {
+          "line": 2594,
+          "heading": "Troubleshooting"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.references",
+      "feature": "References",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/references.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 29,
+          "heading": "Local directories"
+        },
+        {
+          "line": 61,
+          "heading": "Git repositories"
+        },
+        {
+          "line": 94,
+          "heading": "Describe usage"
+        },
+        {
+          "line": 113,
+          "heading": "Hide autocomplete entries"
+        },
+        {
+          "line": 133,
+          "heading": "Use references"
+        },
+        {
+          "line": 147,
+          "heading": "Configure fields"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.rules",
+      "feature": "Rules",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/rules.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 10,
+          "heading": "Initialize"
+        },
+        {
+          "line": 32,
+          "heading": "Example"
+        },
+        {
+          "line": 37,
+          "heading": "SST v3 Monorepo Project"
+        },
+        {
+          "line": 41,
+          "heading": "Project Structure"
+        },
+        {
+          "line": 47,
+          "heading": "Code Standards"
+        },
+        {
+          "line": 54,
+          "heading": "Monorepo Conventions"
+        },
+        {
+          "line": 63,
+          "heading": "Types"
+        },
+        {
+          "line": 67,
+          "heading": "Project"
+        },
+        {
+          "line": 71,
+          "heading": "Global"
+        },
+        {
+          "line": 77,
+          "heading": "Claude Code Compatibility"
+        },
+        {
+          "line": 95,
+          "heading": "Precedence"
+        },
+        {
+          "line": 107,
+          "heading": "Custom Instructions"
+        },
+        {
+          "line": 135,
+          "heading": "Referencing External Files"
+        },
+        {
+          "line": 139,
+          "heading": "Using opencode.json"
+        },
+        {
+          "line": 150,
+          "heading": "Manual Instructions in AGENTS.md"
+        },
+        {
+          "line": 155,
+          "heading": "TypeScript Project Rules"
+        },
+        {
+          "line": 157,
+          "heading": "External File Loading"
+        },
+        {
+          "line": 167,
+          "heading": "Development Guidelines"
+        },
+        {
+          "line": 174,
+          "heading": "General Guidelines"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.sdk",
+      "feature": "Sdk",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/sdk.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 16,
+          "heading": "Install"
+        },
+        {
+          "line": 26,
+          "heading": "Create client"
+        },
+        {
+          "line": 38,
+          "heading": "Options"
+        },
+        {
+          "line": 50,
+          "heading": "Config"
+        },
+        {
+          "line": 70,
+          "heading": "Client only"
+        },
+        {
+          "line": 82,
+          "heading": "Options"
+        },
+        {
+          "line": 94,
+          "heading": "Types"
+        },
+        {
+          "line": 106,
+          "heading": "Errors"
+        },
+        {
+          "line": 120,
+          "heading": "Structured Output"
+        },
+        {
+          "line": 124,
+          "heading": "Basic Usage"
+        },
+        {
+          "line": 155,
+          "heading": "Output Format Types"
+        },
+        {
+          "line": 162,
+          "heading": "JSON Schema Format"
+        },
+        {
+          "line": 172,
+          "heading": "Error Handling"
+        },
+        {
+          "line": 183,
+          "heading": "Best Practices"
+        },
+        {
+          "line": 192,
+          "heading": "APIs"
+        },
+        {
+          "line": 198,
+          "heading": "Global"
+        },
+        {
+          "line": 206,
+          "heading": "Examples"
+        },
+        {
+          "line": 215,
+          "heading": "App"
+        },
+        {
+          "line": 224,
+          "heading": "Examples"
+        },
+        {
+          "line": 242,
+          "heading": "Project"
+        },
+        {
+          "line": 251,
+          "heading": "Examples"
+        },
+        {
+          "line": 263,
+          "heading": "Path"
+        },
+        {
+          "line": 271,
+          "heading": "Examples"
+        },
+        {
+          "line": 280,
+          "heading": "Config"
+        },
+        {
+          "line": 289,
+          "heading": "Examples"
+        },
+        {
+          "line": 299,
+          "heading": "Sessions"
+        },
+        {
+          "line": 325,
+          "heading": "Examples"
+        },
+        {
+          "line": 356,
+          "heading": "Files"
+        },
+        {
+          "line": 374,
+          "heading": "Examples"
+        },
+        {
+          "line": 397,
+          "heading": "TUI"
+        },
+        {
+          "line": 413,
+          "heading": "Examples"
+        },
+        {
+          "line": 428,
+          "heading": "Auth"
+        },
+        {
+          "line": 436,
+          "heading": "Examples"
+        },
+        {
+          "line": 447,
+          "heading": "Events"
+        },
+        {
+          "line": 455,
+          "heading": "Examples"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.server",
+      "feature": "Server",
+      "origin": "OpenCode fork documentation",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/server.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-service.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 13,
+          "heading": "Usage"
+        },
+        {
+          "line": 19,
+          "heading": "Options"
+        },
+        {
+          "line": 37,
+          "heading": "Authentication"
+        },
+        {
+          "line": 47,
+          "heading": "How it works"
+        },
+        {
+          "line": 64,
+          "heading": "Connect to an existing server"
+        },
+        {
+          "line": 72,
+          "heading": "Spec"
+        },
+        {
+          "line": 84,
+          "heading": "APIs"
+        },
+        {
+          "line": 90,
+          "heading": "Global"
+        },
+        {
+          "line": 99,
+          "heading": "Project"
+        },
+        {
+          "line": 108,
+          "heading": "Path & VCS"
+        },
+        {
+          "line": 117,
+          "heading": "Instance"
+        },
+        {
+          "line": 125,
+          "heading": "Config"
+        },
+        {
+          "line": 135,
+          "heading": "Provider"
+        },
+        {
+          "line": 146,
+          "heading": "Sessions"
+        },
+        {
+          "line": 171,
+          "heading": "Messages"
+        },
+        {
+          "line": 184,
+          "heading": "Commands"
+        },
+        {
+          "line": 192,
+          "heading": "Files"
+        },
+        {
+          "line": 203,
+          "heading": "`/find/file` query parameters"
+        },
+        {
+          "line": 213,
+          "heading": "Tools (Experimental)"
+        },
+        {
+          "line": 222,
+          "heading": "LSP, Formatters & MCP"
+        },
+        {
+          "line": 233,
+          "heading": "Agents"
+        },
+        {
+          "line": 241,
+          "heading": "Logging"
+        },
+        {
+          "line": 249,
+          "heading": "TUI"
+        },
+        {
+          "line": 267,
+          "heading": "Auth"
+        },
+        {
+          "line": 275,
+          "heading": "Events"
+        },
+        {
+          "line": 283,
+          "heading": "Docs"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.share",
+      "feature": "Share",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/share.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 14,
+          "heading": "How it works"
+        },
+        {
+          "line": 24,
+          "heading": "Sharing"
+        },
+        {
+          "line": 30,
+          "heading": "Manual (default)"
+        },
+        {
+          "line": 51,
+          "heading": "Auto-share"
+        },
+        {
+          "line": 66,
+          "heading": "Disabled"
+        },
+        {
+          "line": 81,
+          "heading": "Un-sharing"
+        },
+        {
+          "line": 93,
+          "heading": "Privacy"
+        },
+        {
+          "line": 99,
+          "heading": "Data retention"
+        },
+        {
+          "line": 110,
+          "heading": "Recommendations"
+        },
+        {
+          "line": 120,
+          "heading": "For enterprises"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.skills",
+      "feature": "Skills",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/skills.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 11,
+          "heading": "Place files"
+        },
+        {
+          "line": 25,
+          "heading": "Understand discovery"
+        },
+        {
+          "line": 34,
+          "heading": "Write frontmatter"
+        },
+        {
+          "line": 49,
+          "heading": "Validate names"
+        },
+        {
+          "line": 67,
+          "heading": "Follow length rules"
+        },
+        {
+          "line": 74,
+          "heading": "Use an example"
+        },
+        {
+          "line": 89,
+          "heading": "What I do"
+        },
+        {
+          "line": 95,
+          "heading": "When to use me"
+        },
+        {
+          "line": 103,
+          "heading": "Recognize tool description"
+        },
+        {
+          "line": 125,
+          "heading": "Configure permissions"
+        },
+        {
+          "line": 152,
+          "heading": "Override per agent"
+        },
+        {
+          "line": 184,
+          "heading": "Disable the skill tool"
+        },
+        {
+          "line": 215,
+          "heading": "Troubleshoot loading"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.themes",
+      "feature": "Themes",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/themes.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 12,
+          "heading": "Terminal requirements"
+        },
+        {
+          "line": 24,
+          "heading": "Built-in themes"
+        },
+        {
+          "line": 46,
+          "heading": "System theme"
+        },
+        {
+          "line": 62,
+          "heading": "Using a theme"
+        },
+        {
+          "line": 75,
+          "heading": "Custom themes"
+        },
+        {
+          "line": 81,
+          "heading": "Hierarchy"
+        },
+        {
+          "line": 94,
+          "heading": "Creating a theme"
+        },
+        {
+          "line": 114,
+          "heading": "JSON format"
+        },
+        {
+          "line": 126,
+          "heading": "Color definitions"
+        },
+        {
+          "line": 132,
+          "heading": "Terminal defaults"
+        },
+        {
+          "line": 141,
+          "heading": "Example"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.tools",
+      "feature": "Tools",
+      "origin": "OpenCode fork documentation",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/tools.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-service.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 12,
+          "heading": "Configure"
+        },
+        {
+          "line": 42,
+          "heading": "Built-in"
+        },
+        {
+          "line": 48,
+          "heading": "bash"
+        },
+        {
+          "line": 65,
+          "heading": "edit"
+        },
+        {
+          "line": 82,
+          "heading": "write"
+        },
+        {
+          "line": 103,
+          "heading": "read"
+        },
+        {
+          "line": 120,
+          "heading": "grep"
+        },
+        {
+          "line": 137,
+          "heading": "glob"
+        },
+        {
+          "line": 154,
+          "heading": "lsp (experimental)"
+        },
+        {
+          "line": 177,
+          "heading": "apply_patch"
+        },
+        {
+          "line": 202,
+          "heading": "skill"
+        },
+        {
+          "line": 217,
+          "heading": "todowrite"
+        },
+        {
+          "line": 238,
+          "heading": "webfetch"
+        },
+        {
+          "line": 255,
+          "heading": "websearch"
+        },
+        {
+          "line": 289,
+          "heading": "question"
+        },
+        {
+          "line": 313,
+          "heading": "Custom tools"
+        },
+        {
+          "line": 321,
+          "heading": "MCP servers"
+        },
+        {
+          "line": 329,
+          "heading": "Internals"
+        },
+        {
+          "line": 335,
+          "heading": "Ignore patterns"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.troubleshooting",
+      "feature": "Troubleshooting",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/troubleshooting.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 10,
+          "heading": "Logs"
+        },
+        {
+          "line": 23,
+          "heading": "Storage"
+        },
+        {
+          "line": 40,
+          "heading": "Uninstall"
+        },
+        {
+          "line": 54,
+          "heading": "Desktop app"
+        },
+        {
+          "line": 58,
+          "heading": "Quick checks"
+        },
+        {
+          "line": 66,
+          "heading": "Disable plugins"
+        },
+        {
+          "line": 70,
+          "heading": "Check the global config"
+        },
+        {
+          "line": 87,
+          "heading": "Check plugin directories"
+        },
+        {
+          "line": 101,
+          "heading": "Clear the cache"
+        },
+        {
+          "line": 116,
+          "heading": "Fix server connection issues"
+        },
+        {
+          "line": 122,
+          "heading": "Clear the desktop default server URL"
+        },
+        {
+          "line": 126,
+          "heading": "Remove `server.port` / `server.hostname` from your config"
+        },
+        {
+          "line": 130,
+          "heading": "Check environment variables"
+        },
+        {
+          "line": 138,
+          "heading": "Linux: Wayland / X11 issues"
+        },
+        {
+          "line": 147,
+          "heading": "Windows: WebView2 runtime"
+        },
+        {
+          "line": 153,
+          "heading": "Windows: General performance issues"
+        },
+        {
+          "line": 159,
+          "heading": "Notifications not showing"
+        },
+        {
+          "line": 168,
+          "heading": "Reset desktop app storage (last resort)"
+        },
+        {
+          "line": 186,
+          "heading": "Getting help"
+        },
+        {
+          "line": 206,
+          "heading": "Common issues"
+        },
+        {
+          "line": 212,
+          "heading": "OpenCode won't start"
+        },
+        {
+          "line": 220,
+          "heading": "Authentication issues"
+        },
+        {
+          "line": 228,
+          "heading": "Model not available"
+        },
+        {
+          "line": 248,
+          "heading": "ProviderInitError"
+        },
+        {
+          "line": 267,
+          "heading": "AI_APICallError and provider package issues"
+        },
+        {
+          "line": 287,
+          "heading": "Copy/paste not working on Linux"
+        },
+        {
+          "line": 295,
+          "heading": "or"
+        },
+        {
+          "line": 309,
+          "heading": "and run:"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.tui",
+      "feature": "Tui",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/tui.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 30,
+          "heading": "File references"
+        },
+        {
+          "line": 52,
+          "heading": "Bash commands"
+        },
+        {
+          "line": 64,
+          "heading": "Commands"
+        },
+        {
+          "line": 78,
+          "heading": "connect"
+        },
+        {
+          "line": 88,
+          "heading": "compact"
+        },
+        {
+          "line": 100,
+          "heading": "details"
+        },
+        {
+          "line": 110,
+          "heading": "editor"
+        },
+        {
+          "line": 122,
+          "heading": "exit"
+        },
+        {
+          "line": 134,
+          "heading": "export"
+        },
+        {
+          "line": 146,
+          "heading": "help"
+        },
+        {
+          "line": 156,
+          "heading": "init"
+        },
+        {
+          "line": 166,
+          "heading": "models"
+        },
+        {
+          "line": 178,
+          "heading": "new"
+        },
+        {
+          "line": 190,
+          "heading": "redo"
+        },
+        {
+          "line": 209,
+          "heading": "sessions"
+        },
+        {
+          "line": 221,
+          "heading": "share"
+        },
+        {
+          "line": 231,
+          "heading": "themes"
+        },
+        {
+          "line": 243,
+          "heading": "thinking"
+        },
+        {
+          "line": 257,
+          "heading": "undo"
+        },
+        {
+          "line": 276,
+          "heading": "unshare"
+        },
+        {
+          "line": 286,
+          "heading": "Editor setup"
+        },
+        {
+          "line": 354,
+          "heading": "Configure"
+        },
+        {
+          "line": 394,
+          "heading": "Options"
+        },
+        {
+          "line": 408,
+          "heading": "Attention"
+        },
+        {
+          "line": 421,
+          "heading": "Customization"
+        },
+        {
+          "line": 427,
+          "heading": "Username display"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.web",
+      "feature": "Web",
+      "origin": "OpenCode fork documentation",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/web.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 10,
+          "heading": "Getting Started"
+        },
+        {
+          "line": 30,
+          "heading": "Configuration"
+        },
+        {
+          "line": 34,
+          "heading": "Port"
+        },
+        {
+          "line": 42,
+          "heading": "Hostname"
+        },
+        {
+          "line": 57,
+          "heading": "mDNS Discovery"
+        },
+        {
+          "line": 73,
+          "heading": "CORS"
+        },
+        {
+          "line": 81,
+          "heading": "Authentication"
+        },
+        {
+          "line": 93,
+          "heading": "Using the Web Interface"
+        },
+        {
+          "line": 97,
+          "heading": "Sessions"
+        },
+        {
+          "line": 103,
+          "heading": "Server Status"
+        },
+        {
+          "line": 111,
+          "heading": "Attaching a Terminal"
+        },
+        {
+          "line": 116,
+          "heading": "Start the web server"
+        },
+        {
+          "line": 119,
+          "heading": "In another terminal, attach the TUI"
+        },
+        {
+          "line": 127,
+          "heading": "Config File"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.windows-wsl",
+      "feature": "Windows Wsl",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/windows-wsl.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 16,
+          "heading": "Setup"
+        },
+        {
+          "line": 45,
+          "heading": "Desktop App + WSL Server"
+        },
+        {
+          "line": 71,
+          "heading": "Web Client + WSL"
+        },
+        {
+          "line": 87,
+          "heading": "Accessing Windows Files"
+        },
+        {
+          "line": 108,
+          "heading": "Tips"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "opencode.zen",
+      "feature": "Zen",
+      "origin": "OpenCode fork documentation",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/zen.mdx",
+        "src/desktop/core/helm-code-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-code-storage.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Rebuild pinned fork with provenance; exercise this exact feature through embedded Hades default path and test policy/cancellation/restart.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 18,
+          "heading": "Background"
+        },
+        {
+          "line": 44,
+          "heading": "How it works"
+        },
+        {
+          "line": 57,
+          "heading": "Endpoints"
+        },
+        {
+          "line": 133,
+          "heading": "Models"
+        },
+        {
+          "line": 143,
+          "heading": "Pricing"
+        },
+        {
+          "line": 246,
+          "heading": "Auto-reload"
+        },
+        {
+          "line": 254,
+          "heading": "Monthly limits"
+        },
+        {
+          "line": 265,
+          "heading": "Deprecated models"
+        },
+        {
+          "line": 290,
+          "heading": "Privacy"
+        },
+        {
+          "line": 305,
+          "heading": "For Teams"
+        },
+        {
+          "line": 319,
+          "heading": "Roles"
+        },
+        {
+          "line": 330,
+          "heading": "Model access"
+        },
+        {
+          "line": 339,
+          "heading": "Bring your own key"
+        },
+        {
+          "line": 350,
+          "heading": "Goals"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.mobile-companion",
+      "feature": "Mobile Companion",
+      "origin": "Orca README feature catalog",
+      "status": "missing",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md:35",
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Build actual pinned orcad and native dependencies; then demonstrate this feature in Hades. Worker adapter does not expose the full Orca desktop/CLI surface.",
+      "priority": "P2",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.parallel-worktrees",
+      "feature": "Parallel Worktrees",
+      "origin": "Orca README feature catalog",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md:49",
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-service.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Build actual pinned orcad and native dependencies; then demonstrate this feature in Hades. Worker adapter does not expose the full Orca desktop/CLI surface.",
+      "priority": "P0",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.terminal-splits",
+      "feature": "Terminal Splits",
+      "origin": "Orca README feature catalog",
+      "status": "missing",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md:63",
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Build actual pinned orcad and native dependencies; then demonstrate this feature in Hades. Worker adapter does not expose the full Orca desktop/CLI surface.",
+      "priority": "P2",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.design-mode",
+      "feature": "Design Mode",
+      "origin": "Orca README feature catalog",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md:77",
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-service.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Build actual pinned orcad and native dependencies; then demonstrate this feature in Hades. Worker adapter does not expose the full Orca desktop/CLI surface.",
+      "priority": "P2",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.github-linear-native",
+      "feature": "GitHub & Linear, Native",
+      "origin": "Orca README feature catalog",
+      "status": "missing",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md:91",
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Build actual pinned orcad and native dependencies; then demonstrate this feature in Hades. Worker adapter does not expose the full Orca desktop/CLI surface.",
+      "priority": "P2",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.ssh-worktrees",
+      "feature": "SSH Worktrees",
+      "origin": "Orca README feature catalog",
+      "status": "missing",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md:105",
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Build actual pinned orcad and native dependencies; then demonstrate this feature in Hades. Worker adapter does not expose the full Orca desktop/CLI surface.",
+      "priority": "P2",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.annotate-ai-diffs",
+      "feature": "Annotate AI Diffs",
+      "origin": "Orca README feature catalog",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md:119",
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-service.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Build actual pinned orcad and native dependencies; then demonstrate this feature in Hades. Worker adapter does not expose the full Orca desktop/CLI surface.",
+      "priority": "P2",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.drag-files-to-agents",
+      "feature": "Drag Files to Agents",
+      "origin": "Orca README feature catalog",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md:133",
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-service.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Build actual pinned orcad and native dependencies; then demonstrate this feature in Hades. Worker adapter does not expose the full Orca desktop/CLI surface.",
+      "priority": "P2",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.orca-cli",
+      "feature": "Orca CLI",
+      "origin": "Orca README feature catalog",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md:147",
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-service.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Build actual pinned orcad and native dependencies; then demonstrate this feature in Hades. Worker adapter does not expose the full Orca desktop/CLI surface.",
+      "priority": "P2",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.desktop-macos-windows-linux",
+      "feature": "Desktop — macOS, Windows, Linux",
+      "origin": "Orca README feature catalog",
+      "status": "missing",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md:212",
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Build actual pinned orcad and native dependencies; then demonstrate this feature in Hades. Worker adapter does not expose the full Orca desktop/CLI surface.",
+      "priority": "P2",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.mobile-companion-ios-android",
+      "feature": "Mobile Companion — iOS, Android",
+      "origin": "Orca README feature catalog",
+      "status": "missing",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md:228",
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Build actual pinned orcad and native dependencies; then demonstrate this feature in Hades. Worker adapter does not expose the full Orca desktop/CLI surface.",
+      "priority": "P2",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.computer-use.md",
+      "feature": "computer-use",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/computer-use.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 12,
+          "heading": "Computer Use"
+        },
+        {
+          "line": 16,
+          "heading": "Preconditions"
+        },
+        {
+          "line": 35,
+          "heading": "Core Loop"
+        },
+        {
+          "line": 47,
+          "heading": "App Selectors"
+        },
+        {
+          "line": 59,
+          "heading": "Commands"
+        },
+        {
+          "line": 93,
+          "heading": "Action Rules"
+        },
+        {
+          "line": 109,
+          "heading": "Screenshots"
+        },
+        {
+          "line": 129,
+          "heading": "App Notes"
+        },
+        {
+          "line": 145,
+          "heading": "Errors"
+        },
+        {
+          "line": 163,
+          "heading": "Next Action"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.linear-tickets.md",
+      "feature": "linear-tickets",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/linear-tickets.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 16,
+          "heading": "Linear Tickets (Legacy Name)"
+        },
+        {
+          "line": 26,
+          "heading": "Preconditions"
+        },
+        {
+          "line": 42,
+          "heading": "Read First"
+        },
+        {
+          "line": 59,
+          "heading": "Inline Media"
+        },
+        {
+          "line": 71,
+          "heading": "Common Commands"
+        },
+        {
+          "line": 103,
+          "heading": "Discovery And Triage"
+        },
+        {
+          "line": 132,
+          "heading": "Completion Flow"
+        },
+        {
+          "line": 156,
+          "heading": "Status Etiquette"
+        },
+        {
+          "line": 173,
+          "heading": "Follow-Up Issues"
+        },
+        {
+          "line": 183,
+          "heading": "Unconfirmed Writes"
+        },
+        {
+          "line": 197,
+          "heading": "Errors"
+        },
+        {
+          "line": 205,
+          "heading": "Next Action"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orca-cli.md",
+      "feature": "orca-cli",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-cli.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 19,
+          "heading": "Orca CLI"
+        },
+        {
+          "line": 27,
+          "heading": "Start Here"
+        },
+        {
+          "line": 60,
+          "heading": "Full Handoffs"
+        },
+        {
+          "line": 95,
+          "heading": "Worktrees"
+        },
+        {
+          "line": 159,
+          "heading": "Worktree Comments"
+        },
+        {
+          "line": 173,
+          "heading": "Terminals"
+        },
+        {
+          "line": 219,
+          "heading": "Automations"
+        },
+        {
+          "line": 239,
+          "heading": "Artifacts"
+        },
+        {
+          "line": 285,
+          "heading": "Skill Sharing"
+        },
+        {
+          "line": 318,
+          "heading": "Built-In Browser"
+        },
+        {
+          "line": 389,
+          "heading": "Next Action"
+        },
+        {
+          "line": 393,
+          "heading": "Mobile Emulator (iOS Simulator via serve-sim)"
+        },
+        {
+          "line": 422,
+          "heading": "Next Action (continued)"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orca-emulator-android.md",
+      "feature": "orca-emulator-android",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-emulator-android.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 12,
+          "heading": "Orca Emulator — Android (adb / emulator powered)"
+        },
+        {
+          "line": 26,
+          "heading": "CLI executable"
+        },
+        {
+          "line": 38,
+          "heading": "When to use"
+        },
+        {
+          "line": 47,
+          "heading": "When NOT to use"
+        },
+        {
+          "line": 55,
+          "heading": "Prerequisites (surfaced by Orca)"
+        },
+        {
+          "line": 68,
+          "heading": "Mental model"
+        },
+        {
+          "line": 87,
+          "heading": "Common operations"
+        },
+        {
+          "line": 107,
+          "heading": "Critical gotchas (teach agents)"
+        },
+        {
+          "line": 126,
+          "heading": "Targeting devices & worktrees"
+        },
+        {
+          "line": 135,
+          "heading": "Examples (agent-friendly)"
+        },
+        {
+          "line": 149,
+          "heading": "Next action"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orca-emulator.md",
+      "feature": "orca-emulator",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-emulator.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 11,
+          "heading": "Orca Emulator (serve-sim powered)"
+        },
+        {
+          "line": 17,
+          "heading": "CLI executable"
+        },
+        {
+          "line": 29,
+          "heading": "When to use"
+        },
+        {
+          "line": 45,
+          "heading": "Prerequisites (enforced / surfaced by Orca)"
+        },
+        {
+          "line": 56,
+          "heading": "Mental model"
+        },
+        {
+          "line": 89,
+          "heading": "Common operations"
+        },
+        {
+          "line": 110,
+          "heading": "Critical gotchas (teach agents)"
+        },
+        {
+          "line": 121,
+          "heading": "Targeting devices & worktrees"
+        },
+        {
+          "line": 130,
+          "heading": "Integration with the live pane (UI)"
+        },
+        {
+          "line": 138,
+          "heading": "Cleanup"
+        },
+        {
+          "line": 148,
+          "heading": "Examples (agent-friendly)"
+        },
+        {
+          "line": 165,
+          "heading": "Next action"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orca-linear.md",
+      "feature": "orca-linear",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-linear.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 15,
+          "heading": "Orca Linear"
+        },
+        {
+          "line": 23,
+          "heading": "Preconditions"
+        },
+        {
+          "line": 39,
+          "heading": "Read First"
+        },
+        {
+          "line": 56,
+          "heading": "Inline Media"
+        },
+        {
+          "line": 68,
+          "heading": "Common Commands"
+        },
+        {
+          "line": 100,
+          "heading": "Discovery And Triage"
+        },
+        {
+          "line": 129,
+          "heading": "Completion Flow"
+        },
+        {
+          "line": 153,
+          "heading": "Status Etiquette"
+        },
+        {
+          "line": 170,
+          "heading": "Follow-Up Issues"
+        },
+        {
+          "line": 180,
+          "heading": "Unconfirmed Writes"
+        },
+        {
+          "line": 194,
+          "heading": "Errors"
+        },
+        {
+          "line": 202,
+          "heading": "Next Action"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orca-per-workspace-env.md",
+      "feature": "orca-per-workspace-env",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-per-workspace-env.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 13,
+          "heading": "Per-Workspace Environments"
+        },
+        {
+          "line": 56,
+          "heading": "1. Setup workflow"
+        },
+        {
+          "line": 109,
+          "heading": "2. Phase 1 — Prerequisites"
+        },
+        {
+          "line": 128,
+          "heading": "3. Phase 2 — Base snapshot (the reusable image)"
+        },
+        {
+          "line": 151,
+          "heading": "4. Phase 3 — Agent-auth snapshot (interactive)"
+        },
+        {
+          "line": 188,
+          "heading": "5. Credentials"
+        },
+        {
+          "line": 204,
+          "heading": "6. State file"
+        },
+        {
+          "line": 227,
+          "heading": "7. Script templates (provider-agnostic shapes)"
+        },
+        {
+          "line": 242,
+          "heading": "7a. Base-snapshot (`<provider>-base-snapshot.sh`) — Phase 2"
+        },
+        {
+          "line": 247,
+          "heading": "resolve base_name/repo_url/repo_ref/project_root/port/scope/project/timeout (env→state→fallback)"
+        },
+        {
+          "line": 248,
+          "heading": "resolve gh token: GH_TOKEN | GITHUB_TOKEN | `gh auth token`"
+        },
+        {
+          "line": 249,
+          "heading": "1. provision a sandbox (timeout/vcpus/published port/snapshot retention); trap: remove on error"
+        },
+        {
+          "line": 250,
+          "heading": "2. remote exec (long timeout): install pkgs + gh + corepack/pnpm + agent CLI;"
+        },
+        {
+          "line": 251,
+          "heading": "clone with GIT_ASKPASS(token); write headless main-only build config;"
+        },
+        {
+          "line": 252,
+          "heading": "dev setup; pnpm install; build CLI; build headless electron main; smoke-check tools"
+        },
+        {
+          "line": 253,
+          "heading": "3. snapshot stopped sandbox; parse snapshot id (fail if unparseable)"
+        },
+        {
+          "line": 254,
+          "heading": "4. merge { baseName, snapshotId, projectRoot, repoUrl, repoRef, port, scope, project } into state"
+        },
+        {
+          "line": 255,
+          "heading": "print only the state JSON to stdout"
+        },
+        {
+          "line": 262,
+          "heading": "7b. Auth (`<provider>-base-auth.sh`) — Phase 3"
+        },
+        {
+          "line": 267,
+          "heading": "read source snapshot from state.snapshotId (fail if absent); auth_name=\"${base_name}-auth\""
+        },
+        {
+          "line": 268,
+          "heading": "1. boot sandbox from source snapshot; trap: remove on error"
+        },
+        {
+          "line": 269,
+          "heading": "2. INTERACTIVE/TTY remote exec: agent login — user completes URL/code. Headless VM: MUST use the"
+        },
+        {
+          "line": 270,
+          "heading": "device-auth flow (e.g. `codex login --device-auth`) — plain OAuth login binds a loopback callback"
+        },
+        {
+          "line": 271,
+          "heading": "port the host can't reach and hangs. User runs this themselves (you have no interactive TTY); ask"
+        },
+        {
+          "line": 272,
+          "heading": "them to report back when it's done before continuing."
+        },
+        {
+          "line": 273,
+          "heading": "3. verify login, then refuse to snapshot if not logged in. Prefer the status command's EXIT CODE (most"
+        },
+        {
+          "line": 274,
+          "heading": "agent CLIs exit non-zero when unauthenticated) over string-matching. If you must grep, fold stderr"
+        },
+        {
+          "line": 275,
+          "heading": "first (`status 2>&1 | grep …` — many agents print the success line there) and match the agent's exact"
+        },
+        {
+          "line": 276,
+          "heading": "success line; never `grep -qi 'logged in'`, which also matches \"not logged in\". Codex example: §7f."
+        },
+        {
+          "line": 277,
+          "heading": "4. snapshot; parse new id"
+        },
+        {
+          "line": 278,
+          "heading": "5. merge { snapshotId:<new>, authSourceSnapshotId:<source> } into state; remove auth sandbox"
+        },
+        {
+          "line": 279,
+          "heading": "print only the state JSON to stdout"
+        },
+        {
+          "line": 282,
+          "heading": "7c. Create (`<provider>-create.sh`) — per workspace"
+        },
+        {
+          "line": 287,
+          "heading": "read authenticated snapshotId/scope/project/port/repo*/project_root (env→state→fallback)"
+        },
+        {
+          "line": 288,
+          "heading": "fail clearly if snapshotId is missing (point back to Phases 2–3)"
+        },
+        {
+          "line": 289,
+          "heading": "name = orca-${ORCA_RECIPE_ID}-${ORCA_VM_INSTANCE_ID} (sanitized, length-capped)"
+        },
+        {
+          "line": 290,
+          "heading": "1. boot sandbox from snapshotId with a published port; capture the public URL → pairing address"
+        },
+        {
+          "line": 291,
+          "heading": "(an externally reachable wss:// URL); trap: remove sandbox on error"
+        },
+        {
+          "line": 292,
+          "heading": "2. remote exec: ensure repo at desired commit; rebuild only if commit changed (cache marker)"
+        },
+        {
+          "line": 293,
+          "heading": "3. remote exec: start orca serve in the background and read the recipe JSON it writes (see below)"
+        },
+        {
+          "line": 294,
+          "heading": "4. print serve's JSON to stdout, optionally enriched with userData:"
+        },
+        {
+          "line": 295,
+          "heading": "{ schemaVersion:1, pairingCode, projectRoot, userData:{ provider, resourceId:name, snapshotId } }"
+        },
+        {
+          "line": 332,
+          "heading": "7d. Suspend / resume / destroy — per workspace"
+        },
+        {
+          "line": 340,
+          "heading": "suspend: provider suspend \"$resource_id\""
+        },
+        {
+          "line": 341,
+          "heading": "resume:  provider resume \"$resource_id\"; then RE-EMIT fresh recipe JSON (pairing may change)"
+        },
+        {
+          "line": 342,
+          "heading": "destroy: provider remove \"$resource_id\"   (or set destroy: none in orca.yaml)"
+        },
+        {
+          "line": 345,
+          "heading": "7e. State file — scaffold with scope/project/repo filled in and snapshot ids empty (§6)."
+        },
+        {
+          "line": 347,
+          "heading": "7f. Worked example — Vercel Sandbox (all three phases)"
+        },
+        {
+          "line": 356,
+          "heading": "provision a fresh build sandbox (retain a couple of snapshots); trap-remove on error"
+        },
+        {
+          "line": 359,
+          "heading": "remote build (long timeout): install pkgs+gh+pnpm+agent CLI, clone with GIT_ASKPASS (write the helper"
+        },
+        {
+          "line": 360,
+          "heading": "with LITERAL \\$1/\\$GH_TOKEN so they resolve at git-runtime, not write-time — see §5/§7f create — then"
+        },
+        {
+          "line": 361,
+          "heading": "`rm -f /tmp/askpass.sh`), write the headless main-only build config (drop the renderer), dev setup,"
+        },
+        {
+          "line": 362,
+          "heading": "build CLI + headless main, smoke-check"
+        },
+        {
+          "line": 364,
+          "heading": "snapshot the STOPPED sandbox and parse the id from CLI output (fail if unparseable)"
+        },
+        {
+          "line": 367,
+          "heading": "merge { baseName, snapshotId, scope, project, port, repoUrl, repoRef, projectRoot } into state; print state JSON"
+        },
+        {
+          "line": 375,
+          "heading": "INTERACTIVE — the USER runs this in their own terminal (you have no interactive TTY) and completes the"
+        },
+        {
+          "line": 376,
+          "heading": "URL/code on the HOST. --device-auth is MANDATORY on a headless VM: plain `codex login` binds a loopback"
+        },
+        {
+          "line": 377,
+          "heading": "callback port the host browser can't reach and hangs. Ask the user to report back when login finishes."
+        },
+        {
+          "line": 379,
+          "heading": "refuse to snapshot an unauthenticated VM — fold stderr, match codex's exact success line (§4)"
+        },
+        {
+          "line": 384,
+          "heading": "overwrite state.snapshotId = new_id, record authSourceSnapshotId = snapshot_id; remove the auth sandbox"
+        },
+        {
+          "line": 392,
+          "heading": "resolve from env→state→fallback: snapshot_id, scope, project, port, repo_url, repo_ref, project_root"
+        },
+        {
+          "line": 403,
+          "heading": "Arm cleanup BEFORE create so a failing create can't leak a half-built paid sandbox."
+        },
+        {
+          "line": 407,
+          "heading": "1. boot from the authenticated snapshot, publish the serve port"
+        },
+        {
+          "line": 410,
+          "heading": "Vercel prints the published https URL; derive the external wss:// pairing address from it"
+        },
+        {
+          "line": 415,
+          "heading": "2. (remote) ensure the repo is at the right commit; rebuild only if the commit changed (cache marker)"
+        },
+        {
+          "line": 434,
+          "heading": "3. (remote) start orca serve in the background, writing recipe JSON to a file; poll until it parses"
+        },
+        {
+          "line": 445,
+          "heading": "4. print serve's JSON enriched with userData (single object on stdout)"
+        },
+        {
+          "line": 456,
+          "heading": "7g. Worked example — existing SSH host (SSH connection mode)"
+        },
+        {
+          "line": 538,
+          "heading": "resolve from env→state→fallback (default unset optionals to \"\"): ssh_username, host,"
+        },
+        {
+          "line": 539,
+          "heading": "ssh_port (default 22), identity_file, jump_host, proxy_command, project_root, repo_url, repo_ref"
+        },
+        {
+          "line": 544,
+          "heading": "Why: a fresh host's key isn't in known_hosts; a StrictHostKeyChecking prompt would HANG a"
+        },
+        {
+          "line": 545,
+          "heading": "non-interactive create. Pre-add the key (or set the option) so it can't block."
+        },
+        {
+          "line": 548,
+          "heading": "1. ensure the repo is present and at the right commit on the host (NO orca serve here)"
+        },
+        {
+          "line": 556,
+          "heading": "2. print the SSH connection block (NO pairingCode, NO orca serve). host/port/username tell Orca's"
+        },
+        {
+          "line": 557,
+          "heading": "relay how to dial in; identityFile/jumpHost/proxyCommand/portForwards are emitted when set."
+        },
+        {
+          "line": 574,
+          "heading": "7h. Worked example — local Docker SSH (SSH connection mode)"
+        },
+        {
+          "line": 617,
+          "heading": "7i. Windows local-side scripts"
+        },
+        {
+          "line": 626,
+          "heading": "resolve env→state→fallback; run the provider CLI / ssh the same way;"
+        },
+        {
+          "line": 627,
+          "heading": "capture provider output; build the result object for the chosen mode and write ONE line of JSON to stdout."
+        },
+        {
+          "line": 628,
+          "heading": "Orca-server mode: @{ schemaVersion=1; pairingCode=$pairingCode; projectRoot=$projectRoot; userData=@{...} }"
+        },
+        {
+          "line": 629,
+          "heading": "SSH mode:        @{ schemaVersion=1; connection=@{ type=\"ssh\"; projectRoot=$projectRoot;"
+        },
+        {
+          "line": 630,
+          "heading": "target=@{ label=$label; host=$host; port=$port; username=$user } } }  (see §7g/§7h)"
+        },
+        {
+          "line": 632,
+          "heading": "progress/errors → Write-Error / the error stream, never stdout."
+        },
+        {
+          "line": 639,
+          "heading": "8. Per-workspace recipe contract (the fast path)"
+        },
+        {
+          "line": 697,
+          "heading": "9. Doctor and validation"
+        },
+        {
+          "line": 701,
+          "heading": "Dry run (free, non-destructive) — always do this first"
+        },
+        {
+          "line": 708,
+          "heading": "Live self-test (`--provision`) — diagnose and iterate yourself"
+        },
+        {
+          "line": 749,
+          "heading": "10. Failure modes"
+        },
+        {
+          "line": 787,
+          "heading": "11. Boundaries"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orchestration.references.coordinator-loop.md",
+      "feature": "coordinator-loop",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/coordinator-loop.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 1,
+          "heading": "Coordinator loop"
+        },
+        {
+          "line": 7,
+          "heading": "Ready waves"
+        },
+        {
+          "line": 22,
+          "heading": "Launch preferences"
+        },
+        {
+          "line": 38,
+          "heading": "Reuse after settlement"
+        },
+        {
+          "line": 52,
+          "heading": "Review ownership"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orchestration.references.legacy-contract-migration.md",
+      "feature": "legacy-contract-migration",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/legacy-contract-migration.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 1,
+          "heading": "Legacy contract migration"
+        },
+        {
+          "line": 7,
+          "heading": "Authority labels"
+        },
+        {
+          "line": 33,
+          "heading": "Compatibility recovery"
+        },
+        {
+          "line": 54,
+          "heading": "Read-only inspection and takeover"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orchestration.references.low-level-topology.md",
+      "feature": "low-level-topology",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/low-level-topology.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 1,
+          "heading": "Low-level topology"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orchestration.references.messaging-and-gates.md",
+      "feature": "messaging-and-gates",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/messaging-and-gates.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 1,
+          "heading": "Messaging and gates"
+        },
+        {
+          "line": 10,
+          "heading": "Coordinator delivery loop"
+        },
+        {
+          "line": 29,
+          "heading": "Addresses"
+        },
+        {
+          "line": 47,
+          "heading": "Questions and gates"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orchestration.references.placement-and-remote.md",
+      "feature": "placement-and-remote",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/placement-and-remote.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 1,
+          "heading": "Placement and remote execution"
+        },
+        {
+          "line": 6,
+          "heading": "Placement choices"
+        },
+        {
+          "line": 14,
+          "heading": "Current workspace; setup is not rerun."
+        },
+        {
+          "line": 17,
+          "heading": "Stacked child worktree."
+        },
+        {
+          "line": 20,
+          "heading": "Independent top-level worktree."
+        },
+        {
+          "line": 46,
+          "heading": "Connected servers"
+        },
+        {
+          "line": 73,
+          "heading": "Execution-host and mixed-version floor"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orchestration.references.recovery-and-cleanup.md",
+      "feature": "recovery-and-cleanup",
+      "origin": "Orca local public guide catalog",
+      "status": "unknown",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/recovery-and-cleanup.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 1,
+          "heading": "Recovery and cleanup"
+        },
+        {
+          "line": 16,
+          "heading": "Inspect before acting"
+        },
+        {
+          "line": 52,
+          "heading": "Stall needs positive evidence"
+        },
+        {
+          "line": 74,
+          "heading": "Was the mutation applied?"
+        },
+        {
+          "line": 96,
+          "heading": "Refused starts"
+        },
+        {
+          "line": 110,
+          "heading": "Retry, stop, and abandon"
+        },
+        {
+          "line": 136,
+          "heading": "Retain and release"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orchestration.references.worker-contract.md",
+      "feature": "worker-contract",
+      "origin": "Orca local public guide catalog",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/worker-contract.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 1,
+          "heading": "Worker contract"
+        },
+        {
+          "line": 7,
+          "heading": "Heartbeat"
+        },
+        {
+          "line": 19,
+          "heading": "Ask and resume"
+        },
+        {
+          "line": 33,
+          "heading": "Reading coordinator follow-ups"
+        },
+        {
+          "line": 53,
+          "heading": "Escalation"
+        },
+        {
+          "line": 61,
+          "heading": "Completion"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "orca.guide.orchestration.md",
+      "feature": "orchestration",
+      "origin": "Orca local public guide catalog",
+      "status": "partial",
+      "source": [
+        "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration.md",
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Only readiness/start/status/read/reconcile/stop are Hades conversation tools. Validate each documented command before expanding authority; do not equate retained guide presence with integration.",
+      "priority": "P1",
+      "documentedSections": [
+        {
+          "line": 18,
+          "heading": "Orca orchestration"
+        },
+        {
+          "line": 23,
+          "heading": "Outcome"
+        },
+        {
+          "line": 38,
+          "heading": "Classify the role"
+        },
+        {
+          "line": 51,
+          "heading": "Authority and safety floor"
+        },
+        {
+          "line": 76,
+          "heading": "Worker obligations"
+        },
+        {
+          "line": 98,
+          "heading": "Canonical supervised loop"
+        },
+        {
+          "line": 153,
+          "heading": "Task-spec contract"
+        },
+        {
+          "line": 163,
+          "heading": "Completion accounting"
+        },
+        {
+          "line": 180,
+          "heading": "Conditional references"
+        }
+      ],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.durable",
+      "feature": "Durable multi-agent plans, dependency DAG and rolling admission",
+      "origin": "Hades source + retained work-product research",
+      "status": "implemented-source",
+      "source": [
+        "src/desktop/core/durable-work.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/durable-work.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Kill/restart a real owned worker; confirm dependent output and no duplicate external effect.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.reservations",
+      "feature": "Cross-plan and nested-root edit reservations",
+      "origin": "Hades source + retained work-product research",
+      "status": "implemented-source",
+      "source": [
+        "src/desktop/core/durable-work.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/durable-work-review.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Verify real concurrent workers respect cooperative reservations; this is not an OS sandbox.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.evidence",
+      "feature": "Artifact checks and stale dependency rejection",
+      "origin": "Hades source + retained work-product research",
+      "status": "implemented-source",
+      "source": [
+        "src/desktop/core/work-evidence.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/durable-work.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Exercise immutable artifact checkpoints with actual coding outputs and review.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.audit",
+      "feature": "Atomic bounded audit export and current-state binding",
+      "origin": "Hades source + retained work-product research",
+      "status": "implemented-source",
+      "source": [
+        "src/desktop/core/work-audit.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/work-audit-review.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Retain independent audit anchor; verify packaged export UX and restore behavior.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.delegation",
+      "feature": "Scoped child sessions and authority revocation",
+      "origin": "Hades source + retained work-product research",
+      "status": "implemented-source",
+      "source": [
+        "src/desktop/core/delegation-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/workbench-enterprise.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Exercise actual provider tool boundary and stop/lease-loss with native review.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.orca-intents",
+      "feature": "Actual Orca public worker contract and durable intent identities",
+      "origin": "Hades source + retained work-product research",
+      "status": "implemented-source",
+      "source": [
+        "src/desktop/core/helm-orca-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-review.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Resolve missing exact dependencies and build pinned orcad; real worker/PTY protocol acceptance.",
+      "priority": "P0",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases.",
+      "currentEvidence": {
+        "note": "Pinned Orca artifact inventory is validated and staged into native packaging resources. Real pinned runtime build/start remains unverified.",
+        "audit": "audit/orca-packaging-v1.md"
+      }
+    },
+    {
+      "id": "hades.conversation",
+      "feature": "Conversation Orca approval and stable request keys",
+      "origin": "Hades source + retained work-product research",
+      "status": "implemented-source",
+      "source": [
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-workbench-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Packaged Hades start/read/stop via actual provider with explicit approval.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.context",
+      "feature": "Browser/native spatial context and context notebooks",
+      "origin": "Hades source + retained work-product research",
+      "status": "partial",
+      "source": [
+        "src/desktop/core/helm-context.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-context-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Validate actual capture→review→task source binding; no ambient permission expansion.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.handoff",
+      "feature": "Browser context draft→Helm task handoff",
+      "origin": "Hades source + retained work-product research",
+      "status": "implemented-source",
+      "source": [
+        "src/desktop/core/helm-handoff.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-handoff.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Fresh native Browser/Hades round-trip; retained claim and ambiguous acknowledgement.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.apply",
+      "feature": "Worktree diff review and source fingerprint guarded apply",
+      "origin": "Hades source + retained work-product research",
+      "status": "implemented-source",
+      "source": [
+        "src/desktop/core/helm-integration.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-integration.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Real coding run→review→apply→independent source checks; external editor race remains.",
+      "priority": "P0",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.preview",
+      "feature": "Local preview and source checks",
+      "origin": "Hades source + retained work-product research",
+      "status": "partial",
+      "source": [
+        "src/desktop/core/helm-preview.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-preview.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Use paired Browser with explicit tab authority and a live local preview; page open is not page-health proof.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.maintenance",
+      "feature": "Backup integrity and staged restore with authority disabled",
+      "origin": "Hades source + retained work-product research",
+      "status": "implemented-source",
+      "source": [
+        "src/desktop/core/maintenance-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/maintenance-service.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Verify current packaged candidate backup/restore workflow and audited work-state continuity.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.budgets",
+      "feature": "Unified token/time/spend caps across every engine",
+      "origin": "Hades source + retained work-product research",
+      "status": "missing",
+      "source": [
+        "src/desktop/core/helm-orca-tools.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/helm-orca-tools.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Orca adapter explicitly does not enforce provider token/time caps or measure spend. Negotiate enforceable provider budgets before claiming a universal cap.",
+      "priority": "P0",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases.",
+      "currentEvidence": {
+        "note": "Attempt over-allocation now fails settlement while charging measured usage. Browser missing/malformed receipts remain unknown. These host controls do not implement provider-enforced caps or Orca spend accounting.",
+        "audit": "audit/attempt-usage-settlement-v1.md"
+      }
+    },
+    {
+      "id": "hades.enterprise",
+      "feature": "Organization identity, RBAC, SSO, retention policy and shared credentials",
+      "origin": "Hades source + retained work-product research",
+      "status": "missing",
+      "source": [
+        "src/desktop/core/workbench-service.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/workbench-enterprise.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Local profiles are not authenticated enterprise identities. Design explicit tenancy and revocation.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases.",
+      "currentEvidence": {
+        "note": "Team store now revalidates membership and stored roles transactionally; 14 offline SQLite tests pass. Enterprise organization execution policy, SSO and credential policy remain missing.",
+        "audit": "audit/team-store-authority-v1.md"
+      }
+    },
+    {
+      "id": "hades.comparison",
+      "feature": "Matched superiority benchmark",
+      "origin": "Hades source + retained work-product research",
+      "status": "missing",
+      "source": [
+        "docs/research/helm-enterprise-2026-09-10/PROGRAM.md"
+      ],
+      "tests": [],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Execute frozen matched tasks/trials; no real comparative results exist.",
+      "priority": "P0",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.cowork",
+      "feature": "General work deliverables, connectors and scheduled recovery",
+      "origin": "Hades source + retained work-product research",
+      "status": "partial",
+      "source": [
+        "src/desktop/core/durable-work.ts"
+      ],
+      "tests": [
+        "src/desktop/__tests__/work-scheduling.test.ts"
+      ],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Research indicates separate work-product layer; demonstrate real document/spreadsheet/browser deliverables and consented recurring execution. No proprietary parity claim.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    },
+    {
+      "id": "hades.openwork",
+      "feature": "OpenWork integration and enterprise extension reuse",
+      "origin": "Hades source + retained work-product research",
+      "status": "unknown",
+      "source": [
+        "docs/research/helm-enterprise-2026-09-10/research/reference-harnesses.md"
+      ],
+      "tests": [],
+      "built": "unverified-current-source",
+      "live": "unverified",
+      "nextAcceptance": "Research revision v2 under correction; inspect exact source/license boundary. OpenWork root/EE licensing is split, not blanket MIT.",
+      "priority": "P1",
+      "documentedSections": [],
+      "testEvidence": "Pointer only; not complete feature acceptance. Selected in-process regression receipt has exact executed cases."
+    }
+  ],
+  "retainedSourceHashes": {
+    "/Users/preston/Documents/Codex/2026-09-06/hades-repair/docs/research/helm-enterprise-2026-09-10/research/reference-harnesses.md": "1c5b1a6872a8b56277375c762b379a079e7c1ba51e50a0b0020eefd80066cd4e",
+    "/Users/preston/Documents/Codex/2026-09-06/hades-repair/docs/research/helm-enterprise-2026-09-10/PROGRAM.md": "77e7259ab7a316f88412242a7f38c969c28da3cbd0ebae3f8946a993b46bde9b",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md": "42bca737c3a5479e6a1dd1bdf1120fb08cf4aadd69db6bb5726a5f8b0d456d9e",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/README.md": "400890a3082e225c440561825270a911cd7df90a9f64f85166aed330201e50ba"
+  },
+  "sourceAndTestHashes": {
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/acp.mdx": "3a12f4d9c60fdb150a8be30bcc09d0c66d0db01695a30ff71164094c155ffbe2",
+    "src/desktop/core/helm-code-service.ts": "602d7c0fd2c59cb7310d3d6af74b8049092f1606834ecdc19ab00600d1d2883e",
+    "src/desktop/__tests__/helm-code-storage.test.ts": "711d2295e3801f5f5b60e71124caaa81c9298fa2041ebe05ec61c602a0f36859",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/agents.mdx": "0941601a02a57c97aa2072bd8accb15900dc6c78e78d99de44435c17e62e6b32",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/cli.mdx": "a6ed4d307713067695a7cfc141c2f4f0b25f9ac95ac252f651eb0bb6d1b591ef",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/commands.mdx": "33ae3aa2df77e8206b27114d05825a419f9188766be07a90f1e09bab7a81bb78",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/config.mdx": "720ca166ada4a5b1708d2c26afe06e7ddc04cc9567c63d27d7ae5d6cf7c9b677",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/custom-tools.mdx": "0a5df35e96df711324244d91fc3d16001bca81cea5b91f86207a8fc55f1209fc",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/ecosystem.mdx": "06df5ccb93a119bae94b8be740b453fe56bb94cea82edcfd47d395cb98faa4db",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/enterprise.mdx": "d0f723fce09479dbeb419c111dd838de9858b94a7dd96b4374ef27096cf45ac1",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/formatters.mdx": "fc636b6c30bb44e10dd4d3ed63ba3d22caf2b9d58da9b7855e844c5af1968a42",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/github.mdx": "c8ee100862e00738d72d49c93733759f369cb9bac3b8f23d394492b505a74727",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/gitlab.mdx": "4c450fe55d675a23031440988e3225aa8cf92d332c907f04b9820496d0cfe284",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/go.mdx": "777d0eb24f308c2da02fe74f91aeddcd6cb6138d49d4e4d3371cfd4a8d5bdedd",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/ide.mdx": "0ef1c720c3be3585eae0709b5c9479566048d43be841cc03511e30ffa41c26c9",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/index.mdx": "24965a7337d45325edb9ba6ca44e4b528b7e1ead00134794b3202745f1e1bd9d",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/keybinds.mdx": "fb4839da68f9104b2f3574176e73f414f3a1352b5238a6e9f3c926af843a8953",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/lsp.mdx": "62584a2f8bafdf8c910c445c1887d689125f2b5123af264e73d89845b982b3cd",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/mcp-servers.mdx": "3e99f66ed4a4a40d238b539497bb8739a140e94aa7ab27fd08e4ee0c3a0c6102",
+    "src/desktop/core/mcp-stdio.ts": "6590dc5ce440a741f043b878c40a5480baaf2429a0e3ca47c0c2516e1be1f734",
+    "src/desktop/__tests__/mcp-stdio.test.ts": "89a3b8845ff35f9eb64dd69827e38ca3d1cf299cfcb1f3612800c24bf8265144",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/models.mdx": "2c8f7c813c7e80e55d71801d8f0b3ce23884f2c279dc4a1bac122e79198f2482",
+    "src/desktop/core/helm-provider-readiness.ts": "3c8992313acc2fcaf17b5fe0b664867efc175831820e928e055ab760c60c7edd",
+    "src/desktop/__tests__/helm-provider-readiness.test.ts": "707760af4f34e2aa0cb78141b73a5ca83e95df74c55af54e42e06d36cc51252d",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/network.mdx": "3fe58939d928838b9944a215e090f093dd12032ca3d58583cd4c00197174f2d6",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/permissions.mdx": "e929098f6f772186eeb4f0eb55e332c477d88e30cb1efc45d0839dfa333b5163",
+    "src/desktop/__tests__/helm-orca-workbench-tools.test.ts": "0194b19ed73f58dab62612cb5078cbc1d27aefb7b6f21c613ac236337f2c1aa8",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/plugins.mdx": "4cc0d8db8645a036d1398a9e3be65c386ab75d003a2699c14bc06c267ea1354f",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/policies.mdx": "292914f5e8ce3d7aa15f00d812fff7f42d9e7715e51110235565b06eea1fc69f",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/providers.mdx": "1c6e22402580f0a8b5edc404a468afdf0a398d7976cfb6a475757b190768de98",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/references.mdx": "e2ba34b82bfef747618792dbd83dc6bafab3f13e5e8676f3cbfa883a99a7929e",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/rules.mdx": "2d789f8467c7018a07b2307d44beb37ef13b10038aed1124aa20098cb4296fd9",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/sdk.mdx": "147d4b88ce0dbcbfdb64df429f89280742ef95c34fef535ffbae95b840a6e93c",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/server.mdx": "56aac4ea75990012a9ebf838d074760aa91e198f3b5859b38d6786b5e2d14c39",
+    "src/desktop/__tests__/helm-code-service.test.ts": "56e372f3167741915a7ce3022480e9089163f7e58f85c91f620f3c2f6d33846d",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/share.mdx": "c9f9aa1d348c3da5a2e2591004983558b66d7bb56a2bdad9313e5d01d62dd11d",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/skills.mdx": "7ff4df3a1a4909fa0e0025a6f086c3dbc63d09fdd578bc13f3f4ae30fcfe4627",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/themes.mdx": "5ccead60e73e32388c91769d629245162af2f6eb34c98007c8c87b9385487819",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/tools.mdx": "26a553033979aab97271c33b0efb8c187faba6a57b8af0b69080a46e0e696d79",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/troubleshooting.mdx": "95c5f784c1cbcdb857a7076350583c8d9fac389c953e9d00171801f9d6b7834d",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/tui.mdx": "399c6e7df9c5b8dd3cf429b6251a72965b6257af00aaa1b04e4353f9b366352d",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/web.mdx": "6a7501225b5ed7118dd756540e9e7430b54480522a2a3193ca4a55bc4ad0a30e",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/windows-wsl.mdx": "e236a7225fa7cd391737d207d4e299117db6c5efcfb2c6165d9dadc81dd1a510",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/zen.mdx": "dc5673c3ee9d1b3ecc123d48345bf024e3f66c6c63f091e52a52fb0475f2cac5",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md": "42bca737c3a5479e6a1dd1bdf1120fb08cf4aadd69db6bb5726a5f8b0d456d9e",
+    "src/desktop/core/helm-orca-service.ts": "5f1677801a3aa72a474a2e1166ed28422f0af17dbb21b63e31ea938b7c79a75f",
+    "src/desktop/__tests__/helm-orca-service.test.ts": "4b228b5766a3555faf252d2df66adb6d521f17f2dbc12d6a4e54113863761111",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/computer-use.md": "837582065cd778d809b9a4730b970dd685185eae56136aeb2e6789573fed9d20",
+    "src/desktop/core/helm-orca-tools.ts": "abbdce7024966cb7af6228a3877f860fab34290431883ae7f83456778e9cc666",
+    "src/desktop/__tests__/helm-orca-tools.test.ts": "e6cfc2e27b1b6811a94239e632cdb21f0599db7864cf08e863d7bca3d30062d1",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/linear-tickets.md": "e2eef0ad943408c203e1779a004798555ae47040ef29ab63c5163ad67ea87ec5",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-cli.md": "9fec77c322d4b89c510a64f17029bb72e3f910c98f0d41279ba40087174dbc4b",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-emulator-android.md": "f78028ad3c21314b5ccf15faebbfe847c813f08eaae5d075be03f894e91c4353",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-emulator.md": "8eec9924404b3f78206b065fed522c143ba7da7ae8d9f7432105689965a7d94d",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-linear.md": "2777bb0fa0547d4d74254b5475a28116a3c489f893dd6eb9aad92c60e564dc1e",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-per-workspace-env.md": "4d4942282ce93a2dd5a3761bf60a708b9ad119a1b3df848009ee22da8b7d1ffe",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/coordinator-loop.md": "d6e514bdc68dab8fdedf2f067df1ecff2cbc4a60c4b6e11ed39798b83f1514b2",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/legacy-contract-migration.md": "a4a961937b601bc116ae8d658d13e95f61beed70026521fe4323654f8322ca42",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/low-level-topology.md": "6931f0e5a02a82b25158581fdb6aadd7810533fad061fb001cb23570e0c3ebae",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/messaging-and-gates.md": "c0a1d818ac04c0cb0c6113f3e3f2051a4e590022da2249be32c584b2728d1ccd",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/placement-and-remote.md": "52ff2c6cb1c93782a949cdb9457054266e68198441dc4e869d2d2048adf93e40",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/recovery-and-cleanup.md": "177dddfdf5b78b6bb3000ab9d4fd454770d06333b101710ce8b1eb0059def272",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/worker-contract.md": "e0f69b9fce936f9ef86ad196f4c7c3ea1f2974899f0961b168aac50c47474376",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration.md": "bed33540ad43a8b97145e70e5feed7938102e788c941d7a71bd765688d09464d",
+    "src/desktop/core/durable-work.ts": "019700d27113a506b39511f29dade05482e1de5c98a23451009512633dab1a9c",
+    "src/desktop/__tests__/durable-work.test.ts": "faf54bf21fbb45bac0671d4dc14d0ae7c24db78694cf3c241bd176796971c319",
+    "src/desktop/__tests__/durable-work-review.test.ts": "d2cf202595b900228962e647031d8e6bb6e8d878f4ea3bd053f8f11a1a1a7f21",
+    "src/desktop/core/work-evidence.ts": "e01fc36e22ce7506f74779d8a711a808334106098c8c3e2b8822d206dc687252",
+    "src/desktop/core/work-audit.ts": "225468016e3868b44256589802ced8cd27b9e040b38981339e39f414b1cb3e14",
+    "src/desktop/__tests__/work-audit-review.test.ts": "333a324128572065fa8a2142dd67c22463e889d3d96bf0c50be7e5219e425218",
+    "src/desktop/core/delegation-tools.ts": "c6e70ecc9f4a08e09bcac24f1b56c0e837166719ae6cb4088f2b4066c2ab3295",
+    "src/desktop/__tests__/workbench-enterprise.test.ts": "6dd7bfd479fbaa9d07946e31166ae68cc199555e9af17411a7d307c7181f895c",
+    "src/desktop/__tests__/helm-orca-review.test.ts": "2fe266923c1f17d3a99f28d1ad0f49f62e2db58bf3decfeddcb6edaed7bac3f0",
+    "src/desktop/core/helm-context.ts": "a2a05d7bf349a97438227b3ce39f890519228203df79726b3e89ce4b3e3329d2",
+    "src/desktop/__tests__/helm-context-tools.test.ts": "d99e96afd09e48d4502f91c55d37bc8b5e96347a50737e76502427be51f1f10a",
+    "src/desktop/core/helm-handoff.ts": "aa077a4607573521a2431b24200a2e8c1f6ebd4d715823449a06bc386df64e6d",
+    "src/desktop/__tests__/helm-handoff.test.ts": "c1ad10ba767060130518f61305c0880aedf9b9e061b1f1878e250825cf1b16e1",
+    "src/desktop/core/helm-integration.ts": "a79cf8f8adb7228e46afb19fa154e6eb98f3d3d2108bd4b68c24c77af4e8ed26",
+    "src/desktop/__tests__/helm-integration.test.ts": "03d8215ff4a3788f01c5926d668822ae1eb8c3137ff7ff62342517b6bccfa29d",
+    "src/desktop/core/helm-preview.ts": "7d7c92ef4a126d108145b69fcf06973099272f10ed4e1bdbecfcff6e593ec84d",
+    "src/desktop/__tests__/helm-preview.test.ts": "17b839beaa59728db59454979b9dae5b1a8aebc77dc4f77db3266aa4b0b342c9",
+    "src/desktop/core/maintenance-service.ts": "8e4a87a2c675dc5cf94eba02ecc90e80aebe7d67138f00d1112b7ae2baaad233",
+    "src/desktop/__tests__/maintenance-service.test.ts": "3b3f67c6ac826d75b77de7e98830e5e8a7d3780ef913b612f179df501b8a287b",
+    "src/desktop/core/workbench-service.ts": "6c2d73638592d603b816d7dcd73b0ff23dc6d82ba8b0b6cc5de4ddc39213e20d",
+    "docs/research/helm-enterprise-2026-09-10/PROGRAM.md": "20a9a2d281f09b2fde21d36664b16f2b71f1eee4db1526556b5ffa440352e46f",
+    "src/desktop/__tests__/work-scheduling.test.ts": "05fd7da9cf9ec760a8f1799787c68cb8df1b7740b07b8cff70ea4982d25154c5",
+    "docs/research/helm-enterprise-2026-09-10/research/reference-harnesses.md": "1c5b1a6872a8b56277375c762b379a079e7c1ba51e50a0b0020eefd80066cd4e"
+  },
+  "updatedAt": "2026-09-10T17:35:43.805Z",
+  "supersedes": {
+    "path": "CAPABILITIES.v1.json",
+    "sha256": "f2cdfadf1155ddbc13b802d7facfad73d56e56e825f7e02b8a7183e16d89c597"
+  },
+  "previousSourceAndTestHashes": {
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/acp.mdx": "3a12f4d9c60fdb150a8be30bcc09d0c66d0db01695a30ff71164094c155ffbe2",
+    "src/desktop/core/helm-code-service.ts": "602d7c0fd2c59cb7310d3d6af74b8049092f1606834ecdc19ab00600d1d2883e",
+    "src/desktop/__tests__/helm-code-storage.test.ts": "711d2295e3801f5f5b60e71124caaa81c9298fa2041ebe05ec61c602a0f36859",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/agents.mdx": "0941601a02a57c97aa2072bd8accb15900dc6c78e78d99de44435c17e62e6b32",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/cli.mdx": "a6ed4d307713067695a7cfc141c2f4f0b25f9ac95ac252f651eb0bb6d1b591ef",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/commands.mdx": "33ae3aa2df77e8206b27114d05825a419f9188766be07a90f1e09bab7a81bb78",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/config.mdx": "720ca166ada4a5b1708d2c26afe06e7ddc04cc9567c63d27d7ae5d6cf7c9b677",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/custom-tools.mdx": "0a5df35e96df711324244d91fc3d16001bca81cea5b91f86207a8fc55f1209fc",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/ecosystem.mdx": "06df5ccb93a119bae94b8be740b453fe56bb94cea82edcfd47d395cb98faa4db",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/enterprise.mdx": "d0f723fce09479dbeb419c111dd838de9858b94a7dd96b4374ef27096cf45ac1",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/formatters.mdx": "fc636b6c30bb44e10dd4d3ed63ba3d22caf2b9d58da9b7855e844c5af1968a42",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/github.mdx": "c8ee100862e00738d72d49c93733759f369cb9bac3b8f23d394492b505a74727",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/gitlab.mdx": "4c450fe55d675a23031440988e3225aa8cf92d332c907f04b9820496d0cfe284",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/go.mdx": "777d0eb24f308c2da02fe74f91aeddcd6cb6138d49d4e4d3371cfd4a8d5bdedd",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/ide.mdx": "0ef1c720c3be3585eae0709b5c9479566048d43be841cc03511e30ffa41c26c9",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/index.mdx": "24965a7337d45325edb9ba6ca44e4b528b7e1ead00134794b3202745f1e1bd9d",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/keybinds.mdx": "fb4839da68f9104b2f3574176e73f414f3a1352b5238a6e9f3c926af843a8953",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/lsp.mdx": "62584a2f8bafdf8c910c445c1887d689125f2b5123af264e73d89845b982b3cd",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/mcp-servers.mdx": "3e99f66ed4a4a40d238b539497bb8739a140e94aa7ab27fd08e4ee0c3a0c6102",
+    "src/desktop/core/mcp-stdio.ts": "6590dc5ce440a741f043b878c40a5480baaf2429a0e3ca47c0c2516e1be1f734",
+    "src/desktop/__tests__/mcp-stdio.test.ts": "89a3b8845ff35f9eb64dd69827e38ca3d1cf299cfcb1f3612800c24bf8265144",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/models.mdx": "2c8f7c813c7e80e55d71801d8f0b3ce23884f2c279dc4a1bac122e79198f2482",
+    "src/desktop/core/helm-provider-readiness.ts": "3c8992313acc2fcaf17b5fe0b664867efc175831820e928e055ab760c60c7edd",
+    "src/desktop/__tests__/helm-provider-readiness.test.ts": "707760af4f34e2aa0cb78141b73a5ca83e95df74c55af54e42e06d36cc51252d",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/network.mdx": "3fe58939d928838b9944a215e090f093dd12032ca3d58583cd4c00197174f2d6",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/permissions.mdx": "e929098f6f772186eeb4f0eb55e332c477d88e30cb1efc45d0839dfa333b5163",
+    "src/desktop/__tests__/helm-orca-workbench-tools.test.ts": "818d4b7122a10197941d140bc82fbd9d1f336086859940bcafd23ab176df4760",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/plugins.mdx": "4cc0d8db8645a036d1398a9e3be65c386ab75d003a2699c14bc06c267ea1354f",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/policies.mdx": "292914f5e8ce3d7aa15f00d812fff7f42d9e7715e51110235565b06eea1fc69f",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/providers.mdx": "1c6e22402580f0a8b5edc404a468afdf0a398d7976cfb6a475757b190768de98",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/references.mdx": "e2ba34b82bfef747618792dbd83dc6bafab3f13e5e8676f3cbfa883a99a7929e",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/rules.mdx": "2d789f8467c7018a07b2307d44beb37ef13b10038aed1124aa20098cb4296fd9",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/sdk.mdx": "147d4b88ce0dbcbfdb64df429f89280742ef95c34fef535ffbae95b840a6e93c",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/server.mdx": "56aac4ea75990012a9ebf838d074760aa91e198f3b5859b38d6786b5e2d14c39",
+    "src/desktop/__tests__/helm-code-service.test.ts": "35ae1a6dda7b291ce9192fad45c5dc00697ca65f953eaaea4735d2d55a5797de",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/share.mdx": "c9f9aa1d348c3da5a2e2591004983558b66d7bb56a2bdad9313e5d01d62dd11d",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/skills.mdx": "7ff4df3a1a4909fa0e0025a6f086c3dbc63d09fdd578bc13f3f4ae30fcfe4627",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/themes.mdx": "5ccead60e73e32388c91769d629245162af2f6eb34c98007c8c87b9385487819",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/tools.mdx": "26a553033979aab97271c33b0efb8c187faba6a57b8af0b69080a46e0e696d79",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/troubleshooting.mdx": "95c5f784c1cbcdb857a7076350583c8d9fac389c953e9d00171801f9d6b7834d",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/tui.mdx": "399c6e7df9c5b8dd3cf429b6251a72965b6257af00aaa1b04e4353f9b366352d",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/web.mdx": "6a7501225b5ed7118dd756540e9e7430b54480522a2a3193ca4a55bc4ad0a30e",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/windows-wsl.mdx": "e236a7225fa7cd391737d207d4e299117db6c5efcfb2c6165d9dadc81dd1a510",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/packages/web/src/content/docs/zen.mdx": "dc5673c3ee9d1b3ecc123d48345bf024e3f66c6c63f091e52a52fb0475f2cac5",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/README.md": "42bca737c3a5479e6a1dd1bdf1120fb08cf4aadd69db6bb5726a5f8b0d456d9e",
+    "src/desktop/core/helm-orca-service.ts": "03bcdac33e7954854de3c636304d5b394e1ffef12d6941964c0172e1bd1e458c",
+    "src/desktop/__tests__/helm-orca-service.test.ts": "a32fea34f0f8f2c72da2a3bf48c82b0920782bffe14fcba3a35b453a0c44e486",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/computer-use.md": "837582065cd778d809b9a4730b970dd685185eae56136aeb2e6789573fed9d20",
+    "src/desktop/core/helm-orca-tools.ts": "abbdce7024966cb7af6228a3877f860fab34290431883ae7f83456778e9cc666",
+    "src/desktop/__tests__/helm-orca-tools.test.ts": "e6cfc2e27b1b6811a94239e632cdb21f0599db7864cf08e863d7bca3d30062d1",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/linear-tickets.md": "e2eef0ad943408c203e1779a004798555ae47040ef29ab63c5163ad67ea87ec5",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-cli.md": "9fec77c322d4b89c510a64f17029bb72e3f910c98f0d41279ba40087174dbc4b",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-emulator-android.md": "f78028ad3c21314b5ccf15faebbfe847c813f08eaae5d075be03f894e91c4353",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-emulator.md": "8eec9924404b3f78206b065fed522c143ba7da7ae8d9f7432105689965a7d94d",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-linear.md": "2777bb0fa0547d4d74254b5475a28116a3c489f893dd6eb9aad92c60e564dc1e",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orca-per-workspace-env.md": "4d4942282ce93a2dd5a3761bf60a708b9ad119a1b3df848009ee22da8b7d1ffe",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/coordinator-loop.md": "d6e514bdc68dab8fdedf2f067df1ecff2cbc4a60c4b6e11ed39798b83f1514b2",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/legacy-contract-migration.md": "a4a961937b601bc116ae8d658d13e95f61beed70026521fe4323654f8322ca42",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/low-level-topology.md": "6931f0e5a02a82b25158581fdb6aadd7810533fad061fb001cb23570e0c3ebae",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/messaging-and-gates.md": "c0a1d818ac04c0cb0c6113f3e3f2051a4e590022da2249be32c584b2728d1ccd",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/placement-and-remote.md": "52ff2c6cb1c93782a949cdb9457054266e68198441dc4e869d2d2048adf93e40",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/recovery-and-cleanup.md": "177dddfdf5b78b6bb3000ab9d4fd454770d06333b101710ce8b1eb0059def272",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration/references/worker-contract.md": "e0f69b9fce936f9ef86ad196f4c7c3ea1f2974899f0961b168aac50c47474376",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-reference/skill-guides/orchestration.md": "bed33540ad43a8b97145e70e5feed7938102e788c941d7a71bd765688d09464d",
+    "src/desktop/core/durable-work.ts": "9c6d352371e30b7cbad3dd4f5fcf3bd766c75b570dcb1eaacaa6b62a704d3007",
+    "src/desktop/__tests__/durable-work.test.ts": "6fb91a12f0bb761a8b9a6cc9f1c1d91bf6018a27c6c798125b638272bbebce10",
+    "src/desktop/__tests__/durable-work-review.test.ts": "d2cf202595b900228962e647031d8e6bb6e8d878f4ea3bd053f8f11a1a1a7f21",
+    "src/desktop/core/work-evidence.ts": "e01fc36e22ce7506f74779d8a711a808334106098c8c3e2b8822d206dc687252",
+    "src/desktop/core/work-audit.ts": "225468016e3868b44256589802ced8cd27b9e040b38981339e39f414b1cb3e14",
+    "src/desktop/__tests__/work-audit-review.test.ts": "333a324128572065fa8a2142dd67c22463e889d3d96bf0c50be7e5219e425218",
+    "src/desktop/core/delegation-tools.ts": "c6e70ecc9f4a08e09bcac24f1b56c0e837166719ae6cb4088f2b4066c2ab3295",
+    "src/desktop/__tests__/workbench-enterprise.test.ts": "da57f4db83fefb3792139c35c3bd2a9d413b6d9d489466fa4c93128bc22ce5a2",
+    "src/desktop/__tests__/helm-orca-review.test.ts": "4b2d6ff57b80b3f3e9a5781c22e8275aba44ecf686c85fadd6b57b93e47cff60",
+    "src/desktop/core/helm-context.ts": "a2a05d7bf349a97438227b3ce39f890519228203df79726b3e89ce4b3e3329d2",
+    "src/desktop/__tests__/helm-context-tools.test.ts": "d99e96afd09e48d4502f91c55d37bc8b5e96347a50737e76502427be51f1f10a",
+    "src/desktop/core/helm-handoff.ts": "aa077a4607573521a2431b24200a2e8c1f6ebd4d715823449a06bc386df64e6d",
+    "src/desktop/__tests__/helm-handoff.test.ts": "c1ad10ba767060130518f61305c0880aedf9b9e061b1f1878e250825cf1b16e1",
+    "src/desktop/core/helm-integration.ts": "51a703f8370ba81329fe3a46c05dffeff84c7778bf306344471d6972199acbe2",
+    "src/desktop/__tests__/helm-integration.test.ts": "03d8215ff4a3788f01c5926d668822ae1eb8c3137ff7ff62342517b6bccfa29d",
+    "src/desktop/core/helm-preview.ts": "7d7c92ef4a126d108145b69fcf06973099272f10ed4e1bdbecfcff6e593ec84d",
+    "src/desktop/__tests__/helm-preview.test.ts": "17b839beaa59728db59454979b9dae5b1a8aebc77dc4f77db3266aa4b0b342c9",
+    "src/desktop/core/maintenance-service.ts": "f48c3ad03c90d77c63020401eea904f299cabcd7834b0269b1e39fb9e342dfba",
+    "src/desktop/__tests__/maintenance-service.test.ts": "3b3f67c6ac826d75b77de7e98830e5e8a7d3780ef913b612f179df501b8a287b",
+    "src/desktop/core/workbench-service.ts": "b7db80b9f7ddd4a187ad4574f4d746a0fe8d85fc9a802155d650234d29e81b0d",
+    "docs/research/helm-enterprise-2026-09-10/PROGRAM.md": "77e7259ab7a316f88412242a7f38c969c28da3cbd0ebae3f8946a993b46bde9b",
+    "src/desktop/__tests__/work-scheduling.test.ts": "05fd7da9cf9ec760a8f1799787c68cb8df1b7740b07b8cff70ea4982d25154c5",
+    "docs/research/helm-enterprise-2026-09-10/research/reference-harnesses.md": "1c5b1a6872a8b56277375c762b379a079e7c1ba51e50a0b0020eefd80066cd4e"
+  },
+  "missingCurrentFiles": [],
+  "validation": {
+    "work": {
+      "passed": 423,
+      "skipped": 3,
+      "files": 40,
+      "log": "evidence/integrated-closeout-v1/work.rawlog"
+    },
+    "macPackaging": {
+      "passed": 21,
+      "scope": "Mocked native tools and actual shell control flow; 3 compiler-failure fixtures included.",
+      "log": "evidence/integrated-closeout-v1/packaging.rawlog",
+      "sha256": "af5ca9a0c47287a2e519d998b588a893a0b8846a8716777e1a421bc1a9b414fe"
+    },
+    "sourceBundles": "evidence/integrated-closeout-v1/bundles.json",
+    "nativeAccepted": false,
+    "providerAccepted": false,
+    "limitations": "Three ps-dependent tests are skipped; historical assertions swallowing denied inspection are not cleanup evidence. No capability row is promoted based on fixture counts."
+  }
+}
