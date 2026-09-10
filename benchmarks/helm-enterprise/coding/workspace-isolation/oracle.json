@@ -1,0 +1,76 @@
+[
+  {
+    "input": {
+      "records": [
+        {
+          "id": "a",
+          "profile": "p",
+          "sessionId": "s",
+          "root": "/project"
+        }
+      ],
+      "scope": {
+        "profile": "q",
+        "sessionId": "s",
+        "root": "/project"
+      },
+      "id": "a"
+    },
+    "expected": null
+  },
+  {
+    "input": {
+      "records": [
+        {
+          "id": "a",
+          "profile": "p",
+          "sessionId": "s",
+          "root": "/project-two"
+        }
+      ],
+      "scope": {
+        "profile": "p",
+        "sessionId": "s",
+        "root": "/project"
+      },
+      "id": "a"
+    },
+    "expected": null
+  },
+  {
+    "input": {
+      "records": [],
+      "scope": {
+        "profile": "p",
+        "sessionId": "s",
+        "root": "/project/../secret"
+      },
+      "id": "a"
+    },
+    "throws": true
+  },
+  {
+    "input": {
+      "records": [
+        {
+          "id": "a",
+          "profile": "p",
+          "sessionId": "s",
+          "root": "/project"
+        }
+      ],
+      "scope": {
+        "profile": "p",
+        "sessionId": "s",
+        "root": "/project"
+      },
+      "id": "a"
+    },
+    "expected": {
+      "id": "a",
+      "profile": "p",
+      "sessionId": "s",
+      "root": "/project"
+    }
+  }
+]

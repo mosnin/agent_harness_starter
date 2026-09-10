@@ -1,6 +1,7 @@
 import { captureFocus, restoreFocus } from "./focus";
 import "./helm.css";
 import { HelmCodeFrame } from "./helm-code";
+import { HelmOrcaView } from "./helm-orca";
 
 type Rpc = (method: string, args?: Record<string, unknown>) => Promise<any>;
 type Context = { root: string; profile: string; profileName?: string; projects: string[] };
@@ -56,7 +57,7 @@ const AGENT_NAMES: Record<string, string> = {
   codex: "Codex",
   claude: "Claude Code",
   gemini: "Gemini CLI",
-  opencode: "OpenCode",
+  opencode: "Helm",
   grok: "Grok Build",
 };
 const AGENT_DOCS: Record<string, string> = {
@@ -77,7 +78,8 @@ const live = (run?: Run) =>
 /** Native coding workspace. All process, Git, and verification authority stays in the sidecar. */
 export class HelmView {
   private host?: HTMLElement;
-  private destination: "code" | "tasks" = "code";
+  private destination: "code" | "tasks" | "orca" = "code";
+  private orca: HelmOrcaView;
   private code = new HelmCodeFrame((url) => {
     void this.rpc("link.open", { url }).catch((error) => {
       this.error = message(error);
@@ -125,7 +127,7 @@ export class HelmView {
   constructor(
     private rpc: Rpc,
     private actions: Callbacks,
-  ) {}
+  ) { this.orca = new HelmOrcaView(rpc); }
   async open(context: Context) {
     if (
       this.context?.root !== context.root ||
@@ -155,7 +157,9 @@ export class HelmView {
       this.creating = true;
     }
     this.context = context;
+    this.orca.setScope(context);
     await this.refresh();
+    if (this.destination === "orca") await this.orca.open();
   }
   mount(host: HTMLElement) {
     this.host = host;
@@ -345,7 +349,7 @@ export class HelmView {
     }<div class="helm-context-tree">${this.notes.map((n) => `<article class="helm-note" ${n.parentId ? 'data-nested="true"' : ""}><div><strong>${esc(n.title)}</strong><small>${esc(n.kind)}${n.parentId ? ` · under ${esc(this.notes.find((p) => p.id === n.parentId)?.title ?? "unavailable parent")}` : ""}</small></div><p>${esc(n.body)}</p><div class="page-actions">${button("Edit", "note-edit", `data-id="${esc(n.id)}"`)}${button("Delete", "note-delete", `data-id="${esc(n.id)}"`)}</div></article>`).join("")}</div></details>`;
   }
   private codePanel() {
-    return `<section class="helm-code-panel ${this.codeReady ? "is-ready" : ""}"><div class="helm-code-heading"><div><h1>${this.codeReady ? "Coding workspace" : "Code with Helm"}</h1>${this.codeReady ? "" : '<p class="help">The OpenCode coding workspace, integrated into Hades.</p>'}</div>${this.codeReady ? `<div class="page-actions"><span class="help" title="${esc(this.codeInfo?.revision)}">OpenCode ${esc(this.codeInfo?.version)}</span>${button(this.busy ? "Closing workspace…" : "Close coding workspace", "code-close", `title="Stop this workspace’s local coding server" ${this.busy ? "disabled" : ""}`)}</div>` : button(this.busy ? "Opening workspace…" : "Open coding workspace", "code-open", `class="primary-button" ${this.busy ? "disabled" : ""}`)}</div>${this.codeReady ? '<div class="helm-code-viewport"></div>' : '<p class="help">Code edits files directly in the selected project. Choose Tasks &amp; context for an isolated task checkout. Open this project to work with sessions, agents, code changes and the terminal. Your saved tasks and project context are in Tasks &amp; context.</p>'}</section>`;
+    return `<section class="helm-code-panel ${this.codeReady ? "is-ready" : ""}"><div class="helm-code-heading"><div><h1>${this.codeReady ? "Coding workspace" : "Code with Helm"}</h1>${this.codeReady ? "" : '<p class="help">Your Helm coding workspace, integrated into Hades.</p>'}</div>${this.codeReady ? `<div class="page-actions"><span class="help" title="${esc(this.codeInfo?.revision)}">Helm ${esc(this.codeInfo?.version)}</span>${button(this.busy ? "Closing workspace…" : "Close coding workspace", "code-close", `title="Stop this workspace’s local coding server" ${this.busy ? "disabled" : ""}`)}</div>` : button(this.busy ? "Opening workspace…" : "Open coding workspace", "code-open", `class="primary-button" ${this.busy ? "disabled" : ""}`)}</div>${this.codeReady ? '<div class="helm-code-viewport"></div>' : '<p class="help">Code edits files directly in the selected project. Choose Tasks &amp; context for an isolated task checkout. Open this project to work with sessions, agents, code changes and the terminal. Your saved tasks and project context are in Tasks &amp; context.</p>'}</section>`;
   }
   private render() {
     if (!this.host) return;
@@ -353,8 +357,9 @@ export class HelmView {
     // Give action and disclosure controls stable identities before focus is captured.
     const focus = captureFocus(this.host),
       scroll = this.host.scrollTop;
-    this.host.innerHTML = `<div class="helm-page"><header class="helm-project-bar"><div><strong>Helm</strong><span class="muted">Coding in Hades</span></div><label class="helm-project-select">Project<select id="helm-project" data-helm-field="project" aria-label="Helm project"><option value="">Choose a project</option>${this.context?.projects.map((root) => `<option value="${esc(root)}" ${root === this.context?.root ? "selected" : ""}>${esc(root.split("/").filter(Boolean).pop() ?? root)}</option>`).join("")}</select></label>${button("Open folder…", "project")}${this.context?.root ? `<p class="helm-scope help">Source: <span>${esc(this.context.root)}</span> · Hades profile: <span>${esc(this.context.profileName || this.context.profile)}</span></p>` : ""}</header><nav class="helm-destinations" aria-label="Helm workspace">${button("Code", "destination-code", `aria-pressed="${this.destination === "code"}"`)}${button("Tasks &amp; context", "destination-tasks", `aria-pressed="${this.destination === "tasks"}"`)}</nav>${this.error ? `<p class="inline-notice" role="alert">${esc(this.error)}</p>` : ""}${this.notice ? `<p role="status" class="helm-notice">${esc(this.notice)}</p>` : ""}${this.destination === "tasks" ? this.handoffInbox() : ""}${!this.context?.root ? '<div class="page-heading"><h1>Choose a project</h1><p>Open a repository to start a coding task with Helm.</p></div>' : this.destination === "code" ? this.codePanel() : `<div class="helm-layout"><aside class="helm-task-list" aria-label="Coding tasks">${button("New coding task", "new", 'class="primary-button"')}<div class="helm-task-list-heading"><strong>Tasks</strong>${this.loading ? '<span role="status" class="help">Updating…</span>' : ""}</div>${this.runs.map((run) => button(`<strong>${esc(run.title)}</strong><small>${esc(runStatus(run))} · ${esc(agentName(run.agent))}</small>`, "select", `data-id="${esc(run.id)}" class="helm-task ${this.selected?.id === run.id && !this.creating ? "active" : ""}" aria-pressed="${this.selected?.id === run.id && !this.creating}"`)).join("") || '<p class="help">Your coding tasks stay here, including interrupted work.</p>'}</aside><main class="helm-content">${this.creating || !this.selected ? this.form() : this.detail()}${this.contextPanel()}</main></div>`}</div>`;
+    this.host.innerHTML = `<div class="helm-page"><header class="helm-project-bar"><div><strong>Helm</strong><span class="muted">Coding in Hades</span></div><label class="helm-project-select">Project<select id="helm-project" data-helm-field="project" aria-label="Helm project"><option value="">Choose a project</option>${this.context?.projects.map((root) => `<option value="${esc(root)}" ${root === this.context?.root ? "selected" : ""}>${esc(root.split("/").filter(Boolean).pop() ?? root)}</option>`).join("")}</select></label>${button("Open folder…", "project")}${this.context?.root ? `<p class="helm-scope help">Source: <span>${esc(this.context.root)}</span> · Hades profile: <span>${esc(this.context.profileName || this.context.profile)}</span></p>` : ""}</header><nav class="helm-destinations" aria-label="Helm workspace">${button("Code", "destination-code", `aria-pressed="${this.destination === "code"}"`)}${button("Tasks &amp; context", "destination-tasks", `aria-pressed="${this.destination === "tasks"}"`)}${button("Orca", "destination-orca", `aria-pressed="${this.destination === "orca"}"`)}</nav>${this.error ? `<p class="inline-notice" role="alert">${esc(this.error)}</p>` : ""}${this.notice ? `<p role="status" class="helm-notice">${esc(this.notice)}</p>` : ""}${this.destination === "tasks" ? this.handoffInbox() : ""}${!this.context?.root ? '<div class="page-heading"><h1>Choose a project</h1><p>Open a repository to start a coding task with Helm.</p></div>' : this.destination === "code" ? this.codePanel() : this.destination === "orca" ? '<div id="helm-orca-host"></div>' : `<div class="helm-layout"><aside class="helm-task-list" aria-label="Coding tasks">${button("New coding task", "new", 'class="primary-button"')}<div class="helm-task-list-heading"><strong>Tasks</strong>${this.loading ? '<span role="status" class="help">Updating…</span>' : ""}</div>${this.runs.map((run) => button(`<strong>${esc(run.title)}</strong><small>${esc(runStatus(run))} · ${esc(agentName(run.agent))}</small>`, "select", `data-id="${esc(run.id)}" class="helm-task ${this.selected?.id === run.id && !this.creating ? "active" : ""}" aria-pressed="${this.selected?.id === run.id && !this.creating}"`)).join("") || '<p class="help">Your coding tasks stay here, including interrupted work.</p>'}</aside><main class="helm-content">${this.creating || !this.selected ? this.form() : this.detail()}${this.contextPanel()}</main></div>`}</div>`;
     this.code.attach(this.host.querySelector<HTMLElement>(".helm-code-viewport") ?? undefined);
+    this.orca.mount(this.host.querySelector<HTMLElement>("#helm-orca-host") ?? undefined);
     const disclosureCounts = new Map<string, number>();
     this.host
       .querySelectorAll<HTMLDetailsElement>("details")
@@ -521,9 +526,10 @@ export class HelmView {
       await this.rpc("link.open", { url: element.dataset.url });
       return;
     }
-    if (action === "destination-code" || action === "destination-tasks") {
-      this.destination = action === "destination-code" ? "code" : "tasks";
+    if (action === "destination-code" || action === "destination-tasks" || action === "destination-orca") {
+      this.destination = action === "destination-code" ? "code" : action === "destination-orca" ? "orca" : "tasks";
       this.render();
+      if (this.destination === "orca") await this.orca.open();
       return;
     }
     if (action === "code-close") return this.perform(async () => {

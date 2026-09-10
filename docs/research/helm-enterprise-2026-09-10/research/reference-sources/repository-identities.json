@@ -1,0 +1,62 @@
+[
+  {
+    "repo": "openai/codex",
+    "default_branch": "main",
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "archived": false,
+    "url": "https://api.github.com/repos/openai/codex",
+    "retrieved_at": "2026-09-10T05:49:06.390284+00:00",
+    "sha256": "af5cbb15462ce115b4ccfec1532271320ff49e22e7bc52a55bd0e2d7bbd82eab"
+  },
+  {
+    "repo": "anomalyco/opencode",
+    "default_branch": "dev",
+    "license": {
+      "key": "mit",
+      "name": "MIT License",
+      "spdx_id": "MIT",
+      "url": "https://api.github.com/licenses/mit",
+      "node_id": "MDc6TGljZW5zZTEz"
+    },
+    "archived": false,
+    "url": "https://api.github.com/repos/anomalyco/opencode",
+    "retrieved_at": "2026-09-10T05:49:06.388191+00:00",
+    "sha256": "cb06f9917b33ffc775f4df3ff86ab18a3c8eae31241ec6f2d95deaaeb8be6e67"
+  },
+  {
+    "repo": "stablyai/orca",
+    "default_branch": "main",
+    "license": {
+      "key": "mit",
+      "name": "MIT License",
+      "spdx_id": "MIT",
+      "url": "https://api.github.com/licenses/mit",
+      "node_id": "MDc6TGljZW5zZTEz"
+    },
+    "archived": false,
+    "url": "https://api.github.com/repos/stablyai/orca",
+    "retrieved_at": "2026-09-10T05:49:06.417496+00:00",
+    "sha256": "b50e5c9f56f1764b8bbb5c9d192f9f06bb3bf8a2883f68ed6762574d5db17775"
+  },
+  {
+    "repo": "different-ai/openwork",
+    "default_branch": "dev",
+    "license": {
+      "key": "other",
+      "name": "Other",
+      "spdx_id": "NOASSERTION",
+      "url": null,
+      "node_id": "MDc6TGljZW5zZTA="
+    },
+    "archived": false,
+    "url": "https://api.github.com/repos/different-ai/openwork",
+    "retrieved_at": "2026-09-10T05:49:06.406935+00:00",
+    "sha256": "3d71be58535e39c50067114c8b63c93debc61922fe03dd5af2665d196a5b751e"
+  }
+]

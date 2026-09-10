@@ -1,0 +1,1 @@
+export function solve({cart,operations}){const m=new Map(cart.map(x=>[x.sku,x.quantity]));for(const x of operations){if(!Number.isInteger(x.delta))throw Error('delta');m.set(x.sku,(m.get(x.sku)||0)+x.delta)}if([...m.values()].some(n=>n<0))throw Error('quantity');return [...m].filter(([,n])=>n).map(([sku,quantity])=>({sku,quantity}))}

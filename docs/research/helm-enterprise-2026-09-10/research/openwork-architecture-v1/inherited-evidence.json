@@ -1,0 +1,30 @@
+[
+  {
+    "original": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/docs/research/helm-enterprise-2026-09-10/research/reference-sources/different-ai-openwork--LICENSE",
+    "file": "sources/different-ai-openwork--LICENSE",
+    "sha256": "5e5b2649fd7f0dd83e21cc7b911e8d95af1e7456744c6e492bfc5c057858d45b",
+    "new_observation": false,
+    "role": "previously retained primary identity/license evidence"
+  },
+  {
+    "original": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/docs/research/helm-enterprise-2026-09-10/research/reference-sources/different-ai-openwork--ee__LICENSE",
+    "file": "sources/different-ai-openwork--ee__LICENSE",
+    "sha256": "4186c8b752260a95f51ff386e62a16774dd8d32b99b420b0dddff1d199108f68",
+    "new_observation": false,
+    "role": "previously retained primary identity/license evidence"
+  },
+  {
+    "original": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/docs/research/helm-enterprise-2026-09-10/research/reference-sources/different-ai-openwork-tree.json",
+    "file": "sources/different-ai-openwork-tree.json",
+    "sha256": "c38db212777012c425990a8b0c0e57d218702bedd90898c927e4e114b1b3852f",
+    "new_observation": false,
+    "role": "previously retained primary identity/license evidence"
+  },
+  {
+    "original": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/docs/research/helm-enterprise-2026-09-10/research/reference-sources/different-ai-openwork-commit.json",
+    "file": "sources/different-ai-openwork-commit.json",
+    "sha256": "d513e04c6abb9aa1334f3c669d81334f196dff8e0fcdab6c4eb326c46664c308",
+    "new_observation": false,
+    "role": "previously retained primary identity/license evidence"
+  }
+]

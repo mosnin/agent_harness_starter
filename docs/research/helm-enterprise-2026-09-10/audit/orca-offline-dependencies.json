@@ -1,0 +1,490 @@
+{
+  "sourceRevision": "bf4e2705046cf9ef9c915929a9646da85717af07",
+  "sourceLockSha256": "bc760306652a68156689b894afd6717717095cb6affb942a793238ceac1b9def",
+  "sourcePackageSha256": "c6e53d7433f5ee68a806649a218444889e6a6677fad27a1ce5db8b39a7cc121c",
+  "buildStatus": "blocked before staging/build",
+  "installedOrcaVersion": "1.4.146",
+  "asarInspection": "Read only 398798-byte JSON header and package.json; no node_modules subtree; no extraction. Older minified engine not reused.",
+  "searched": [
+    "/Users/preston/Documents/Codex/2026-08-12/is/node_modules/",
+    "/Users/preston/Documents/Codex/2026-08-31/company-os-business-model-canvas/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-07/hades-browser-audit/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-07/disk-cleanup-agent/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-08/helm-opencode/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-01/company-os-everything-integration/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-01/company-os-value-proposition-canvas/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-06/realestatecrm-rebuild/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-06/realestatecrm-review/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-06/company-os-product-lab-workflow/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-06/clusters-repair/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-06/sicarii-ui-reference/node_modules/",
+    "/Users/preston/Documents/Codex/2026-08-28/callix-recording-clock-integration.SI03tD/node_modules/",
+    "/Users/preston/Documents/Codex/2026-08-10/cloudburst-html5/node_modules/",
+    "/Users/preston/Documents/Codex/2026-08-26/callix-rebuild-20260826/node_modules/",
+    "/Users/preston/Documents/Codex/2026-07-29/chippi-research-workspace/node_modules/",
+    "/Users/preston/Documents/Codex/2026-07-27/chippi-workbench-transform/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-03/company-os-productpipe-integration/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-04/looper-recovery/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-05/symbolic-audit/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-05/symbolic-ui-reference/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-05/symbolic-brand-check/node_modules/",
+    "/Users/preston/Documents/Codex/2026-09-05/companyos-brand-identity/node_modules/",
+    "/Applications/Orca.app/Contents/Resources/node_modules/",
+    "/Applications/Openwork.app/Contents/Resources/node_modules/",
+    "/Applications/Orca.app/Contents/Resources/app.asar.unpacked/node_modules/",
+    "Bounded matching package names under ~/.bun/install/cache and top-level /usr/local/lib/node_modules, /opt/homebrew/lib/node_modules"
+  ],
+  "dependencies": [
+    {
+      "package": "esbuild",
+      "lockedVersion": "0.25.12",
+      "candidates": [
+        {
+          "path": "/Users/preston/Documents/Codex/2026-08-31/company-os-business-model-canvas/node_modules/esbuild/package.json",
+          "version": "0.27.0",
+          "versionMatches": false,
+          "manifestSha256": "4bdceb57f4097ff510824e9f3eeac26170a73b0c7d5ad4dd9961448de262d238",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-07/hades-browser-audit/node_modules/esbuild/package.json",
+          "version": "0.28.2",
+          "versionMatches": false,
+          "manifestSha256": "9d0bc453f4e791553c4cc2298ba023b409241fd9801e494741666eb0f6051490",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-07/disk-cleanup-agent/node_modules/esbuild/package.json",
+          "version": "0.21.5",
+          "versionMatches": false,
+          "manifestSha256": "0f35e0d63bd60a43ed85879604a40f7e9688b321904cf28a95be5b1bc629559c",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-01/company-os-everything-integration/node_modules/esbuild/package.json",
+          "version": "0.27.0",
+          "versionMatches": false,
+          "manifestSha256": "4bdceb57f4097ff510824e9f3eeac26170a73b0c7d5ad4dd9961448de262d238",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-01/company-os-value-proposition-canvas/node_modules/esbuild/package.json",
+          "version": "0.27.0",
+          "versionMatches": false,
+          "manifestSha256": "4bdceb57f4097ff510824e9f3eeac26170a73b0c7d5ad4dd9961448de262d238",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules/esbuild/package.json",
+          "version": "0.27.0",
+          "versionMatches": false,
+          "manifestSha256": "4bdceb57f4097ff510824e9f3eeac26170a73b0c7d5ad4dd9961448de262d238",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/company-os-product-lab-workflow/node_modules/esbuild/package.json",
+          "version": "0.27.0",
+          "versionMatches": false,
+          "manifestSha256": "4bdceb57f4097ff510824e9f3eeac26170a73b0c7d5ad4dd9961448de262d238",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/clusters-repair/node_modules/esbuild/package.json",
+          "version": "0.27.0",
+          "versionMatches": false,
+          "manifestSha256": "4bdceb57f4097ff510824e9f3eeac26170a73b0c7d5ad4dd9961448de262d238",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-08-28/callix-recording-clock-integration.SI03tD/node_modules/esbuild/package.json",
+          "version": "0.28.2",
+          "versionMatches": false,
+          "manifestSha256": "9d0bc453f4e791553c4cc2298ba023b409241fd9801e494741666eb0f6051490",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-08-10/cloudburst-html5/node_modules/esbuild/package.json",
+          "version": "0.28.2",
+          "versionMatches": false,
+          "manifestSha256": "9d0bc453f4e791553c4cc2298ba023b409241fd9801e494741666eb0f6051490",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-08-26/callix-rebuild-20260826/node_modules/esbuild/package.json",
+          "version": "0.28.2",
+          "versionMatches": false,
+          "manifestSha256": "9d0bc453f4e791553c4cc2298ba023b409241fd9801e494741666eb0f6051490",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-03/company-os-productpipe-integration/node_modules/esbuild/package.json",
+          "version": "0.27.0",
+          "versionMatches": false,
+          "manifestSha256": "4bdceb57f4097ff510824e9f3eeac26170a73b0c7d5ad4dd9961448de262d238",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-04/looper-recovery/node_modules/esbuild/package.json",
+          "version": "0.28.2",
+          "versionMatches": false,
+          "manifestSha256": "9d0bc453f4e791553c4cc2298ba023b409241fd9801e494741666eb0f6051490",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-05/companyos-brand-identity/node_modules/esbuild/package.json",
+          "version": "0.27.0",
+          "versionMatches": false,
+          "manifestSha256": "4bdceb57f4097ff510824e9f3eeac26170a73b0c7d5ad4dd9961448de262d238",
+          "license": "MIT"
+        }
+      ],
+      "exactCandidateFound": false
+    },
+    {
+      "package": "node-pty",
+      "lockedVersion": "1.1.0",
+      "candidates": [
+        {
+          "path": "/Applications/Orca.app/Contents/Resources/node_modules/node-pty/package.json",
+          "version": "1.1.0",
+          "versionMatches": true,
+          "manifestSha256": "f8b6a14f7022c14f1cd5d109486f5dacd32bffb63a9a63e38eced37dacb47439",
+          "license": "MIT"
+        }
+      ],
+      "exactCandidateFound": true
+    },
+    {
+      "package": "@parcel/watcher",
+      "lockedVersion": "2.5.6",
+      "candidates": [
+        {
+          "path": "/Applications/Orca.app/Contents/Resources/node_modules/@parcel/watcher/package.json",
+          "version": "2.5.6",
+          "versionMatches": true,
+          "manifestSha256": "287b0a3346201d109888d06361d94c1284e8aba7251459a3edcbb3c503adb7ba",
+          "license": "MIT"
+        }
+      ],
+      "exactCandidateFound": true
+    },
+    {
+      "package": "@xterm/headless",
+      "lockedVersion": "6.1.0-beta.302",
+      "candidates": [],
+      "exactCandidateFound": false
+    },
+    {
+      "package": "@xterm/addon-serialize",
+      "lockedVersion": "0.15.0-beta.300",
+      "candidates": [],
+      "exactCandidateFound": false
+    },
+    {
+      "package": "@anthropic-ai/claude-agent-sdk",
+      "lockedVersion": "0.3.251",
+      "candidates": [],
+      "exactCandidateFound": false
+    },
+    {
+      "package": "proper-lockfile",
+      "lockedVersion": "4.1.2",
+      "candidates": [
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-07/hades-browser-audit/node_modules/proper-lockfile/package.json",
+          "version": "4.1.2",
+          "versionMatches": true,
+          "manifestSha256": "23888ecc7abd83a8e98e132da556eda2172792cc04c4e6d157b590667802bd2a",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules/proper-lockfile/package.json",
+          "version": "4.1.2",
+          "versionMatches": true,
+          "manifestSha256": "23888ecc7abd83a8e98e132da556eda2172792cc04c4e6d157b590667802bd2a",
+          "license": "MIT"
+        }
+      ],
+      "exactCandidateFound": true
+    },
+    {
+      "package": "agent-browser",
+      "lockedVersion": "0.27.0",
+      "candidates": [],
+      "exactCandidateFound": false
+    },
+    {
+      "package": "zod",
+      "lockedVersion": "4.5.4",
+      "candidates": [
+        {
+          "path": "/Users/preston/Documents/Codex/2026-08-31/company-os-business-model-canvas/node_modules/zod/package.json",
+          "version": "4.5.4",
+          "versionMatches": true,
+          "manifestSha256": "5a1983857f982cc7d69336f32053ac7e38780de313d9e18ca3f7b9b7f2f94298",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-07/hades-browser-audit/node_modules/zod/package.json",
+          "version": "4.5.4",
+          "versionMatches": true,
+          "manifestSha256": "5a1983857f982cc7d69336f32053ac7e38780de313d9e18ca3f7b9b7f2f94298",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-01/company-os-everything-integration/node_modules/zod/package.json",
+          "version": "4.5.4",
+          "versionMatches": true,
+          "manifestSha256": "5a1983857f982cc7d69336f32053ac7e38780de313d9e18ca3f7b9b7f2f94298",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-01/company-os-value-proposition-canvas/node_modules/zod/package.json",
+          "version": "4.5.4",
+          "versionMatches": true,
+          "manifestSha256": "5a1983857f982cc7d69336f32053ac7e38780de313d9e18ca3f7b9b7f2f94298",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/realestatecrm-rebuild/node_modules/zod/package.json",
+          "version": "4.3.6",
+          "versionMatches": false,
+          "manifestSha256": "1a316ad36e36c6c500bce6e9a6dcbec8efda1083f49a72185226b35573b543ba",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/realestatecrm-review/node_modules/zod/package.json",
+          "version": "4.3.6",
+          "versionMatches": false,
+          "manifestSha256": "1a316ad36e36c6c500bce6e9a6dcbec8efda1083f49a72185226b35573b543ba",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules/zod/package.json",
+          "version": "4.4.2",
+          "versionMatches": false,
+          "manifestSha256": "4988819276e118a67636e5d14aeffb759d89911a2178118e4773ac3041baa12a",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/company-os-product-lab-workflow/node_modules/zod/package.json",
+          "version": "4.5.4",
+          "versionMatches": true,
+          "manifestSha256": "5a1983857f982cc7d69336f32053ac7e38780de313d9e18ca3f7b9b7f2f94298",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/clusters-repair/node_modules/zod/package.json",
+          "version": "3.25.76",
+          "versionMatches": false,
+          "manifestSha256": "70eedbe34fd52385a4ae2f3e5759b19682189f0118ea73a6e7c32c677f61668e",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/sicarii-ui-reference/node_modules/zod/package.json",
+          "version": "4.3.6",
+          "versionMatches": false,
+          "manifestSha256": "1a316ad36e36c6c500bce6e9a6dcbec8efda1083f49a72185226b35573b543ba",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-08-28/callix-recording-clock-integration.SI03tD/node_modules/zod/package.json",
+          "version": "4.3.2",
+          "versionMatches": false,
+          "manifestSha256": "960ff000566fb22d64e62ab6c5924f435466567e958bf9b3625ba6a73e2810d3",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-08-26/callix-rebuild-20260826/node_modules/zod/package.json",
+          "version": "4.3.2",
+          "versionMatches": false,
+          "manifestSha256": "960ff000566fb22d64e62ab6c5924f435466567e958bf9b3625ba6a73e2810d3",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-07-29/chippi-research-workspace/node_modules/zod/package.json",
+          "version": "4.3.6",
+          "versionMatches": false,
+          "manifestSha256": "1a316ad36e36c6c500bce6e9a6dcbec8efda1083f49a72185226b35573b543ba",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-07-27/chippi-workbench-transform/node_modules/zod/package.json",
+          "version": "4.3.6",
+          "versionMatches": false,
+          "manifestSha256": "1a316ad36e36c6c500bce6e9a6dcbec8efda1083f49a72185226b35573b543ba",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-03/company-os-productpipe-integration/node_modules/zod/package.json",
+          "version": "4.5.4",
+          "versionMatches": true,
+          "manifestSha256": "5a1983857f982cc7d69336f32053ac7e38780de313d9e18ca3f7b9b7f2f94298",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-04/looper-recovery/node_modules/zod/package.json",
+          "version": "3.24.2",
+          "versionMatches": false,
+          "manifestSha256": "8b15b4aebb322f3943137a8a29316bcc7c5b8be1897acc6ec6b96fdb11a53c9c",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-05/companyos-brand-identity/node_modules/zod/package.json",
+          "version": "4.5.4",
+          "versionMatches": true,
+          "manifestSha256": "5a1983857f982cc7d69336f32053ac7e38780de313d9e18ca3f7b9b7f2f94298",
+          "license": "MIT"
+        },
+        {
+          "path": "/Applications/Orca.app/Contents/Resources/node_modules/zod/package.json",
+          "version": "4.4.3",
+          "versionMatches": false,
+          "manifestSha256": "c630bd10b52dcf71c112a2bf78dbf2734b9db58d62de663b8d86c2ec2c8cda2e",
+          "license": "MIT"
+        },
+        {
+          "path": "/Applications/Openwork.app/Contents/Resources/node_modules/zod/package.json",
+          "version": "4.1.8",
+          "versionMatches": false,
+          "manifestSha256": "67f2058ef56c9209df51e6fe0dd1395eb25af454974de2978ced56008e6fad5e",
+          "license": "MIT"
+        }
+      ],
+      "exactCandidateFound": true
+    },
+    {
+      "package": "ws",
+      "lockedVersion": "8.21.3",
+      "candidates": [
+        {
+          "path": "/Users/preston/Documents/Codex/2026-08-31/company-os-business-model-canvas/node_modules/ws/package.json",
+          "version": "8.21.0",
+          "versionMatches": false,
+          "manifestSha256": "584ce6e7516587ba249dc910b0c04e2753f6b3f451fc3a5bc324f7735bdacc71",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-07/hades-browser-audit/node_modules/ws/package.json",
+          "version": "8.21.3",
+          "versionMatches": true,
+          "manifestSha256": "a56a3fd55945a3ce177e3ca165dafae6f7eb03b7aefd58c092ac723d5741a6fb",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-07/disk-cleanup-agent/node_modules/ws/package.json",
+          "version": "8.21.3",
+          "versionMatches": true,
+          "manifestSha256": "a56a3fd55945a3ce177e3ca165dafae6f7eb03b7aefd58c092ac723d5741a6fb",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-01/company-os-everything-integration/node_modules/ws/package.json",
+          "version": "8.21.0",
+          "versionMatches": false,
+          "manifestSha256": "584ce6e7516587ba249dc910b0c04e2753f6b3f451fc3a5bc324f7735bdacc71",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-01/company-os-value-proposition-canvas/node_modules/ws/package.json",
+          "version": "8.21.0",
+          "versionMatches": false,
+          "manifestSha256": "584ce6e7516587ba249dc910b0c04e2753f6b3f451fc3a5bc324f7735bdacc71",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules/ws/package.json",
+          "version": "8.21.3",
+          "versionMatches": true,
+          "manifestSha256": "a56a3fd55945a3ce177e3ca165dafae6f7eb03b7aefd58c092ac723d5741a6fb",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/company-os-product-lab-workflow/node_modules/ws/package.json",
+          "version": "8.21.3",
+          "versionMatches": true,
+          "manifestSha256": "a56a3fd55945a3ce177e3ca165dafae6f7eb03b7aefd58c092ac723d5741a6fb",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-06/clusters-repair/node_modules/ws/package.json",
+          "version": "8.18.0",
+          "versionMatches": false,
+          "manifestSha256": "2325e3ac70900fbbd08f858f6ecb2a7f8a66ead76ad225ac3fd24b992b36e9e4",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-08-28/callix-recording-clock-integration.SI03tD/node_modules/ws/package.json",
+          "version": "8.21.0",
+          "versionMatches": false,
+          "manifestSha256": "584ce6e7516587ba249dc910b0c04e2753f6b3f451fc3a5bc324f7735bdacc71",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-08-26/callix-rebuild-20260826/node_modules/ws/package.json",
+          "version": "8.21.0",
+          "versionMatches": false,
+          "manifestSha256": "584ce6e7516587ba249dc910b0c04e2753f6b3f451fc3a5bc324f7735bdacc71",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-03/company-os-productpipe-integration/node_modules/ws/package.json",
+          "version": "8.21.0",
+          "versionMatches": false,
+          "manifestSha256": "584ce6e7516587ba249dc910b0c04e2753f6b3f451fc3a5bc324f7735bdacc71",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-04/looper-recovery/node_modules/ws/package.json",
+          "version": "8.21.0",
+          "versionMatches": false,
+          "manifestSha256": "584ce6e7516587ba249dc910b0c04e2753f6b3f451fc3a5bc324f7735bdacc71",
+          "license": "MIT"
+        },
+        {
+          "path": "/Users/preston/Documents/Codex/2026-09-05/companyos-brand-identity/node_modules/ws/package.json",
+          "version": "8.21.3",
+          "versionMatches": true,
+          "manifestSha256": "a56a3fd55945a3ce177e3ca165dafae6f7eb03b7aefd58c092ac723d5741a6fb",
+          "license": "MIT"
+        },
+        {
+          "path": "/Applications/Orca.app/Contents/Resources/node_modules/ws/package.json",
+          "version": "8.21.0",
+          "versionMatches": false,
+          "manifestSha256": "584ce6e7516587ba249dc910b0c04e2753f6b3f451fc3a5bc324f7735bdacc71",
+          "license": "MIT"
+        }
+      ],
+      "exactCandidateFound": true
+    },
+    {
+      "package": "jsonc-parser",
+      "lockedVersion": "3.3.1",
+      "candidates": [
+        {
+          "path": "/Applications/Orca.app/Contents/Resources/node_modules/jsonc-parser/package.json",
+          "version": "3.3.1",
+          "versionMatches": true,
+          "manifestSha256": "a7a9192caaac00d9330592f4fd572908bee037518128a0fc3db96d2cd652e2b5",
+          "license": "MIT"
+        }
+      ],
+      "exactCandidateFound": true
+    }
+  ],
+  "nodePtyPatch": {
+    "sha256": "7cc9d45f3d2c38f142490d0805e75db55f0eef5174ad41c4b52abc5fbe079ad1",
+    "installedReverseCheck": "FAILED: unix/windows sources, binding.gyp and lib files differ; deps/winpty/src/winpty.gyp absent",
+    "acceptance": "Same package version does not establish pinned patch compatibility; installed binary not accepted."
+  },
+  "actions": {
+    "network": false,
+    "install": false,
+    "build": false,
+    "sourceStaging": false,
+    "installedApplicationModified": false
+  },
+  "limits": "Package inventory is bounded, not an exhaustive whole-disk search. Manifest/version matches alone do not validate lock integrity or complete runtime dependency closure."
+}

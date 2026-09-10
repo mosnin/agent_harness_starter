@@ -1,0 +1,32 @@
+[
+  {
+    "raw": "openai-codex-overview.html",
+    "normalized": "openai-codex-overview.text.txt",
+    "method": "stdlib HTMLParser removes script/style; joins block text; full visible returned text",
+    "sha256": "8a69e249c89e33d2ab08a07a6bd2eedbc90bd953510e811e935e37bffa8dd0a4"
+  },
+  {
+    "raw": "openai-chatgpt-work-codex.html",
+    "normalized": "openai-chatgpt-work-codex.text.txt",
+    "method": "stdlib HTMLParser removes script/style; joins block text; full visible returned text",
+    "sha256": "ebe2b885658166884da224e4a9da16f69d1241d980385b101627d82331b684ae"
+  },
+  {
+    "raw": "claude-cowork-schedule.html",
+    "normalized": "claude-cowork-schedule.text.txt",
+    "method": "stdlib HTMLParser removes script/style; joins block text; full visible returned text",
+    "sha256": "01c2b77334282f2e605f4edc7b62c149f29af93ce79859a541769ee464d51aee"
+  },
+  {
+    "raw": "openai-chatgpt-agent.html",
+    "normalized": "openai-chatgpt-agent.text.txt",
+    "method": "stdlib HTMLParser removes script/style; joins block text; full visible returned text",
+    "sha256": "ff7946ce8faa31c63a1ba799465ae0fe29f400baefe47ee8e1dca118d7ce0ed7"
+  },
+  {
+    "raw": "claude-cowork-start.html",
+    "normalized": "claude-cowork-start.text.txt",
+    "method": "stdlib HTMLParser removes script/style; joins block text; full visible returned text",
+    "sha256": "b6437bdc73274424df2f676ca8c6aac46304135d618a07f66982ee2332086a8d"
+  }
+]

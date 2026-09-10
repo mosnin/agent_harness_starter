@@ -1,0 +1,479 @@
+{
+  "dossier_sha256": "c7b24f6f277716c0ff01ae1718bbe91315c01334db154a451eda3701a0c06145",
+  "claim_reviews": [
+    {
+      "claim_id": "C01",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "Read with its retained-source limitation, this describes the captured Codex development snapshot, not a released or installed runtime. The crate role and platform-specific sandbox discussion are present. S31 has no recorded content observation time: the declared current policy remains structurally ineligible; this semantic finding does not supply that missing clock. The exact blob-to-commit chain supports the narrower source-content scope.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S31 lines 3-7 identify the business-logic crate and Rust UI consumers; lines 19-92 describe platform-specific sandbox implementations and unsupported-policy limits. The short locator alone covers the crate role; the complete retained document supplies the remaining context."
+        }
+      ]
+    },
+    {
+      "claim_id": "C02",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The retained app-server implementation has distinct request and outbound loops and SQLite initialization. This establishes source structure at the captured commit, not lossless recovery or an operational service. S32 observation freshness remains unknown under the current policy; the verified commit/tree/blob chain supports only the stated retained-source scope.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S32 lines 169-175 describe the two coordinated loops; lines 642-659 initialize state and issue recovery warnings, and lines 1343-1413 implement corruption backup/fresh-start handling. No executed recovery claim is made."
+        }
+      ]
+    },
+    {
+      "claim_id": "C03",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The correction preserves the material branch condition: supplied parent ownership is checked, while parent=None remains a sender-driven path. Role application restores incoming runtime permissions and approval settings; it does not establish a universal durable original-parent permission snapshot or authorize every caller.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S04 lines 314-347 distinguish the optional-parent paths, 382-398 validate recorded parent identity only when an owner exists, and 401-435 save and restore runtime approval policy, reviewer, cwd and permission profile around role loading. Surrounding environment checks at 456-560 do not remove the sender-driven caller gap."
+        }
+      ]
+    },
+    {
+      "claim_id": "C04",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The revised claim names the configured capacity and usize::MAX fallback, and limits eviction to eligible residents. It accurately leaves effective default configuration unknown. Materialization before shutdown is a source ordering observation, not proof that every interrupted worker can be restored.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S05 lines 49-61 compute effective_agent_max_threads and use usize::MAX when absent; lines 105-114 enforce the supplied capacity against resident and pending counts. This citation supports the capacity component."
+        },
+        {
+          "citation_index": 1,
+          "relation": "supports",
+          "rationale": "S05 lines 132-156 materialize rollout before shutdown, save environments and remove the resident; lines 233-238 restrict unloadable status and exclude active turns/pending mailbox items. The captured helper does not establish lossless restart recovery."
+        }
+      ]
+    },
+    {
+      "claim_id": "C05",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "Focused residency tests exist in the source, and this lane did not execute them. Their expectations include a recovery limitation rather than universal successful reload.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S07 lines 23-70 define the oldest-idle eviction test. Lines 73-148 define interrupted_v2_agent_is_lost_after_residency_eviction and expect ThreadNotFound on reload. Test text is not a passing execution receipt."
+        }
+      ]
+    },
+    {
+      "claim_id": "C06",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The cancellation statement is expressly scoped to experimental native verification. It accurately separates cancellation signaling, RPC completion and completed effects, without generalizing that contract to every Codex operation.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S03 lines 1-23 describe experimental userVerification, including cancellation acknowledgement, original request completion, native worker closure and inability to reverse effects already completed; line 16 is directly relevant."
+        }
+      ]
+    },
+    {
+      "claim_id": "C07",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The inspected task path gates background requests, checks ancestry against a configurable depth with default one, and invokes child-permission derivation. This supports a mechanism claim, not proof that permission derivation is safe or that a reused child belongs to this parent.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S10 lines 96-117 enforce the experimental background flag and depth check. Lines 136-172 fetch an optional task_id or create a child, call deriveSubagentSessionPermission, and apply derived rules on creation. The derivation helper and reused-child authorization path were not acquired; the background flag quote alone does not prove those broader guarantees."
+        }
+      ]
+    },
+    {
+      "claim_id": "C08",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The revised claim accurately describes a prompt threshold with Infinity fallback. The inspected branch continues passing tools and relies on processor outcomes, so a hard step stop is not established. This is supported at the verified OpenCode source pin; S34 still lacks observed-current freshness and the semantic finding does not make its current policy eligible.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S34 lines 1173-1181 compute maxSteps and isLastStep using agent.steps ?? Infinity. This establishes a threshold, not a stop or a finite default."
+        },
+        {
+          "citation_index": 1,
+          "relation": "supports",
+          "rationale": "S34 lines 1270-1286 append MAX_STEPS_PROMPT conditionally while still passing tools to handle.process. That directly supports the stated distinction between a model prompt and an enforced hard bound."
+        },
+        {
+          "citation_index": 2,
+          "relation": "supports",
+          "rationale": "S34 lines 1319-1340 break on a processor stop outcome, invoke compaction on compact, and otherwise continue. Earlier lines 1149-1167 also integrate compaction. No direct isLastStep break appears in this captured branch."
+        }
+      ]
+    },
+    {
+      "claim_id": "C09",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The complete 37-line module is a legacy instance-scoped wrapper delegating to the separate core registry. It neither contains nor proves crash/restart persistence. Its exact pinned source identity is verified; S35 unknown observation time remains an explicit current-policy gap.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S35 lines 1-3 import the core registry and InstanceState; lines 17-31 construct an instance-scoped layer and delegate list/get/start/wait/cancel operations. The actual core background registry implementation is absent."
+        }
+      ]
+    },
+    {
+      "claim_id": "C10",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "This is an accurate statement of the captured Orca guide, whose doctrine distinguishes activity, outcome and accepted settlement. It is not evidence that every runtime/process/remote path enforces the guide.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S15 lines 20-35 require positive exit proof and accepted settlement, lines 52-74 separate run/task/dispatch and liveness from successful outcome, and lines 126-158 describe unknown/recovery handling. The guide remains maintainer documentation."
+        }
+      ]
+    },
+    {
+      "claim_id": "C11",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The correction makes mutationReceipt optional at this function boundary. Within the captured transaction the receipt, task/dispatch identity and lifecycle changes are coordinated with commit/rollback. Process readiness, capability enforcement and remote recovery are correctly left outside this function claim.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S16 lines 35-40 declare the optional receipt, 46-70 begin the transaction and conditionally record/check it, 72-119 check task/retry state, and 122-186 create identities, transition lifecycle and commit/rollback. A BEGIN IMMEDIATE quote alone would not prove end-to-end admission; the full function supports this narrowed description."
+        }
+      ]
+    },
+    {
+      "claim_id": "C12",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The retained test source targets stale worker reports and interleaved claims, without claiming execution or proving real process races.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S17 lines 116-184 cover stale failure/completion reporting; lines 207-283 cover competing/reminted pane claims. These are test definitions using database ordering, not live race or provider results."
+        }
+      ]
+    },
+    {
+      "claim_id": "C13",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The directly retained official document permits nested subagents and dates changing defaults. The contrary cached snippets in the retained discovery returns are weaker evidence for the currently observed documentation. This does not establish behavior for an arbitrary installed version.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S22 lines 982-1008 describe nesting, configurable depth and defaults of five in v2.1.172-216, one in v2.1.217-218, and three from v2.1.219. Lines 1011-1022 separately describe spawn concurrency and fork/resume exceptions; a depth limit is not a universal concurrency cap."
+        }
+      ]
+    },
+    {
+      "claim_id": "C14",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The current retained document explicitly allows background permission prompts in the main session and labels auto-denial before v2.1.186 as historical. The statement preserves a documented capability without claiming every launch mode backgrounds identically.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S22 lines 861-879 describe prompt routing and the historical cutoff. Lines 870-877 qualify teammate, fork-mode, disabled-background and tool-set behavior. A session-lasting answer can affect the whole session, so this is not isolated per-worker consent."
+        }
+      ]
+    },
+    {
+      "claim_id": "C15",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The documentation distinguishes experimental team coordination from session subagents and states persistence, status and shutdown limits. It also restricts teammates to interactive sessions, so no SDK/headless team guarantee follows.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S21 lines 9-18 label teams experimental/default-disabled and explain lead/peer coordination; line 66 excludes teammate spawning in -p/SDK sessions; lines 465-477 list missing in-process resumption, status lag, slow shutdown, one team, no nested teams, foreground-only in-process teammate subagents and fixed leadership."
+        }
+      ]
+    },
+    {
+      "claim_id": "C16",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The document explicitly separates worktree isolation from team coordination. The claim does not imply that team members automatically edit disjoint checkouts.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S23 lines 22-24 describe worktrees and agent-view/batch arrangements; lines 40-46 compare coordination styles and expressly say agent teams do not isolate teammates in worktrees, advising file ownership partitioning."
+        }
+      ]
+    },
+    {
+      "claim_id": "C17",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The claim accurately distinguishes session scheduling from cloud routines and desktop schedules. Session tasks may be restored when unexpired on resume; the statement does not equate lack of firing while closed with permanent loss of every schedule.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S24 lines 11-27 compare machine/session requirements, persistence and local access. Lines 208-210 require a running idle session, fire once after missed intervals, and describe restoration of unexpired tasks rather than replaying each missed interval."
+        }
+      ]
+    },
+    {
+      "claim_id": "C18",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The current retained Cowork document describes cloud sessions and a connected desktop bridge for local access. This is a product-document observation, not reconstruction of closed internals or proof of offline local access; the remaining local-session troubleshooting passage is a coverage limitation.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S26 lines 449-460 describe cloud execution and require the desktop app open and connected for local files, browser and computer use. Lines 558-562 also discuss local sessions, so the complete product taxonomy should not be inferred from the cloud introduction alone."
+        }
+      ]
+    },
+    {
+      "claim_id": "C19",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The corrected claim reports a real contradiction inside one retained article instead of choosing an unsupported universal schedule behavior. It supports remote account-file/connector documentation and explicitly leaves the local/cloud taxonomy unresolved.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S27 lines 424-427 state remote scheduled runs while asleep/closed and prohibit tying them to local folders; lines 448-449 offer a folder option and say tasks requiring local files/apps run locally. The expanded citation includes both conflicting passages."
+        }
+      ]
+    },
+    {
+      "claim_id": "C20",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The retained current help distinguishes Chat, Work and Codex, including histories and separately controlled local/cloud access. It explicitly describes a gradual account rollout, and does not prove this account has access or that local task data never reaches the cloud.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S28 lines 10-13 distinguish products and rollout; lines 27-32 describe cloud/local surfaces and separate Codex history; lines 41-47 distinguish Work Cloud, Work Local and Codex Local permissions. Lines 30 and 80 qualify cloud storage even for local execution."
+        }
+      ]
+    },
+    {
+      "claim_id": "C21",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The claim accurately preserves the article conflict rather than treating lower-body legacy availability instructions as current service evidence. It does not establish the actual live account state.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S29 line 10 announces retirement and directs users to Work; lines 12-22 still give agent-mode start instructions, availability and limits. Both are present in the retained full body, so source freshness alone cannot resolve this internal contradiction."
+        }
+      ]
+    },
+    {
+      "claim_id": "C22",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The pinned README advertises Codex Web, which is sufficient to defeat an inference that a desktop-view help statement proves removal of every cloud route. It does not prove the linked route is live or available to any particular account.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S01 lines 1-8 advertise CLI, IDE, desktop and a cloud-based Codex Web link. The claim is confined to the advertisement and the logical limit of the separate desktop-view documentation."
+        }
+      ]
+    },
+    {
+      "claim_id": "C23",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The overview advertises a desktop/core platform and organization control plane; the research scope expressly excludes executable enforcement paths. No actual enterprise policy implementation follows from README feature descriptions.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S18 lines 3-7 describe the desktop/MCP/admin positioning; lines 68-76 advertise OpenWork Den controls; lines 113-123 describe Electron/React/server/core/EE repository layout. These are overview claims, not an executed architecture trace."
+        }
+      ]
+    },
+    {
+      "claim_id": "C24",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The exact root license separates ee, prior versions and third-party components from the residual MIT grant. That supports the narrow rejection of a blanket-MIT label, without treating every file under ee as identically restricted despite the EE client-side exception.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S19 lines 3-14 distinguish ee under its own license, historical licensing, third-party obligations and remaining MIT content. S20 lines 48-60 add client-side and historical carveouts, which require file/version reconciliation for actual reuse."
+        }
+      ]
+    },
+    {
+      "claim_id": "C25",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The EE license expressly conditions production use and excludes defined Enterprise Features from its up-to-five-user exception. Exact component reconciliation is necessary because it also has evaluation/development, future-MIT, client-side and historical exceptions. This is a license-text inventory finding; the referenced subscription terms and legal applicability to a chosen reuse were not acquired.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S20 lines 6-23 set subscription/other-agreement conditions and exceptions, with Enterprise Features defined in external subscription terms; lines 25-34 address modification/distribution; lines 42-60 grant future-MIT and client-side/historical carveouts. The selected line directly supports the limited five-user exception."
+        }
+      ]
+    },
+    {
+      "claim_id": "C26",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The SDK document differentiates result subtypes, trailing events and configured budgets. Success here means normal loop termination, not independent acceptance of a deliverable; the claim remains documentation-only.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S25 lines 46-67 explain tool-use turn/spend controls and trailing events after ResultMessage. Lines 194-205 describe unlimited defaults, budget behavior requiring v2.1.217+, and streaming-turn reset. Lines 313-343 explain result subtypes, crashes, optional costs and main-loop versus whole-tree usage."
+        }
+      ]
+    },
+    {
+      "claim_id": "C27",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "The retained GitHub metadata contains the advertisement. The claim is correctly limited to that mutable metadata snapshot and does not certify an executable OpenCode dependency or shared implementation at the OpenWork source pin.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S36 is the complete original metadata JSON; description contains the exact powered by opencode text at characters 1219-1238. Its URL, owner and retained metadata receipt support attribution of the advertisement only."
+        }
+      ]
+    }
+  ],
+  "question_reviews": [
+    {
+      "question_id": "Q1",
+      "verdict": "incomplete",
+      "rationale": "C01-C06 now provide a sound bounded description of the inspected owner-provided/sender-driven split, permission restoration, configured residency/fallback and native cancellation contract. The packet does not establish effective defaults or the authorization behavior of the uninspected sender-driven callers, and the eviction tests include a lost interrupted-worker expectation. Its current policies for C01/C02 have unknown observed freshness. One OpenAI evidence family, absent reconciled discovery records and a budget stop prevent question-level sufficiency.",
+      "missing_facets": [
+        "Effective default residency configuration beyond the supplied usize::MAX fallback path",
+        "Authorization of sender-driven reload callers and complete recovery/caller paths",
+        "Executable recovery acceptance for any operational extrapolation",
+        "Observed-current freshness for S31 and S32 under the chosen policies",
+        "Per-question neutral/challenge search records, candidate dispositions and a second independent evidence group"
+      ]
+    },
+    {
+      "question_id": "Q2",
+      "verdict": "incomplete",
+      "rationale": "C07-C09 correctly separate an ancestry depth check, experimental background entry, prompt threshold and registry wrapper. They do not expose the actual core background registry, permission-derivation helper or reused-child authority. The captured loop does not supply hard-budget enforcement. Unknown current freshness of S34/S35 and only one conservative source family compound missing discovery coverage.",
+      "missing_facets": [
+        "Core background registry persistence, restart and cancellation behavior",
+        "Permission derivation helper and reused-task child ownership/authority path",
+        "Enforced hard-budget behavior beyond the final-step prompt threshold",
+        "Observed-current freshness for S34 and S35 under the chosen policies",
+        "Per-question neutral/challenge searches, versioned issue dispositions and independent corroboration"
+      ]
+    },
+    {
+      "question_id": "Q3",
+      "verdict": "incomplete",
+      "rationale": "C10-C12 support the documented liveness/outcome distinction and optional-receipt database transaction, and accurately label race tests as unexecuted. They do not trace the transaction into process readiness, capability mint/revocation or remote admission/recovery. One maintainer family and unreconciled discovery are insufficient for the requested question floor.",
+      "missing_facets": [
+        "Process-readiness acceptance after the database starting record",
+        "Capability minting, authority checks and revocation through worker lifecycle",
+        "Remote admission, lost acknowledgement and recovery integration",
+        "Executed race and recovery evidence before operational conclusions",
+        "Per-question search/candidate screening and independent primary corroboration"
+      ]
+    },
+    {
+      "question_id": "Q4",
+      "verdict": "incomplete",
+      "rationale": "C13-C19 and C26 support current retained documentation of version-qualified nesting, main-session background permissions, experimental team limits, session scheduling and SDK result/budget distinctions. The schedule article and local-session troubleshooting leave Cowork local/cloud taxonomy unresolved. These documents do not establish account or installed-version behavior. All evidence is Anthropic-origin, and discovery lacks reproducible question-level screening and stop justification beyond the cap.",
+      "missing_facets": [
+        "Resolution of Cowork remote/account-file versus local-folder/local-app schedule conflict",
+        "Complete relation of Cowork local sessions to the current cloud-session documentation",
+        "Version/account/runtime correspondence before using documented defaults as operational guarantees",
+        "Per-question neutral/challenge search mapping and candidate dispositions",
+        "Independent primary corroboration meeting the declared two-group floor"
+      ]
+    },
+    {
+      "question_id": "Q5",
+      "verdict": "incomplete",
+      "rationale": "C20-C22 accurately distinguish visible Chat/Work/Codex purposes, histories and permissions; they also retain the retirement/legacy-body conflict and limit the Codex Web link to an advertisement. Actual account rollout, current route availability and the inconsistent retirement body remain unresolved. All included evidence is OpenAI-origin and there is no reconciled per-question discovery ledger.",
+      "missing_facets": [
+        "Resolution of the agent retirement notice versus lower-body availability instructions",
+        "Current account/surface availability under the gradual Work rollout if asserted operationally",
+        "Actual status of the advertised Codex Web route, distinct from desktop history and mobile remote access",
+        "Question-level search/candidate dispositions and independent evidence beyond one publisher family"
+      ]
+    },
+    {
+      "question_id": "Q6",
+      "verdict": "incomplete",
+      "rationale": "C23-C25 and C27 accurately separate advertised architecture from executable dependency and preserve the root/EE/client-side licensing distinction. The exact subscription definition of Enterprise Features is absent, and no file-level component/license inventory or enterprise enforcement/dependency trace is supplied. The conservative OpenCode/OpenWork group does not prove that dependency, nor supply independent corroboration. Discovery remains unmapped.",
+      "missing_facets": [
+        "Executable dependency and enterprise policy/enforcement paths",
+        "The referenced OpenWork Subscription Terms defining Enterprise Features",
+        "File/version-level mapping of MIT, EE, client-side, historical and third-party obligations",
+        "Component-specific reuse assessment before legal clearance",
+        "Per-question discovery/screening and the declared independent evidence floor"
+      ]
+    }
+  ],
+  "discovery_review": {
+    "verdict": "limited",
+    "rationale": "The supplement preserves three exact aggregated returns, 12 reported queries and 74 candidate entries, including contrary Claude snippets and OpenCode/Orca failure leads. It is byte-identical to the retained log/returns, but lacks exact per-query result attribution and search timestamps. Identical generic screening text is not substantive per-question inclusion/exclusion disposition; challenge issue applicability at the pins remains open. Formal source/search/candidate ledgers are correctly left empty instead of reconstructed by guess. The 35-body cap is a budget stop, not evidence of saturation or adequate neutral/challenge coverage. No claim was omitted by packet compaction, but that does not repair discovery incompleteness."
+  },
+  "lineage_review": {
+    "verdict": "limited",
+    "rationale": "The corrected grouping is conservative and does not inflate evidence through URL count: OpenAI docs/source share one family, Anthropic Code/SDK/Cowork share another, Orca guide/source/tests remain maintainer evidence, and raw HTML plus normalized text are one representation lineage. Grouping OpenCode/OpenWork together is a conservative response to the metadata advertisement, not proof of an executable dependency or common authorship across those projects. Each required question still has only one effective independence group against its declared floor of two; no independent primary replication of behavior is present. Hashes and source labels do not authenticate acquisition or establish independence."
+  }
+}

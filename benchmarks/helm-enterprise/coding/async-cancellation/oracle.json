@@ -1,0 +1,67 @@
+[
+  {
+    "input": [
+      {
+        "id": "a",
+        "delayMs": 1
+      },
+      {
+        "id": "b",
+        "delayMs": 1
+      }
+    ],
+    "signal": {},
+    "expected": {
+      "status": "completed",
+      "completed": [
+        "a",
+        "b"
+      ]
+    }
+  },
+  {
+    "input": [
+      {
+        "id": "a",
+        "delayMs": 150
+      },
+      {
+        "id": "b",
+        "delayMs": 1
+      }
+    ],
+    "signal": {
+      "abortAfterMs": 10
+    },
+    "expected": {
+      "status": "cancelled",
+      "completed": []
+    },
+    "maxDurationMs": 80
+  },
+  {
+    "input": [
+      {
+        "id": "a",
+        "delayMs": 1
+      }
+    ],
+    "signal": {
+      "aborted": true
+    },
+    "expected": {
+      "status": "cancelled",
+      "completed": []
+    }
+  },
+  {
+    "input": [
+      {
+        "id": "a",
+        "delayMs": -1
+      }
+    ],
+    "signal": {},
+    "throws": true
+  }
+]

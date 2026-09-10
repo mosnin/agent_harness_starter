@@ -5,7 +5,7 @@
   "identifier": "ai.hades.desktop",
   "build": {
     "frontendDist": "../dist/desktop",
-    "beforeBuildCommand": "npm run desktop:build",
+    "beforeBuildCommand": "node scripts/check-helm-provenance.mjs && npm run desktop:build",
     "beforeDevCommand": "npm run desktop:build"
   },
   "app": {

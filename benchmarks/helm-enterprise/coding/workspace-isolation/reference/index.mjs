@@ -1,0 +1,1 @@
+export function solve({records,scope,id}){const r=scope.root;if(typeof r!=='string'||!r.startsWith('/')||(r!=='/'&&(r.endsWith('/')||r.slice(1).split('/').some(s=>!s||s==='.'||s==='..'))))throw Error('root');const found=records.find(x=>x.id===id&&['root','profile','sessionId'].every(k=>x[k]===scope[k]));return found?structuredClone(found):null}

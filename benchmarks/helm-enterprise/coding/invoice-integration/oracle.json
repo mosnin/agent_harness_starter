@@ -1,0 +1,83 @@
+[
+  {
+    "input": {
+      "lines": [
+        {
+          "sku": "a",
+          "quantity": 2,
+          "unitCents": 125
+        },
+        {
+          "sku": "b",
+          "quantity": 1,
+          "unitCents": 99
+        }
+      ],
+      "discountBps": 1000,
+      "taxBps": 825
+    },
+    "expected": {
+      "subtotal": 349,
+      "discount": 35,
+      "tax": 26,
+      "total": 340,
+      "items": [
+        {
+          "sku": "a",
+          "cents": 250
+        },
+        {
+          "sku": "b",
+          "cents": 99
+        }
+      ]
+    }
+  },
+  {
+    "input": {
+      "lines": [
+        {
+          "sku": "x",
+          "quantity": 1,
+          "unitCents": 1
+        }
+      ],
+      "discountBps": 5000,
+      "taxBps": 10000
+    },
+    "expected": {
+      "subtotal": 1,
+      "discount": 1,
+      "tax": 0,
+      "total": 0,
+      "items": [
+        {
+          "sku": "x",
+          "cents": 1
+        }
+      ]
+    }
+  },
+  {
+    "input": {
+      "lines": [
+        {
+          "sku": "x",
+          "quantity": 0,
+          "unitCents": 20
+        }
+      ],
+      "discountBps": 0,
+      "taxBps": 0
+    },
+    "throws": true
+  },
+  {
+    "input": {
+      "lines": [],
+      "discountBps": 10001,
+      "taxBps": 0
+    },
+    "throws": true
+  }
+]

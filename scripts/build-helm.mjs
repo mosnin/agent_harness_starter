@@ -6,6 +6,8 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, copyFileSync, rmSync,
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { sourceState, uiFiles } from "./helm-provenance.mjs";
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
 const sourceArg = argv.indexOf("--source");
@@ -29,6 +31,9 @@ const version = JSON.parse(readFileSync(join(source, "packages/opencode/package.
 if (version !== "1.18.21") throw new Error("This Hades integration requires the pinned OpenCode 1.18.21 fork.");
 const revision = run("git", ["rev-parse", "HEAD"], source, true);
 const dirty = !!run("git", ["status", "--porcelain"], source, true);
+const before = sourceState(source);
+const bunVersion = run(bun, ["--version"], source, true);
+if(bunVersion !== "1.3.14") throw new Error("Helm fork requires Bun 1.3.14; no rebuild attempted.");
 let releasePin;
 if (process.env.HADES_HELM_REQUIRE_PIN === "1") {
   const pin = JSON.parse(readFileSync(join(root, "third_party/helm-opencode.json"), "utf8"));
@@ -41,6 +46,7 @@ run(bun, ["run", "build"], join(source, "packages/app"));
 run(bun, ["run", "script/build.ts", "--single", "--skip-install", "--skip-embed-web-ui"], join(source, "packages/opencode"));
 if(releasePin && (run("git",["rev-parse","HEAD"],source,true)!==releasePin.revision || run("git",["status","--porcelain"],source,true))) throw new Error("OpenCode source changed during release build; packaging refused.");
 
+if(JSON.stringify(sourceState(source))!==JSON.stringify(before)) throw new Error("OpenCode source changed during build; assets were not packaged. Rebuild from stable source.");
 const assets = join(root, "dist/helm-ui");
 const runtime = join(root, "dist/runtime/helm-opencode");
 mkdirSync(dirname(runtime), { recursive: true });
@@ -60,5 +66,6 @@ const binary = join(source, "packages/opencode/dist", `opencode-${platform}-${pr
 // APFS cloning keeps native builds from duplicating large local binaries.
 if (process.platform === "darwin") run("/bin/cp", ["-c", binary, runtime], root);
 else copyFileSync(binary, runtime);
-writeFileSync(join(assets, "helm-provenance.json"), JSON.stringify({ fork: "https://github.com/mosnin/opencode", upstream: "https://github.com/anomalyco/opencode", upstreamRevision: "826d9ad46a22bef0294998e08daa3c4904fea28f", revision, version, dirty, runtimeSha256: createHash("sha256").update(readFileSync(runtime)).digest("hex"), builtAt: new Date().toISOString(), source: "Actual fork packages/app and packages/opencode; no remote UI fallback" }, null, 2) + "\n");
+if(JSON.stringify(sourceState(source))!==JSON.stringify(before)) throw new Error("OpenCode source changed during asset staging; no valid provenance emitted.");
+writeFileSync(join(assets, "helm-provenance.json"), JSON.stringify({ schema: 2, sourceSha256: before.sourceSha256, bun: bunVersion, uiFiles: uiFiles(assets), fork: "https://github.com/mosnin/opencode", upstream: "https://github.com/anomalyco/opencode", upstreamRevision: "826d9ad46a22bef0294998e08daa3c4904fea28f", revision, version, dirty, runtimeSha256: createHash("sha256").update(readFileSync(runtime)).digest("hex"), builtAt: new Date().toISOString(), source: "Actual fork packages/app and packages/opencode; no remote UI fallback" }, null, 2) + "\n");
 console.log(`Helm fork ${revision}${dirty ? " (uncommitted changes)" : ""} packaged at ${assets}`);

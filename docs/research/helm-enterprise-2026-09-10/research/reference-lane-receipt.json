@@ -1,0 +1,27 @@
+{
+  "lane": "reference-harnesses",
+  "producer": "/root/provider_readiness",
+  "status": "needs_review",
+  "kernel_check": "passed root and lane",
+  "primary_bodies": 35,
+  "queries": 12,
+  "discovery_batches": 3,
+  "source_execution": false,
+  "closed_product_architecture_inferred": false,
+  "finished_at": "2026-09-10T05:55:34.601378+00:00",
+  "report_sha256": "1c5b1a6872a8b56277375c762b379a079e7c1ba51e50a0b0020eefd80066cd4e",
+  "scope": "public reference harnesses and current official product distinctions; OpenWork overview/license only",
+  "artifact_integrity": {
+    "primary_sources_checked": 35,
+    "claim_locators_checked": 26,
+    "inert_code_extensions": true
+  },
+  "source_dependency_groups": [
+    "OpenAI docs + Codex source",
+    "Anthropic Code + Cowork docs",
+    "OpenCode engine",
+    "Orca orchestration",
+    "OpenWork overview with OpenCode dependency lineage"
+  ],
+  "budget_stop": "35 primary bodies acquired; remaining deeper paths explicitly scoped as unknown; no runtime execution"
+}

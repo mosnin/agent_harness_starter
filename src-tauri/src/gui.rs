@@ -22,6 +22,10 @@
 // GUI (feature-gated) — the real Tauri app. Not compiled in the default build.
 // ---------------------------------------------------------------------------
 
+#[path = "request_capacity.rs"]
+#[cfg_attr(not(feature = "gui"), allow(dead_code))]
+mod request_capacity;
+
 /// WebKit caches these defaults when its native text checker initializes.
 /// Set them before constructing Tauri/WKWebView. The volatile argument domain
 /// is in-memory and app-local: it changes neither macOS global preferences nor
@@ -79,7 +83,7 @@ struct SidecarState {
     stdin: std::sync::Mutex<Option<std::process::ChildStdin>>,
     child: std::sync::Mutex<Option<std::process::Child>>,
     pending: std::sync::Mutex<
-        std::collections::HashMap<String, std::sync::mpsc::Sender<serde_json::Value>>,
+        request_capacity::PendingRequests<std::sync::mpsc::Sender<serde_json::Value>>,
     >,
 }
 
@@ -119,7 +123,7 @@ fn send_sidecar(
 
 #[cfg(feature = "gui")]
 async fn request_sidecar(
-    cmd: serde_json::Value,
+    mut cmd: serde_json::Value,
     state: tauri::State<'_, SidecarState>,
 ) -> Result<serde_json::Value, String> {
     let id = cmd
@@ -127,28 +131,42 @@ async fn request_sidecar(
         .and_then(|v| v.as_str())
         .ok_or("Missing request id")?
         .to_string();
+    let method = cmd.get("method").and_then(|v| v.as_str()).unwrap_or("");
+    let operation = cmd.get("args").and_then(|args| args.get("operation")).and_then(|v| v.as_str());
     let (tx, rx) = std::sync::mpsc::channel();
-    {
+    let ticket = {
         let mut pending = state
             .pending
             .lock()
             .map_err(|_| "Request lock unavailable")?;
-        if pending.len() >= 256 {
-            return Err("Too many pending requests".into());
-        }
-        pending.insert(id.clone(), tx);
-    }
+        pending
+            .admit(id.clone(), method, operation, tx)
+            .map_err(|error| error.to_string())?
+    };
+    cmd["id"] = serde_json::Value::String(ticket.wire_id());
     let write_result = send_sidecar(cmd, state.clone());
     if let Err(error) = write_result {
-        state.pending.lock().ok().map(|mut p| p.remove(&id));
+        state
+            .pending
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .remove_if(&id, ticket);
         return Err(error);
     }
     let result = tauri::async_runtime::spawn_blocking(move || {
         rx.recv_timeout(std::time::Duration::from_secs(65))
     })
-    .await
-    .map_err(|e| e.to_string())?;
-    state.pending.lock().ok().map(|mut p| p.remove(&id));
+    .await;
+    // Always release capacity, including a blocking task join failure. A response
+    // may already have consumed this entry; never remove a newer reused ID.
+    state
+        .pending
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .remove_if(&id, ticket);
+    let result = result.map_err(|error| {
+        format!("The local backend response wait failed; outcome is unknown: {error}")
+    })?;
     result.map_err(|_| "The local backend did not respond".into())
 }
 
@@ -337,20 +355,29 @@ pub fn run() {
                         continue;
                     };
                     match serde_json::from_str::<serde_json::Value>(payload) {
-                        Ok(value) => {
+                        Ok(mut value) => {
                             if value.get("kind").and_then(|v| v.as_str())
                                 == Some("desktop.response")
                             {
                                 if let Some(id) = value.get("id").and_then(|v| v.as_str()) {
-                                    let state = handle.state::<SidecarState>();
-                                    let sender =
-                                        state.pending.lock().ok().and_then(|mut p| p.remove(id));
-                                    if let Some(sender) = sender {
-                                        let _ = sender.send(value);
+                                    if id.starts_with(request_capacity::WIRE_ID_PREFIX) {
+                                        let state = handle.state::<SidecarState>();
+                                        let waiter = state.pending.lock().ok()
+                                            .and_then(|mut pending| pending.remove_wire(id));
+                                        if let Some((caller_id, sender)) = waiter {
+                                            value["id"] = serde_json::Value::String(caller_id);
+                                            let _ = sender.send(value);
+                                        }
+                                        // Unknown/late native wire responses are discarded.
+                                        continue;
+                                    }
+                                    // Other native credential/configuration replies remain private.
+                                    if id.starts_with("native-") {
                                         continue;
                                     }
                                 }
-                                continue;
+                                // Plain hades_command responses retain their original IDs
+                                // and continue through the renderer event channel.
                             }
                             if let Err(err) = handle.emit(EVENT_NAME, value) {
                                 crate::log(&format!("gui: failed to emit {EVENT_NAME}: {err}"));

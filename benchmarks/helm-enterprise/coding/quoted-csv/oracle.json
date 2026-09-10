@@ -1,0 +1,39 @@
+[
+  {
+    "input": "a,\"b,c\",d\r\n1,\"two\nlines\",3\r\n",
+    "expected": [
+      [
+        "a",
+        "b,c",
+        "d"
+      ],
+      [
+        "1",
+        "two\nlines",
+        "3"
+      ]
+    ]
+  },
+  {
+    "input": "\"a\"\"b\",,\n",
+    "expected": [
+      [
+        "a\"b",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "input": "",
+    "expected": []
+  },
+  {
+    "input": "\"unfinished",
+    "throws": true
+  },
+  {
+    "input": "\"ok\"junk",
+    "throws": true
+  }
+]

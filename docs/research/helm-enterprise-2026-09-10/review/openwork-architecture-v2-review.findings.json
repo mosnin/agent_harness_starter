@@ -1,0 +1,1471 @@
+{
+  "schema": "openwork-pinned-architecture-review.v2",
+  "reviewed_report_sha256": "75e10b67586db712787b9a49d6749c49d4c19f34eb9559f0e312304650c5c505",
+  "reviewed_report_path": "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v2/integration-report.md",
+  "pin": "88b1eec4aa8bddd7a8abccbb39285c41bd1c7c36",
+  "reviewed_at": "2026-09-10T07:12:07.028192+00:00",
+  "disposition": "supported_with_explicit_gaps",
+  "structural_boundary": "No complete fces.semantic-review-dossier.v1, governed claim set or required-question IDs supplied. This is an independent report-bound extraction review, not kernel-admissible semantic findings and not host admission.",
+  "scope": "Fresh bounded review of the exact v2 report against the same 43 retained bodies. All bodies, receipt contents, Git blob/pinned-tree identities and 47 line/character spans rechecked; focused corrected high-risk source boundaries re-reviewed. Not exhaustive every-line, every-route or runtime review.",
+  "counts": {
+    "source_bodies": 43,
+    "source_body_bytes": 810247,
+    "evidence_spans": 47,
+    "review_units": 20,
+    "supported_units": 20,
+    "uncertain_units": 0,
+    "unsupported_units": 0,
+    "line_ranges_past_eof": 0
+  },
+  "review_units": [
+    {
+      "label": "Desktop \u2192 server \u2192 engine",
+      "evidence_ids": [
+        "OW01",
+        "OW02",
+        "OW03"
+      ],
+      "verdict": "supported",
+      "rationale": "The desktop imports and awaits startEmbeddedServer, while embedded startup binds HTTP first and conditionally launches a managed engine when configured without an external URL. Cleanup calls task-recovery checkpoint before engine disposal. This is a managed path, not proof every startup spawns an engine or of installed readiness."
+    },
+    {
+      "label": "Actual OpenCode dependency",
+      "evidence_ids": [
+        "OW44",
+        "OW45",
+        "OW05",
+        "OW06"
+      ],
+      "verdict": "supported",
+      "rationale": "Exact package build/dependency spans and launcher implementations establish actual source integration beyond metadata. V2 labels itself a prototype. No installed engine revision, resolved SDK lock or successful binary execution is established."
+    },
+    {
+      "label": "Engine generations",
+      "evidence_ids": [
+        "OW07",
+        "OW08",
+        "OW09"
+      ],
+      "verdict": "supported",
+      "rationale": "The captured pool coalesces rollovers behind a drain, probes standby health before promotion and retains primary on that probe failure. It can still promote after prepareStandby fails and can abort inactive draining sessions. This is source branch behavior, not a proof of provider-ready promotion or lossless rollover."
+    },
+    {
+      "label": "Persistence",
+      "evidence_ids": [
+        "OW10",
+        "OW11",
+        "OW12"
+      ],
+      "verdict": "supported",
+      "rationale": "The retained implementations open Bun/Node SQLite, upsert workspace JSON and serialize registry mutation through a process-local queue with private temporary files plus rename. The report correctly does not infer distributed ownership/fencing from those mechanisms."
+    },
+    {
+      "label": "Local interrupted-task recovery",
+      "evidence_ids": [
+        "OW13",
+        "OW14"
+      ],
+      "verdict": "supported",
+      "rationale": "The full recovery module only reloads running records, checks matching local workspace/current user turn and blocked/delegated state, caps recovered work at two, persists claimed state before send, and skips that claimed record on restart. It is single-server coordination, not a cross-process exactly-once effect ledger; the report preserves that limit."
+    },
+    {
+      "label": "Server access and permissions",
+      "evidence_ids": [
+        "OW15",
+        "OW16",
+        "OW17"
+      ],
+      "verdict": "supported",
+      "rationale": "The corrected report identifies viewer read-only/no approval restrictions and explicitly permits collaborator permission replies, while keeping host routes distinct. Effective-permissions summarizes rules; complete route/actor enforcement remains unverified."
+    },
+    {
+      "label": "Managed tool checks",
+      "evidence_ids": [
+        "OW18",
+        "OW19"
+      ],
+      "verdict": "supported",
+      "rationale": "The captured plugin registers pre-tool and model hooks; the shared client maps named actions and syncs unknown/read-only tools, refusing missing policy URL/token and applying a 15-second request timeout. The policy evaluator and complete adapter/plugin installation coverage remain unverified; this does not prove every tool in both generations reaches an enforcing policy decision."
+    },
+    {
+      "label": "Skills and MCP",
+      "evidence_ids": [
+        "OW20",
+        "OW21",
+        "OW22"
+      ],
+      "verdict": "supported",
+      "rationale": "The full source parses project/global skill metadata, validates names, and shows selected skill mutation routes with write/scope/approval/audit/reload steps. MCP add/remove/enable uses runtime configuration storage. Approval requests do not imply an interactive human prompt in every configured mode."
+    },
+    {
+      "label": "Remembered thread approval",
+      "evidence_ids": [
+        "OW23",
+        "OW24"
+      ],
+      "verdict": "supported",
+      "rationale": "Stored grants are scoped by workspace/session and can replay an always response for a matching engine ask. The report proposes, rather than claims, revocation and unrelated-child protection. Full policy/identity revocation enforcement remains outside these grant functions."
+    },
+    {
+      "label": "Native remote control",
+      "evidence_ids": [
+        "OW25",
+        "OW26",
+        "OW27"
+      ],
+      "verdict": "supported",
+      "rationale": "The desktop HTTP bridge binds random loopback, exempts health from bearer checks, and wires HTTP disconnect to browser/WebMCP cancellation. The mailbox is in-memory, expires after five seconds and tracks delivery. Neither cancellation nor expiry proves reversal of delivered effects; private discovery file protections beyond the shown write are unverified."
+    },
+    {
+      "label": "Browser operations",
+      "evidence_ids": [
+        "OW28",
+        "OW29"
+      ],
+      "verdict": "supported",
+      "rationale": "The captured act path checks supplied conversation/tab ownership, visibility, observation identity, approval, navigation/revision and coordinate-image digest; it consumes the observation and returns unverified/nonretryable after input. Password/OTP restrictions are selective. Caller session authority, injected callbacks, frame/canvas handling and complete secret filtering are not proved by this helper."
+    },
+    {
+      "label": "WebMCP frame rights",
+      "evidence_ids": [
+        "OW30",
+        "OW31",
+        "OW47"
+      ],
+      "verdict": "supported",
+      "rationale": "The corrected report distinguishes initial/policy/delegation denial from allowed:true/originKeyed:false when isolated policy is absent or non-origin-keyed. It explicitly leaves the consuming caller unacquired and does not claim universal final stale-frame denial."
+    },
+    {
+      "label": "Automation contracts",
+      "evidence_ids": [
+        "OW32",
+        "OW33"
+      ],
+      "verdict": "supported",
+      "rationale": "The schema declares idempotent/durable capabilities and the validator checks receipt identity, contiguous sequence and duplicate event keys. The report correctly labels these as contracts rather than evidence every concrete adapter fulfills them."
+    },
+    {
+      "label": "EE cloud execution",
+      "evidence_ids": [
+        "OW34",
+        "OW35",
+        "OW46"
+      ],
+      "verdict": "supported",
+      "rationale": "Source supports repeated authority checks, previous-worker mismatch refusal, an awaited injected admission callback before sendTurn, and abort/thread-idle observation branches. Callback persistence/transaction/fencing are now expressly unverified; thread settlement is not process-tree exit or deliverable acceptance."
+    },
+    {
+      "label": "EE authentication and entitlement",
+      "evidence_ids": [
+        "OW36",
+        "OW37",
+        "OW38"
+      ],
+      "verdict": "supported",
+      "rationale": "The captured auth path checks verified token scope/use/resource, grant-or-session liveness and organization membership; liveness errors receive distinct failures. Entitlement gating can be disabled. Grant checks delegate to cache.auth.grant, and cache freshness/invalidation plus all protected route callers remain unverified; plan flags are not license rights."
+    },
+    {
+      "label": "Packaging",
+      "evidence_ids": [
+        "OW39"
+      ],
+      "verdict": "supported",
+      "rationale": "The builder configuration names server/UI/plugins/WASM/sidecars/native helper, hardened runtime and external pack/sign hooks. Base notarize:false is not sufficient evidence of the final signed/notarized release; no artifact was built or launched."
+    },
+    {
+      "label": "License map and reuse inventory",
+      "evidence_ids": [
+        "OW40"
+      ],
+      "verdict": "supported",
+      "rationale": "REUSE maps general content to MIT and ee to the EE identifier, subject to retained root/EE text, third-party obligations, historical versions and client-side MIT. The report accurately leaves subscription-defined Enterprise Features and exact component clearance unresolved."
+    },
+    {
+      "label": "Desktop single instance and process ownership",
+      "evidence_ids": [
+        "OW41"
+      ],
+      "verdict": "supported",
+      "rationale": "The main process requests Electron single-instance lock; registry/recovery queues are process-local. These sources do not establish a lifetime storage lock shared across desktop, CLI/server processes or hosts, and the report does not claim one."
+    },
+    {
+      "label": "Engine settlement versus deliverable acceptance",
+      "evidence_ids": [
+        "OW42"
+      ],
+      "verdict": "supported",
+      "rationale": "The success branch exports a transcript and uses final assistant text or a generic fallback, then emits succeeded. That source directly supports the report distinction between engine settlement and independent artifact/test acceptance."
+    },
+    {
+      "label": "Unexecuted recovery regression cases",
+      "evidence_ids": [
+        "OW43"
+      ],
+      "verdict": "supported",
+      "rationale": "The retained test definitions cover both generations, lost acknowledgement, manual stop, native recovery, concurrency, policy restoration and retargeted workspaces. Their source is evidence of intended cases only; no execution was performed here."
+    }
+  ],
+  "findings": [],
+  "evidence_reviews": [
+    {
+      "evidence_id": "OW01",
+      "label": "Desktop \u2192 server \u2192 engine",
+      "path": "apps/desktop/electron/runtime.mjs",
+      "source_sha256": "c05db81bde807df9e7d907c5e03a92e97e611cdc9de5cf897b2bc81e6db77fee",
+      "start": 66801,
+      "end": 68888,
+      "start_line": 1943,
+      "declared_end_line": 1983,
+      "actual_end_line": 1983,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW02",
+      "label": "Desktop \u2192 server \u2192 engine",
+      "path": "apps/server/src/embedded.ts",
+      "source_sha256": "41d0ce2e1609b4b93bff8de4992c668af99200c812b7a75e451aa41df656144d",
+      "start": 6444,
+      "end": 9574,
+      "start_line": 184,
+      "declared_end_line": 239,
+      "actual_end_line": 239,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW03",
+      "label": "Desktop \u2192 server \u2192 engine",
+      "path": "apps/server/src/embedded.ts",
+      "source_sha256": "41d0ce2e1609b4b93bff8de4992c668af99200c812b7a75e451aa41df656144d",
+      "start": 3850,
+      "end": 5270,
+      "start_line": 85,
+      "declared_end_line": 136,
+      "actual_end_line": 136,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW04",
+      "label": "Other package development dependencies; not the SDK/build locator",
+      "path": "apps/server/package.json",
+      "source_sha256": "f4bd5427549c8a92e257af4a3a7c1ee9b1d03a22ac52009790c189e027990217",
+      "start": 4236,
+      "end": 4346,
+      "start_line": 79,
+      "declared_end_line": 83,
+      "actual_end_line": 83,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "irrelevant",
+      "rationale": "Retained supplemental development-dependency span, now labeled as not the SDK/build locator. It is not used for the integration claim; OW44/OW45 now supply that evidence."
+    },
+    {
+      "evidence_id": "OW05",
+      "label": "Actual OpenCode dependency",
+      "path": "apps/server/src/managed-opencode.ts",
+      "source_sha256": "5fecc14b6db61e0f0a9a61e685b5f6fb3aa6a87ad16f0dde08c7814efe1277e9",
+      "start": 4611,
+      "end": 7067,
+      "start_line": 150,
+      "declared_end_line": 207,
+      "actual_end_line": 207,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW06",
+      "label": "Actual OpenCode dependency",
+      "path": "apps/server/src/managed-opencode-v2.ts",
+      "source_sha256": "d0bf078906ef2a895c5a21b12ed78261dc701e6f7f7c7d43fde1d9e50087c43c",
+      "start": 0,
+      "end": 1256,
+      "start_line": 1,
+      "declared_end_line": 40,
+      "actual_end_line": 40,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW07",
+      "label": "Engine generations",
+      "path": "apps/server/src/engine-pool.ts",
+      "source_sha256": "34580c9b1aba51f6b3026f6fdfd1b57e41601a33c159625d29876d1f900f1569",
+      "start": 24178,
+      "end": 26628,
+      "start_line": 630,
+      "declared_end_line": 680,
+      "actual_end_line": 680,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW08",
+      "label": "Engine generations",
+      "path": "apps/server/src/engine-pool.ts",
+      "source_sha256": "34580c9b1aba51f6b3026f6fdfd1b57e41601a33c159625d29876d1f900f1569",
+      "start": 27976,
+      "end": 29312,
+      "start_line": 725,
+      "declared_end_line": 755,
+      "actual_end_line": 755,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW09",
+      "label": "Engine generations",
+      "path": "apps/server/src/engine-pool.ts",
+      "source_sha256": "34580c9b1aba51f6b3026f6fdfd1b57e41601a33c159625d29876d1f900f1569",
+      "start": 32787,
+      "end": 34754,
+      "start_line": 850,
+      "declared_end_line": 890,
+      "actual_end_line": 890,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW10",
+      "label": "Persistence",
+      "path": "apps/server/src/runtime-db.ts",
+      "source_sha256": "919071436f0e05f42f317023e5880d7da5cad6725563328d921de5de2b0f4f50",
+      "start": 1095,
+      "end": 2264,
+      "start_line": 34,
+      "declared_end_line": 69,
+      "actual_end_line": 69,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW11",
+      "label": "Persistence",
+      "path": "apps/server/src/workspace-kv-store.ts",
+      "source_sha256": "245be667fd1d815062157faf1b1b7f2df3d7c455e6ebfe6ae338b77816d56d5e",
+      "start": 4384,
+      "end": 6760,
+      "start_line": 123,
+      "declared_end_line": 187,
+      "actual_end_line": 187,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW12",
+      "label": "Persistence",
+      "path": "apps/server/src/engine-registry.ts",
+      "source_sha256": "ea6a8172de293c797b5dc8caadcb23f53ee6b06017f19f8b7ee2b45a89bb204f",
+      "start": 4418,
+      "end": 5501,
+      "start_line": 120,
+      "declared_end_line": 143,
+      "actual_end_line": 143,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW13",
+      "label": "Local interrupted-task recovery",
+      "path": "apps/server/src/task-recovery.ts",
+      "source_sha256": "86f780a4b5c073b2780d42cfc63cbfb12098a1877cfc90b6265ade89a31429f7",
+      "start": 7972,
+      "end": 10727,
+      "start_line": 134,
+      "declared_end_line": 183,
+      "actual_end_line": 183,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW14",
+      "label": "Local interrupted-task recovery",
+      "path": "apps/server/src/task-recovery.ts",
+      "source_sha256": "86f780a4b5c073b2780d42cfc63cbfb12098a1877cfc90b6265ade89a31429f7",
+      "start": 1179,
+      "end": 2500,
+      "start_line": 23,
+      "declared_end_line": 51,
+      "actual_end_line": 51,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW15",
+      "label": "Server access and permissions",
+      "path": "apps/server/src/server.ts",
+      "source_sha256": "cc8ee5c9cffad83ff86faf8d92e650ce3d92038db784a5eabb7a6a0e11cbc2a6",
+      "start": 84296,
+      "end": 86112,
+      "start_line": 1953,
+      "declared_end_line": 1993,
+      "actual_end_line": 1993,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW16",
+      "label": "Server access and permissions",
+      "path": "apps/server/src/server.ts",
+      "source_sha256": "cc8ee5c9cffad83ff86faf8d92e650ce3d92038db784a5eabb7a6a0e11cbc2a6",
+      "start": 25791,
+      "end": 27062,
+      "start_line": 647,
+      "declared_end_line": 673,
+      "actual_end_line": 673,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The selected proxy scope helper expressly denies viewer mutation and permits collaborator permission replies, matching the corrected actor distinction."
+    },
+    {
+      "evidence_id": "OW17",
+      "label": "Server access and permissions",
+      "path": "apps/server/src/effective-permissions.ts",
+      "source_sha256": "56a3675acc59e2c696fe6bc2cf225825ede8080a153dc71340a227eabe9c99a4",
+      "start": 5321,
+      "end": 6919,
+      "start_line": 127,
+      "declared_end_line": 166,
+      "actual_end_line": 166,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW18",
+      "label": "Managed tool checks",
+      "path": "apps/server/src/opencode-plugins/managed-policy.ts",
+      "source_sha256": "5fa32fab27a7158736739caa151c2e16d17fe56c02fae633bf6d0d6e0a7ead0e",
+      "start": 0,
+      "end": 380,
+      "start_line": 1,
+      "declared_end_line": 7,
+      "actual_end_line": 7,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW19",
+      "label": "Managed tool checks",
+      "path": "apps/server/src/opencode-plugins/managed-policy-client.ts",
+      "source_sha256": "ab817fae4feefbe065941153eff05566d3657a668fd5b25bc7ff2fde69e7b066",
+      "start": 482,
+      "end": 2170,
+      "start_line": 8,
+      "declared_end_line": 35,
+      "actual_end_line": 35,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW20",
+      "label": "Skills and MCP",
+      "path": "apps/server/src/skills.ts",
+      "source_sha256": "cead4d09782cc6ff71327158ccead10603ab1e409d483a314a08044010d1e861",
+      "start": 3022,
+      "end": 5442,
+      "start_line": 114,
+      "declared_end_line": 188,
+      "actual_end_line": 188,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW21",
+      "label": "Skills and MCP",
+      "path": "apps/server/src/server.ts",
+      "source_sha256": "cc8ee5c9cffad83ff86faf8d92e650ce3d92038db784a5eabb7a6a0e11cbc2a6",
+      "start": 141319,
+      "end": 143625,
+      "start_line": 3341,
+      "declared_end_line": 3399,
+      "actual_end_line": 3399,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW22",
+      "label": "Skills and MCP",
+      "path": "apps/server/src/mcp.ts",
+      "source_sha256": "5dbc8c83985fc9133b4ab048064349d7ad62e2f13bf6b3cd2430d6ab509b132d",
+      "start": 24454,
+      "end": 26810,
+      "start_line": 662,
+      "declared_end_line": 714,
+      "actual_end_line": 714,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW23",
+      "label": "Remembered thread approval",
+      "path": "apps/server/src/thread-approvals.ts",
+      "source_sha256": "491c377ab12980fcf9203e23138215c76c21ade815dc5d9e5d3cb7f8aad4295d",
+      "start": 3246,
+      "end": 4574,
+      "start_line": 76,
+      "declared_end_line": 108,
+      "actual_end_line": 108,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW24",
+      "label": "Remembered thread approval",
+      "path": "apps/server/src/thread-approvals.ts",
+      "source_sha256": "491c377ab12980fcf9203e23138215c76c21ade815dc5d9e5d3cb7f8aad4295d",
+      "start": 8048,
+      "end": 10040,
+      "start_line": 203,
+      "declared_end_line": 243,
+      "actual_end_line": 243,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW25",
+      "label": "Native remote control",
+      "path": "apps/desktop/electron/ui-control-server.mjs",
+      "source_sha256": "ee9655c131c70065b22ef16042b1081e1dd6d1911152e48ac2fcb5248bc2e232",
+      "start": 4659,
+      "end": 8018,
+      "start_line": 126,
+      "declared_end_line": 190,
+      "actual_end_line": 190,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW26",
+      "label": "Native remote control",
+      "path": "apps/desktop/electron/ui-control-server.mjs",
+      "source_sha256": "ee9655c131c70065b22ef16042b1081e1dd6d1911152e48ac2fcb5248bc2e232",
+      "start": 8669,
+      "end": 9472,
+      "start_line": 205,
+      "declared_end_line": 217,
+      "actual_end_line": 217,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW27",
+      "label": "Native remote control",
+      "path": "apps/server/src/ui-control.ts",
+      "source_sha256": "c288391592106021dee220a3bbb7b546149bf878c4d07522df2dadda58a18029",
+      "start": 380,
+      "end": 1384,
+      "start_line": 15,
+      "declared_end_line": 45,
+      "actual_end_line": 45,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW28",
+      "label": "Browser operations",
+      "path": "apps/desktop/electron/browser-task.mjs",
+      "source_sha256": "e6b19718a3aff8d286d8ecfe9f62a806626c16a2c120ffe782c5b0e089a07b7a",
+      "start": 1168,
+      "end": 6089,
+      "start_line": 28,
+      "declared_end_line": 90,
+      "actual_end_line": 90,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW29",
+      "label": "Browser operations",
+      "path": "apps/desktop/electron/browser-task.mjs",
+      "source_sha256": "e6b19718a3aff8d286d8ecfe9f62a806626c16a2c120ffe782c5b0e089a07b7a",
+      "start": 24351,
+      "end": 30619,
+      "start_line": 350,
+      "declared_end_line": 405,
+      "actual_end_line": 405,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW30",
+      "label": "WebMCP frame rights",
+      "path": "apps/desktop/electron/webmcp-policy.mjs",
+      "source_sha256": "65bd026ae13398dad78746f2fd4207871af10b08d996ee3bd310757657eb19c9",
+      "start": 2380,
+      "end": 3959,
+      "start_line": 58,
+      "declared_end_line": 97,
+      "actual_end_line": 97,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW31",
+      "label": "WebMCP frame rights",
+      "path": "apps/desktop/electron/webmcp-policy.mjs",
+      "source_sha256": "65bd026ae13398dad78746f2fd4207871af10b08d996ee3bd310757657eb19c9",
+      "start": 4819,
+      "end": 7060,
+      "start_line": 124,
+      "declared_end_line": 180,
+      "actual_end_line": 180,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "Initial detached-frame and delegation denial checks support the corrected limited statement. OW47 separately locates the allowed non-origin-keyed fallback; consumer behavior remains unacquired."
+    },
+    {
+      "evidence_id": "OW32",
+      "label": "Automation contracts",
+      "path": "packages/automations/src/engine.ts",
+      "source_sha256": "331f002075a5b5582b7252f63e541582ec81bc9d5c42198fdeada57c98af11cb",
+      "start": 826,
+      "end": 1669,
+      "start_line": 33,
+      "declared_end_line": 55,
+      "actual_end_line": 55,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW33",
+      "label": "Automation contracts",
+      "path": "packages/automations/src/engine.ts",
+      "source_sha256": "331f002075a5b5582b7252f63e541582ec81bc9d5c42198fdeada57c98af11cb",
+      "start": 6300,
+      "end": 8213,
+      "start_line": 188,
+      "declared_end_line": 239,
+      "actual_end_line": 239,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW34",
+      "label": "EE cloud execution",
+      "path": "ee/apps/den-api/src/automations/cloud-agent-executor.ts",
+      "source_sha256": "97099a7a6203fbb86c9bca7cddd858aad15b9b7b68e218d908882fc20bc222a7",
+      "start": 20409,
+      "end": 24876,
+      "start_line": 525,
+      "declared_end_line": 615,
+      "actual_end_line": 615,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The executor rechecks authority, awaits an injected admission callback before sendTurn and refuses mismatched recovered worker identity. The corrected report leaves callback durability and fencing unverified."
+    },
+    {
+      "evidence_id": "OW35",
+      "label": "EE cloud execution",
+      "path": "ee/apps/den-api/src/automations/cloud-agent-executor.ts",
+      "source_sha256": "97099a7a6203fbb86c9bca7cddd858aad15b9b7b68e218d908882fc20bc222a7",
+      "start": 25329,
+      "end": 26317,
+      "start_line": 626,
+      "declared_end_line": 647,
+      "actual_end_line": 647,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW36",
+      "label": "EE authentication and entitlement",
+      "path": "ee/apps/den-api/src/mcp/auth.ts",
+      "source_sha256": "8a3a7e41867e2d9e8066eb8208269545a0ce49e98c53aa6945e4f51414d0616a",
+      "start": 13107,
+      "end": 17075,
+      "start_line": 365,
+      "declared_end_line": 469,
+      "actual_end_line": 469,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW37",
+      "label": "EE authentication and entitlement",
+      "path": "ee/apps/den-api/src/mcp/grant-liveness.ts",
+      "source_sha256": "58ecb6abd267350cf680b7216471ff1bf481e6d979f9bc2338450da70200ad82",
+      "start": 1131,
+      "end": 1636,
+      "start_line": 37,
+      "declared_end_line": 51,
+      "actual_end_line": 51,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW38",
+      "label": "EE authentication and entitlement",
+      "path": "ee/apps/den-api/src/entitlements.ts",
+      "source_sha256": "175354dbb8dfb9a8233781b4ebe1b7a0781f3748ce94c8f096bd2d2114442e59",
+      "start": 2281,
+      "end": 3254,
+      "start_line": 79,
+      "declared_end_line": 111,
+      "actual_end_line": 111,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW39",
+      "label": "Packaging",
+      "path": "apps/desktop/electron-builder.base.yml",
+      "source_sha256": "27cf9ef794ea5519e86971d1d48c92ce2c57f92204beacf0d703ccc207bfc1fc",
+      "start": 67,
+      "end": 1656,
+      "start_line": 5,
+      "declared_end_line": 63,
+      "actual_end_line": 63,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW40",
+      "label": "license map",
+      "path": "REUSE.toml",
+      "source_sha256": "250e0a98fa4586432af6430a3e4edd97277230b14a0267d11597f5fd5d95ebf3",
+      "start": 0,
+      "end": 665,
+      "start_line": 1,
+      "declared_end_line": 18,
+      "actual_end_line": 18,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW41",
+      "label": "desktop single instance",
+      "path": "apps/desktop/electron/main.mjs",
+      "source_sha256": "702fdb30921f1a9f39b16d9d1385cff17397fdac680009bbf245ca10756540ab",
+      "start": 105223,
+      "end": 105684,
+      "start_line": 2799,
+      "declared_end_line": 2810,
+      "actual_end_line": 2810,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW42",
+      "label": "engine settlement versus deliverable acceptance",
+      "path": "ee/apps/den-api/src/automations/cloud-agent-executor.ts",
+      "source_sha256": "97099a7a6203fbb86c9bca7cddd858aad15b9b7b68e218d908882fc20bc222a7",
+      "start": 26324,
+      "end": 26984,
+      "start_line": 650,
+      "declared_end_line": 663,
+      "actual_end_line": 663,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW43",
+      "label": "unexecuted recovery regression cases",
+      "path": "apps/server/src/task-recovery.test.ts",
+      "source_sha256": "97967c57593bed84580d152f73ac42e4e7acb11206e28b4504fcfc249b83f9c8",
+      "start": 6886,
+      "end": 12302,
+      "start_line": 119,
+      "declared_end_line": 236,
+      "actual_end_line": 236,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The retained context supports the bounded source observation attached to this evidence label."
+    },
+    {
+      "evidence_id": "OW44",
+      "label": "Managed-policy plugin build declaration",
+      "path": "apps/server/package.json",
+      "source_sha256": "f4bd5427549c8a92e257af4a3a7c1ee9b1d03a22ac52009790c189e027990217",
+      "start": 750,
+      "end": 1571,
+      "start_line": 15,
+      "declared_end_line": 15,
+      "actual_end_line": 15,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "Exact package build declaration names compilation of managed-policy and other engine plugins. This is a source build declaration, not a completed build."
+    },
+    {
+      "evidence_id": "OW45",
+      "label": "Actual @opencode-ai/sdk dependency",
+      "path": "apps/server/package.json",
+      "source_sha256": "f4bd5427549c8a92e257af4a3a7c1ee9b1d03a22ac52009790c189e027990217",
+      "start": 3524,
+      "end": 3560,
+      "start_line": 56,
+      "declared_end_line": 56,
+      "actual_end_line": 56,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "Exact package dependency is @opencode-ai/sdk ^1.18.15. This is a declared range, not a resolved installed SDK revision."
+    },
+    {
+      "evidence_id": "OW46",
+      "label": "Injected onAdmitted callback; implementation durability not captured",
+      "path": "ee/apps/den-api/src/automations/cloud-agent-executor.ts",
+      "source_sha256": "97099a7a6203fbb86c9bca7cddd858aad15b9b7b68e218d908882fc20bc222a7",
+      "start": 3219,
+      "end": 3510,
+      "start_line": 77,
+      "declared_end_line": 84,
+      "actual_end_line": 84,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "CloudAgentExecutorInput declares an injected Promise<void> onAdmitted callback. Its type and use in OW34 establish an awaited ordering boundary; no caller implementation establishes persistence."
+    },
+    {
+      "evidence_id": "OW47",
+      "label": "allowed true versus originKeyed false fallback, not universal denial",
+      "path": "apps/desktop/electron/webmcp-policy.mjs",
+      "source_sha256": "65bd026ae13398dad78746f2fd4207871af10b08d996ee3bd310757657eb19c9",
+      "start": 6840,
+      "end": 7377,
+      "start_line": 177,
+      "declared_end_line": 185,
+      "actual_end_line": 185,
+      "quote_and_hash_match": true,
+      "line_range_within_body": true,
+      "relation": "supports",
+      "rationale": "The helper returns allowed:true/originKeyed:false after opt-out or absent/non-origin-keyed isolated policy. This supports the explicit distinction from denial, not a runtime exploit or consumer guarantee."
+    }
+  ],
+  "source_checks": [
+    {
+      "path": "apps/server/package.json",
+      "sha256": "f4bd5427549c8a92e257af4a3a7c1ee9b1d03a22ac52009790c189e027990217",
+      "git_blob_sha": "53819fc1115f521861ca671cfb2d6b83f0292978",
+      "bytes": 4346,
+      "receipt_sha256": "8c54fd955bcbc6e9341f67565f6e16ae038a1d20f999fdd4790f85ef683eb01d",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/embedded.ts",
+      "sha256": "41d0ce2e1609b4b93bff8de4992c668af99200c812b7a75e451aa41df656144d",
+      "git_blob_sha": "ec83273ef787cd5b11188e4ddc22902ad63b15ca",
+      "bytes": 12931,
+      "receipt_sha256": "acb702a584e722e46bdf3a96008082b49425578a02f5f8454bc98642d53eb8de",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/engine-pool.ts",
+      "sha256": "34580c9b1aba51f6b3026f6fdfd1b57e41601a33c159625d29876d1f900f1569",
+      "git_blob_sha": "880f20b0d236278f35c39754e1a5276794a3e1e5",
+      "bytes": 53304,
+      "receipt_sha256": "b050f3f3100e4a9479b7e92fe8b49706b78996563eac24175ffd2b10aa032664",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/engine-registry.ts",
+      "sha256": "ea6a8172de293c797b5dc8caadcb23f53ee6b06017f19f8b7ee2b45a89bb204f",
+      "git_blob_sha": "fdae857e46d4a56059e0c3f8afc2c8dc48e0ccea",
+      "bytes": 12183,
+      "receipt_sha256": "276f86267f2d27329d206ddc950069bb3d7a58b4c4b23ee3de992c7c8c3107a8",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/task-recovery.ts",
+      "sha256": "86f780a4b5c073b2780d42cfc63cbfb12098a1877cfc90b6265ade89a31429f7",
+      "git_blob_sha": "0f42b4dbdfe320138622df740e63cc2fc8c7f842",
+      "bytes": 15814,
+      "receipt_sha256": "7048050a837c0af0dd5f1fbc50bdeac1e44d056d86465a91af1eb858466cee23",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/runtime-db.ts",
+      "sha256": "919071436f0e05f42f317023e5880d7da5cad6725563328d921de5de2b0f4f50",
+      "git_blob_sha": "88581a22ccdf054fea52bf667ef5c29e0afc33e8",
+      "bytes": 2264,
+      "receipt_sha256": "d5f74cf8502922764b8ec3d560ed206ee8799382c171d5f4e81945c9861da59a",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "REUSE.toml",
+      "sha256": "250e0a98fa4586432af6430a3e4edd97277230b14a0267d11597f5fd5d95ebf3",
+      "git_blob_sha": "6907a6f8e4dcd5463fc0b7fc176698788205e1f6",
+      "bytes": 665,
+      "receipt_sha256": "9a15a7035d62e3ce97fb61932423cc77d5f677c8dce005ef74a07a31f8cafea3",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/desktop/package.json",
+      "sha256": "225274257e2e5262df1c5f7de598408808110165af4e1976113fb3c2e4c33e90",
+      "git_blob_sha": "b11c34d34a3d6615edc75be91be600d65819d71d",
+      "bytes": 4292,
+      "receipt_sha256": "5bb3ccf3d644b39bef747f9523efb760241eb6e28f9832d5c04ea01809c69e30",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/server.ts",
+      "sha256": "cc8ee5c9cffad83ff86faf8d92e650ce3d92038db784a5eabb7a6a0e11cbc2a6",
+      "git_blob_sha": "b33950fbebbb1ae1e1a105a0c02a1ea7e39be776",
+      "bytes": 244575,
+      "receipt_sha256": "07c29df51c646fbe4dd01cf6f080a09b17edac15a467bf8584ce2b48649e48eb",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/managed-opencode.ts",
+      "sha256": "5fecc14b6db61e0f0a9a61e685b5f6fb3aa6a87ad16f0dde08c7814efe1277e9",
+      "git_blob_sha": "2e6ea391761e7b816d7b81d22742a50ea137ccb3",
+      "bytes": 10101,
+      "receipt_sha256": "9d6dbb59b74fcc8ab4647ffd0da1ed995ea8cabfc2dcb3021cbe2a2b15aca7ad",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/effective-permissions.ts",
+      "sha256": "56a3675acc59e2c696fe6bc2cf225825ede8080a153dc71340a227eabe9c99a4",
+      "git_blob_sha": "90fee52199612a61986e1bc926daf9c6558fb1e0",
+      "bytes": 6923,
+      "receipt_sha256": "bd2b6cc99b8a5b81c3ef3e866496a41528cb2fb6431d8aeb454a57e2c493414c",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/thread-approvals.ts",
+      "sha256": "491c377ab12980fcf9203e23138215c76c21ade815dc5d9e5d3cb7f8aad4295d",
+      "git_blob_sha": "22e1d66617623419b65d76904215aad3418fab0c",
+      "bytes": 12641,
+      "receipt_sha256": "06a058b0cdea64dfcf2fcf7032083ec85e58b1ce4acbe5dcb496b380c9032c2d",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/tokens.ts",
+      "sha256": "812520f9a2e25232fe5d292046065ef1537e21d312060dc42ef0df82a0ea651c",
+      "git_blob_sha": "1ae5d62745f163ad353e21de264f2c49fc817743",
+      "bytes": 4899,
+      "receipt_sha256": "90a124460bd639e32127fdd4de0d92d8a0b9c50e67d5142727df10a7277d88f0",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/routes/ui-control.ts",
+      "sha256": "0230d963fdb5e004bef65736d2341fbee26fe55a7c5f00ecbbaf7762f10d431a",
+      "git_blob_sha": "e2b1c028d2748b2b5a42dab737964747dfe52e5a",
+      "bytes": 2030,
+      "receipt_sha256": "f322d7d740d60b1896f8dccf67688ba88d9da9922e47e2b6399666c1a55344c4",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/skills.ts",
+      "sha256": "cead4d09782cc6ff71327158ccead10603ab1e409d483a314a08044010d1e861",
+      "git_blob_sha": "8ce51530b8071833510fb4545c75d3d637b78fb5",
+      "bytes": 9653,
+      "receipt_sha256": "5da2c2d74c36916755a500b9c39e5e8e54b1f190334bf1b5ebd3e67a727531d0",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/mcp.ts",
+      "sha256": "5dbc8c83985fc9133b4ab048064349d7ad62e2f13bf6b3cd2430d6ab509b132d",
+      "git_blob_sha": "60e2c976e57445645b00aa47d11d3fc500839927",
+      "bytes": 26814,
+      "receipt_sha256": "0134ab9d5180446519825ad024ed0a50e39f0f7e4f8c71350fdfbb8ec33d1a58",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/desktop/electron/runtime.mjs",
+      "sha256": "c05db81bde807df9e7d907c5e03a92e97e611cdc9de5cf897b2bc81e6db77fee",
+      "git_blob_sha": "cb209704f47ce5644e123a783146bbc0b25136dd",
+      "bytes": 82340,
+      "receipt_sha256": "b291948fd64326c358ea86cb376a9e4dc00333d8751bdd1da4f7bd406544bf1e",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/desktop/electron/browser-task.mjs",
+      "sha256": "e6b19718a3aff8d286d8ecfe9f62a806626c16a2c120ffe782c5b0e089a07b7a",
+      "git_blob_sha": "e8e20cb56f3b1f212d80b23bb8ef393e35833236",
+      "bytes": 31024,
+      "receipt_sha256": "0d078549c68352f1e2b4ccfc0f994bf6791689747d9872415c0124db441d8456",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/desktop/electron/webmcp-policy.mjs",
+      "sha256": "65bd026ae13398dad78746f2fd4207871af10b08d996ee3bd310757657eb19c9",
+      "git_blob_sha": "0e959c8112761aaa0321c8599d9e58f3b286aa3d",
+      "bytes": 7418,
+      "receipt_sha256": "3282a1d2ab4a171ec01b8341a8036a15a1007cbf20ccb781cff3d3875f4095f5",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/desktop/electron/remote-workspace.mjs",
+      "sha256": "a2b149d1cbe61bde540c4f12ef8e3bdd0ad1210559ab56aa8249969f6e4cb8b3",
+      "git_blob_sha": "bd2e873878d97e8acf406dc5f60957368e8de122",
+      "bytes": 1288,
+      "receipt_sha256": "af58dab1415c2463e5a86c5fee451423323f9245383e3204bb9f428bf22dadd1",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "packages/automations/src/engine.ts",
+      "sha256": "331f002075a5b5582b7252f63e541582ec81bc9d5c42198fdeada57c98af11cb",
+      "git_blob_sha": "61971f183d64c437d62d80b0e81d610ca06e5889",
+      "bytes": 8215,
+      "receipt_sha256": "d5e7ace6cc05d148bf539deb96bbe647c84ebad95034eb473ffc1f71af1d30e4",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "packages/automations/src/runner.ts",
+      "sha256": "bf2ad0e2b8f43e692d99d71a1cc7d32f5585a83697620472ce5e31cfef288256",
+      "git_blob_sha": "9f322d588d5ea7fe551e9f9edee06c9bc28a32ca",
+      "bytes": 2317,
+      "receipt_sha256": "448ccf19ae8408e86e590d31d562434a7a295e44b56b01907187cd22bf4d7c60",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "ee/apps/den-api/src/mcp/policy.ts",
+      "sha256": "6c9f572b701a4ba837aaa445f124565279f09ddae02431339737e172def5c8b4",
+      "git_blob_sha": "02157fa2c1a7562d486368fd40adf3a71801525e",
+      "bytes": 1960,
+      "receipt_sha256": "beaa68d44ec5bde47bfefb4b73e1e883f76973a7668200b9ff94f23a73925392",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "ee/apps/den-api/src/automations/authority.ts",
+      "sha256": "2ca883b8e408d3ca0749a3c11a00e4776fb73c55f54eeac03a891c2df190fd5f",
+      "git_blob_sha": "bfe79ca1d99640b30d74bcc03d29439219a407a5",
+      "bytes": 10149,
+      "receipt_sha256": "0a02132db41f182a1efc8a3b3886e7805017c61fd5678fb1d99116af88c2cdf8",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "ee/apps/den-api/src/entitlements.ts",
+      "sha256": "175354dbb8dfb9a8233781b4ebe1b7a0781f3748ce94c8f096bd2d2114442e59",
+      "git_blob_sha": "74370241dd736cba8a708bf5839fab881b65adec",
+      "bytes": 3256,
+      "receipt_sha256": "c60eedba7ad7a54d88e8e73e1d2393959a5a3bfca996bf734321d8e0a0cd1729",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/desktop/electron-builder.base.yml",
+      "sha256": "27cf9ef794ea5519e86971d1d48c92ce2c57f92204beacf0d703ccc207bfc1fc",
+      "git_blob_sha": "8eadd6eb3884fb7189591bc2b90b2f29b23aebdb",
+      "bytes": 2669,
+      "receipt_sha256": "d0468633b8a287639f0986cac455cb0b21b75e7212b43399cc834e5e9625ceb3",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/workspace-kv-store.ts",
+      "sha256": "245be667fd1d815062157faf1b1b7f2df3d7c455e6ebfe6ae338b77816d56d5e",
+      "git_blob_sha": "d5551037b5c50dcc13f606d18f3915fa5f62c7de",
+      "bytes": 9631,
+      "receipt_sha256": "a5e20bd862ad067a3a0dba7ec8ca979f7a2ceba785c36555f03a4eaf25923e55",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/opencode-plugins/managed-policy.ts",
+      "sha256": "5fa32fab27a7158736739caa151c2e16d17fe56c02fae633bf6d0d6e0a7ead0e",
+      "git_blob_sha": "f214326470d6375047f5af845782d579d521712a",
+      "bytes": 380,
+      "receipt_sha256": "96aa6694e3c25c7c81b8024e98470cc678f86f4c3f79bf09535edc660f8004b0",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/ui-control.ts",
+      "sha256": "c288391592106021dee220a3bbb7b546149bf878c4d07522df2dadda58a18029",
+      "git_blob_sha": "8f1bfdf4b397344ee891d615cbd967df86ebef6a",
+      "bytes": 2750,
+      "receipt_sha256": "c17b6a77be333598232fb53a31163cb91c90743f3199df89c72b021509cf2173",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/engine-directory-fence.ts",
+      "sha256": "1de5a71355a92a07944e315bea7379a3452849b0c32f9adf25295122a28c825a",
+      "git_blob_sha": "f7bcc4ad57d2c29b5df03a8a30c367cd48802994",
+      "bytes": 1285,
+      "receipt_sha256": "33194806e6ab08c899a492f6fd2c3ecaa3bcc86fffca6a0610b0f55cb2923186",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "packages/headless-threads/src/client.ts",
+      "sha256": "4313fa0f82c63049d2f4e7c678f7be0b9ec613eb152f0abbf5ed406e9f6896a3",
+      "git_blob_sha": "35438bdf7cd87ecafdf4beb1ffc5c69cbbb2f451",
+      "bytes": 13637,
+      "receipt_sha256": "bc37215cde960abbaa740fd9106c878b1b5bf61de0988531361bd417797de2e4",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "packages/automations/src/tick.ts",
+      "sha256": "a287e08f132974385dd25ddc020878600811559aca561b845721630aff42a959",
+      "git_blob_sha": "2f3229987a2c7562bf9b2e10b1b9afd8d167b564",
+      "bytes": 1030,
+      "receipt_sha256": "be53f9f6082b28f9021cec89838047a4f9c5eadecdb4312ba38983166819ca1c",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "ee/apps/den-api/src/mcp/auth.ts",
+      "sha256": "8a3a7e41867e2d9e8066eb8208269545a0ce49e98c53aa6945e4f51414d0616a",
+      "git_blob_sha": "a95add5ab7f97f348601842f3d6cb4660495d761",
+      "bytes": 17077,
+      "receipt_sha256": "d7c2782c858821c472438a8c9b402525199125100b1c65fc718f3436786f98fc",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "ee/apps/den-api/src/mcp/grant-liveness.ts",
+      "sha256": "58ecb6abd267350cf680b7216471ff1bf481e6d979f9bc2338450da70200ad82",
+      "git_blob_sha": "63d60b405e4bf3f2c51925f9dc38b5702fbd76e1",
+      "bytes": 1638,
+      "receipt_sha256": "7f7006b1b15ee004eede310564269fe3ac4ed2cb112a00300bfebd2b3ceb988d",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "ee/apps/den-api/src/automations/scheduler-loop.ts",
+      "sha256": "2fefe04d110b29ad332386898e9827d46c2e2845ac72ceb965ca0171facf506d",
+      "git_blob_sha": "d46cf90f79f7ecc905f032bf142585e3bfac6a4f",
+      "bytes": 1802,
+      "receipt_sha256": "35598662554689e6565c49a8c22f107b638425d7aa1bad766df510a1b8edec43",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "ee/apps/den-api/src/automations/cloud-agent-executor.ts",
+      "sha256": "97099a7a6203fbb86c9bca7cddd858aad15b9b7b68e218d908882fc20bc222a7",
+      "git_blob_sha": "285887e5d994b37e1c7e334dbe4550d83bf28077",
+      "bytes": 28566,
+      "receipt_sha256": "86184eccee4ab474e9602681e9282bd8f02b6ad1380aa9a04863a54ff10ad5af",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/desktop/electron/ui-control-server.mjs",
+      "sha256": "ee9655c131c70065b22ef16042b1081e1dd6d1911152e48ac2fcb5248bc2e232",
+      "git_blob_sha": "dd8123bde8b3aa09f14f6217b0ac7db9a82586c7",
+      "bytes": 9844,
+      "receipt_sha256": "31e33b2613d2369c666434c8f6d6ca6bdac1244b40de0afba4b2b973dad69bab",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/managed-opencode-v2.ts",
+      "sha256": "d0bf078906ef2a895c5a21b12ed78261dc701e6f7f7c7d43fde1d9e50087c43c",
+      "git_blob_sha": "3f4a7f5bd5d64a8ca8f126bb99bcc5a4f44d1e47",
+      "bytes": 12330,
+      "receipt_sha256": "ceea2ea80a852d45975080ee6a23c0e2a3b735c8a64ab397ac3bf35e3819bccb",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/opencode-plugins/managed-policy-client.ts",
+      "sha256": "ab817fae4feefbe065941153eff05566d3657a668fd5b25bc7ff2fde69e7b066",
+      "git_blob_sha": "aaf8edae79eea6ccb0054df3d801c2da8c7f04b6",
+      "bytes": 2170,
+      "receipt_sha256": "ab96bebe22e0ae06bd26a119a5610b02fb4b604b9064163213a1effdd133b1ba",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/managed-policy-plugin.ts",
+      "sha256": "c80c6ca1d0f028410f27b248f2f5106442d192bb4ceac7837daeefe7bf6a56cb",
+      "git_blob_sha": "52e178bb39216d7e58c4b8daf30959fdc9dba4b4",
+      "bytes": 696,
+      "receipt_sha256": "745c9663c9ab20f74b91f7f112e6a8b26d3c648dd4e6cc675c290b15ade918ef",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/task-recovery.test.ts",
+      "sha256": "97967c57593bed84580d152f73ac42e4e7acb11206e28b4504fcfc249b83f9c8",
+      "git_blob_sha": "797b9c51a1d35c3b20d420eede0fba48f08feb4f",
+      "bytes": 12302,
+      "receipt_sha256": "9d206fee3a83042eb0985cbab2c32c49d06dcb793f9861e67ff2f60dad38937a",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/server/src/engine-instance-reaper.ts",
+      "sha256": "031b57d772e0c028f965437344a0c73cd64c2e12385d9b55d00aaa31476f2ad8",
+      "git_blob_sha": "481e13fcb446dc4db898904be4e1abca9bfcab82",
+      "bytes": 9190,
+      "receipt_sha256": "cf19c7903a4b5a493cb0d49246639cad27f5f16c3ccc11855f70dbfb823fa2b2",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    },
+    {
+      "path": "apps/desktop/electron/main.mjs",
+      "sha256": "702fdb30921f1a9f39b16d9d1385cff17397fdac680009bbf245ca10756540ab",
+      "git_blob_sha": "ed9871dd4b8a51e3116e9e545c29b60ed7703a9f",
+      "bytes": 111848,
+      "receipt_sha256": "7e2a8fe5cdcc0fe83b7194ded68851a3d3aaf9d22b6d0dce84c13aa24cd57924",
+      "body_hash_match": true,
+      "matches_pinned_tree": true,
+      "receipt_body_equal": true,
+      "observation_unchanged": true
+    }
+  ],
+  "discovery_review": {
+    "verdict": "limited",
+    "rationale": "No new discovery occurred. V2 corrects extraction wording and spans from the same targeted 43-file acquisition. Earlier neutral/challenge search and lineage limitations remain; narrowing claims resolves the stated report defects without filling the separately named coverage gaps."
+  },
+  "lineage_review": {
+    "verdict": "limited",
+    "rationale": "All 43 bodies and 47 spans remain one project at one development pin; inherited observation timestamps and source hashes are unchanged. Different files are complementary primary evidence, not independent replication. The v1 review was reused only as a baseline; revised claims and bindings were independently checked."
+  },
+  "limitations": [
+    "No new acquisition by this reviewer",
+    "No downloaded source, provider, native app or real runtime execution",
+    "No callback or self-admission",
+    "No component-level legal clearance",
+    "No overall Helm/Hades enterprise or matched-superiority acceptance"
+  ],
+  "reviewed_spans_sha256": "44e4b71d3e5863f451770ba4b60c0f82a548ffed4c891c26ddfb213a5204ffb1",
+  "prior_review": {
+    "report_sha256": "f418af7f63ca8c8af394b54c1a570ee0454b0419288b5347a013b288a1fcd251",
+    "findings_path": "docs/research/helm-enterprise-2026-09-10/review/openwork-architecture-v1-review.findings.json",
+    "findings_sha256": "ff40ce93dffe78e54cd85696ec82d1ba614b6604e652b9f02e3d030d7d81cc9f"
+  },
+  "correction_reviews": [
+    {
+      "finding_id": "OW-R01",
+      "verdict": "supported",
+      "status": "closed_for_corrected_report",
+      "evidence_ids": [
+        "OW15",
+        "OW16"
+      ],
+      "rationale": "The corrected report identifies viewer read-only/no approval restrictions and explicitly permits collaborator permission replies, while keeping host routes distinct. Effective-permissions summarizes rules; complete route/actor enforcement remains unverified."
+    },
+    {
+      "finding_id": "OW-R02",
+      "verdict": "supported",
+      "status": "closed_for_corrected_report",
+      "evidence_ids": [
+        "OW34",
+        "OW46"
+      ],
+      "rationale": "Source supports repeated authority checks, previous-worker mismatch refusal, an awaited injected admission callback before sendTurn, and abort/thread-idle observation branches. Callback persistence/transaction/fencing are now expressly unverified; thread settlement is not process-tree exit or deliverable acceptance."
+    },
+    {
+      "finding_id": "OW-R03",
+      "verdict": "supported",
+      "status": "closed_for_corrected_report",
+      "evidence_ids": [
+        "OW30",
+        "OW31",
+        "OW47"
+      ],
+      "rationale": "The corrected report distinguishes initial/policy/delegation denial from allowed:true/originKeyed:false when isolated policy is absent or non-origin-keyed. It explicitly leaves the consuming caller unacquired and does not claim universal final stale-frame denial."
+    },
+    {
+      "finding_id": "OW-R04",
+      "verdict": "supported",
+      "status": "closed_for_corrected_report",
+      "evidence_ids": [
+        "OW04",
+        "OW10",
+        "OW18",
+        "OW22",
+        "OW40",
+        "OW43",
+        "OW44",
+        "OW45"
+      ],
+      "rationale": "All six EOF ranges now match exact retained lines; OW44/OW45 point to build line 15 and SDK line 56, and the report links both. All 47 line/character/hash checks pass."
+    }
+  ],
+  "open_coverage": [
+    "No governed semantic dossier or required-question IDs; no host admission or callback",
+    "No current installed/deployed engine identity, provider/native/runtime execution or release acceptance",
+    "No production onAdmitted caller or receipt-store transaction/fencing implementation",
+    "No WebMCP consuming caller or isolated-preload implementation proving final execution-time frame enforcement",
+    "Incomplete policy evaluator, route/actor matrix, revocation-cache invalidation and full adapter/plugin coverage",
+    "No full remote provisioning/lifetime/cross-process ownership demonstration",
+    "No exact component/transitive license clearance or subscription-defined Enterprise Feature determination",
+    "No independent discovery/replication, exhaustive security audit or comparative superiority evidence"
+  ]
+}

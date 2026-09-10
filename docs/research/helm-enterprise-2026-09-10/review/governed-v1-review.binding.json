@@ -1,0 +1,738 @@
+{
+  "schema": "reference-governed-review-binding.v1",
+  "dossier_path": "docs/research/helm-enterprise-2026-09-10/research/governed-v1/semantic-review-dossier.json",
+  "dossier_sha256": "c7b24f6f277716c0ff01ae1718bbe91315c01334db154a451eda3701a0c06145",
+  "dossier_file_sha256": "5d64faead78bef4ae1d664014240b6e4033d2280defa4c0d0d888c74a8281e58",
+  "packet_sha256": "0b3f8871c40c1c259db6d6aa1876f77bd9866a24d1d32cbb0e1230b12b1a4cad",
+  "reviewed_at": "2026-09-10T06:45:13.307419+00:00",
+  "review_kind": "independent semantic source and question review; host admission not established by this artifact",
+  "findings_path": "docs/research/helm-enterprise-2026-09-10/review/governed-v1-review.findings.json",
+  "findings_sha256": "c00ccb35b3c86f10c3ca2fdd3f3fdcaf35424d153c8075a03610ca1b4599d663",
+  "report_path": "docs/research/helm-enterprise-2026-09-10/review/governed-v1-review.md",
+  "report_sha256": "e618db54395323d84b92c9195f014648765b2e95e1c78ce9890ef790196314a0",
+  "counts": {
+    "included_claims": 27,
+    "claim_reviews": 27,
+    "citations": 30,
+    "citation_assessments": 30,
+    "required_questions": 6,
+    "question_reviews": 6,
+    "embedded_representations": 41,
+    "supported_claims": 27,
+    "unsupported_claims": 0,
+    "uncertain_claims": 0,
+    "incomplete_questions": 6
+  },
+  "semantic_scope_note": "Supported findings apply to explicit retained-source/documentation limitations. True semantic temporal flags do not override formal current-policy ineligibility or assert current runtime availability.",
+  "current_policy_ineligible_claims": [
+    "C01",
+    "C02",
+    "C08",
+    "C09"
+  ],
+  "integrity_checks": {
+    "canonical_dossier_digest_matches": true,
+    "dossier_equals_prepare_result": true,
+    "packet_equals_final_archive": true,
+    "all_input_claims_included": true,
+    "governance_equals_build_input": true,
+    "git_body_blobs_verified": 25,
+    "recursive_git_tree_objects_recomputed": 2932,
+    "recursive_git_tree_mismatches": 0,
+    "discovery_returns_verified": 3,
+    "reported_search_queries": 12,
+    "candidate_entries": 74,
+    "new_acquisition": false,
+    "downloaded_source_execution": false,
+    "provider_or_native_runtime_execution": false
+  },
+  "source_checks": [
+    {
+      "source_id": "S01",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex--README.md",
+      "sha256": "ba4e1f69ff48386e72a9c5e1edaf76aad64a475c2d51af79ccba6d1128261ba7",
+      "bytes": 3334,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.474441+00:00"
+    },
+    {
+      "source_id": "S02",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex--LICENSE",
+      "sha256": "d17f227e4df5da1600391338865ce0f3055211760a36688f816941d58232d8dc",
+      "bytes": 10926,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.474734+00:00"
+    },
+    {
+      "source_id": "S03",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex--codex-rs__app-server__README.md",
+      "sha256": "90e04c8a4921ff67c00d8ae28cbee7ab84ba6bf778bd10ce2996028a97969b5e",
+      "bytes": 2878,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.474827+00:00"
+    },
+    {
+      "source_id": "S04",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex--codex-rs__core__src__agent__control__spawn.rs.source",
+      "sha256": "06e4de6a6d5c7bb1633bfd417ecaa5e3b5609af0cbbd3dc6048d76ef7c9dde99",
+      "bytes": 56235,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.474898+00:00"
+    },
+    {
+      "source_id": "S05",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex--codex-rs__core__src__agent__control__residency.rs.source",
+      "sha256": "019818bed8a57225d084e850fb2b471c2e4d4c21d263869c9ed49a2815fa8691",
+      "bytes": 7616,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.474956+00:00"
+    },
+    {
+      "source_id": "S06",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex--codex-rs__core__src__tools__handlers__multi_agents_v2__spawn.rs.source",
+      "sha256": "82f738243e40f075bdf2dc08613c5657e8ab5c6aa92aea0644c787a3ea65b317",
+      "bytes": 12145,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.475005+00:00"
+    },
+    {
+      "source_id": "S07",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex--codex-rs__core__src__agent__control__residency_tests.rs.source",
+      "sha256": "191bb03ad210357e98d69750ddea0a0fda07374745c2441ee11942208081c333",
+      "bytes": 8072,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.596557+00:00"
+    },
+    {
+      "source_id": "S08",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/anomalyco-opencode--README.md",
+      "sha256": "400890a3082e225c440561825270a911cd7df90a9f64f85166aed330201e50ba",
+      "bytes": 5402,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.625509+00:00"
+    },
+    {
+      "source_id": "S09",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/anomalyco-opencode--LICENSE",
+      "sha256": "625f0f619133f89bbbb2abe37369613dfa1885eba1e50d02170deb62bb42cb6b",
+      "bytes": 1065,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.641735+00:00"
+    },
+    {
+      "source_id": "S10",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/anomalyco-opencode--packages__opencode__src__tool__task.ts.source",
+      "sha256": "db09fa5868ad3ecfdd83aa2bb7243f85e9e2cd13d0b19fd6f307f7a337b2b36e",
+      "bytes": 14200,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.644702+00:00"
+    },
+    {
+      "source_id": "S11",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/anomalyco-opencode--packages__core__src__session__prompt.ts.source",
+      "sha256": "f617d889d032bd762f4c8f57f0839d81d320e223139c24c4838f7992cbe1679b",
+      "bytes": 93,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.671515+00:00"
+    },
+    {
+      "source_id": "S12",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/anomalyco-opencode--packages__opencode__src__server__server.ts.source",
+      "sha256": "ba4503a8da66a7e8cda86ea7ad7ea0e8e4172abcaa87abd8c35835ffa0a494f9",
+      "bytes": 8143,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.718345+00:00"
+    },
+    {
+      "source_id": "S13",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/stablyai-orca--README.md",
+      "sha256": "42bca737c3a5479e6a1dd1bdf1120fb08cf4aadd69db6bb5726a5f8b0d456d9e",
+      "bytes": 17030,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.737982+00:00"
+    },
+    {
+      "source_id": "S14",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/stablyai-orca--LICENSE",
+      "sha256": "ff1b611f80580d49f4b97e93a97b24eb050b0671b26b8afe16341fab699112f3",
+      "bytes": 1070,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.760497+00:00"
+    },
+    {
+      "source_id": "S15",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/stablyai-orca--skill-guides__orchestration.md",
+      "sha256": "8efc33a1270f89ce31cc48867154003f52c5923953141e35a87c550414b4eb76",
+      "bytes": 13246,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.761323+00:00"
+    },
+    {
+      "source_id": "S16",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/stablyai-orca--src__main__runtime__orchestration__db__worker-dispatch__worker-dispatch-start.ts.source",
+      "sha256": "ce3f031e6e3f6fc781060773c0cbf7dd926a7f2ac9695620c9014b4df1f6afe6",
+      "bytes": 7191,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.771723+00:00"
+    },
+    {
+      "source_id": "S17",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/stablyai-orca--src__main__runtime__orchestration__db-task-dispatch-races.test.ts.source",
+      "sha256": "dfae8c1b387945f9ee97c6ea6d5ad0c32bccc24d679672ad5ed12fb2f33562d6",
+      "bytes": 10480,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.803261+00:00"
+    },
+    {
+      "source_id": "S18",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/different-ai-openwork--README.md",
+      "sha256": "59f5c7dc3a03f9aa53be9f2d4b9f5e46fe3ccd38a1a8d9627c3c9f8f06d2fa47",
+      "bytes": 10777,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.899042+00:00"
+    },
+    {
+      "source_id": "S19",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/different-ai-openwork--LICENSE",
+      "sha256": "5e5b2649fd7f0dd83e21cc7b911e8d95af1e7456744c6e492bfc5c057858d45b",
+      "bytes": 1830,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.899990+00:00"
+    },
+    {
+      "source_id": "S20",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/different-ai-openwork--ee__LICENSE",
+      "sha256": "4186c8b752260a95f51ff386e62a16774dd8d32b99b420b0dddff1d199108f68",
+      "bytes": 3928,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.900909+00:00"
+    },
+    {
+      "source_id": "S21",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/claude-code-agent-teams.md",
+      "sha256": "f1eda9dccfdb487448e693fad701d0198d4690241650e3859624303e2a9f970e",
+      "bytes": 40971,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:20.951215+00:00"
+    },
+    {
+      "source_id": "S22",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/claude-code-sub-agents.md",
+      "sha256": "73532b0b6accc67223319be1b24adec1e3b41a9d96a580770694ce718437d2bc",
+      "bytes": 113078,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.002701+00:00"
+    },
+    {
+      "source_id": "S23",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/claude-code-agents.md",
+      "sha256": "9c04817ac2da54facb24635398c28bafe77c222dc6f23946284fbdf98cf09f74",
+      "bytes": 8816,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.037719+00:00"
+    },
+    {
+      "source_id": "S24",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/claude-code-scheduled-tasks.md",
+      "sha256": "d53b7df219de27767f0f1acd5040eafa2e154c5c9998b0e56e1a07295669f6e3",
+      "bytes": 17141,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.038022+00:00"
+    },
+    {
+      "source_id": "S25",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/claude-code-agent-loop.md",
+      "sha256": "a2b4426257b024dfdec36a164df4db3bb7dc9b9203d441aad19855496a9f797f",
+      "bytes": 49605,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.040378+00:00"
+    },
+    {
+      "source_id": "S26",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/claude-cowork-start.text.txt",
+      "sha256": "b6437bdc73274424df2f676ca8c6aac46304135d618a07f66982ee2332086a8d",
+      "bytes": 35104,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.046184+00:00"
+    },
+    {
+      "source_id": "S26raw",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/claude-cowork-start.html",
+      "sha256": "0711ae2ed9621711bd536f57715d8675b3e729897619a33aca6ed85e7509b23f",
+      "bytes": 421371,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.046184+00:00"
+    },
+    {
+      "source_id": "S27",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/claude-cowork-schedule.text.txt",
+      "sha256": "01c2b77334282f2e605f4edc7b62c149f29af93ce79859a541769ee464d51aee",
+      "bytes": 21235,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.142074+00:00"
+    },
+    {
+      "source_id": "S27raw",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/claude-cowork-schedule.html",
+      "sha256": "4254a6cc125b1db8632c065b7ce707af81c5fda1e290747627419cdea6c2c4a1",
+      "bytes": 349042,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.142074+00:00"
+    },
+    {
+      "source_id": "S28",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-chatgpt-work-codex.text.txt",
+      "sha256": "ebe2b885658166884da224e4a9da16f69d1241d980385b101627d82331b684ae",
+      "bytes": 14573,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.143679+00:00"
+    },
+    {
+      "source_id": "S28raw",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-chatgpt-work-codex.html",
+      "sha256": "b9c3fc0f5cfd50939bfceeb29bd6fe2df729b55459f7992b91c2c76c53e49588",
+      "bytes": 74649,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.143679+00:00"
+    },
+    {
+      "source_id": "S29",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-chatgpt-agent.text.txt",
+      "sha256": "ff7946ce8faa31c63a1ba799465ae0fe29f400baefe47ee8e1dca118d7ce0ed7",
+      "bytes": 11370,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.190429+00:00"
+    },
+    {
+      "source_id": "S29raw",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-chatgpt-agent.html",
+      "sha256": "9b0425a2dcd56c43f1de368696403a66b4b6f3c44def6d77c874f24ef1e83acd",
+      "bytes": 81611,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.190429+00:00"
+    },
+    {
+      "source_id": "S30",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex-overview.text.txt",
+      "sha256": "8a69e249c89e33d2ab08a07a6bd2eedbc90bd953510e811e935e37bffa8dd0a4",
+      "bytes": 12170,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.212987+00:00"
+    },
+    {
+      "source_id": "S30raw",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex-overview.html",
+      "sha256": "d53f0e84b76c3a7f0369ddfa587ca74dbb335f74197b5a9c8f8774de6bf12d6c",
+      "bytes": 334620,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:45:21.212987+00:00"
+    },
+    {
+      "source_id": "S31",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex--codex-rs__core__README.md",
+      "sha256": "90419618b596e4965d9326ff57d81a0a3a406dab586b52d114e6829cafc6da31",
+      "bytes": 4869,
+      "equals_original_retained_body": true,
+      "content_observed_at": null
+    },
+    {
+      "source_id": "S32",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex--codex-rs__app-server__src__lib.rs.source",
+      "sha256": "969de24fd00fd27798d11626cbfd3faa0585195bd40c7e6276ca4bfeba047c53",
+      "bytes": 63884,
+      "equals_original_retained_body": true,
+      "content_observed_at": null
+    },
+    {
+      "source_id": "S33",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/openai-codex--codex-rs__core__src__agent__control__user_authorization.rs.source",
+      "sha256": "f886fd6e020278efb0fae7170e11946d2003cfffc08c57c2db5c06e6e87de32e",
+      "bytes": 11100,
+      "equals_original_retained_body": true,
+      "content_observed_at": null
+    },
+    {
+      "source_id": "S34",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/anomalyco-opencode--packages__opencode__src__session__prompt.ts.source",
+      "sha256": "f0c5bc64c0f0e966693d4a57f7ede1e9d6e188b396152f04b55303dc75b9b768",
+      "bytes": 64944,
+      "equals_original_retained_body": true,
+      "content_observed_at": null
+    },
+    {
+      "source_id": "S35",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/anomalyco-opencode--packages__opencode__src__background__job.ts.source",
+      "sha256": "bc841906cab649aa6b787a2c517ca83412f2721056ad45745d5ab12a0a20f142",
+      "bytes": 1536,
+      "equals_original_retained_body": true,
+      "content_observed_at": null
+    },
+    {
+      "source_id": "S36",
+      "source_file": "docs/research/helm-enterprise-2026-09-10/research/reference-sources/different-ai-openwork-repo.json",
+      "sha256": "3d71be58535e39c50067114c8b63c93debc61922fe03dd5af2665d196a5b751e",
+      "bytes": 6424,
+      "equals_original_retained_body": true,
+      "content_observed_at": "2026-09-10T05:49:06.406935+00:00"
+    }
+  ],
+  "citation_checks": [
+    {
+      "claim_id": "C01",
+      "citation_index": 0,
+      "source_id": "S31",
+      "source_sha256": "90419618b596e4965d9326ff57d81a0a3a406dab586b52d114e6829cafc6da31",
+      "start": 14,
+      "end": 65,
+      "line_start": 3,
+      "line_end": 3,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C02",
+      "citation_index": 0,
+      "source_id": "S32",
+      "source_sha256": "969de24fd00fd27798d11626cbfd3faa0585195bd40c7e6276ca4bfeba047c53",
+      "start": 5823,
+      "end": 5885,
+      "line_start": 170,
+      "line_end": 170,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C03",
+      "citation_index": 0,
+      "source_id": "S04",
+      "source_sha256": "06e4de6a6d5c7bb1633bfd417ecaa5e3b5609af0cbbd3dc6048d76ef7c9dde99",
+      "start": 11765,
+      "end": 17766,
+      "line_start": 314,
+      "line_end": 436,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C04",
+      "citation_index": 0,
+      "source_id": "S05",
+      "source_sha256": "019818bed8a57225d084e850fb2b471c2e4d4c21d263869c9ed49a2815fa8691",
+      "start": 1146,
+      "end": 1623,
+      "line_start": 49,
+      "line_end": 62,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C04",
+      "citation_index": 1,
+      "source_id": "S05",
+      "source_sha256": "019818bed8a57225d084e850fb2b471c2e4d4c21d263869c9ed49a2815fa8691",
+      "start": 3807,
+      "end": 4799,
+      "line_start": 132,
+      "line_end": 157,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C05",
+      "citation_index": 0,
+      "source_id": "S07",
+      "source_sha256": "191bb03ad210357e98d69750ddea0a0fda07374745c2441ee11942208081c333",
+      "start": 764,
+      "end": 819,
+      "line_start": 23,
+      "line_end": 23,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C06",
+      "citation_index": 0,
+      "source_id": "S03",
+      "source_sha256": "90e04c8a4921ff67c00d8ae28cbee7ab84ba6bf778bd10ce2996028a97969b5e",
+      "start": 824,
+      "end": 859,
+      "line_start": 16,
+      "line_end": 16,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C07",
+      "citation_index": 0,
+      "source_id": "S10",
+      "source_sha256": "db09fa5868ad3ecfdd83aa2bb7243f85e9e2cd13d0b19fd6f307f7a337b2b36e",
+      "start": 4545,
+      "end": 4621,
+      "line_start": 100,
+      "line_end": 100,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C08",
+      "citation_index": 0,
+      "source_id": "S34",
+      "source_sha256": "f0c5bc64c0f0e966693d4a57f7ede1e9d6e188b396152f04b55303dc75b9b768",
+      "start": 47802,
+      "end": 48323,
+      "line_start": 1173,
+      "line_end": 1181,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C08",
+      "citation_index": 1,
+      "source_id": "S34",
+      "source_sha256": "f0c5bc64c0f0e966693d4a57f7ede1e9d6e188b396152f04b55303dc75b9b768",
+      "start": 51838,
+      "end": 52543,
+      "line_start": 1270,
+      "line_end": 1286,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C08",
+      "citation_index": 2,
+      "source_id": "S34",
+      "source_sha256": "f0c5bc64c0f0e966693d4a57f7ede1e9d6e188b396152f04b55303dc75b9b768",
+      "start": 54186,
+      "end": 54952,
+      "line_start": 1319,
+      "line_end": 1340,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C09",
+      "citation_index": 0,
+      "source_id": "S35",
+      "source_sha256": "bc841906cab649aa6b787a2c517ca83412f2721056ad45745d5ab12a0a20f142",
+      "start": 482,
+      "end": 514,
+      "line_start": 17,
+      "line_end": 17,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C10",
+      "citation_index": 0,
+      "source_id": "S15",
+      "source_sha256": "8efc33a1270f89ce31cc48867154003f52c5923953141e35a87c550414b4eb76",
+      "start": 1713,
+      "end": 1751,
+      "line_start": 34,
+      "line_end": 34,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C11",
+      "citation_index": 0,
+      "source_id": "S16",
+      "source_sha256": "ce3f031e6e3f6fc781060773c0cbf7dd926a7f2ac9695620c9014b4df1f6afe6",
+      "start": 1689,
+      "end": 1720,
+      "line_start": 46,
+      "line_end": 46,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C12",
+      "citation_index": 0,
+      "source_id": "S17",
+      "source_sha256": "dfae8c1b387945f9ee97c6ea6d5ad0c32bccc24d679672ad5ed12fb2f33562d6",
+      "start": 3840,
+      "end": 3902,
+      "line_start": 116,
+      "line_end": 116,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C13",
+      "citation_index": 0,
+      "source_id": "S22",
+      "source_sha256": "73532b0b6accc67223319be1b24adec1e3b41a9d96a580770694ce718437d2bc",
+      "start": 87225,
+      "end": 87261,
+      "line_start": 1008,
+      "line_end": 1008,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C14",
+      "citation_index": 0,
+      "source_id": "S22",
+      "source_sha256": "73532b0b6accc67223319be1b24adec1e3b41a9d96a580770694ce718437d2bc",
+      "start": 73845,
+      "end": 73885,
+      "line_start": 866,
+      "line_end": 866,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C15",
+      "citation_index": 0,
+      "source_id": "S21",
+      "source_sha256": "f1eda9dccfdb487448e693fad701d0198d4690241650e3859624303e2a9f970e",
+      "start": 38282,
+      "end": 38329,
+      "line_start": 469,
+      "line_end": 469,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C16",
+      "citation_index": 0,
+      "source_id": "S23",
+      "source_sha256": "9c04817ac2da54facb24635398c28bafe77c222dc6f23946284fbdf98cf09f74",
+      "start": 6742,
+      "end": 6790,
+      "line_start": 46,
+      "line_end": 46,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C17",
+      "citation_index": 0,
+      "source_id": "S24",
+      "source_sha256": "d53b7df219de27767f0f1acd5040eafa2e154c5c9998b0e56e1a07295669f6e3",
+      "start": 16008,
+      "end": 16036,
+      "line_start": 209,
+      "line_end": 209,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C18",
+      "citation_index": 0,
+      "source_id": "S26",
+      "source_sha256": "b6437bdc73274424df2f676ca8c6aac46304135d618a07f66982ee2332086a8d",
+      "start": 22625,
+      "end": 22671,
+      "line_start": 449,
+      "line_end": 449,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C19",
+      "citation_index": 0,
+      "source_id": "S27",
+      "source_sha256": "01c2b77334282f2e605f4edc7b62c149f29af93ce79859a541769ee464d51aee",
+      "start": 17830,
+      "end": 20113,
+      "line_start": 424,
+      "line_end": 450,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C20",
+      "citation_index": 0,
+      "source_id": "S28",
+      "source_sha256": "ebe2b885658166884da224e4a9da16f69d1241d980385b101627d82331b684ae",
+      "start": 1227,
+      "end": 1307,
+      "line_start": 11,
+      "line_end": 11,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C21",
+      "citation_index": 0,
+      "source_id": "S29",
+      "source_sha256": "ff7946ce8faa31c63a1ba799465ae0fe29f400baefe47ee8e1dca118d7ce0ed7",
+      "start": 268,
+      "end": 305,
+      "line_start": 10,
+      "line_end": 10,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C22",
+      "citation_index": 0,
+      "source_id": "S01",
+      "source_sha256": "ba4e1f69ff48386e72a9c5e1edaf76aad64a475c2d51af79ccba6d1128261ba7",
+      "start": 648,
+      "end": 657,
+      "line_start": 8,
+      "line_end": 8,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C23",
+      "citation_index": 0,
+      "source_id": "S18",
+      "source_sha256": "59f5c7dc3a03f9aa53be9f2d4b9f5e46fe3ccd38a1a8d9627c3c9f8f06d2fa47",
+      "start": 2282,
+      "end": 2315,
+      "line_start": 70,
+      "line_end": 70,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C24",
+      "citation_index": 0,
+      "source_id": "S19",
+      "source_sha256": "5e5b2649fd7f0dd83e21cc7b911e8d95af1e7456744c6e492bfc5c057858d45b",
+      "start": 630,
+      "end": 680,
+      "line_start": 13,
+      "line_end": 13,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C25",
+      "citation_index": 0,
+      "source_id": "S20",
+      "source_sha256": "4186c8b752260a95f51ff386e62a16774dd8d32b99b420b0dddff1d199108f68",
+      "start": 728,
+      "end": 761,
+      "line_start": 16,
+      "line_end": 16,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C26",
+      "citation_index": 0,
+      "source_id": "S25",
+      "source_sha256": "a2b4426257b024dfdec36a164df4db3bb7dc9b9203d441aad19855496a9f797f",
+      "start": 7592,
+      "end": 7659,
+      "line_start": 65,
+      "line_end": 65,
+      "quote_and_hash_match": true
+    },
+    {
+      "claim_id": "C27",
+      "citation_index": 0,
+      "source_id": "S36",
+      "source_sha256": "3d71be58535e39c50067114c8b63c93debc61922fe03dd5af2665d196a5b751e",
+      "start": 1219,
+      "end": 1238,
+      "line_start": 1,
+      "line_end": 1,
+      "quote_and_hash_match": true
+    }
+  ],
+  "preserved_original_artifacts": [
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/research/reference-harnesses.md",
+      "sha256": "1c5b1a6872a8b56277375c762b379a079e7c1ba51e50a0b0020eefd80066cd4e",
+      "unchanged": true
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/review/reference-review.md",
+      "sha256": "e60d079608e81e8f165917bd4a55f0734b3071d56d61290e9dbdcce45f5725dd",
+      "unchanged": true
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/review/reference-review.findings.json",
+      "sha256": "8841de091dc7864811ff95d5e7103e7418974a1012f08de2abc723a22ff55690",
+      "unchanged": true
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/review/reference-review.binding.json",
+      "sha256": "30c86de64b6a45e786810310c2441a565428ec11c526601f05dbc8344ac0098f",
+      "unchanged": true
+    }
+  ],
+  "frozen_code_review_test": {
+    "path": "src/desktop/__tests__/helm-orca-review.test.ts",
+    "sha256": "4b2d6ff57b80b3f3e9a5781c22e8275aba44ecf686c85fadd6b57b93e47cff60",
+    "unchanged": true
+  }
+}

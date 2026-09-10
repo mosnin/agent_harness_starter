@@ -1,0 +1,25 @@
+{
+  "scope": "std-only native request admission; no GUI build/runtime acceptance",
+  "files": {
+    "src-tauri/src/gui.rs": "a52f6997e917139eae87145f651d7ef8c3044750713935262a345201f37efea6",
+    "src-tauri/src/request_capacity.rs": "39df4cfac52bc25d675827daea57dc72f84daf2d04cd9d2498a9f40064a2d2d6"
+  },
+  "tests": [
+    {
+      "command": "rustc --edition 2021 --test src-tauri/src/request_capacity.rs -o /tmp/hades-request-capacity-tests && /tmp/hades-request-capacity-tests",
+      "passed": 9
+    },
+    {
+      "command": "rustc --edition 2021 --test /tmp/hades-gui-capacity-harness.rs -o /tmp/hades-gui-pure-tests && /tmp/hades-gui-pure-tests",
+      "passed": 16,
+      "fixture": "wrapper imports actual gui.rs and supplies main.rs DEFAULT_SIDECAR_PATH; feature gui disabled"
+    }
+  ],
+  "regularCapacity": 256,
+  "controlCapacity": 16,
+  "waitSeconds": 65,
+  "remainingGate": "GUI-feature compilation and actual runtime join-error path not exercised; source cleanup order inspected.",
+  "controlMethods": 18,
+  "conditionalControl": "spatial.workflow only args.operation stop or cancel",
+  "correlation": "Per-admission monotonic native wire ticket; caller ID restored only after exact ticket lookup; unknown late wire IDs dropped"
+}

@@ -15,7 +15,7 @@ interface Host { review(id:string,scope:HelmIntegrationScope):HelmIntegrationRev
 interface Live {controller:AbortController;done?:Promise<void>;interrupted?:boolean}
 /** Commands are explicitly chosen trusted local execution, not an OS sandbox. */
 export class HelmSourceChecks {
- private directory:string;private live=new Map<string,Live>();private starting=new Set<string>();private closed=false;
+ private directory:string;private live=new Map<string,Live>();private starting=new Set<string>();private closed=false;private shutdown?:Promise<void>;
  constructor(dataDir:string,private host:Host,private emit:()=>void=()=>{}){
   this.directory=join(dataDir,'helm','source-checks');mkdirSync(this.directory,{recursive:true,mode:0o700});this.directory=realpathSync(this.directory);
   for(const receipt of this.all())if(receipt.status==='running'){receipt.status='interrupted';receipt.error='Hades restarted during source checks. No commands were replayed.';receipt.finishedAt=Date.now();this.save(receipt);}
@@ -77,11 +77,15 @@ export class HelmSourceChecks {
   receipt.finishedAt=Date.now();this.save(receipt);
  }
  async cancel(id:string,scope:HelmIntegrationScope):Promise<HelmSourceCheckReceipt>{const receipt=this.read(id,scope),live=this.live.get(id);if(live){live.controller.abort();await live.done;}return this.get(receipt.id,scope);}
- close():void{
+ close():Promise<void>{
+  if(this.shutdown)return this.shutdown;
   this.closed=true;
   // Process revocation must not depend on disk availability or readable receipts.
   for(const live of this.live.values()){live.interrupted=true;live.controller.abort();}
-  for(const [id]of this.live){try{const receipt=this.all().find(item=>item.id===id);if(receipt){receipt.status='interrupted';receipt.error='Hades closed during source checks';this.save(receipt);}}catch{/* execution was already revoked */}}
+  let checkpointFailed=false;
+  for(const [id]of this.live){try{const receipt=this.all().find(item=>item.id===id);if(receipt){receipt.status='interrupted';receipt.error='Hades closed during source checks';this.save(receipt);}}catch{checkpointFailed=true;}}
+  this.shutdown=Promise.allSettled([...this.live.values()].map(live=>live.done)).then(()=>{if(checkpointFailed)throw new Error('Source checks stopped but the interruption checkpoint could not be saved');});
+  void this.shutdown.catch(()=>{});return this.shutdown;
  }
 
  private command(check:HelmCheck,root:string,signal:AbortSignal,timeout:number):Promise<HelmSourceCheckResult>{

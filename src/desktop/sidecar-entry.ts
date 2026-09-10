@@ -25,6 +25,8 @@ import { NativeScheduleExecutor, freshScheduleStore } from "./core/native-schedu
 import { acquireSidecarDataLock, serveSidecarLockFailure, SidecarDataInUseError, type SidecarDataLock } from "./core/sidecar-data-lock";
 import { nativeLifetime } from "./core/native-lifetime";
 import { WorkbenchService } from "./core/workbench-service";
+import { DesktopRequestQueue } from "./core/desktop-request-queue";
+import { scheduleDesktopRequest } from "./core/desktop-request-routing";
 import { encodeEvent, decodeCommand } from "./ipc/contract";
 import type { AppEvent, Command } from "./ipc/contract";
 import {
@@ -701,9 +703,7 @@ export async function runSidecar(
     loadConfig({ env: process.env }).dataDir,
     (e) => output(JSON.stringify(e) + "\n"),
   );
-  let desktopQueue = Promise.resolve();
-  let queuedDesktopRequests = 0;
-  let acceptingDesktopRequests = true;
+  const desktopQueue = new DesktopRequestQueue<{ id: string; method: string; args?: Record<string, unknown> }>();
 
   try {
     for await (const rawLine of lineBuffer(
@@ -719,50 +719,12 @@ export async function runSidecar(
           typeof req.id === "string" &&
           typeof req.method === "string"
         ) {
-          // Keep mutations ordered without holding stdin hostage. Control
-          // messages must reach running turns even while Git or a provider waits.
-          if (
-            [
-              "models.list",
-              "slack.status", "slack.disconnect", "team.status",
-              "team.messages",
-              "team.read",
-              "codex.status",
-              "codex.login",
-              "codex.cancel",
-              "voice.transcribe",
-              "local.list",
-              "approval.reply",
-              "chat.stop",
-              "room.stop",
-              "job.cancel",
-              "computer.stop",
-              "computer.configure",
-              "terminal.write",
-              "terminal.resize",
-              "local.cancel",
-              "key.set",
-            ].includes(req.method)
-          ) {
-            void workbench.handle(req);
-          } else if (queuedDesktopRequests >= 256) {
-            output(
-              JSON.stringify({
-                kind: "desktop.response",
-                id: req.id,
-                error: "Too many pending desktop requests",
-              }) + "\n",
-            );
-          } else {
-            queuedDesktopRequests++;
-            desktopQueue = desktopQueue
-              .then(async () => {
-                if (acceptingDesktopRequests) await workbench.handle(req);
-              })
-              .finally(() => {
-                queuedDesktopRequests--;
-              });
-          }
+          // Slow startup and inspection cannot consume the slots reserved for
+          // Stop and approvals. Every admitted handler remains tracked at EOF.
+          void scheduleDesktopRequest(desktopQueue, req, {
+            handle: (request, context) => workbench.handle(request, context),
+            rejected: (request, error) => output(JSON.stringify({ kind: "desktop.response", id: request.id, error: errMsg(error) }) + "\n"),
+          });
           continue;
         }
       } catch {
@@ -793,13 +755,14 @@ export async function runSidecar(
     // `dispose`, not `close`: stdin has ended, so this is process-lifetime
     // teardown — the workspace feed's timer/watcher and the store handle
     // must go with it, not just the swarm handle.
-    acceptingDesktopRequests = false;
+    const desktopDrained = desktopQueue.close();
     scheduleLifetime.abort();
     nativeSchedule?.stop();
-    workbench.close();
-    await Promise.allSettled([...scheduledCommands]);
-    nativeSchedule?.close();
-    await sidecar.dispose();
+    const completed = await Promise.allSettled([desktopDrained, workbench.close(), ...scheduledCommands]);
+    // A checkpoint/cleanup failure cannot skip independent subsystem disposal.
+    try { nativeSchedule?.close(); }
+    finally { await sidecar.dispose(); }
+    if (completed.some(result => result.status === "rejected")) throw new Error("Some desktop cleanup did not finish; inspect interrupted work after reopening Hades.");
   }
 }
 

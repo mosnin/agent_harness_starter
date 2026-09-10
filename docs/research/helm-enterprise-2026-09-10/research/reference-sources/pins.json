@@ -1,0 +1,34 @@
+[
+  {
+    "repo": "openai/codex",
+    "sha": "bf5ebd98c567931d82e873a4afdac7548bd85979",
+    "date": "2026-09-10T05:41:54Z",
+    "url": "https://api.github.com/repos/openai/codex/commits/HEAD",
+    "sha256": "21733fb45e2217e61ebbb128f4a1e200012fab10f385a96e113866d83d863792",
+    "retrieved": "2026-09-10T05:43:32.472500+00:00"
+  },
+  {
+    "repo": "anomalyco/opencode",
+    "sha": "859106eb17d5b840475f5e4b78e64c9622f8750e",
+    "date": "2026-09-10T04:22:43Z",
+    "url": "https://api.github.com/repos/anomalyco/opencode/commits/HEAD",
+    "sha256": "c6a547ca636a363840081b3bca5c3f5f1b955c9b466013ab2fcd219b31ede7e8",
+    "retrieved": "2026-09-10T05:43:32.552082+00:00"
+  },
+  {
+    "repo": "stablyai/orca",
+    "sha": "34790ce0843affb73bb6340c9189b5b77e04a06b",
+    "date": "2026-09-10T05:14:56Z",
+    "url": "https://api.github.com/repos/stablyai/orca/commits/HEAD",
+    "sha256": "f3e1851769df5d4c2881ce20980920f3afbf08445b35ea7145f520ef26a59759",
+    "retrieved": "2026-09-10T05:43:32.413844+00:00"
+  },
+  {
+    "repo": "different-ai/openwork",
+    "sha": "88b1eec4aa8bddd7a8abccbb39285c41bd1c7c36",
+    "date": "2026-09-10T05:24:57Z",
+    "url": "https://api.github.com/repos/different-ai/openwork/commits/HEAD",
+    "sha256": "d513e04c6abb9aa1334f3c669d81334f196dff8e0fcdab6c4eb326c46664c308",
+    "retrieved": "2026-09-10T05:43:32.492247+00:00"
+  }
+]

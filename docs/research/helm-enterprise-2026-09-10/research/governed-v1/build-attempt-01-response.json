@@ -1,0 +1,1 @@
+{"ok":false,"error":{"code":"RESEARCH_REQUEST_INVALID","message":"token_budget cannot fit governed packet metadata; increase the budget or reduce inputs"}}

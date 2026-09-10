@@ -1,0 +1,466 @@
+[
+  {
+    "id": "work-01",
+    "classification": "orchestration-general-work",
+    "title": "does not release a dependent task on a success message when its artifact check fails",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "does not release a dependent task on a success message when its artifact check fails",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "does not release a dependent task on a success message when its artifact check fails"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-02",
+    "classification": "orchestration-general-work",
+    "title": "keeps exact attempt identity and unmeasured reservations across stop and reopen",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "keeps exact attempt identity and unmeasured reservations across stop and reopen",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "keeps exact attempt identity and unmeasured reservations across stop and reopen"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-03",
+    "classification": "orchestration-general-work",
+    "title": "admits a newly ready task while an independent slow task is still running",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "admits a newly ready task while an independent slow task is still running",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "admits a newly ready task while an independent slow task is still running"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-04",
+    "classification": "orchestration-general-work",
+    "title": "serializes overlapping edit reservations across owners while allowing disjoint tasks",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "serializes overlapping edit reservations across owners while allowing disjoint tasks",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "serializes overlapping edit reservations across owners while allowing disjoint tasks"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-05",
+    "classification": "orchestration-general-work",
+    "title": "rejects stale dependency receipts before a resumed child can act",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "rejects stale dependency receipts before a resumed child can act",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "rejects stale dependency receipts before a resumed child can act"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-06",
+    "classification": "orchestration-general-work",
+    "title": "bounds concurrency and validates declared edit paths and per-task output checks",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "bounds concurrency and validates declared edit paths and per-task output checks",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "bounds concurrency and validates declared edit paths and per-task output checks"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-07",
+    "classification": "orchestration-general-work",
+    "title": "keeps the database and live SQLite sidecars private",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "keeps the database and live SQLite sidecars private",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "keeps the database and live SQLite sidecars private"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-08",
+    "classification": "orchestration-general-work",
+    "title": "rejects malformed, cyclic, missing, duplicated and over-limit dependency plans",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "rejects malformed, cyclic, missing, duplicated and over-limit dependency plans",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "rejects malformed, cyclic, missing, duplicated and over-limit dependency plans"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-09",
+    "classification": "orchestration-general-work",
+    "title": "isolates every mutation and read by the goal's owning profile",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "isolates every mutation and read by the goal's owning profile",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "isolates every mutation and read by the goal's owning profile"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-10",
+    "classification": "orchestration-general-work",
+    "title": "runs two different agents concurrently, then passes their reports to a dependent task",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "runs two different agents concurrently, then passes their reports to a dependent task",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "runs two different agents concurrently, then passes their reports to a dependent task"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-11",
+    "classification": "orchestration-general-work",
+    "title": "runs same-profile tasks in distinct sessions while leaving failed dependents unexecuted",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "runs same-profile tasks in distinct sessions while leaving failed dependents unexecuted",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "runs same-profile tasks in distinct sessions while leaving failed dependents unexecuted"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-12",
+    "classification": "orchestration-general-work",
+    "title": "requires output checks and rejects missing contents, directories, oversized files and symlinks",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "requires output checks and rejects missing contents, directories, oversized files and symlinks",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "requires output checks and rejects missing contents, directories, oversized files and symlinks"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-13",
+    "classification": "orchestration-general-work",
+    "title": "retains steering arriving during execution for the next round",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "retains steering arriving during execution for the next round",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "retains steering arriving during execution for the next round"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-14",
+    "classification": "orchestration-general-work",
+    "title": "caps pending messages and invalidates a revised task's transitive dependents",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "caps pending messages and invalidates a revised task's transitive dependents",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "caps pending messages and invalidates a revised task's transitive dependents"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-15",
+    "classification": "orchestration-general-work",
+    "title": "fences Stop then Resume against late bind, result, elapsed time and old finally",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "fences Stop then Resume against late bind, result, elapsed time and old finally",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "fences Stop then Resume against late bind, result, elapsed time and old finally"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  },
+  {
+    "id": "work-16",
+    "classification": "orchestration-general-work",
+    "title": "enforces one worker owner and a global three-plan concurrency cap",
+    "source": "src/desktop/core/durable-work.ts",
+    "testFile": "src/desktop/__tests__/durable-work.test.ts",
+    "testName": "enforces one worker owner and a global three-plan concurrency cap",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "src/desktop/__tests__/durable-work.test.ts",
+      "-t",
+      "enforces one worker owner and a global three-plan concurrency cap"
+    ],
+    "trials": 3,
+    "defaultStatus": "unavailable",
+    "evidenceRequired": [
+      "exact candidate revision",
+      "test command and exit status",
+      "elapsed time",
+      "provider/model and budget if applicable",
+      "usage or explicitly unavailable",
+      "human interventions or explicitly unavailable",
+      "three matched trial identifiers"
+    ],
+    "limitation": "Existing deterministic control test, not provider intelligence or a matched product win."
+  }
+]

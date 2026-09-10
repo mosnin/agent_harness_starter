@@ -18,6 +18,9 @@ import { HelmHandoffStore, helmHandoffContext } from "./helm-handoff";
 import { HelmSourceChecks } from "./helm-source-checks";
 import { HelmPreview } from "./helm-preview";
 import { HelmCodeService } from "./helm-code-service";
+import { helmOrcaTools, type HelmOrcaToolInput } from "./helm-orca-tools";
+import { HelmOrcaService } from "./helm-orca-service";
+import { HelmOrcaRuntime } from "./helm-orca-runtime";
 import type { HelmBuiltinInput } from "./helm-types";
 import { HelmContextStore } from "./helm-context";
 import { helmTools } from "./helm-tools";
@@ -112,10 +115,13 @@ interface SessionMeta {
   sourceId?: string;
   workGoal?: string;
   workOwner?: string;
+  workTask?: string;
+  workAttempt?: string;
   delegatedWork?: string[];
   delegationReserved?: { goals: number; tasks: number; tokens: number; minutes: number };
   helmRuns?: string[];
   helmReserved?: { runs: number; minutes: number };
+  orcaIntents?: Array<{key:string;id:string;fingerprint:string}>;
   /** Trusted session scope, inherited by every later message and resume. */
   toolAllowlist?: string[];
 }
@@ -209,7 +215,11 @@ export class WorkbenchService {
   private maintenance: MaintenanceService;
   private maintenanceBusy = false;
   private maintenanceAdmissions = 0;
+  private admissionTasks = new Set<Promise<unknown>>();
+  private maintenanceIdle?: Promise<void>;
   private closeAfterMaintenance = false;
+  private shutdown?: Promise<void>;
+  private historyClosed = false;
   private work: DurableWork;
   private helm: HelmService;
   private helmIntegration: HelmIntegration;
@@ -217,6 +227,9 @@ export class WorkbenchService {
   private helmSourceChecks: HelmSourceChecks;
   private helmPreview: HelmPreview;
   private helmCode: HelmCodeService;
+  private helmOrca: HelmOrcaService;
+  private helmOrcaRuntime: HelmOrcaRuntime;
+  private helmOrcaArtifacts: string;
   private helmContext: HelmContextStore;
   private webhooks: WebhookService;
   private effectGuards = new Map<string, () => void>();
@@ -235,14 +248,14 @@ export class WorkbenchService {
       if (typeof event.session === "string") {
         const id = event.session;
         const owner = this.settings?.sessionMeta[id]?.profile;
-        const state = this.progress.get(id) ?? (owner ? this.journal?.restore(owner, id) : undefined) ?? { stream: "", tools: [], journal: [] };
+        const state = this.progress.get(id) ?? (owner && !this.historyClosed ? this.journal?.restore(owner, id) : undefined) ?? { stream: "", tools: [], journal: [] };
         applyJournalEvent(state, event);
         this.progress.set(id, state);
         if (this.progress.size > 256) {
           const oldest = [...this.progress.keys()].find(key => key !== id && !this.active.has(key));
           if (oldest) this.progress.delete(oldest);
         }
-        if (!this.closed && owner) {
+        if (!this.historyClosed && owner) {
           try {
             this.activityStore?.record(owner, event);
             this.journal?.record(owner, event, [...this.keys.values()]);
@@ -335,6 +348,9 @@ export class WorkbenchService {
         this.helm.list(sourceRoot).some(run => run.workspace === candidate && run.owner === owner),
       context: root => this.helmContext.snapshot(root).text,
     });
+    this.helmOrcaArtifacts = env.HADES_HELM_ORCA_ARTIFACTS ?? join(dirname(process.execPath), "helm-orca");
+    this.helmOrcaRuntime = new HelmOrcaRuntime(join(dataDir, "orca-runtimes"), this.helmOrcaArtifacts);
+    this.helmOrca = new HelmOrcaService(join(dataDir, "orca-intents"), { connect: (scope, signal) => this.helmOrcaRuntime.connect(scope, signal) });
     this.hooks = new HookService(join(dataDir, "shell-hooks.sqlite"), { root: path => this.root(path), profile: id => this.profile(id), changed: () => this.emit({ kind: "desktop.hooks.changed" }) });
     this.credentials = new CredentialPool(join(dataDir, "credential-pools.sqlite"), account => this.keys.get(account));
     this.computer.configure(this.settings.computerEnabled);
@@ -342,6 +358,7 @@ export class WorkbenchService {
       profile: id => { this.profile(id); }, root: path => this.root(path),
       execute: (input, signal, bind) => this.executeWorkRequest(input, signal, bind),
       changed: goal => this.emit({ kind: "desktop.work", id: goal.id, profile: goal.profile }),
+      failed: message => this.emit({ kind: "desktop.error", message }),
     });
     const webhookPort = this.env.HADES_WEBHOOK_PORT === undefined ? 48847 : Number(this.env.HADES_WEBHOOK_PORT);
     if (!Number.isInteger(webhookPort) || webhookPort < 0 || webhookPort > 65535) throw new Error("Invalid Hades webhook port");
@@ -398,6 +415,27 @@ export class WorkbenchService {
         if (signal.aborted) await this.helm.cancel(run.id);
         return view(this.helm.get(run.id));
       },
+    });
+  }
+  private orcaSessionTools(id:string,owner:string,root:string,signal:AbortSignal) {
+    const meta=this.settings.sessionMeta[id];
+    if(meta.source==='helm'||meta.toolAllowlist||meta.workGoal)return [];
+    const guard=()=>{signal.throwIfAborted();this.effectGuards.get(id)?.();this.assertMaintenanceAdmission();};
+    const scope={root,profile:owner};
+    return helmOrcaTools({signal,guard,canStart:true,
+      readiness:()=>{const intents=(meta.orcaIntents??[]).map(({key,id})=>({key,id}));try{this.helmOrcaRuntime.validateArtifacts();return {intents,state:'artifacts_validated',runtime:'unverified',providerAuthentication:'unknown',providerTokenTimeCapsEnforced:false,spendMeasured:false};}catch(error){return {intents,state:'unavailable',reason:error instanceof Error?error.message:'Artifacts unavailable',runtime:'unverified',providerTokenTimeCapsEnforced:false};}},
+      preflight:()=>{this.helmOrcaRuntime.validateArtifacts();},
+      reserve:(input:HelmOrcaToolInput)=>{
+        guard();const fingerprint=createHash('sha256').update(JSON.stringify([root,owner,input])).digest('hex');
+        const previous=meta.orcaIntents??[],existing=previous.find(entry=>entry.key===input.key);
+        if(existing){if(existing.fingerprint!==fingerprint)throw new Error('This Orca request key was used with different instructions');this.save();return existing.id;}
+        if(previous.length>=4)throw new Error('This conversation has used its four Orca allocations; uncertain allocations are never refunded');
+        const request={key:input.key,id:randomUUID(),fingerprint};meta.orcaIntents=[...previous,request];this.save();return request.id;
+      },
+      owns:target=>(meta.orcaIntents??[]).some(entry=>entry.id===target),
+      start:(requestId,input)=>this.helmOrca.start(scope,{requestId,prompt:input.prompt,agent:input.agent,...(input.model?{model:input.model}:{})},signal),
+      status:target=>this.helmOrca.status(scope,target),read:(target,cursor)=>this.helmOrca.read(scope,target,cursor),
+      reconcile:target=>this.helmOrca.recover(scope,target),stop:target=>this.helmOrca.stop(scope,target),
     });
   }
   private async runHelmSession(input: HelmBuiltinInput, signal: AbortSignal, bind: (update: { sessionId?: string; output?: string }) => void) {
@@ -826,9 +864,17 @@ export class WorkbenchService {
     id: string;
     method: string;
     args?: Record<string, unknown>;
-  }) {
+  }, scheduling: { cancelledOrcaStartBeforeAdmission?: boolean } = {}) {
     try {
-      const result = await this.dispatch(request.method, request.args ?? {});
+      // Scheduling context is supplied by the sidecar itself, never read from
+      // RPC arguments. Removing a queued duplicate cannot certify a worker stop.
+      const result = request.method === "helm.orca.stop" && scheduling.cancelledOrcaStartBeforeAdmission === true
+        ? await this.withMaintenanceAdmission(async () => {
+          const a = request.args ?? {}, scope = { root: this.root(a.root), profile: this.profile(a.profile).id }, id = ident(a.id);
+          const existing = this.helmOrca.list(scope).find(record => record.id === id);
+          return existing ? this.helmOrca.stop(scope, id) : { ...scope, id, cancelledBeforeAdmission: true, workerState: "not_found_at_inspection" };
+        })
+        : await this.dispatch(request.method, request.args ?? {});
       this.emit({ kind: "desktop.response", id: request.id, result });
     } catch (e) {
       this.emit({
@@ -843,7 +889,17 @@ export class WorkbenchService {
   async withMaintenanceAdmission<T>(operation: () => Promise<T>): Promise<T> {
     this.assertMaintenanceAdmission();
     this.maintenanceAdmissions++;
-    try { return await operation(); } finally { this.maintenanceAdmissions--; }
+    // Retain admitted work until its final receipt settles, including calls
+    // that do not create a conversation or a provider turn.
+    let finish!: (value: T | PromiseLike<T>) => void, fail!: (error: unknown) => void;
+    const task = new Promise<T>((resolve, reject) => { finish = resolve; fail = reject; });
+    this.admissionTasks.add(task);
+    // Register before invoking user-independent host code: it can synchronously
+    // request shutdown before yielding. Admission itself must remain immediate
+    // so a following Stop observes its already-retained worker identity.
+    try { finish(operation()); } catch (error) { fail(error); }
+    try { return await task; }
+    finally { this.maintenanceAdmissions--; this.admissionTasks.delete(task); }
   }
   private assertMaintenanceAdmission() {
     if (this.closed || this.closeAfterMaintenance) throw new Error("Hades is closing");
@@ -851,7 +907,7 @@ export class WorkbenchService {
   }
   private async withMaintenanceSnapshot<T>(operation: () => Promise<T>): Promise<T> {
     this.assertMaintenanceAdmission();
-    if (this.maintenanceAdmissions || this.active.size || this.turns.size || this.roomRuns.size || this.fileWrites.size || this.pumpingWakes || this.wakeWorkers.size || this.work.hasActiveWork || this.helm.hasActiveWork() || this.helmCode.hasActiveWork() || this.helmSourceChecks.hasActiveWork())
+    if (this.maintenanceAdmissions || this.active.size || this.turns.size || this.roomRuns.size || this.fileWrites.size || this.pumpingWakes || this.wakeWorkers.size || this.work.hasActiveWork || this.helm.hasActiveWork() || this.helmCode.hasActiveWork() || this.helmOrca.hasActiveWork() || this.helmSourceChecks.hasActiveWork())
       throw new Error("Wait for active requests, conversations, work plans and routines to finish before creating a backup.");
     if (this.terminals.size) throw new Error("Close embedded terminals before creating a backup.");
     const slack = this.slack.status();
@@ -865,11 +921,13 @@ export class WorkbenchService {
     // being read recheck this pause before recording or dispatching an event.
     const resumeWebhooks = this.webhooks.pauseAdmission();
     this.maintenanceBusy = true;
+    let finished!: () => void;
+    this.maintenanceIdle = new Promise<void>(resolve => { finished = resolve; });
     try { return await operation(); }
     finally {
       this.maintenanceBusy = false;
-      resumeWebhooks();
-      if (this.closeAfterMaintenance) this.close();
+      try { if (!this.closeAfterMaintenance) resumeWebhooks(); }
+      finally { this.maintenanceIdle = undefined; finished(); }
     }
   }
   async dispatch(method: string, a: Record<string, unknown>): Promise<unknown> {
@@ -1020,6 +1078,39 @@ export class WorkbenchService {
       case "helm.code.open": return this.helmCode.open(this.root(a.root), this.profile(a.profile).id);
       case "helm.code.status": return this.helmCode.status(this.root(a.root), this.profile(a.profile).id);
       case "helm.code.close": return this.helmCode.closeWorkspace(this.root(a.root), this.profile(a.profile).id);
+      case "helm.orca.info": {
+        this.root(a.root); this.profile(a.profile);
+        const sourceRevision = "bf4e2705046cf9ef9c915929a9646da85717af07";
+        if (!existsSync(join(this.helmOrcaArtifacts, "helm-orca-build.json"))) return {state:"missing",sourceRevision,message:"This build does not include the Orca runtime. Install a build containing the pinned runtime; existing Helm tasks remain available."};
+        try {
+          this.helmOrcaRuntime.validateArtifacts();
+          return {state:"packaged",sourceRevision,message:"Packaged runtime integrity verified. Runtime capabilities and provider sign-in remain unverified until execution."};
+        } catch {
+          return {state:"invalid",sourceRevision,message:"Orca runtime integrity verification failed. Rebuild the pinned runtime with scripts/build-helm-orca.mjs and reinstall the desktop package. No worker can start from these artifacts."};
+        }
+      }
+      case "helm.orca.list": return this.helmOrca.list({root: this.root(a.root), profile: this.profile(a.profile).id});
+      case "helm.orca.get": return this.helmOrca.get({root: this.root(a.root), profile: this.profile(a.profile).id}, ident(a.id));
+      case "helm.orca.start": {
+        this.assertMaintenanceAdmission();
+        if (!existsSync(join(this.helmOrcaArtifacts, "helm-orca-build.json"))) throw new Error("The Orca runtime is not included in this build. No worker was started.");
+        this.helmOrcaRuntime.validateArtifacts();
+        const result = await this.helmOrca.start({root: this.root(a.root), profile: this.profile(a.profile).id}, {
+          requestId: ident(a.requestId), prompt: text(a.prompt, 20000), agent: text(a.agent, 30) as "claude"|"codex"|"opencode",
+          ...(a.model === undefined ? {} : {model: text(a.model, 200)}),
+        });
+        this.emit({kind: "desktop.helm", profile: result.profile}); return result;
+      }
+      case "helm.orca.refresh": return this.helmOrca.status({root: this.root(a.root), profile: this.profile(a.profile).id}, ident(a.id));
+      case "helm.orca.recover": return this.helmOrca.recover({root: this.root(a.root), profile: this.profile(a.profile).id}, ident(a.id));
+      case "helm.orca.stop": return this.helmOrca.stop({root: this.root(a.root), profile: this.profile(a.profile).id}, ident(a.id));
+      case "helm.orca.read": {
+        if (a.cursor !== undefined && !(typeof a.cursor === "string" && a.cursor.length <= 2000) && !(typeof a.cursor === "number" && Number.isSafeInteger(a.cursor) && a.cursor >= 0)) throw new Error("Invalid output cursor");
+        const result = await this.helmOrca.read({root: this.root(a.root), profile: this.profile(a.profile).id}, ident(a.id), a.cursor as string|number|undefined);
+        const serialized = JSON.stringify(result);
+        // Preserve the upstream projection, with a bounded display fallback.
+        return {output: serialized.slice(0, 32000), truncated: serialized.length > 32000};
+      }
       case "helm.agents": return this.helm.agents(a.refresh === true);
       case "helm.list": {
         const root = a.root === undefined || a.root === "" ? undefined : this.root(a.root), owner = this.profile(a.profile).id;
@@ -1165,6 +1256,13 @@ export class WorkbenchService {
       case "webhook.events": return this.webhooks.events(ident(a.id), this.profile(a.profile).id);
       case "work.list": return this.work.list(this.profile(a.profile).id).map(goal => this.workView(goal));
       case "work.get": return this.workView(this.work.get(ident(a.id), this.profile(a.profile).id));
+      case "work.audit.head": return this.work.auditHead(ident(a.id), this.profile(a.profile).id);
+      case "work.audit.read": return this.work.auditPage(ident(a.id), this.profile(a.profile).id, {
+        ...(a.afterSequence === undefined ? {} : {afterSequence: a.afterSequence as number}),
+        ...(a.limit === undefined ? {} : {limit: a.limit as number}),
+        ...(a.expectedHead === undefined ? {} : {expectedHead: a.expectedHead as any}),
+      });
+      case "work.audit.export": return this.work.auditExport(ident(a.id), this.profile(a.profile).id);
       case "work.create": return this.work.create(a, this.profile(a.profile).id);
       case "work.run": return this.work.run(ident(a.id), this.profile(a.profile).id);
       case "work.stop": return this.work.stop(ident(a.id), this.profile(a.profile).id);
@@ -2302,6 +2400,7 @@ export class WorkbenchService {
       });
       for (const tool of [
         ...delegated,
+        ...this.orcaSessionTools(id,p.id,root,controller.signal),
         ...this.helmSessionTools(id, p.id, root, controller.signal),
         ...this.browserTools(id, p.id, root, controller.signal),
         ...workspaceTools(root, p.shell, controller.signal).list(),
@@ -2329,7 +2428,7 @@ export class WorkbenchService {
             });
             if (this.journalFailure) return { ok: false, output: this.journalFailure };
             if (
-              ["delegate_work", "delegation_message", "delegation_stop", "helm_delegate"].includes(tool.name) ||
+              ["delegate_work", "delegation_message", "delegation_stop", "helm_delegate", "helm_orca_start", "helm_orca_stop"].includes(tool.name) ||
               tool.name === "computer_action" || tool.name === "maus" ||
               (tool.name === "hades_browser" && BROWSER_TOOL_SPECS.some(spec => spec.name === JSON.parse(value).name && spec.mutating) && !(this.browserRuns.get(id)?.task?.readOnly && READ_ONLY_BROWSER_TOOLS.has(JSON.parse(value).name))) ||
               tool.name.startsWith("mcp_") ||
@@ -2409,7 +2508,11 @@ export class WorkbenchService {
                 } else result = await (file ? file.run() : tool.run(value));
               } catch (error) { result = { ok: false, output: error instanceof Error ? error.message : "Tool execution failed" }; }
               // Post-hook failures are separate evidence. They cannot replace a tool's result.
-              if (!this.journalFailure) await runHooks("post_tool", result);
+              if (!this.journalFailure) {
+                let permitted = true;
+                try { guard(); } catch { permitted = false; this.emit({kind: "desktop.hook", session: id, tool: tool.name, phase: "post_tool", name: "Hooks", status: "cancelled", ok: false, message: "Post-tool hooks skipped because execution authority changed. The tool result is retained."}); }
+                if (permitted) await runHooks("post_tool", result);
+              }
               return result;
             };
             if (file?.mutates) {
@@ -2559,7 +2662,9 @@ export class WorkbenchService {
     if (session.root !== undefined && session.root !== root) throw new Error("Work conversation belongs to another project");
     const meta = this.settings.sessionMeta[session.id];
     if (meta.workGoal && meta.workGoal !== input.goal) throw new Error("Work conversation belongs to another goal");
-    meta.source = "work"; meta.workGoal = input.goal; meta.workOwner = input.owner; this.save();
+    if (meta.workTask && meta.workTask !== input.task) throw new Error("Work conversation belongs to another task");
+    input.assertActive();
+    meta.source = "work"; meta.workGoal = input.goal; meta.workOwner = input.owner; meta.workTask = input.task; meta.workAttempt = input.attemptId; this.save();
     bind(session.id);
     this.effectGuards.set(session.id, input.assertActive);
     try { return await this.executeBoundedSession(session.id, p.id, input.prompt, signal, input.maxTokens, input.maxRuntimeMs); }
@@ -2732,37 +2837,66 @@ export class WorkbenchService {
         await this.runJob(j, j.nextAt);
     await this.pumpWakes();
   }
-  close() {
-    if (this.closed) return;
-    if (this.maintenanceBusy) { this.closeAfterMaintenance = true; return; }
+  close(): Promise<void> {
+    if (this.shutdown) return this.shutdown;
+    // This promise is shared by every caller, including a caller arriving while
+    // the consistent backup holds admission closed.
+    this.closeAfterMaintenance = true;
+    let finish!: () => void, fail!: (error: unknown) => void;
+    this.shutdown = new Promise<void>((resolve, reject) => { finish = resolve; fail = reject; });
+    // Older embedded callers may not await close. A rejected cleanup must not
+    // become an unhandled rejection; awaited callers still receive the failure.
+    void this.shutdown.catch(() => {});
+    void this.finishClose().then(finish, fail);
+    return this.shutdown;
+  }
+  private async finishClose(): Promise<void> {
+    if (this.maintenanceIdle) await this.maintenanceIdle;
     this.closed = true;
-    this.disconnectBrowser();
-    this.browserRuntime?.close();
-    this.work.close();
-    this.helm.close();
-    this.helmSourceChecks.close();
-    void this.helmCode.close();
-    this.webhooks.close();
-    this.credentials.close();
-    for (const timer of this.wakeWorkers.values()) clearInterval(timer);
-    this.wakes.interruptOwner(this.wakeOwner);
-    this.wakes.close();
-    this.activityStore.close();
-    this.journal.close();
-    this.computer.stop();
-    for(const controller of this.spatialPending.values())controller.abort();
-    this.maus.close();
+    const failures: string[] = [], pending: Promise<unknown>[] = [];
+    const close = (name: string, operation: () => unknown) => {
+      try { pending.push(Promise.resolve(operation()).catch(() => { failures.push(name); })); }
+      catch { failures.push(name); }
+    };
+    // Revoke every active producer before any fallible checkpoint or database
+    // close. One broken subsystem cannot leave the other workers authorized.
     clearInterval(this.timer);
-    this.localModels.close();
-    this.codex.close();
-    void this.team.close();
-    this.slack.close();
-    this.hooks.close();
-    this.channelAccess.close();
-    for (const c of this.roomRuns.values()) c.abort();
-    this.awake?.kill();
-    this.speech?.kill();
-    for (const c of this.active.values()) c.abort();
-    for (const id of this.terminals.keys()) this.closeTerminal(id);
+    for (const timer of this.wakeWorkers.values()) clearInterval(timer);
+    for (const c of this.active.values()) close("conversation cancellation", () => c.abort());
+    for (const c of this.roomRuns.values()) close("room cancellation", () => c.abort());
+    for (const c of this.spatialPending.values()) close("capture cancellation", () => c.abort());
+    for (const resolve of this.approval.values()) close("approval cancellation", () => resolve(false));
+    close("browser connection", () => this.disconnectBrowser());
+    close("browser runtime", () => this.browserRuntime?.close());
+    close("work checkpoint", () => this.work.close());
+    close("Helm workers", () => this.helm.close());
+    close("source checks", () => this.helmSourceChecks.close());
+    close("Helm engine", () => this.helmCode.close());
+    close("Orca receipts", () => this.helmOrca.close());
+    close("Orca runtime", () => this.helmOrcaRuntime.close());
+    close("webhooks", () => this.webhooks.close());
+    close("routine checkpoint", () => this.wakes.interruptOwner(this.wakeOwner));
+    close("computer control", () => this.computer.stop());
+    close("Maus", () => this.maus.close());
+    close("local models", () => this.localModels.close());
+    close("Codex", () => this.codex.close());
+    close("team", () => this.team.close());
+    close("Slack", () => this.slack.close());
+    close("hooks", () => this.hooks.close());
+    close("awake helper", () => this.awake?.kill());
+    close("speech helper", () => this.speech?.kill());
+    for (const id of this.terminals.keys()) close("terminal", () => this.closeTerminal(id));
+    // No new admission is possible now. Keep execution history available for
+    // cancellation, late tool results and final interrupted-turn receipts.
+    await Promise.allSettled([...pending, ...this.admissionTasks, ...this.turns.values(), ...this.fileWrites.values()]);
+    this.historyClosed = true;
+    pending.length = 0;
+    close("credentials", () => this.credentials.close());
+    close("routines", () => this.wakes.close());
+    close("activity history", () => this.activityStore.close());
+    close("execution history", () => this.journal.close());
+    close("channel access", () => this.channelAccess.close());
+    await Promise.allSettled(pending);
+    if (failures.length) throw new Error("Hades shutdown could not finish: " + [...new Set(failures)].join(", "));
   }
 }

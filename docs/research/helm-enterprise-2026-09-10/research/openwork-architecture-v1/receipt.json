@@ -1,0 +1,14 @@
+{
+  "status": "needs_independent_review",
+  "pin": "88b1eec4aa8bddd7a8abccbb39285c41bd1c7c36",
+  "source_count": 43,
+  "evidence_spans": 43,
+  "source_body_bytes": 810247,
+  "all_blobs_match_pinned_tree": true,
+  "report_sha256": "f418af7f63ca8c8af394b54c1a570ee0454b0419288b5347a013b288a1fcd251",
+  "source_execution": false,
+  "new_network_path": "authorized GitHub connector only; primary web cache misses retained",
+  "governed_packet": false,
+  "scope": "bounded OpenWork executable source extraction; no superiority or runtime acceptance",
+  "finished_at": "2026-09-10T06:38:57.541541+00:00"
+}

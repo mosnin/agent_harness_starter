@@ -1,0 +1,253 @@
+{
+  "scope": "Deterministic in-process storage, transport fixtures, Workbench fake ModelClient and packaging orchestration only",
+  "command": [
+    "./node_modules/.bin/vitest",
+    "run",
+    "src/desktop/__tests__/durable-work.test.ts",
+    "src/desktop/__tests__/durable-work-review.test.ts",
+    "src/desktop/__tests__/work-scheduling.test.ts",
+    "src/desktop/__tests__/work-audit.test.ts",
+    "src/desktop/__tests__/work-audit-integration.test.ts",
+    "src/desktop/__tests__/work-audit-review.test.ts",
+    "src/desktop/__tests__/delegation-tools.test.ts",
+    "src/desktop/__tests__/helm-orca-service.test.ts",
+    "src/desktop/__tests__/helm-orca-ownership.test.ts",
+    "src/desktop/__tests__/helm-orca-runtime.test.ts",
+    "src/desktop/__tests__/helm-orca-review.test.ts",
+    "src/desktop/__tests__/helm-orca-tools.test.ts",
+    "src/desktop/__tests__/helm-orca-transport.test.ts",
+    "src/desktop/__tests__/helm-orca-workbench-tools.test.ts",
+    "src/desktop/__tests__/helm-orca-readiness.test.ts",
+    "src/desktop/__tests__/helm-context-tools.test.ts",
+    "src/desktop/__tests__/helm-code-storage.test.ts",
+    "src/desktop/__tests__/helm-provider-readiness.test.ts",
+    "src/desktop/__tests__/helm-handoff.test.ts",
+    "src/desktop/__tests__/helm-preview.test.ts",
+    "src/desktop/__tests__/maintenance-service.test.ts",
+    "src/desktop/__tests__/package-desktop.test.ts",
+    "src/desktop/__tests__/workbench-enterprise.test.ts",
+    "--maxWorkers=2",
+    "--reporter=json",
+    "--outputFile=/tmp/helm-inprocess-results.json"
+  ],
+  "selectedFiles": [
+    "src/desktop/__tests__/durable-work.test.ts",
+    "src/desktop/__tests__/durable-work-review.test.ts",
+    "src/desktop/__tests__/work-scheduling.test.ts",
+    "src/desktop/__tests__/work-audit.test.ts",
+    "src/desktop/__tests__/work-audit-integration.test.ts",
+    "src/desktop/__tests__/work-audit-review.test.ts",
+    "src/desktop/__tests__/delegation-tools.test.ts",
+    "src/desktop/__tests__/helm-orca-service.test.ts",
+    "src/desktop/__tests__/helm-orca-ownership.test.ts",
+    "src/desktop/__tests__/helm-orca-runtime.test.ts",
+    "src/desktop/__tests__/helm-orca-review.test.ts",
+    "src/desktop/__tests__/helm-orca-tools.test.ts",
+    "src/desktop/__tests__/helm-orca-transport.test.ts",
+    "src/desktop/__tests__/helm-orca-workbench-tools.test.ts",
+    "src/desktop/__tests__/helm-orca-readiness.test.ts",
+    "src/desktop/__tests__/helm-context-tools.test.ts",
+    "src/desktop/__tests__/helm-code-storage.test.ts",
+    "src/desktop/__tests__/helm-provider-readiness.test.ts",
+    "src/desktop/__tests__/helm-handoff.test.ts",
+    "src/desktop/__tests__/helm-preview.test.ts",
+    "src/desktop/__tests__/maintenance-service.test.ts",
+    "src/desktop/__tests__/package-desktop.test.ts",
+    "src/desktop/__tests__/workbench-enterprise.test.ts"
+  ],
+  "candidateHead": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
+  "sourceAndTestHashesBefore": {
+    "src/desktop/__tests__/durable-work.test.ts": "6fb91a12f0bb761a8b9a6cc9f1c1d91bf6018a27c6c798125b638272bbebce10",
+    "src/desktop/__tests__/durable-work-review.test.ts": "d2cf202595b900228962e647031d8e6bb6e8d878f4ea3bd053f8f11a1a1a7f21",
+    "src/desktop/__tests__/work-scheduling.test.ts": "05fd7da9cf9ec760a8f1799787c68cb8df1b7740b07b8cff70ea4982d25154c5",
+    "src/desktop/__tests__/work-audit.test.ts": "51d4dd9098c13ab5eb4024c19df01eadcf7080b287c41f13351aed2ec1eeca06",
+    "src/desktop/__tests__/work-audit-integration.test.ts": "af5a3510689e676cd844bf1d8016bee2566ced4efee52d72254c7a69c4842811",
+    "src/desktop/__tests__/work-audit-review.test.ts": "333a324128572065fa8a2142dd67c22463e889d3d96bf0c50be7e5219e425218",
+    "src/desktop/__tests__/delegation-tools.test.ts": "bc193f763f3f04413c4367f0221a57997d7806af16ca76210c636fa19772ae4e",
+    "src/desktop/__tests__/helm-orca-service.test.ts": "a32fea34f0f8f2c72da2a3bf48c82b0920782bffe14fcba3a35b453a0c44e486",
+    "src/desktop/__tests__/helm-orca-ownership.test.ts": "e8a62cbf711d07f28016c097d81dd323e762ed7fc88ad030bcb59f49ba9998a1",
+    "src/desktop/__tests__/helm-orca-runtime.test.ts": "2a59e866532dfd2cb65965fdd524726f7899c975a9152520a3977ede376c86e7",
+    "src/desktop/__tests__/helm-orca-review.test.ts": "4b2d6ff57b80b3f3e9a5781c22e8275aba44ecf686c85fadd6b57b93e47cff60",
+    "src/desktop/__tests__/helm-orca-tools.test.ts": "e6cfc2e27b1b6811a94239e632cdb21f0599db7864cf08e863d7bca3d30062d1",
+    "src/desktop/__tests__/helm-orca-transport.test.ts": "7a0e20b39c07f6c1341b00f7e10e819a3c8584aae4ae64759b9d5f11fa5318d4",
+    "src/desktop/__tests__/helm-orca-workbench-tools.test.ts": "818d4b7122a10197941d140bc82fbd9d1f336086859940bcafd23ab176df4760",
+    "src/desktop/__tests__/helm-orca-readiness.test.ts": "cdeeec50c64f529dd9eaee7ed5afd64811b4fe40e44efafa2f0c664aa002b2e0",
+    "src/desktop/__tests__/helm-context-tools.test.ts": "d99e96afd09e48d4502f91c55d37bc8b5e96347a50737e76502427be51f1f10a",
+    "src/desktop/__tests__/helm-code-storage.test.ts": "711d2295e3801f5f5b60e71124caaa81c9298fa2041ebe05ec61c602a0f36859",
+    "src/desktop/__tests__/helm-provider-readiness.test.ts": "707760af4f34e2aa0cb78141b73a5ca83e95df74c55af54e42e06d36cc51252d",
+    "src/desktop/__tests__/helm-handoff.test.ts": "c1ad10ba767060130518f61305c0880aedf9b9e061b1f1878e250825cf1b16e1",
+    "src/desktop/__tests__/helm-preview.test.ts": "17b839beaa59728db59454979b9dae5b1a8aebc77dc4f77db3266aa4b0b342c9",
+    "src/desktop/__tests__/maintenance-service.test.ts": "3b3f67c6ac826d75b77de7e98830e5e8a7d3780ef913b612f179df501b8a287b",
+    "src/desktop/__tests__/package-desktop.test.ts": "46ffb19e37028a0b903ea0217d79f165a6a854086742fcd40e41d50cb99d42a8",
+    "src/desktop/__tests__/workbench-enterprise.test.ts": "da57f4db83fefb3792139c35c3bd2a9d413b6d9d489466fa4c93128bc22ce5a2",
+    "src/desktop/core/helm-orca-service.ts": "03bcdac33e7954854de3c636304d5b394e1ffef12d6941964c0172e1bd1e458c",
+    "src/desktop/core/helm-orca-transport.ts": "fbaeafaafc9e502d4fad3c31809ba0dc1ae0f04c6edc9e9b856a2896dbbc56f9",
+    "src/desktop/core/helm-orca-runtime.ts": "e3a57050aa39e8ce82893eb55bfa66a7db8bfa684b3f0b2b450e88cd2aee6812",
+    "src/desktop/core/helm-orca-tools.ts": "abbdce7024966cb7af6228a3877f860fab34290431883ae7f83456778e9cc666",
+    "src/desktop/core/helm-orca-errors.ts": "49863ced7aaff946b73dd3d607a40bb00591da3a5bdae12f859670838bdee811",
+    "src/desktop/core/durable-work.ts": "9c6d352371e30b7cbad3dd4f5fcf3bd766c75b570dcb1eaacaa6b62a704d3007",
+    "src/desktop/core/work-audit.ts": "225468016e3868b44256589802ced8cd27b9e040b38981339e39f414b1cb3e14",
+    "src/desktop/core/workbench-service.ts": "b7db80b9f7ddd4a187ad4574f4d746a0fe8d85fc9a802155d650234d29e81b0d",
+    "src/desktop/core/maintenance-service.ts": "f48c3ad03c90d77c63020401eea904f299cabcd7834b0269b1e39fb9e342dfba",
+    "scripts/package-desktop.mjs": "a40c4469c3d15d1548f82bcf51f1448ab1381da6cbbaad742c89d1a5f4260ecb"
+  },
+  "exclusions": {
+    "workbench-maintenance/hooks/delegation/durable-work/helm/service/webhook/browser": "Actual HTTP listeners in these suites; not run",
+    "helm-code-service/helm-service/helm-integration/helm-source-checks/build-helm/spatial-*": "Real subprocess or native-helper workflows; outside this in-process lane",
+    "work-goals/work-audit-ui/helm-orca-ui/helm-ui/maintenance-ui": "UI source currently in another lane; parent runs after freeze"
+  },
+  "exitCode": 0,
+  "counts": {
+    "numTotalTests": 196,
+    "numPassedTests": 196,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numRuntimeErrorTestSuites": null,
+    "success": true
+  },
+  "fileResults": [
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/delegation-tools.test.ts",
+      "status": "passed",
+      "tests": 6,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/durable-work-review.test.ts",
+      "status": "passed",
+      "tests": 2,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/durable-work.test.ts",
+      "status": "passed",
+      "tests": 22,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-code-storage.test.ts",
+      "status": "passed",
+      "tests": 6,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-context-tools.test.ts",
+      "status": "passed",
+      "tests": 5,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-handoff.test.ts",
+      "status": "passed",
+      "tests": 17,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-orca-ownership.test.ts",
+      "status": "passed",
+      "tests": 5,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-orca-readiness.test.ts",
+      "status": "passed",
+      "tests": 1,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-orca-review.test.ts",
+      "status": "passed",
+      "tests": 5,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-orca-runtime.test.ts",
+      "status": "passed",
+      "tests": 3,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-orca-service.test.ts",
+      "status": "passed",
+      "tests": 20,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-orca-tools.test.ts",
+      "status": "passed",
+      "tests": 7,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-orca-transport.test.ts",
+      "status": "passed",
+      "tests": 5,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-orca-workbench-tools.test.ts",
+      "status": "passed",
+      "tests": 3,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-preview.test.ts",
+      "status": "passed",
+      "tests": 15,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/helm-provider-readiness.test.ts",
+      "status": "passed",
+      "tests": 12,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/maintenance-service.test.ts",
+      "status": "passed",
+      "tests": 12,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/package-desktop.test.ts",
+      "status": "passed",
+      "tests": 20,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/work-audit-integration.test.ts",
+      "status": "passed",
+      "tests": 5,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/work-audit-review.test.ts",
+      "status": "passed",
+      "tests": 6,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/work-audit.test.ts",
+      "status": "passed",
+      "tests": 16,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/work-scheduling.test.ts",
+      "status": "passed",
+      "tests": 1,
+      "failures": ""
+    },
+    {
+      "file": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/workbench-enterprise.test.ts",
+      "status": "passed",
+      "tests": 2,
+      "failures": ""
+    }
+  ],
+  "filesChangedDuringRun": [],
+  "evidenceHashes": {
+    "/tmp/helm-inprocess-results.json": "f02835f272f4628e2b499c6b64000a2d6b96de7cdac1435e6ab12d3578a1ba86",
+    "/tmp/helm-inprocess-run.log": "12ef0f31c5a3361d3022ef0a4b82a4d4242dc403bd969cb2d12f13cfb60540a4"
+  }
+}

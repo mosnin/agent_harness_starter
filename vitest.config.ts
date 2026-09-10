@@ -6,7 +6,7 @@ export default defineConfig({
     environment: "node",
     globals: true,
     // Retained third-party evidence is data, never part of our executable suite.
-    exclude: [...configDefaults.exclude, ".research/**"],
+    exclude: [...configDefaults.exclude, ".research/**", "docs/research/**", "benchmarks/helm-enterprise/fixtures/**"],
   },
   resolve: {
     alias: {

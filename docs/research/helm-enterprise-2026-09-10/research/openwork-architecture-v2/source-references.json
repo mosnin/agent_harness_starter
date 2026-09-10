@@ -1,0 +1,432 @@
+[
+  {
+    "path": "apps/server/package.json",
+    "body": "../openwork-architecture-v1/sources/apps__server__package.json.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__package.json.source.json",
+    "sha256": "f4bd5427549c8a92e257af4a3a7c1ee9b1d03a22ac52009790c189e027990217",
+    "receipt_sha256": "8c54fd955bcbc6e9341f67565f6e16ae038a1d20f999fdd4790f85ef683eb01d",
+    "git_blob_sha": "53819fc1115f521861ca671cfb2d6b83f0292978",
+    "observed_at": "2026-09-10T06:30:35.779Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/embedded.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__embedded.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__embedded.ts.source.json",
+    "sha256": "41d0ce2e1609b4b93bff8de4992c668af99200c812b7a75e451aa41df656144d",
+    "receipt_sha256": "acb702a584e722e46bdf3a96008082b49425578a02f5f8454bc98642d53eb8de",
+    "git_blob_sha": "ec83273ef787cd5b11188e4ddc22902ad63b15ca",
+    "observed_at": "2026-09-10T06:30:36.024Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/engine-pool.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__engine-pool.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__engine-pool.ts.source.json",
+    "sha256": "34580c9b1aba51f6b3026f6fdfd1b57e41601a33c159625d29876d1f900f1569",
+    "receipt_sha256": "b050f3f3100e4a9479b7e92fe8b49706b78996563eac24175ffd2b10aa032664",
+    "git_blob_sha": "880f20b0d236278f35c39754e1a5276794a3e1e5",
+    "observed_at": "2026-09-10T06:30:36.156Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/engine-registry.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__engine-registry.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__engine-registry.ts.source.json",
+    "sha256": "ea6a8172de293c797b5dc8caadcb23f53ee6b06017f19f8b7ee2b45a89bb204f",
+    "receipt_sha256": "276f86267f2d27329d206ddc950069bb3d7a58b4c4b23ee3de992c7c8c3107a8",
+    "git_blob_sha": "fdae857e46d4a56059e0c3f8afc2c8dc48e0ccea",
+    "observed_at": "2026-09-10T06:30:36.292Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/task-recovery.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__task-recovery.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__task-recovery.ts.source.json",
+    "sha256": "86f780a4b5c073b2780d42cfc63cbfb12098a1877cfc90b6265ade89a31429f7",
+    "receipt_sha256": "7048050a837c0af0dd5f1fbc50bdeac1e44d056d86465a91af1eb858466cee23",
+    "git_blob_sha": "0f42b4dbdfe320138622df740e63cc2fc8c7f842",
+    "observed_at": "2026-09-10T06:30:38.416Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/runtime-db.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__runtime-db.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__runtime-db.ts.source.json",
+    "sha256": "919071436f0e05f42f317023e5880d7da5cad6725563328d921de5de2b0f4f50",
+    "receipt_sha256": "d5f74cf8502922764b8ec3d560ed206ee8799382c171d5f4e81945c9861da59a",
+    "git_blob_sha": "88581a22ccdf054fea52bf667ef5c29e0afc33e8",
+    "observed_at": "2026-09-10T06:30:38.579Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "REUSE.toml",
+    "body": "../openwork-architecture-v1/sources/REUSE.toml.source",
+    "receipt": "../openwork-architecture-v1/receipts/REUSE.toml.source.json",
+    "sha256": "250e0a98fa4586432af6430a3e4edd97277230b14a0267d11597f5fd5d95ebf3",
+    "receipt_sha256": "9a15a7035d62e3ce97fb61932423cc77d5f677c8dce005ef74a07a31f8cafea3",
+    "git_blob_sha": "6907a6f8e4dcd5463fc0b7fc176698788205e1f6",
+    "observed_at": "2026-09-10T06:30:38.710Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/desktop/package.json",
+    "body": "../openwork-architecture-v1/sources/apps__desktop__package.json.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__desktop__package.json.source.json",
+    "sha256": "225274257e2e5262df1c5f7de598408808110165af4e1976113fb3c2e4c33e90",
+    "receipt_sha256": "5bb3ccf3d644b39bef747f9523efb760241eb6e28f9832d5c04ea01809c69e30",
+    "git_blob_sha": "b11c34d34a3d6615edc75be91be600d65819d71d",
+    "observed_at": "2026-09-10T06:30:38.842Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/server.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__server.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__server.ts.source.json",
+    "sha256": "cc8ee5c9cffad83ff86faf8d92e650ce3d92038db784a5eabb7a6a0e11cbc2a6",
+    "receipt_sha256": "07c29df51c646fbe4dd01cf6f080a09b17edac15a467bf8584ce2b48649e48eb",
+    "git_blob_sha": "b33950fbebbb1ae1e1a105a0c02a1ea7e39be776",
+    "observed_at": "2026-09-10T06:31:22.903Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/managed-opencode.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__managed-opencode.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__managed-opencode.ts.source.json",
+    "sha256": "5fecc14b6db61e0f0a9a61e685b5f6fb3aa6a87ad16f0dde08c7814efe1277e9",
+    "receipt_sha256": "9d6dbb59b74fcc8ab4647ffd0da1ed995ea8cabfc2dcb3021cbe2a2b15aca7ad",
+    "git_blob_sha": "2e6ea391761e7b816d7b81d22742a50ea137ccb3",
+    "observed_at": "2026-09-10T06:31:23.085Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/effective-permissions.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__effective-permissions.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__effective-permissions.ts.source.json",
+    "sha256": "56a3675acc59e2c696fe6bc2cf225825ede8080a153dc71340a227eabe9c99a4",
+    "receipt_sha256": "bd2b6cc99b8a5b81c3ef3e866496a41528cb2fb6431d8aeb454a57e2c493414c",
+    "git_blob_sha": "90fee52199612a61986e1bc926daf9c6558fb1e0",
+    "observed_at": "2026-09-10T06:31:23.235Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/thread-approvals.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__thread-approvals.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__thread-approvals.ts.source.json",
+    "sha256": "491c377ab12980fcf9203e23138215c76c21ade815dc5d9e5d3cb7f8aad4295d",
+    "receipt_sha256": "06a058b0cdea64dfcf2fcf7032083ec85e58b1ce4acbe5dcb496b380c9032c2d",
+    "git_blob_sha": "22e1d66617623419b65d76904215aad3418fab0c",
+    "observed_at": "2026-09-10T06:31:23.369Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/tokens.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__tokens.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__tokens.ts.source.json",
+    "sha256": "812520f9a2e25232fe5d292046065ef1537e21d312060dc42ef0df82a0ea651c",
+    "receipt_sha256": "90a124460bd639e32127fdd4de0d92d8a0b9c50e67d5142727df10a7277d88f0",
+    "git_blob_sha": "1ae5d62745f163ad353e21de264f2c49fc817743",
+    "observed_at": "2026-09-10T06:31:25.536Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/routes/ui-control.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__routes__ui-control.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__routes__ui-control.ts.source.json",
+    "sha256": "0230d963fdb5e004bef65736d2341fbee26fe55a7c5f00ecbbaf7762f10d431a",
+    "receipt_sha256": "f322d7d740d60b1896f8dccf67688ba88d9da9922e47e2b6399666c1a55344c4",
+    "git_blob_sha": "e2b1c028d2748b2b5a42dab737964747dfe52e5a",
+    "observed_at": "2026-09-10T06:31:25.699Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/skills.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__skills.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__skills.ts.source.json",
+    "sha256": "cead4d09782cc6ff71327158ccead10603ab1e409d483a314a08044010d1e861",
+    "receipt_sha256": "5da2c2d74c36916755a500b9c39e5e8e54b1f190334bf1b5ebd3e67a727531d0",
+    "git_blob_sha": "8ce51530b8071833510fb4545c75d3d637b78fb5",
+    "observed_at": "2026-09-10T06:31:25.831Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/mcp.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__mcp.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__mcp.ts.source.json",
+    "sha256": "5dbc8c83985fc9133b4ab048064349d7ad62e2f13bf6b3cd2430d6ab509b132d",
+    "receipt_sha256": "0134ab9d5180446519825ad024ed0a50e39f0f7e4f8c71350fdfbb8ec33d1a58",
+    "git_blob_sha": "60e2c976e57445645b00aa47d11d3fc500839927",
+    "observed_at": "2026-09-10T06:31:25.968Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/desktop/electron/runtime.mjs",
+    "body": "../openwork-architecture-v1/sources/apps__desktop__electron__runtime.mjs.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__desktop__electron__runtime.mjs.source.json",
+    "sha256": "c05db81bde807df9e7d907c5e03a92e97e611cdc9de5cf897b2bc81e6db77fee",
+    "receipt_sha256": "b291948fd64326c358ea86cb376a9e4dc00333d8751bdd1da4f7bd406544bf1e",
+    "git_blob_sha": "cb209704f47ce5644e123a783146bbc0b25136dd",
+    "observed_at": "2026-09-10T06:31:28.327Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/desktop/electron/browser-task.mjs",
+    "body": "../openwork-architecture-v1/sources/apps__desktop__electron__browser-task.mjs.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__desktop__electron__browser-task.mjs.source.json",
+    "sha256": "e6b19718a3aff8d286d8ecfe9f62a806626c16a2c120ffe782c5b0e089a07b7a",
+    "receipt_sha256": "0d078549c68352f1e2b4ccfc0f994bf6791689747d9872415c0124db441d8456",
+    "git_blob_sha": "e8e20cb56f3b1f212d80b23bb8ef393e35833236",
+    "observed_at": "2026-09-10T06:31:28.494Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/desktop/electron/webmcp-policy.mjs",
+    "body": "../openwork-architecture-v1/sources/apps__desktop__electron__webmcp-policy.mjs.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__desktop__electron__webmcp-policy.mjs.source.json",
+    "sha256": "65bd026ae13398dad78746f2fd4207871af10b08d996ee3bd310757657eb19c9",
+    "receipt_sha256": "3282a1d2ab4a171ec01b8341a8036a15a1007cbf20ccb781cff3d3875f4095f5",
+    "git_blob_sha": "0e959c8112761aaa0321c8599d9e58f3b286aa3d",
+    "observed_at": "2026-09-10T06:31:28.631Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/desktop/electron/remote-workspace.mjs",
+    "body": "../openwork-architecture-v1/sources/apps__desktop__electron__remote-workspace.mjs.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__desktop__electron__remote-workspace.mjs.source.json",
+    "sha256": "a2b149d1cbe61bde540c4f12ef8e3bdd0ad1210559ab56aa8249969f6e4cb8b3",
+    "receipt_sha256": "af58dab1415c2463e5a86c5fee451423323f9245383e3204bb9f428bf22dadd1",
+    "git_blob_sha": "bd2e873878d97e8acf406dc5f60957368e8de122",
+    "observed_at": "2026-09-10T06:31:28.766Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "packages/automations/src/engine.ts",
+    "body": "../openwork-architecture-v1/sources/packages__automations__src__engine.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/packages__automations__src__engine.ts.source.json",
+    "sha256": "331f002075a5b5582b7252f63e541582ec81bc9d5c42198fdeada57c98af11cb",
+    "receipt_sha256": "d5e7ace6cc05d148bf539deb96bbe647c84ebad95034eb473ffc1f71af1d30e4",
+    "git_blob_sha": "61971f183d64c437d62d80b0e81d610ca06e5889",
+    "observed_at": "2026-09-10T06:31:30.790Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "packages/automations/src/runner.ts",
+    "body": "../openwork-architecture-v1/sources/packages__automations__src__runner.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/packages__automations__src__runner.ts.source.json",
+    "sha256": "bf2ad0e2b8f43e692d99d71a1cc7d32f5585a83697620472ce5e31cfef288256",
+    "receipt_sha256": "448ccf19ae8408e86e590d31d562434a7a295e44b56b01907187cd22bf4d7c60",
+    "git_blob_sha": "9f322d588d5ea7fe551e9f9edee06c9bc28a32ca",
+    "observed_at": "2026-09-10T06:31:30.953Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "ee/apps/den-api/src/mcp/policy.ts",
+    "body": "../openwork-architecture-v1/sources/ee__apps__den-api__src__mcp__policy.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/ee__apps__den-api__src__mcp__policy.ts.source.json",
+    "sha256": "6c9f572b701a4ba837aaa445f124565279f09ddae02431339737e172def5c8b4",
+    "receipt_sha256": "beaa68d44ec5bde47bfefb4b73e1e883f76973a7668200b9ff94f23a73925392",
+    "git_blob_sha": "02157fa2c1a7562d486368fd40adf3a71801525e",
+    "observed_at": "2026-09-10T06:31:31.087Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "ee/apps/den-api/src/automations/authority.ts",
+    "body": "../openwork-architecture-v1/sources/ee__apps__den-api__src__automations__authority.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/ee__apps__den-api__src__automations__authority.ts.source.json",
+    "sha256": "2ca883b8e408d3ca0749a3c11a00e4776fb73c55f54eeac03a891c2df190fd5f",
+    "receipt_sha256": "0a02132db41f182a1efc8a3b3886e7805017c61fd5678fb1d99116af88c2cdf8",
+    "git_blob_sha": "bfe79ca1d99640b30d74bcc03d29439219a407a5",
+    "observed_at": "2026-09-10T06:31:31.220Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "ee/apps/den-api/src/entitlements.ts",
+    "body": "../openwork-architecture-v1/sources/ee__apps__den-api__src__entitlements.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/ee__apps__den-api__src__entitlements.ts.source.json",
+    "sha256": "175354dbb8dfb9a8233781b4ebe1b7a0781f3748ce94c8f096bd2d2114442e59",
+    "receipt_sha256": "c60eedba7ad7a54d88e8e73e1d2393959a5a3bfca996bf734321d8e0a0cd1729",
+    "git_blob_sha": "74370241dd736cba8a708bf5839fab881b65adec",
+    "observed_at": "2026-09-10T06:31:32.843Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/desktop/electron-builder.base.yml",
+    "body": "../openwork-architecture-v1/sources/apps__desktop__electron-builder.base.yml.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__desktop__electron-builder.base.yml.source.json",
+    "sha256": "27cf9ef794ea5519e86971d1d48c92ce2c57f92204beacf0d703ccc207bfc1fc",
+    "receipt_sha256": "d0468633b8a287639f0986cac455cb0b21b75e7212b43399cc834e5e9625ceb3",
+    "git_blob_sha": "8eadd6eb3884fb7189591bc2b90b2f29b23aebdb",
+    "observed_at": "2026-09-10T06:31:33.008Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/workspace-kv-store.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__workspace-kv-store.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__workspace-kv-store.ts.source.json",
+    "sha256": "245be667fd1d815062157faf1b1b7f2df3d7c455e6ebfe6ae338b77816d56d5e",
+    "receipt_sha256": "a5e20bd862ad067a3a0dba7ec8ca979f7a2ceba785c36555f03a4eaf25923e55",
+    "git_blob_sha": "d5551037b5c50dcc13f606d18f3915fa5f62c7de",
+    "observed_at": "2026-09-10T06:32:14.014Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/opencode-plugins/managed-policy.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__opencode-plugins__managed-policy.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__opencode-plugins__managed-policy.ts.source.json",
+    "sha256": "5fa32fab27a7158736739caa151c2e16d17fe56c02fae633bf6d0d6e0a7ead0e",
+    "receipt_sha256": "96aa6694e3c25c7c81b8024e98470cc678f86f4c3f79bf09535edc660f8004b0",
+    "git_blob_sha": "f214326470d6375047f5af845782d579d521712a",
+    "observed_at": "2026-09-10T06:32:14.180Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/ui-control.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__ui-control.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__ui-control.ts.source.json",
+    "sha256": "c288391592106021dee220a3bbb7b546149bf878c4d07522df2dadda58a18029",
+    "receipt_sha256": "c17b6a77be333598232fb53a31163cb91c90743f3199df89c72b021509cf2173",
+    "git_blob_sha": "8f1bfdf4b397344ee891d615cbd967df86ebef6a",
+    "observed_at": "2026-09-10T06:32:14.316Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/engine-directory-fence.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__engine-directory-fence.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__engine-directory-fence.ts.source.json",
+    "sha256": "1de5a71355a92a07944e315bea7379a3452849b0c32f9adf25295122a28c825a",
+    "receipt_sha256": "33194806e6ab08c899a492f6fd2c3ecaa3bcc86fffca6a0610b0f55cb2923186",
+    "git_blob_sha": "f7bcc4ad57d2c29b5df03a8a30c367cd48802994",
+    "observed_at": "2026-09-10T06:32:14.451Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "packages/headless-threads/src/client.ts",
+    "body": "../openwork-architecture-v1/sources/packages__headless-threads__src__client.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/packages__headless-threads__src__client.ts.source.json",
+    "sha256": "4313fa0f82c63049d2f4e7c678f7be0b9ec613eb152f0abbf5ed406e9f6896a3",
+    "receipt_sha256": "bc37215cde960abbaa740fd9106c878b1b5bf61de0988531361bd417797de2e4",
+    "git_blob_sha": "35438bdf7cd87ecafdf4beb1ffc5c69cbbb2f451",
+    "observed_at": "2026-09-10T06:32:17.425Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "packages/automations/src/tick.ts",
+    "body": "../openwork-architecture-v1/sources/packages__automations__src__tick.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/packages__automations__src__tick.ts.source.json",
+    "sha256": "a287e08f132974385dd25ddc020878600811559aca561b845721630aff42a959",
+    "receipt_sha256": "be53f9f6082b28f9021cec89838047a4f9c5eadecdb4312ba38983166819ca1c",
+    "git_blob_sha": "2f3229987a2c7562bf9b2e10b1b9afd8d167b564",
+    "observed_at": "2026-09-10T06:32:17.591Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "ee/apps/den-api/src/mcp/auth.ts",
+    "body": "../openwork-architecture-v1/sources/ee__apps__den-api__src__mcp__auth.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/ee__apps__den-api__src__mcp__auth.ts.source.json",
+    "sha256": "8a3a7e41867e2d9e8066eb8208269545a0ce49e98c53aa6945e4f51414d0616a",
+    "receipt_sha256": "d7c2782c858821c472438a8c9b402525199125100b1c65fc718f3436786f98fc",
+    "git_blob_sha": "a95add5ab7f97f348601842f3d6cb4660495d761",
+    "observed_at": "2026-09-10T06:32:17.725Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "ee/apps/den-api/src/mcp/grant-liveness.ts",
+    "body": "../openwork-architecture-v1/sources/ee__apps__den-api__src__mcp__grant-liveness.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/ee__apps__den-api__src__mcp__grant-liveness.ts.source.json",
+    "sha256": "58ecb6abd267350cf680b7216471ff1bf481e6d979f9bc2338450da70200ad82",
+    "receipt_sha256": "7f7006b1b15ee004eede310564269fe3ac4ed2cb112a00300bfebd2b3ceb988d",
+    "git_blob_sha": "63d60b405e4bf3f2c51925f9dc38b5702fbd76e1",
+    "observed_at": "2026-09-10T06:32:17.861Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "ee/apps/den-api/src/automations/scheduler-loop.ts",
+    "body": "../openwork-architecture-v1/sources/ee__apps__den-api__src__automations__scheduler-loop.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/ee__apps__den-api__src__automations__scheduler-loop.ts.source.json",
+    "sha256": "2fefe04d110b29ad332386898e9827d46c2e2845ac72ceb965ca0171facf506d",
+    "receipt_sha256": "35598662554689e6565c49a8c22f107b638425d7aa1bad766df510a1b8edec43",
+    "git_blob_sha": "d46cf90f79f7ecc905f032bf142585e3bfac6a4f",
+    "observed_at": "2026-09-10T06:32:20.087Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "ee/apps/den-api/src/automations/cloud-agent-executor.ts",
+    "body": "../openwork-architecture-v1/sources/ee__apps__den-api__src__automations__cloud-agent-executor.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/ee__apps__den-api__src__automations__cloud-agent-executor.ts.source.json",
+    "sha256": "97099a7a6203fbb86c9bca7cddd858aad15b9b7b68e218d908882fc20bc222a7",
+    "receipt_sha256": "86184eccee4ab474e9602681e9282bd8f02b6ad1380aa9a04863a54ff10ad5af",
+    "git_blob_sha": "285887e5d994b37e1c7e334dbe4550d83bf28077",
+    "observed_at": "2026-09-10T06:32:20.252Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/desktop/electron/ui-control-server.mjs",
+    "body": "../openwork-architecture-v1/sources/apps__desktop__electron__ui-control-server.mjs.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__desktop__electron__ui-control-server.mjs.source.json",
+    "sha256": "ee9655c131c70065b22ef16042b1081e1dd6d1911152e48ac2fcb5248bc2e232",
+    "receipt_sha256": "31e33b2613d2369c666434c8f6d6ca6bdac1244b40de0afba4b2b973dad69bab",
+    "git_blob_sha": "dd8123bde8b3aa09f14f6217b0ac7db9a82586c7",
+    "observed_at": "2026-09-10T06:32:20.390Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/managed-opencode-v2.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__managed-opencode-v2.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__managed-opencode-v2.ts.source.json",
+    "sha256": "d0bf078906ef2a895c5a21b12ed78261dc701e6f7f7c7d43fde1d9e50087c43c",
+    "receipt_sha256": "ceea2ea80a852d45975080ee6a23c0e2a3b735c8a64ab397ac3bf35e3819bccb",
+    "git_blob_sha": "3f4a7f5bd5d64a8ca8f126bb99bcc5a4f44d1e47",
+    "observed_at": "2026-09-10T06:32:20.525Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/opencode-plugins/managed-policy-client.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__opencode-plugins__managed-policy-client.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__opencode-plugins__managed-policy-client.ts.source.json",
+    "sha256": "ab817fae4feefbe065941153eff05566d3657a668fd5b25bc7ff2fde69e7b066",
+    "receipt_sha256": "ab96bebe22e0ae06bd26a119a5610b02fb4b604b9064163213a1effdd133b1ba",
+    "git_blob_sha": "aaf8edae79eea6ccb0054df3d801c2da8c7f04b6",
+    "observed_at": "2026-09-10T06:33:26.749Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/managed-policy-plugin.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__managed-policy-plugin.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__managed-policy-plugin.ts.source.json",
+    "sha256": "c80c6ca1d0f028410f27b248f2f5106442d192bb4ceac7837daeefe7bf6a56cb",
+    "receipt_sha256": "745c9663c9ab20f74b91f7f112e6a8b26d3c648dd4e6cc675c290b15ade918ef",
+    "git_blob_sha": "52e178bb39216d7e58c4b8daf30959fdc9dba4b4",
+    "observed_at": "2026-09-10T06:33:27.389Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/task-recovery.test.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__task-recovery.test.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__task-recovery.test.ts.source.json",
+    "sha256": "97967c57593bed84580d152f73ac42e4e7acb11206e28b4504fcfc249b83f9c8",
+    "receipt_sha256": "9d206fee3a83042eb0985cbab2c32c49d06dcb793f9861e67ff2f60dad38937a",
+    "git_blob_sha": "797b9c51a1d35c3b20d420eede0fba48f08feb4f",
+    "observed_at": "2026-09-10T06:33:28.176Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/server/src/engine-instance-reaper.ts",
+    "body": "../openwork-architecture-v1/sources/apps__server__src__engine-instance-reaper.ts.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__server__src__engine-instance-reaper.ts.source.json",
+    "sha256": "031b57d772e0c028f965437344a0c73cd64c2e12385d9b55d00aaa31476f2ad8",
+    "receipt_sha256": "cf19c7903a4b5a493cb0d49246639cad27f5f16c3ccc11855f70dbfb823fa2b2",
+    "git_blob_sha": "481e13fcb446dc4db898904be4e1abca9bfcab82",
+    "observed_at": "2026-09-10T06:33:28.920Z",
+    "observation_inherited": true
+  },
+  {
+    "path": "apps/desktop/electron/main.mjs",
+    "body": "../openwork-architecture-v1/sources/apps__desktop__electron__main.mjs.source",
+    "receipt": "../openwork-architecture-v1/receipts/apps__desktop__electron__main.mjs.source.json",
+    "sha256": "702fdb30921f1a9f39b16d9d1385cff17397fdac680009bbf245ca10756540ab",
+    "receipt_sha256": "7e2a8fe5cdcc0fe83b7194ded68851a3d3aaf9d22b6d0dce84c13aa24cd57924",
+    "git_blob_sha": "ed9871dd4b8a51e3116e9e545c29b60ed7703a9f",
+    "observed_at": "2026-09-10T06:33:29.623Z",
+    "observation_inherited": true
+  }
+]

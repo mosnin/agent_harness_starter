@@ -1,0 +1,73 @@
+[
+  {
+    "input": {
+      "tasks": [
+        {
+          "id": "a",
+          "dependsOn": []
+        },
+        {
+          "id": "b",
+          "dependsOn": []
+        },
+        {
+          "id": "c",
+          "dependsOn": [
+            "a"
+          ]
+        }
+      ],
+      "limit": 2
+    },
+    "expected": [
+      [
+        "a",
+        "b"
+      ],
+      [
+        "c"
+      ]
+    ]
+  },
+  {
+    "input": {
+      "tasks": [
+        {
+          "id": "a",
+          "dependsOn": [
+            "b"
+          ]
+        },
+        {
+          "id": "b",
+          "dependsOn": [
+            "a"
+          ]
+        }
+      ],
+      "limit": 2
+    },
+    "throws": true
+  },
+  {
+    "input": {
+      "tasks": [
+        {
+          "id": "a",
+          "dependsOn": [
+            "x"
+          ]
+        }
+      ],
+      "limit": 2
+    },
+    "throws": true
+  },
+  {
+    "input": {
+      "tasks": [],
+      "limit": 0
+    },
+    "throws": true
+  }
+]

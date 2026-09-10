@@ -2,7 +2,7 @@ import { expect, it, vi } from "vitest";
 import { delegationTools, type DelegationScope } from "../core/delegation-tools";
 import type { WorkGoal } from "../core/durable-work";
 function goal(id = "child"): WorkGoal {
-  return { id, root: "/trusted", profile: "p", objective: "Build", status: "running", tasks: [{ id: "one", title: "Implement", profile: "p", prompt: "Implement", dependsOn: [], status: "running", rounds: 1, messages: [] }], maxRounds: 2, tokens: 0, maxTokens: 25000, maxMinutes: 15, elapsedMs: 0, createdAt: 0, updatedAt: 0, acceptance: [] };
+  return { id, root: "/trusted", profile: "p", objective: "Build", status: "running", tasks: [{ id: "one", title: "Implement", profile: "p", prompt: "Implement", dependsOn: [], status: "running", rounds: 1, messages: [] }], maxConcurrent: 2, maxRounds: 2, tokens: 0, maxTokens: 25000, maxMinutes: 15, elapsedMs: 0, createdAt: 0, updatedAt: 0, acceptance: [] };
 }
 function fixture(overrides: Partial<DelegationScope> = {}) {
   const controller = new AbortController();

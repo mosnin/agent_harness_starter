@@ -1,0 +1,73 @@
+[
+  {
+    "input": {
+      "cart": [
+        {
+          "sku": "a",
+          "quantity": 2
+        }
+      ],
+      "operations": [
+        {
+          "sku": "a",
+          "delta": -1
+        },
+        {
+          "sku": "b",
+          "delta": 3
+        }
+      ]
+    },
+    "expected": [
+      {
+        "sku": "a",
+        "quantity": 1
+      },
+      {
+        "sku": "b",
+        "quantity": 3
+      }
+    ]
+  },
+  {
+    "input": {
+      "cart": [
+        {
+          "sku": "a",
+          "quantity": 2
+        }
+      ],
+      "operations": [
+        {
+          "sku": "a",
+          "delta": -2
+        }
+      ]
+    },
+    "expected": []
+  },
+  {
+    "input": {
+      "cart": [],
+      "operations": [
+        {
+          "sku": "x",
+          "delta": -1
+        }
+      ]
+    },
+    "throws": true
+  },
+  {
+    "input": {
+      "cart": [],
+      "operations": [
+        {
+          "sku": "x",
+          "delta": 1.5
+        }
+      ]
+    },
+    "throws": true
+  }
+]

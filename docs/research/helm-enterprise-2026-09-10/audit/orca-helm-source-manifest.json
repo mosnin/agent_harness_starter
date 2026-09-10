@@ -1,0 +1,131 @@
+{
+  "evidence": "read-only source inspection; no runtime execution or provider calls",
+  "sources": [
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+      "revision": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
+      "path": "docs/HELM.md",
+      "sha256": "9b119f3990fabc5a635f4e4587d32f5ccc95ec2400582a96f8c6d73943b2b580",
+      "bytes": 11024
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+      "revision": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
+      "path": "src/desktop/core/helm-service.ts",
+      "sha256": "e07f7846c13062cf106ffd0f831993f6853b7f6634bec3880c7a613748d73918",
+      "bytes": 23469
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+      "revision": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
+      "path": "src/desktop/core/helm-adapters.ts",
+      "sha256": "3e019ce387ce300b510b50b158f647e51238160adeba143c39eb9fcc0843caa1",
+      "bytes": 4049
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+      "revision": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
+      "path": "src/desktop/core/helm-tools.ts",
+      "sha256": "b695cd81ff6fc405173eeb177bb299b9b0c066b834907ca815722f289596abc3",
+      "bytes": 5729
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+      "revision": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
+      "path": "src/desktop/core/helm-code-service.ts",
+      "sha256": "602d7c0fd2c59cb7310d3d6af74b8049092f1606834ecdc19ab00600d1d2883e",
+      "bytes": 26946
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+      "revision": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
+      "path": "src/desktop/core/helm-integration.ts",
+      "sha256": "51a703f8370ba81329fe3a46c05dffeff84c7778bf306344471d6972199acbe2",
+      "bytes": 11592
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+      "revision": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
+      "path": "src/desktop/core/durable-work.ts",
+      "sha256": "ba1fa3f5abbf0f46d031f5009bdca401329974b4b5b53eca18e909165077f2fe",
+      "bytes": 21562
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+      "revision": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
+      "path": "src/desktop/core/workbench-service.ts",
+      "sha256": "de19110067d609324f3e0cfbff26f1ce50b94c0cac202e80d5b9dffa0a2d76c8",
+      "bytes": 160932
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+      "revision": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
+      "path": "src/desktop/core/schedule-service.ts",
+      "sha256": "6f4c0bc5c14889193b7dda0d9d54e108c5014f7ba32af9a0dfe8f50555c1ef20",
+      "bytes": 9972
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/orca-reference",
+      "revision": "bf4e2705046cf9ef9c915929a9646da85717af07",
+      "path": "LICENSE",
+      "sha256": "ff1b611f80580d49f4b97e93a97b24eb050b0671b26b8afe16341fab699112f3",
+      "bytes": 1070
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/orca-reference",
+      "revision": "bf4e2705046cf9ef9c915929a9646da85717af07",
+      "path": "package.json",
+      "sha256": "c6e53d7433f5ee68a806649a218444889e6a6677fad27a1ce5db8b39a7cc121c",
+      "bytes": 24924
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/orca-reference",
+      "revision": "bf4e2705046cf9ef9c915929a9646da85717af07",
+      "path": "config/scripts/build-orcad.mjs",
+      "sha256": "4bc34fb05dcfa5ee2e459eb5268e49e966f70b0a1d7a65f76de31c11137826c5",
+      "bytes": 12928
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/orca-reference",
+      "revision": "bf4e2705046cf9ef9c915929a9646da85717af07",
+      "path": "src/main/orcad/orcad-entry.ts",
+      "sha256": "fc0ea63d05d19f9335e114d05afebabdfbd82c4955c77757e9f700813accd54a",
+      "bytes": 16081
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/orca-reference",
+      "revision": "bf4e2705046cf9ef9c915929a9646da85717af07",
+      "path": "src/cli/specs/orchestration.ts",
+      "sha256": "f675a77fd3e61016009ae3c03de1c44baa01f9d1896637778b49c5f7543dceca",
+      "bytes": 12520
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/orca-reference",
+      "revision": "bf4e2705046cf9ef9c915929a9646da85717af07",
+      "path": "src/cli/specs/orchestration-worker-specs.ts",
+      "sha256": "87998a365c0e6c2d1999fe1a7e9b684fc023992159e75d7150f255b9e0a7d0ee",
+      "bytes": 8797
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/orca-reference",
+      "revision": "bf4e2705046cf9ef9c915929a9646da85717af07",
+      "path": "src/main/runtime/rpc/methods/structured-agent-session.ts",
+      "sha256": "4a1f8eee4cfa180ece361510801e0c90730251f38fce3841d7d2fd4baa880779",
+      "bytes": 10478
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/orca-reference",
+      "revision": "bf4e2705046cf9ef9c915929a9646da85717af07",
+      "path": "src/main/runtime/rpc/methods/worktree.ts",
+      "sha256": "e98ef9b599a1cc1d602726da8f8eb1472e6e1d72d512b1d7f354965d45d221bd",
+      "bytes": 10578
+    },
+    {
+      "repository": "/Users/preston/Documents/Codex/2026-09-06/orca-reference",
+      "revision": "bf4e2705046cf9ef9c915929a9646da85717af07",
+      "path": "src/main/runtime/rpc/methods/structured-agent-session-gate.ts",
+      "sha256": "b1e972ebed89a63c2b678ce2f3712bd0ecb8374cb8e69a518323c0581060af88",
+      "bytes": 2938
+    }
+  ]
+}

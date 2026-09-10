@@ -1,0 +1,19 @@
+{
+  "reason": "Retained upstream bodies are evidence, never compiler/test inputs.",
+  "byte_hashes_preserved": true,
+  "renames": {
+    "anomalyco-opencode--packages__opencode__src__server__server.ts": "anomalyco-opencode--packages__opencode__src__server__server.ts.source",
+    "openai-codex--codex-rs__core__src__tools__handlers__multi_agents_v2__spawn.rs": "openai-codex--codex-rs__core__src__tools__handlers__multi_agents_v2__spawn.rs.source",
+    "anomalyco-opencode--packages__core__src__session__prompt.ts": "anomalyco-opencode--packages__core__src__session__prompt.ts.source",
+    "stablyai-orca--src__main__runtime__orchestration__db-task-dispatch-races.test.ts": "stablyai-orca--src__main__runtime__orchestration__db-task-dispatch-races.test.ts.source",
+    "anomalyco-opencode--packages__opencode__src__background__job.ts": "anomalyco-opencode--packages__opencode__src__background__job.ts.source",
+    "anomalyco-opencode--packages__opencode__src__tool__task.ts": "anomalyco-opencode--packages__opencode__src__tool__task.ts.source",
+    "openai-codex--codex-rs__core__src__agent__control__residency.rs": "openai-codex--codex-rs__core__src__agent__control__residency.rs.source",
+    "openai-codex--codex-rs__core__src__agent__control__user_authorization.rs": "openai-codex--codex-rs__core__src__agent__control__user_authorization.rs.source",
+    "openai-codex--codex-rs__core__src__agent__control__spawn.rs": "openai-codex--codex-rs__core__src__agent__control__spawn.rs.source",
+    "openai-codex--codex-rs__core__src__agent__control__residency_tests.rs": "openai-codex--codex-rs__core__src__agent__control__residency_tests.rs.source",
+    "openai-codex--codex-rs__app-server__src__lib.rs": "openai-codex--codex-rs__app-server__src__lib.rs.source",
+    "stablyai-orca--src__main__runtime__orchestration__db__worker-dispatch__worker-dispatch-start.ts": "stablyai-orca--src__main__runtime__orchestration__db__worker-dispatch__worker-dispatch-start.ts.source",
+    "anomalyco-opencode--packages__opencode__src__session__prompt.ts": "anomalyco-opencode--packages__opencode__src__session__prompt.ts.source"
+  }
+}

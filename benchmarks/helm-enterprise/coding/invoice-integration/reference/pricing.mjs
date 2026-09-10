@@ -1,0 +1,1 @@
+export function price(lines){return lines.map(l=>{if(!Number.isSafeInteger(l.quantity)||l.quantity<=0||!Number.isSafeInteger(l.unitCents)||l.unitCents<0||!Number.isSafeInteger(l.quantity*l.unitCents))throw Error('line');return {sku:l.sku,cents:l.quantity*l.unitCents}})}

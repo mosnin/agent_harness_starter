@@ -1,0 +1,1 @@
+{"acceptance":"not_assessed","files":{"inputs.json":"6de01f3b1f3e3af9c321d3e4ce813b765db0d0168cdd4332b0a576a410a53aa3","packet.json":"c858278683bc135177a0f6f6bb639178a4e91f15d3db91da7f06018de6dadffb"},"reproduce":"build_governed_packet from inputs.json; compare packet.json canonical bytes","schema":"fces.research-archive.v1","status":"complete"}

@@ -1,0 +1,25 @@
+{
+  "status": "needs_fresh_independent_review",
+  "version": 2,
+  "pin": "88b1eec4aa8bddd7a8abccbb39285c41bd1c7c36",
+  "original_report": "../openwork-architecture-v1/integration-report.md",
+  "original_report_sha256": "f418af7f63ca8c8af394b54c1a570ee0454b0419288b5347a013b288a1fcd251",
+  "original_spans_sha256": "d364413d9b58fdbec864d690b115354196ffdbb15153cca3b46c7611174ae967",
+  "review_findings": "../../review/openwork-architecture-v1-review.findings.json",
+  "review_findings_sha256": "ff40ce93dffe78e54cd85696ec82d1ba614b6604e652b9f02e3d030d7d81cc9f",
+  "report_sha256": "75e10b67586db712787b9a49d6749c49d4c19f34eb9559f0e312304650c5c505",
+  "spans_sha256": "44e4b71d3e5863f451770ba4b60c0f82a548ffed4c891c26ddfb213a5204ffb1",
+  "source_references_sha256": "7b4f92571864f413e689c06a1ec3603eab55a6162a3898fdb13193550359884f",
+  "source_count": 43,
+  "span_count": 47,
+  "new_acquisition": false,
+  "source_execution": false,
+  "governed_packet": false,
+  "corrections": [
+    "OW-R01 explicit viewer/collaborator/host distinction",
+    "OW-R02 callback ordering only; durability/fencing unknown",
+    "OW-R03 distinguish denial from allowed non-origin-keyed fallback",
+    "OW-R04 six EOF end-lines repaired plus exact SDK/build locators"
+  ],
+  "corrected_at": "2026-09-10T07:07:53.082765+00:00"
+}

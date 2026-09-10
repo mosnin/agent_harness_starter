@@ -1,0 +1,77 @@
+[
+  {
+    "input": [
+      {
+        "type": "start",
+        "id": "a"
+      },
+      {
+        "type": "interrupt",
+        "id": "a"
+      },
+      {
+        "type": "start",
+        "id": "b"
+      },
+      {
+        "type": "finish",
+        "id": "a",
+        "result": "late"
+      }
+    ],
+    "expected": {
+      "status": "unknown",
+      "id": "a",
+      "result": null
+    }
+  },
+  {
+    "input": [
+      {
+        "type": "start",
+        "id": "a"
+      },
+      {
+        "type": "interrupt",
+        "id": "a"
+      },
+      {
+        "type": "reconcile",
+        "id": "a",
+        "result": "found"
+      }
+    ],
+    "expected": {
+      "status": "completed",
+      "id": "a",
+      "result": "found"
+    }
+  },
+  {
+    "input": [
+      {
+        "type": "start",
+        "id": "a"
+      },
+      {
+        "type": "finish",
+        "id": "a",
+        "result": "ok"
+      },
+      {
+        "type": "start",
+        "id": "b"
+      },
+      {
+        "type": "finish",
+        "id": "a",
+        "result": "stale"
+      }
+    ],
+    "expected": {
+      "status": "running",
+      "id": "b",
+      "result": null
+    }
+  }
+]

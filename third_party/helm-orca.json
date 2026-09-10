@@ -1,0 +1,13 @@
+{
+  "name": "Orca",
+  "repository": "https://github.com/stablyai/orca.git",
+  "revision": "bf4e2705046cf9ef9c915929a9646da85717af07",
+  "version": "1.4.197",
+  "license": "MIT",
+  "licenseFile": "helm-orca-LICENSE",
+  "integration": "Owned plain-Node orcad public RPC; no copied worker or worktree engine",
+  "buildEntry": "config/scripts/build-orcad.mjs",
+  "nativeDependencies": ["node-pty", "@parcel/watcher"],
+  "optionalNativeDependency": "fsevents",
+  "runtimeAcceptance": "Not yet built or exercised in Hades; private runtime and provider gates remain"
+}

@@ -1,0 +1,81 @@
+.work-audit {
+  margin-top: 28px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.work-audit > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 6px 0;
+}
+.work-audit-content {
+  padding-top: 12px;
+}
+.work-audit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.work-audit-status,
+.work-audit-event-context,
+.work-audit-advanced {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.work-audit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.work-audit-list > li {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+}
+.work-audit-event-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.work-audit-event-heading time {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.work-audit-event-context {
+  margin: 6px 0;
+}
+.work-audit-event-details {
+  font-size: 12px;
+}
+.work-audit-event-details summary,
+.work-audit-advanced summary {
+  cursor: pointer;
+  padding: 4px 0;
+}
+.work-audit :is(p, strong, code) {
+  overflow-wrap: anywhere;
+}
+.work-audit-event-details code {
+  user-select: text;
+}
+.work-audit-advanced {
+  margin-top: 16px;
+}
+.work-audit-integrity {
+  font-family: var(--font-mono, monospace);
+}
+.work-audit :is(button, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.work-audit [hidden] {
+  display: none !important;
+}
+@media (max-width: 600px) {
+  .work-audit-event-heading {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "openwork-pinned-architecture-review-binding.v1",
+  "created_at": "2026-09-10T07:03:57.312955+00:00",
+  "pin": "88b1eec4aa8bddd7a8abccbb39285c41bd1c7c36",
+  "producer_files": {
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v1/integration-report.md": "f418af7f63ca8c8af394b54c1a570ee0454b0419288b5347a013b288a1fcd251",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v1/source-index.json": "1fbe4901a7181188077b39d09433ee226f6848b4e9f282cb5f6e45ebf8f8c294",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v1/evidence-spans.json": "d364413d9b58fdbec864d690b115354196ffdbb15153cca3b46c7611174ae967",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v1/receipt.json": "18fd4b0736e359f751841c3dd6fde4169daddf95b3b0c709504c5d316bd2ff45",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v1/acquisition-log-final.json": "e251ed52223ce113d14b66c9ddda65d17a0a7ea30365db92aae5b354800d7b45",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v1/inherited-evidence.json": "107f76533a8846ab87dc313f13ba394d643620202256522546d1f6c6746f9b3c",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v1/web-cache-misses.json": "1125c88496cd7f0e8e7d1d2e25e13ff8da01d15ca9ae4acdda6c693c310cbc08"
+  },
+  "review_files": {
+    "docs/research/helm-enterprise-2026-09-10/review/openwork-architecture-v1-review.md": "5dc84d5f9220dc715f6ad8f5255926b5163d9378aed5795a14e190452754c3bf",
+    "docs/research/helm-enterprise-2026-09-10/review/openwork-architecture-v1-review.findings.json": "ff40ce93dffe78e54cd85696ec82d1ba614b6604e652b9f02e3d030d7d81cc9f"
+  },
+  "counts": {
+    "source_bodies": 43,
+    "source_body_bytes": 810247,
+    "evidence_spans": 43,
+    "review_units": 20,
+    "supported_units": 17,
+    "uncertain_units": 3,
+    "unsupported_units": 0,
+    "line_ranges_past_eof": 6
+  },
+  "source_checks": "All 43 source SHA-256, Git blob, pinned-tree and receipt-body checks passed; see findings source_checks.",
+  "character_span_checks": "All 43 passed; six declared end lines exceed EOF as detailed in OW-R04.",
+  "disposition": "needs_revision",
+  "independence": "Reviewer did not produce the report or acquire sources; no source/runtime execution, acquisition, acceptance callback or host admission."
+}

@@ -1,0 +1,286 @@
+{
+  "schema": "helm.reference-acquisition-review-binding.v1",
+  "reviewed_at": "2026-09-10T06:14:52.320718+00:00",
+  "subject_type": "acquisition_report_and_retained_source_dossier",
+  "subject": "research/reference-harnesses.md",
+  "subject_sha256": "1c5b1a6872a8b56277375c762b379a079e7c1ba51e50a0b0020eefd80066cd4e",
+  "semantic_review_dossier_supplied": false,
+  "binding_limitation": "The findings dossier_sha256 slot contains the exact acquisition report SHA. It is not the hash of an fces.semantic-review-dossier.v1 object and must not be reused as a kernel semantic review of a later constructed dossier. No required-question IDs were supplied; none were invented.",
+  "input_hashes": {
+    "research/reference-harnesses.md": "1c5b1a6872a8b56277375c762b379a079e7c1ba51e50a0b0020eefd80066cd4e",
+    "research/reference-claim-locators.json": "238e5b98fad41fac359f15eeb65774227d1d61bd34ca78384827cc6bbd41c4a2",
+    "research/reference-lane-receipt.json": "f3780e944e6b8c7a16348f5670a377783780db92dfd80d34d140382fa1203ad4",
+    "research/reference-search-log.json": "5045c0ef96240aa95b834ece791889e785ef5c7b1b783e32c3ff0b9e05c66838",
+    "research/reference-sources/source-index.json": "c3b0e7a88c9b26290dce2613f48f5b5eb375363c2a4fd88a13fe5b38cb8a2127",
+    "research/reference-sources/source-receipts.json": "1353e17202a99be8e3ad8e1c6b56b3f2f0548be91bd77076231c7c5e8449ee7b",
+    "research/reference-sources/pins.json": "16207c66e1c407196ddf47128bb1397fc5324e99db11c96d55465551fe00051c",
+    "research/reference-sources/repository-identities.json": "1b0892895a1b00b8967b56d232d31dea192e2f9996365980ddc1f984fc223808",
+    "research/reference-sources/normalizations.json": "0289dc87255da04ae4ba279100c595a540925aec1f42c4dda402a71bc4b36438"
+  },
+  "integrity_checks": {
+    "primary_bodies": 35,
+    "body_sha256_and_receipt_bytes_verified": 35,
+    "exact_claim_quotes_sha256_and_lines_verified": 26,
+    "immutable_tree_git_blob_sha1_matches": 25,
+    "repository_trees_truncated": false,
+    "html_visible_text_nonwhitespace_matches": 5,
+    "discovery_return_hashes_verified": 3,
+    "commit_receipt_hashes_verified": 4,
+    "repository_metadata_hashes_verified": 4,
+    "receipts_without_http_status_headers": [
+      "S31",
+      "S32",
+      "S33",
+      "S34",
+      "S35"
+    ],
+    "raw_body_bytes": 1832898
+  },
+  "claim_context_locators": [
+    {
+      "claim_id": "C01",
+      "source_id": "S31",
+      "source_file": "openai-codex--codex-rs__core__README.md",
+      "source_sha256": "90419618b596e4965d9326ff57d81a0a3a406dab586b52d114e6829cafc6da31",
+      "quote_start_char": 14,
+      "quote_end_char": 65,
+      "context_lines": "3; 23-92"
+    },
+    {
+      "claim_id": "C02",
+      "source_id": "S32",
+      "source_file": "openai-codex--codex-rs__app-server__src__lib.rs.source",
+      "source_sha256": "969de24fd00fd27798d11626cbfd3faa0585195bd40c7e6276ca4bfeba047c53",
+      "quote_start_char": 5823,
+      "quote_end_char": 5885,
+      "context_lines": "169-175; 642-659; 1343-1413"
+    },
+    {
+      "claim_id": "C03",
+      "source_id": "S04",
+      "source_file": "openai-codex--codex-rs__core__src__agent__control__spawn.rs.source",
+      "source_sha256": "06e4de6a6d5c7bb1633bfd417ecaa5e3b5609af0cbbd3dc6048d76ef7c9dde99",
+      "quote_start_char": 15630,
+      "quote_end_char": 15671,
+      "context_lines": "314-347; 382-435; 456-560"
+    },
+    {
+      "claim_id": "C04",
+      "source_id": "S05",
+      "source_file": "openai-codex--codex-rs__core__src__agent__control__residency.rs.source",
+      "source_sha256": "019818bed8a57225d084e850fb2b471c2e4d4c21d263869c9ed49a2815fa8691",
+      "quote_start_char": 4033,
+      "quote_end_char": 4086,
+      "context_lines": "49-61; 83-114; 132-156; 230-237"
+    },
+    {
+      "claim_id": "C05",
+      "source_id": "S07",
+      "source_file": "openai-codex--codex-rs__core__src__agent__control__residency_tests.rs.source",
+      "source_sha256": "191bb03ad210357e98d69750ddea0a0fda07374745c2441ee11942208081c333",
+      "quote_start_char": 764,
+      "quote_end_char": 819,
+      "context_lines": "23-70; 73-148"
+    },
+    {
+      "claim_id": "C06",
+      "source_id": "S03",
+      "source_file": "openai-codex--codex-rs__app-server__README.md",
+      "source_sha256": "90e04c8a4921ff67c00d8ae28cbee7ab84ba6bf778bd10ce2996028a97969b5e",
+      "quote_start_char": 824,
+      "quote_end_char": 859,
+      "context_lines": "1-23"
+    },
+    {
+      "claim_id": "C07",
+      "source_id": "S10",
+      "source_file": "anomalyco-opencode--packages__opencode__src__tool__task.ts.source",
+      "source_sha256": "db09fa5868ad3ecfdd83aa2bb7243f85e9e2cd13d0b19fd6f307f7a337b2b36e",
+      "quote_start_char": 4545,
+      "quote_end_char": 4621,
+      "context_lines": "96-117; 136-172; 213-264; 284-357"
+    },
+    {
+      "claim_id": "C08",
+      "source_id": "S34",
+      "source_file": "anomalyco-opencode--packages__opencode__src__session__prompt.ts.source",
+      "source_sha256": "f0c5bc64c0f0e966693d4a57f7ede1e9d6e188b396152f04b55303dc75b9b768",
+      "quote_start_char": 48147,
+      "quote_end_char": 48187,
+      "context_lines": "1149-1180; 1270-1285; 1319-1339"
+    },
+    {
+      "claim_id": "C09",
+      "source_id": "S35",
+      "source_file": "anomalyco-opencode--packages__opencode__src__background__job.ts.source",
+      "source_sha256": "bc841906cab649aa6b787a2c517ca83412f2721056ad45745d5ab12a0a20f142",
+      "quote_start_char": 482,
+      "quote_end_char": 514,
+      "context_lines": "1-35"
+    },
+    {
+      "claim_id": "C10",
+      "source_id": "S15",
+      "source_file": "stablyai-orca--skill-guides__orchestration.md",
+      "source_sha256": "8efc33a1270f89ce31cc48867154003f52c5923953141e35a87c550414b4eb76",
+      "quote_start_char": 1713,
+      "quote_end_char": 1751,
+      "context_lines": "20-35; 52-74; 126-158; 170-187"
+    },
+    {
+      "claim_id": "C11",
+      "source_id": "S16",
+      "source_file": "stablyai-orca--src__main__runtime__orchestration__db__worker-dispatch__worker-dispatch-start.ts.source",
+      "source_sha256": "ce3f031e6e3f6fc781060773c0cbf7dd926a7f2ac9695620c9014b4df1f6afe6",
+      "quote_start_char": 1689,
+      "quote_end_char": 1720,
+      "context_lines": "46-70; 72-119; 122-192"
+    },
+    {
+      "claim_id": "C12",
+      "source_id": "S17",
+      "source_file": "stablyai-orca--src__main__runtime__orchestration__db-task-dispatch-races.test.ts.source",
+      "source_sha256": "dfae8c1b387945f9ee97c6ea6d5ad0c32bccc24d679672ad5ed12fb2f33562d6",
+      "quote_start_char": 3840,
+      "quote_end_char": 3902,
+      "context_lines": "116-184; 207-283"
+    },
+    {
+      "claim_id": "C13",
+      "source_id": "S22",
+      "source_file": "claude-code-sub-agents.md",
+      "source_sha256": "73532b0b6accc67223319be1b24adec1e3b41a9d96a580770694ce718437d2bc",
+      "quote_start_char": 87225,
+      "quote_end_char": 87261,
+      "context_lines": "982-1022"
+    },
+    {
+      "claim_id": "C14",
+      "source_id": "S22",
+      "source_file": "claude-code-sub-agents.md",
+      "source_sha256": "73532b0b6accc67223319be1b24adec1e3b41a9d96a580770694ce718437d2bc",
+      "quote_start_char": 73845,
+      "quote_end_char": 73885,
+      "context_lines": "861-883"
+    },
+    {
+      "claim_id": "C15",
+      "source_id": "S21",
+      "source_file": "claude-code-agent-teams.md",
+      "source_sha256": "f1eda9dccfdb487448e693fad701d0198d4690241650e3859624303e2a9f970e",
+      "quote_start_char": 38282,
+      "quote_end_char": 38329,
+      "context_lines": "9-18; 42-48; 64-66; 465-477"
+    },
+    {
+      "claim_id": "C16",
+      "source_id": "S23",
+      "source_file": "claude-code-agents.md",
+      "source_sha256": "9c04817ac2da54facb24635398c28bafe77c222dc6f23946284fbdf98cf09f74",
+      "quote_start_char": 6742,
+      "quote_end_char": 6790,
+      "context_lines": "22-24; 40-46"
+    },
+    {
+      "claim_id": "C17",
+      "source_id": "S24",
+      "source_file": "claude-code-scheduled-tasks.md",
+      "source_sha256": "d53b7df219de27767f0f1acd5040eafa2e154c5c9998b0e56e1a07295669f6e3",
+      "quote_start_char": 16008,
+      "quote_end_char": 16036,
+      "context_lines": "11-27; 204-217"
+    },
+    {
+      "claim_id": "C18",
+      "source_id": "S26",
+      "source_file": "claude-cowork-start.text.txt",
+      "source_sha256": "b6437bdc73274424df2f676ca8c6aac46304135d618a07f66982ee2332086a8d",
+      "quote_start_char": 22625,
+      "quote_end_char": 22671,
+      "context_lines": "424; 449-468; 562"
+    },
+    {
+      "claim_id": "C19",
+      "source_id": "S27",
+      "source_file": "claude-cowork-schedule.text.txt",
+      "source_sha256": "01c2b77334282f2e605f4edc7b62c149f29af93ce79859a541769ee464d51aee",
+      "quote_start_char": 18222,
+      "quote_end_char": 18250,
+      "context_lines": "424-427; 442-449"
+    },
+    {
+      "claim_id": "C20",
+      "source_id": "S28",
+      "source_file": "openai-chatgpt-work-codex.text.txt",
+      "source_sha256": "ebe2b885658166884da224e4a9da16f69d1241d980385b101627d82331b684ae",
+      "quote_start_char": 1227,
+      "quote_end_char": 1307,
+      "context_lines": "10-13; 27-32; 41-47; 64-82"
+    },
+    {
+      "claim_id": "C21",
+      "source_id": "S29",
+      "source_file": "openai-chatgpt-agent.text.txt",
+      "source_sha256": "ff7946ce8faa31c63a1ba799465ae0fe29f400baefe47ee8e1dca118d7ce0ed7",
+      "quote_start_char": 268,
+      "quote_end_char": 305,
+      "context_lines": "10-22"
+    },
+    {
+      "claim_id": "C22",
+      "source_id": "S01",
+      "source_file": "openai-codex--README.md",
+      "source_sha256": "ba4e1f69ff48386e72a9c5e1edaf76aad64a475c2d51af79ccba6d1128261ba7",
+      "quote_start_char": 648,
+      "quote_end_char": 657,
+      "context_lines": "1-8"
+    },
+    {
+      "claim_id": "C23",
+      "source_id": "S18",
+      "source_file": "different-ai-openwork--README.md",
+      "source_sha256": "59f5c7dc3a03f9aa53be9f2d4b9f5e46fe3ccd38a1a8d9627c3c9f8f06d2fa47",
+      "quote_start_char": 2282,
+      "quote_end_char": 2315,
+      "context_lines": "3-7; 68-76; 113-123"
+    },
+    {
+      "claim_id": "C24",
+      "source_id": "S19",
+      "source_file": "different-ai-openwork--LICENSE",
+      "source_sha256": "5e5b2649fd7f0dd83e21cc7b911e8d95af1e7456744c6e492bfc5c057858d45b",
+      "quote_start_char": 630,
+      "quote_end_char": 680,
+      "context_lines": "3-14"
+    },
+    {
+      "claim_id": "C25",
+      "source_id": "S20",
+      "source_file": "different-ai-openwork--ee__LICENSE",
+      "source_sha256": "4186c8b752260a95f51ff386e62a16774dd8d32b99b420b0dddff1d199108f68",
+      "quote_start_char": 728,
+      "quote_end_char": 761,
+      "context_lines": "6-34; 42-60; 70-72"
+    },
+    {
+      "claim_id": "C26",
+      "source_id": "S25",
+      "source_file": "claude-code-agent-loop.md",
+      "source_sha256": "a2b4426257b024dfdec36a164df4db3bb7dc9b9203d441aad19855496a9f797f",
+      "quote_start_char": 7592,
+      "quote_end_char": 7659,
+      "context_lines": "46-67; 194-205; 313-343"
+    }
+  ],
+  "missing_coverage": [
+    "Complete semantic dossier, original request and required-question/facet identities",
+    "Per-query request/time/intent records and explicit per-question candidate screening/stop decisions",
+    "Codex caller coverage for optional-parent reloads and effective residency defaults",
+    "OpenCode final-step enforcement, permission derivation, reused child ownership and core background registry recovery",
+    "Orca process-readiness/authority/remote settlement and failure recovery beyond the DB admission function",
+    "Cowork remote/local schedule documentation conflict and local-session qualifiers",
+    "Current account/released-binary behavior distinct from pinned development sources",
+    "OpenWork executable enterprise enforcement and component/dependency/license inventory including referenced subscription terms",
+    "Full G02 capability inventory and G19 matched operational comparison"
+  ]
+}

@@ -1,0 +1,378 @@
+{
+  "dossier_sha256": "1c5b1a6872a8b56277375c762b379a079e7c1ba51e50a0b0020eefd80066cd4e",
+  "claim_reviews": [
+    {
+      "claim_id": "C01",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S31 lines 3 and 23-92 state the crate role and enumerate platform-specific enforcement/support. This supports a pinned documentation claim; it is not a test of every sandbox backend.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S31 lines 3 and 23-92 state the crate role and enumerate platform-specific enforcement/support. This supports a pinned documentation claim; it is not a test of every sandbox backend."
+        }
+      ]
+    },
+    {
+      "claim_id": "C02",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S32 lines 169-175 describe separate processor and outbound tasks; lines 642-659 initialize SQLite through a corruption-recovery helper, whose implementation is at 1343-1413. This is a source-path observation, not a promise of lossless recovery.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S32 lines 169-175 describe separate processor and outbound tasks; lines 642-659 initialize SQLite through a corruption-recovery helper, whose implementation is at 1343-1413. This is a source-path observation, not a promise of lossless recovery."
+        }
+      ]
+    },
+    {
+      "claim_id": "C03",
+      "verdict": "uncertain",
+      "scope_preserved": false,
+      "temporal_scope_justified": true,
+      "rationale": "S04 lines 314-347 explicitly distinguish owner-provided reloads from sender-driven reloads with parent=None. The recorded-parent mismatch check at 382-398 is conditional on owner_thread_id being present. Lines 401-435 preserve incoming runtime approval/profile/cwd around role application, rather than independently proving restoration of every original durable permission. The claim needs to name the owner-provided path; broader ownership enforcement needs caller-path evidence.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "uncertain",
+          "rationale": "S04 lines 314-347 explicitly distinguish owner-provided reloads from sender-driven reloads with parent=None. The recorded-parent mismatch check at 382-398 is conditional on owner_thread_id being present. Lines 401-435 preserve incoming runtime approval/profile/cwd around role application, rather than independently proving restoration of every original durable permission. The claim needs to name the owner-provided path; broader ownership enforcement needs caller-path evidence."
+        }
+      ]
+    },
+    {
+      "claim_id": "C04",
+      "verdict": "uncertain",
+      "scope_preserved": false,
+      "temporal_scope_justified": true,
+      "rationale": "S05 lines 55-57 derive capacity from effective_agent_max_threads and fall back to usize::MAX. Lines 83-114 enforce that supplied capacity; lines 132-156 materialize rollout before eligible shutdown/removal. The persistence-order clause is supported. A meaningful always-present operational bound is not established without the effective configuration implementation/defaults; qualify admission as capacity-controlled when configured.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "uncertain",
+          "rationale": "S05 lines 55-57 derive capacity from effective_agent_max_threads and fall back to usize::MAX. Lines 83-114 enforce that supplied capacity; lines 132-156 materialize rollout before eligible shutdown/removal. The persistence-order clause is supported. A meaningful always-present operational bound is not established without the effective configuration implementation/defaults; qualify admission as capacity-controlled when configured."
+        }
+      ]
+    },
+    {
+      "claim_id": "C05",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S07 contains focused eviction tests at lines 23-70 and 73-148. The second explicitly expects an interrupted evicted agent to remain lost, which is a relevant recovery limitation. Test presence is supported; neither source text nor this review establishes a passing execution.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S07 contains focused eviction tests at lines 23-70 and 73-148. The second explicitly expects an interrupted evicted agent to remain lost, which is a relevant recovery limitation. Test presence is supported; neither source text nor this review establishes a passing execution."
+        }
+      ]
+    },
+    {
+      "claim_id": "C06",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S03 lines 1-23 specifically cover experimental native user-verification RPC cancellation. They separate cancellation acknowledgment, independent original-RPC completion, already completed effects, queued responses and an active OS worker. The memo correctly avoids extrapolating this contract to all Codex operations.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S03 lines 1-23 specifically cover experimental native user-verification RPC cancellation. They separate cancellation acknowledgment, independent original-RPC completion, already completed effects, queued responses and an active OS worker. The memo correctly avoids extrapolating this contract to all Codex operations."
+        }
+      ]
+    },
+    {
+      "claim_id": "C07",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S10 lines 96-117 gate a requested background task and enforce the configured nesting threshold with a default of one child layer; lines 139-172 derive and install permissions for newly created children. Completion/error and cancellation wiring appear at 213-264 and 284-357. Permission derivation implementation and reused task_id ownership are not established by this wrapper.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S10 lines 96-117 gate a requested background task and enforce the configured nesting threshold with a default of one child layer; lines 139-172 derive and install permissions for newly created children. Completion/error and cancellation wiring appear at 213-264 and 284-357. Permission derivation implementation and reused task_id ownership are not established by this wrapper."
+        }
+      ]
+    },
+    {
+      "claim_id": "C08",
+      "verdict": "uncertain",
+      "scope_preserved": false,
+      "temporal_scope_justified": true,
+      "rationale": "S34 supports compaction integration (1149-1167) and the Infinity fallback (1178). However, isLastStep is used to append MAX_STEPS_PROMPT at 1281; tools remain passed at 1283, and the runner exits on processor outcome at 1319/1334. The acquired code does not directly enforce a hard agent.steps stop. Describe a configured final-step prompt threshold or acquire the actual enforcement path before calling it a hard budget.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "uncertain",
+          "rationale": "S34 supports compaction integration (1149-1167) and the Infinity fallback (1178). However, isLastStep is used to append MAX_STEPS_PROMPT at 1281; tools remain passed at 1283, and the runner exits on processor outcome at 1319/1334. The acquired code does not directly enforce a hard agent.steps stop. Describe a configured final-step prompt threshold or acquire the actual enforcement path before calling it a hard budget."
+        }
+      ]
+    },
+    {
+      "claim_id": "C09",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S35 lines 1-35 implement an InstanceState-scoped wrapper delegating start/extend/wait/promote/cancel to the core BackgroundJob registry. No registry storage/recovery implementation is present in the captured bridge. The claim correctly preserves restart durability as unknown.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S35 lines 1-35 implement an InstanceState-scoped wrapper delegating start/extend/wait/promote/cancel to the core BackgroundJob registry. No registry storage/recovery implementation is present in the captured bridge. The claim correctly preserves restart durability as unknown."
+        }
+      ]
+    },
+    {
+      "claim_id": "C10",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S15 lines 20-35 and 52-74 distinguish work/attempt identity, liveness, unknown outcomes, enqueue and accepted settlement. Lines 126-158 and 170-187 make recovery/release conditional. This supports a pinned guide contract, not independently observed enforcement of every local/remote path.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S15 lines 20-35 and 52-74 distinguish work/attempt identity, liveness, unknown outcomes, enqueue and accepted settlement. Lines 126-158 and 170-187 make recovery/release conditional. This supports a pinned guide contract, not independently observed enforcement of every local/remote path."
+        }
+      ]
+    },
+    {
+      "claim_id": "C11",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S16 lines 46-70 conditionally insert/check mutation receipts inside BEGIN IMMEDIATE; 72-119 validate task/retry eligibility; 122-180 bind dispatch identity and transition the task; 181-192 commit or roll back. Mutation receipts are optional at this function boundary. This supports the transactional source mechanism, not complete process-readiness or remote ownership guarantees.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S16 lines 46-70 conditionally insert/check mutation receipts inside BEGIN IMMEDIATE; 72-119 validate task/retry eligibility; 122-180 bind dispatch identity and transition the task; 181-192 commit or roll back. Mutation receipts are optional at this function boundary. This supports the transactional source mechanism, not complete process-readiness or remote ownership guarantees."
+        }
+      ]
+    },
+    {
+      "claim_id": "C12",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S17 contains stale-failure/completion interleaving coverage at 116-184 and competing reminted-pane authority claims at 207-283. These are database tests with simulated ordering, not an executed end-to-end agent race demonstration. The no-execution qualifier is preserved.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S17 contains stale-failure/completion interleaving coverage at 116-184 and competing reminted-pane authority claims at 207-283. These are database tests with simulated ordering, not an executed end-to-end agent race demonstration. The no-execution qualifier is preserved."
+        }
+      ]
+    },
+    {
+      "claim_id": "C13",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S22 lines 982-1009 document default nesting of three and the prior default transitions, including v2.1.219. Lines 1011-1022 distinguish concurrency limits, fork/resume exceptions and team limits. The fresh retained body supports the current documented rule; stale search snippets do not override its version notes.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S22 lines 982-1009 document default nesting of three and the prior default transitions, including v2.1.219. Lines 1011-1022 distinguish concurrency limits, fork/resume exceptions and team limits. The fresh retained body supports the current documented rule; stale search snippets do not override its version notes."
+        }
+      ]
+    },
+    {
+      "claim_id": "C14",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S22 lines 861-879 document main-session permission prompts for background subagents and qualify auto-denial as pre-v2.1.186 behavior. Lines 870-877 preserve teammate, disabled-background and fork-mode exceptions. This is vendor documentation, not a reproduced prompt interaction.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S22 lines 861-879 document main-session permission prompts for background subagents and qualify auto-denial as pre-v2.1.186 behavior. Lines 870-877 preserve teammate, disabled-background and fork-mode exceptions. This is vendor documentation, not a reproduced prompt interaction."
+        }
+      ]
+    },
+    {
+      "claim_id": "C15",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S21 lines 9-18 describe experimental/default-disabled teams; 42-48 distinguish coordination from subagents; 465-477 enumerate resume, task-status, shutdown, leadership, nested-team and in-process background-subagent limits. Teams require interactive sessions (66), and shared task tools are conditional (46).",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S21 lines 9-18 describe experimental/default-disabled teams; 42-48 distinguish coordination from subagents; 465-477 enumerate resume, task-status, shutdown, leadership, nested-team and in-process background-subagent limits. Teams require interactive sessions (66), and shared task tools are conditional (46)."
+        }
+      ]
+    },
+    {
+      "claim_id": "C16",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S23 lines 22-24 and 40-46 distinguish worktree isolation from coordination and explicitly say team membership does not isolate worktrees. The statement supports the separate isolation choice without asserting that any particular team actually follows file ownership.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S23 lines 22-24 and 40-46 distinguish worktree isolation from coordination and explicitly say team membership does not isolate worktrees. The statement supports the separate isolation choice without asserting that any particular team actually follows file ownership."
+        }
+      ]
+    },
+    {
+      "claim_id": "C17",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S24 lines 11-27 distinguish cloud, desktop and session-loop lifetimes; 208-211 cover idle firing, no per-interval catch-up and qualified task restoration on resume. The memo does not incorrectly equate session scope with no persistence at all.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S24 lines 11-27 distinguish cloud, desktop and session-loop lifetimes; 208-211 cover idle firing, no per-interval catch-up and qualified task restoration on resume. The memo does not incorrectly equate session scope with no persistence at all."
+        }
+      ]
+    },
+    {
+      "claim_id": "C18",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S26 lines 424 and 449-460 describe cloud sessions in beta, remote shell/code, and an open connected desktop app for local files/browser/computer use; 468 reiterates that access dependency. The claim is documentation-level and does not infer closed internals. The local-session troubleshooting passage at 562 is an additional unresolved surface/version qualifier.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S26 lines 424 and 449-460 describe cloud sessions in beta, remote shell/code, and an open connected desktop app for local files/browser/computer use; 468 reiterates that access dependency. The claim is documentation-level and does not infer closed internals. The local-session troubleshooting passage at 562 is an additional unresolved surface/version qualifier."
+        }
+      ]
+    },
+    {
+      "claim_id": "C19",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S27 lines 424-427 support the explicitly scoped account-file/connector remote schedule proposition. Preserve the source conflict: lines 448-449 also offer local-folder selection and say tasks requiring local files/apps run only locally. The supported verdict is limited to the remote subset as documented; the full scheduling taxonomy and all offline behavior remain unresolved.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S27 lines 424-427 support the explicitly scoped account-file/connector remote schedule proposition. Preserve the source conflict: lines 448-449 also offer local-folder selection and say tasks requiring local files/apps run only locally. The supported verdict is limited to the remote subset as documented; the full scheduling taxonomy and all offline behavior remain unresolved."
+        }
+      ]
+    },
+    {
+      "claim_id": "C20",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S28 lines 10-13 distinguish Chat/Work/Codex and the rollout; 27-32 and 41-47 distinguish local/cloud surfaces, histories and role controls. The memo preserves this as public help rather than account-specific availability or proprietary implementation.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S28 lines 10-13 distinguish Chat/Work/Codex and the rollout; 27-32 and 41-47 distinguish local/cloud surfaces, histories and role controls. The memo preserves this as public help rather than account-specific availability or proprietary implementation."
+        }
+      ]
+    },
+    {
+      "claim_id": "C21",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S29 line 10 has the retirement notice, while 12-22 retain availability and usage instructions. This directly supports the claimed documentation conflict. It does not resolve actual rollout state, account availability, or every former agent capability.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S29 line 10 has the retirement notice, while 12-22 retain availability and usage instructions. This directly supports the claimed documentation conflict. It does not resolve actual rollout state, account availability, or every former agent capability."
+        }
+      ]
+    },
+    {
+      "claim_id": "C22",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S01 lines 1-8 advertise separate CLI, desktop, IDE and cloud Codex Web routes at the pinned revision. This supports the narrow inference that the desktop-view article alone cannot prove removal of every cloud route. A README link does not prove that the route is currently reachable or supported for an account.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S01 lines 1-8 advertise separate CLI, desktop, IDE and cloud Codex Web routes at the pinned revision. This supports the narrow inference that the desktop-view article alone cannot prove removal of every cloud route. A README link does not prove that the route is currently reachable or supported for an account."
+        }
+      ]
+    },
+    {
+      "claim_id": "C23",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S18 lines 3-7, 68-76 and 113-123 advertise a desktop/core platform and organizational control plane. No OpenWork executable architecture body was acquired. The memo's adjacent powered-by-OpenCode statement has vendor-advertisement support in the retained repository metadata description, not in this citation or a traced engine dependency; keep that distinction.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S18 lines 3-7, 68-76 and 113-123 advertise a desktop/core platform and organizational control plane. No OpenWork executable architecture body was acquired. The memo's adjacent powered-by-OpenCode statement has vendor-advertisement support in the retained repository metadata description, not in this citation or a traced engine dependency; keep that distinction."
+        }
+      ]
+    },
+    {
+      "claim_id": "C24",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S19 lines 3-14 establish the directory split, original third-party licenses and version-specific prior-license caveat. S20 further carves out client-side assets/JavaScript as MIT. The root is not blanket MIT; the full EE directory is also not a uniform reusable/restricted inventory without file-level classification.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S19 lines 3-14 establish the directory split, original third-party licenses and version-specific prior-license caveat. S20 further carves out client-side assets/JavaScript as MIT. The root is not blanket MIT; the full EE directory is also not a uniform reusable/restricted inventory without file-level classification."
+        }
+      ]
+    },
+    {
+      "claim_id": "C25",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S20 lines 6-23 establish subscription conditions and the five-user exclusion of defined Enterprise Features; 25-34 qualify modification/distribution; 42-60 address future MIT, client-side MIT and historical licenses. The referenced subscription terms defining Enterprise Features were not captured, so this is not component-level legal clearance.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S20 lines 6-23 establish subscription conditions and the five-user exclusion of defined Enterprise Features; 25-34 qualify modification/distribution; 42-60 address future MIT, client-side MIT and historical licenses. The referenced subscription terms defining Enterprise Features were not captured, so this is not component-level legal clearance."
+        }
+      ]
+    },
+    {
+      "claim_id": "C26",
+      "verdict": "supported",
+      "scope_preserved": true,
+      "temporal_scope_justified": true,
+      "rationale": "S25 lines 46-67 and 194-205 document turn/spend controls, trailing events, version-qualified whole-tree budget behavior and streaming-input reset semantics. Lines 313-343 distinguish success/error subtypes, crash accounting and main-loop versus whole-tree usage. Normal loop completion is not independent deliverable acceptance.",
+      "evidence_assessments": [
+        {
+          "citation_index": 0,
+          "relation": "supports",
+          "rationale": "S25 lines 46-67 and 194-205 document turn/spend controls, trailing events, version-qualified whole-tree budget behavior and streaming-input reset semantics. Lines 313-343 distinguish success/error subtypes, crash accounting and main-loop versus whole-tree usage. Normal loop completion is not independent deliverable acceptance."
+        }
+      ]
+    }
+  ],
+  "question_reviews": [],
+  "discovery_review": {
+    "verdict": "limited",
+    "rationale": "Limited. Three retained aggregated search returns and 12 reported queries include neutral-looking product searches and meaningful limitation/challenge searches, including stale Claude excerpts, OpenCode 429/background reports, Orca dispatch/readiness reports and OpenWork licensing debate. However, reference-search-log.json has no per-query timestamps or exact tool request envelopes, no required-question/facet mapping, and the same generic conditional screening reason for all 74 candidate entries. The budget/source-cap stop explicitly leaves deeper implementation and runtime questions open. Included direct source bodies do not settle the surfaced issue reports at the pinned revisions. A full fces.semantic-review-dossier.v1 object with required question IDs, original request/governance and per-question screening was not supplied, so the empty question_reviews array is a structural limitation, not vacuous coverage success."
+  },
+  "lineage_review": {
+    "verdict": "adequate",
+    "rationale": "Adequate only for the memo's conservative source-observation scope. OpenAI help and Codex source are one organizational family; Anthropic Code/SDK/Cowork are another; code, README and tests within OpenCode or Orca are maintainer evidence rather than independent replication. OpenWork repository metadata advertises an OpenCode relationship, so conservative grouping avoids double-counting, but engine implementation was not traced. Distinct URLs and captured hashes establish neither independent outcomes nor authenticated acquisition. No product-performance or superiority inference is supported by these groups."
+  }
+}

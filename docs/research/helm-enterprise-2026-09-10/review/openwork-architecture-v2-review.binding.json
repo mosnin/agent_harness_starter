@@ -1,0 +1,39 @@
+{
+  "schema": "openwork-pinned-architecture-review-binding.v2",
+  "created_at": "2026-09-10T07:13:01.710644+00:00",
+  "pin": "88b1eec4aa8bddd7a8abccbb39285c41bd1c7c36",
+  "producer_files": {
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v2/integration-report.md": "75e10b67586db712787b9a49d6749c49d4c19f34eb9559f0e312304650c5c505",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v2/evidence-spans.json": "44e4b71d3e5863f451770ba4b60c0f82a548ffed4c891c26ddfb213a5204ffb1",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v2/source-references.json": "7b4f92571864f413e689c06a1ec3603eab55a6162a3898fdb13193550359884f",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v2/receipt.json": "0bf3ec33d2440078974773af78dcbbd0feae836a35866b46880016da89ca5201",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v2/README.md": "e58fa08f4cd72447397d73f74bac1ff2a1fa78c27870b708ab17ca9ccf037b6a"
+  },
+  "retained_source_metadata": {
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v1/source-index.json": "1fbe4901a7181188077b39d09433ee226f6848b4e9f282cb5f6e45ebf8f8c294",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v1/inherited-evidence.json": "107f76533a8846ab87dc313f13ba394d643620202256522546d1f6c6746f9b3c",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v1/receipt.json": "18fd4b0736e359f751841c3dd6fde4169daddf95b3b0c709504c5d316bd2ff45",
+    "docs/research/helm-enterprise-2026-09-10/research/openwork-architecture-v1/acquisition-log-final.json": "e251ed52223ce113d14b66c9ddda65d17a0a7ea30365db92aae5b354800d7b45"
+  },
+  "prior_review_files": {
+    "docs/research/helm-enterprise-2026-09-10/review/openwork-architecture-v1-review.md": "5dc84d5f9220dc715f6ad8f5255926b5163d9378aed5795a14e190452754c3bf",
+    "docs/research/helm-enterprise-2026-09-10/review/openwork-architecture-v1-review.findings.json": "ff40ce93dffe78e54cd85696ec82d1ba614b6604e652b9f02e3d030d7d81cc9f",
+    "docs/research/helm-enterprise-2026-09-10/review/openwork-architecture-v1-review.binding.json": "dda7f185da54d40ccab790e7ac97c5d5b4239806182ce6337b2535dddaafecc3"
+  },
+  "review_files": {
+    "docs/research/helm-enterprise-2026-09-10/review/openwork-architecture-v2-review.md": "93b1a4c43ffe16bcbdd120082fec6098c65be6ab452683ec29e97342eb5bfd3a",
+    "docs/research/helm-enterprise-2026-09-10/review/openwork-architecture-v2-review.findings.json": "35a4102ae20aa8785cbd7b8517354f6b75d5d27c937b4fd54683540b303e03d7"
+  },
+  "counts": {
+    "source_bodies": 43,
+    "source_body_bytes": 810247,
+    "evidence_spans": 47,
+    "review_units": 20,
+    "supported_units": 20,
+    "uncertain_units": 0,
+    "unsupported_units": 0,
+    "line_ranges_past_eof": 0
+  },
+  "disposition": "supported_with_explicit_gaps",
+  "boundary": "Independent pinned-source extraction review; no new acquisition, execution, callback, governed semantic admission or product acceptance."
+}

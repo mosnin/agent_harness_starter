@@ -16,6 +16,7 @@ export class HelmService {
   private directory: string;
   private env: NodeJS.ProcessEnv;
   private closed = false;
+  private shutdown?: Promise<void>;
   private agentCache?: {expires: number; value: HelmAgent[]};
   private agentPending?: Promise<HelmAgent[]>;
   private agentPendingRefresh = false;
@@ -234,9 +235,21 @@ export class HelmService {
     else if(run.checks.some(c=>!c.passed))run.error='One or more verification commands failed';
     this.changed(run);
   }
-  close(): void {
+  close(): Promise<void> {
+    if (this.shutdown) return this.shutdown;
     this.closed=true;
-    for(const [id,live] of this.live) {const run=this.require(id);run.status='interrupted';run.error='Hades closed; work was interrupted';live.controller.abort();try{this.changed(run);}catch{run.error='Interrupted; state could not be persisted';}}
+    const workers = [...this.live];
+    for (const [, live] of workers) live.controller.abort();
+    let checkpointFailed = false;
+    for (const [id] of workers) {
+      try { const run=this.require(id);run.status='interrupted';run.error='Hades closed; work was interrupted';this.changed(run); }
+      catch { checkpointFailed = true; }
+    }
+    this.shutdown = Promise.allSettled(workers.map(([, live]) => live.done)).then(() => {
+      if (checkpointFailed) throw new Error('Helm workers stopped but the interruption checkpoint could not be saved');
+    });
+    void this.shutdown.catch(() => {});
+    return this.shutdown;
   }
   private process(command:string,args:string[],cwd:string,signal:AbortSignal,timeout:number,limit=LIMIT,onOutput?:(chunk:string)=>void,env=this.env):Promise<{code:number|null;output:string;truncated:boolean;error?:string}> {
     if(signal.aborted)return Promise.resolve({code:null,output:'',truncated:false,error:'Task cancelled'});

@@ -8,6 +8,7 @@ for argument in "$@"; do
   case "$argument" in --build-only) MODE="build";; --verify) MODE="verify";; --debug|--logs|--telemetry) MODE="logs";; *) echo "Unknown option: $argument" >&2; exit 2;; esac
 done
 if [[ "$(uname -s)" != Darwin ]]; then echo "This script builds the macOS application." >&2; exit 1; fi
+node scripts/check-helm-provenance.mjs
 if [[ ! -f dist/helm-ui/index.html || ! -f dist/runtime/helm-opencode ]]; then
   echo "Helm's OpenCode fork is not built. Run npm run helm:build -- --source /path/to/the/helm-integration/fork first." >&2
   exit 1

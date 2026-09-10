@@ -1,0 +1,68 @@
+{
+  "schema": "desktop-lifecycle-independent-review.v1",
+  "reviewed_at": "2026-09-10T07:29:03.337077+00:00",
+  "disposition": "supported_bounded_source_and_fixture",
+  "artifacts": {
+    "src/desktop/core/desktop-request-queue.ts": "3e2264fa5b1a0ae0fb65ddc595be1a88227c0618e77b2bbf9cf2be660a51a33d",
+    "src/desktop/core/desktop-request-routing.ts": "5b43556faecdf6a4d96ec914131f536b79efb02df2c5ebe2cf133be9f5389273",
+    "src/desktop/sidecar-entry.ts": "d85165019e99599beac2780eb4dfabe30824c76afbeaaa70c727505a8d58bd7b",
+    "src/desktop/core/workbench-service.ts": "ca65ee4ac55142104a583027fc9f34aa98b5799fa22a8376a5d347ba8f682b60",
+    "src/desktop/core/helm-service.ts": "6a9f7ce53b46b5c665d9c2a7603aaab86bb3899e94db13a75b897bdad0d8af7c",
+    "src/desktop/core/helm-source-checks.ts": "e902ccc02cb053c18fec9e7ee108f5bf6c17034b3c50c2fe4cf28f8cff7df58a",
+    "src/desktop/ui/helm-orca.ts": "c2033912db1943f0c66a40a43bb9b07fa8275127433b1569515876589fbfa2d4",
+    "src-tauri/src/gui.rs": "a52f6997e917139eae87145f651d7ef8c3044750713935262a345201f37efea6",
+    "src-tauri/src/request_capacity.rs": "39df4cfac52bc25d675827daea57dc72f84daf2d04cd9d2498a9f40064a2d2d6",
+    "src/desktop/__tests__/desktop-lifecycle-review.test.ts": "0bd40414392cacf3beaf0572cf8f8fc7720144b3fff364de8b2a9b6fee62389e",
+    "src-tauri/src/request_capacity_review.rs": "693696fe26f64ba0e3e5cb8f82fff9358b5770c385e2a4f0d1e5a377c07038b3",
+    "src/desktop/__tests__/desktop-request-queue.test.ts": "a37049fc05791bf9ed72a29e0d52f7080d94079a23615cad3acd8784511681bb",
+    "src/desktop/__tests__/desktop-request-routing.test.ts": "f07be67ff0676874d76e45c365ac9e5694542fa266b648cd9b0cb900a427c378",
+    "src/desktop/__tests__/workbench-shutdown.test.ts": "59e8996b6e11c0d48b4c2f6ecf39767dbf6abe553df33acafa045b330b4bc2ae",
+    "src/desktop/__tests__/helm-orca-ui.test.ts": "9941146c0c2ed8429caf3123d1638cf6f26813016f04f7e07439d90b4d3181ad",
+    "src/desktop/__tests__/helm-orca-readiness.test.ts": "93e2038f6116484e60b02f904a0dff42da0788377af3f4ee7b53560f81bfcac6",
+    "src/desktop/__tests__/fixtures/offline-webhooks.ts": "2f3647e9820e7b276b31acd06002f5532bb1dc37ae9da78051702cb19174615c"
+  },
+  "review_file": {
+    "path": "docs/research/helm-enterprise-2026-09-10/review/desktop-lifecycle-repair-review.md",
+    "sha256": "ab54afd37dac8ea77906e3c88ef695ffc8d4db08da053e9871bedb28d651309d"
+  },
+  "execution": {
+    "javascript": {
+      "command": "node node_modules/vitest/vitest.mjs run src/desktop/__tests__/desktop-lifecycle-review.test.ts src/desktop/__tests__/desktop-request-queue.test.ts src/desktop/__tests__/desktop-request-routing.test.ts src/desktop/__tests__/workbench-shutdown.test.ts src/desktop/__tests__/helm-orca-ui.test.ts src/desktop/__tests__/helm-orca-readiness.test.ts --maxWorkers=1 --no-file-parallelism",
+      "files": 6,
+      "passed": 35,
+      "failed": 0,
+      "exit_code": 0,
+      "local_start": "2026-09-10 03:27:18 America/New_York",
+      "duration_seconds": 1.29,
+      "fixture_boundary": "WebhookService explicitly mocked; UI RPC injected; no listeners/providers/native runtime"
+    },
+    "rust": {
+      "compile_command": "rustc --edition 2021 --test src-tauri/src/request_capacity_review.rs -o /tmp/hades-native-request-capacity-independent-tests",
+      "run_command": "/tmp/hades-native-request-capacity-independent-tests",
+      "passed": 11,
+      "production_helper_tests": 9,
+      "independent_tests": 2,
+      "exit_code": 0,
+      "gui_feature_compiled": false
+    },
+    "red": {
+      "passed": 9,
+      "failed": 1,
+      "exit_code": 1,
+      "local_start": "2026-09-10 03:24:12 America/New_York",
+      "finding": "Admission callback can synchronously close before its tracked promise is registered; history closes before held callback settles",
+      "final_status": "repaired; unchanged independent test now passes"
+    }
+  },
+  "remaining_gates": [
+    "65-second RPC timeout does not cancel effects",
+    "Two-second native hard-stop deadline remains",
+    "GUI-feature compilation and actual Tauri/stdio/native lifecycle untested",
+    "Actual packaged runtime and dependency closure unverified",
+    "Provider permission/identity/termination and restart recovery unverified",
+    "Webhook/network behavior mocked, not accepted",
+    "Project type/build checks not run in this review",
+    "No overall backend/product/enterprise/superiority acceptance"
+  ],
+  "independence": "Reviewer edited only its two independent test files and review artifacts, not production code."
+}

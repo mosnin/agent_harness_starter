@@ -1,5 +1,6 @@
 import type { Tool } from "../../hades/agent/tools";
 import type { WorkGoal } from "./durable-work";
+import { workChecks, workWrites } from "./work-evidence";
 
 type MaybePromise<T> = T | Promise<T>;
 export interface DelegationScope {
@@ -44,9 +45,11 @@ function integer(value: unknown, fallback: number, min: number, max: number) {
 }
 function view(goal: WorkGoal) {
   return { id: goal.id, objective: goal.objective.slice(0, 2000), status: goal.status,
-    tokens: goal.tokens, maxTokens: goal.maxTokens, error: goal.error?.slice(0, 2000),
+    tokens: goal.tokens, maxTokens: goal.maxTokens, maxConcurrent: goal.maxConcurrent, error: goal.error?.slice(0, 2000),
     tasks: goal.tasks.map(task => ({ id: task.id, title: task.title, status: task.status,
-      dependsOn: task.dependsOn, session: task.session, answer: task.answer?.slice(0, 4000), error: task.error?.slice(0, 1000) })),
+      dependsOn: task.dependsOn, writes: task.writes, acceptance: task.acceptance, evidence: task.evidence,
+      attempts: task.attempts?.slice(-4), reservedTokens: task.reservedTokens,
+      session: task.session, answer: task.answer?.slice(0, 4000), error: task.error?.slice(0, 1000) })),
     evidence: goal.evidence, completion: goal.status === "completed" ? "Recorded output checks passed; inspect evidence for their scope." : "Work has not passed its completion checks." };
 }
 
@@ -95,14 +98,14 @@ export function delegationTools(scope: DelegationScope): Tool[] {
     make("delegation_stop", 'Stop a delegated work plan permitted by your scope. Requires approval. JSON: {"goal":string}.', target, async goal => view(await scope.stop(goal))),
   ];
   if (scope.depth < (scope.maxDepth ?? 1)) tools.unshift(make("delegate_work",
-    'Create and start a bounded dependent work plan in this conversation’s project/profile. Requires approval. JSON: {"objective":string,"tasks":[{"id":string,"title":string,"prompt":string,"dependsOn"?:string[]}],"acceptance"?:[{"path":string,"contains"?:string}],"maxTokens"?:number,"maxMinutes"?:number}. Do not claim completion before inspecting status and evidence.',
+    'Create and start a bounded dependent work plan in this conversation’s project/profile. Requires approval. JSON: {"objective":string,"tasks":[{"id":string,"title":string,"prompt":string,"dependsOn"?:string[],"writes"?:string[],"acceptance"?:[{"path":string,"contains"?:string}]}],"acceptance"?:[{"path":string,"contains"?:string}],"maxConcurrent"?:1..4,"maxTokens"?:number,"maxMinutes"?:number}. Declared edit paths coordinate tasks; they do not grant tool permissions. An omitted writes list reserves the whole project; [] declares no edits. Checked task artifacts gate dependents and must remain unchanged until acceptance. Do not claim completion before inspecting status and evidence.',
     value => {
-      keys(value, ["objective", "tasks", "acceptance", "maxTokens", "maxMinutes"]);
+      keys(value, ["objective", "tasks", "acceptance", "maxTokens", "maxMinutes", "maxConcurrent"]);
       if (!Array.isArray(value.tasks) || !value.tasks.length || value.tasks.length > maxTasks) throw new Error(`Choose one to ${maxTasks} tasks`);
       const tasks = value.tasks.map(raw => {
-        const task = object(raw); keys(task, ["id", "title", "prompt", "dependsOn"]);
+        const task = object(raw); keys(task, ["id", "title", "prompt", "dependsOn", "writes", "acceptance"]);
         if (task.dependsOn !== undefined && (!Array.isArray(task.dependsOn) || task.dependsOn.length > maxTasks)) throw new Error("Invalid dependencies");
-        return { id: id(task.id), title: string(task.title, "task title", 160), prompt: string(task.prompt, "task instructions", 16000), profile: scope.profile, dependsOn: (task.dependsOn ?? []).map(id) };
+        return { id: id(task.id), title: string(task.title, "task title", 160), prompt: string(task.prompt, "task instructions", 16000), profile: scope.profile, dependsOn: (task.dependsOn ?? []).map(id), writes: workWrites(scope.root, task.writes), acceptance: workChecks(scope.root, task.acceptance) };
       });
       const identifiers = new Set(tasks.map(task => task.id));
       if (identifiers.size !== tasks.length || tasks.some(task => task.dependsOn.some((dep: string) => !identifiers.has(dep)))) throw new Error("Tasks must have unique identifiers and existing dependencies");
@@ -115,6 +118,7 @@ export function delegationTools(scope: DelegationScope): Tool[] {
         return { path: string(check.path, "output path", 4096), ...(check.contains === undefined ? {} : { contains: string(check.contains, "expected output", 8000) }) };
       });
       return { objective: string(value.objective, "objective", 16000), root: scope.root, profile: scope.profile, tasks, acceptance,
+        maxConcurrent: integer(value.maxConcurrent, Math.min(2, maxTasks), 1, Math.min(4, maxTasks)),
         maxTokens: integer(value.maxTokens, Math.min(25_000, maxTokens), 1000, maxTokens), maxMinutes: integer(value.maxMinutes, Math.min(15, maxMinutes), 1, maxMinutes), maxRounds: 2 };
     }, async plan => {
       if (created >= maxGoals || reservedTokens + plan.maxTokens > maxTokens) throw new Error("This delegation scope has exhausted its child-work budget");

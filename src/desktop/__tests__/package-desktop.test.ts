@@ -136,6 +136,7 @@ describe("packageDesktop orchestration (fakes; never touches cargo or a display)
   it("auto-selects dry-run when prerequisites are absent and does NOT run tauri", async () => {
     let tauriCalled = false;
     const result = await packageDesktop({
+      checkHelmFn: () => {},
       buildSidecarFn: fakeSidecar,
       buildUiFn: fakeUi,
       lookup: fakeLookup([]),
@@ -161,6 +162,7 @@ describe("packageDesktop orchestration (fakes; never touches cargo or a display)
     let sidecarRan = false;
     let uiRan = false;
     const result = await packageDesktop({
+      checkHelmFn: () => {},
       buildSidecarFn: async () => {
         sidecarRan = true;
         return { skipped: false, outfile: "/fake/sidecar.js" };
@@ -183,6 +185,7 @@ describe("packageDesktop orchestration (fakes; never touches cargo or a display)
   it("only invokes the tauri runner when forced full AND prerequisites are met", async () => {
     let tauriCalled = false;
     const result = await packageDesktop({
+      checkHelmFn: () => {},
       dryRun: false,
       buildSidecarFn: fakeSidecar,
       buildUiFn: fakeUi,
@@ -203,6 +206,7 @@ describe("packageDesktop orchestration (fakes; never touches cargo or a display)
 
   it("returns ok:false with the failing step name when the tauri runner exits non-zero", async () => {
     const result = await packageDesktop({
+      checkHelmFn: () => {},
       dryRun: false,
       buildSidecarFn: fakeSidecar,
       buildUiFn: fakeUi,
@@ -219,6 +223,7 @@ describe("packageDesktop orchestration (fakes; never touches cargo or a display)
 
   it("returns ok:false when a bundle step throws (a real, attempted failure)", async () => {
     const result = await packageDesktop({
+      checkHelmFn: () => {},
       buildSidecarFn: async () => {
         throw new Error("boom");
       },
@@ -235,6 +240,7 @@ describe("packageDesktop orchestration (fakes; never touches cargo or a display)
 
   it("treats an esbuild-missing bundle skip as a non-fatal success", async () => {
     const result = await packageDesktop({
+      checkHelmFn: () => {},
       buildSidecarFn: async () => ({ skipped: true, reason: "esbuild-missing", outfile: "/fake/x.js" }),
       buildUiFn: async () => ({ ok: false, reason: "esbuild-missing", outdir: "/fake" }),
       lookup: fakeLookup([]),

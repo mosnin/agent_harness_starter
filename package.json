@@ -200,7 +200,11 @@
     "test:smoke": "node scripts/smoke-agent.mjs && node scripts/smoke-swarm.mjs",
     "desktop:mac": "./script/build_and_run.sh --build-only",
     "desktop:package:mac": "./script/package_mac.sh",
-    "helm:build": "node scripts/build-helm.mjs"
+    "helm:build": "node scripts/build-helm.mjs",
+    "benchmark:helm": "node scripts/benchmark-helm.mjs",
+    "test:benchmark:helm": "node --test scripts/__tests__/benchmark-helm.test.mjs",
+    "helm:orca:check": "node scripts/build-helm-orca.mjs --check",
+    "helm:orca:build": "node scripts/build-helm-orca.mjs --build"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",

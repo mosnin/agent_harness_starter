@@ -264,9 +264,11 @@ it("opens the actual fork only on request and preserves its frame across refresh
   const setSource = vi.spyOn(HTMLIFrameElement.prototype, "src", "set").mockImplementation(() => {});
   const view = await mount("code");
   expect(host.textContent).toContain("Code with Helm");
+  expect(host.textContent).not.toContain("OpenCode");
   expect(rpc.mock.calls.some(([method]) => method === "helm.code.open")).toBe(false);
   rpc.mockImplementationOnce(async () => ({ url: "http://127.0.0.1:4567/#helm_auth=dGVzdA==", version: "1.18.21", revision: "abc", fork: "https://github.com/mosnin/opencode" }));
   click("code-open"); await settle();
+  expect(host.textContent).toContain("Helm 1.18.21");
   const frame = document.querySelector("iframe")!;
   expect(frame).toBeTruthy();
   expect(setSource).toHaveBeenCalledWith("http://127.0.0.1:4567/#helm_auth=dGVzdA%3D%3D&helm_theme=light");
@@ -597,4 +599,14 @@ it("opens a Browser-origin preview only explicitly and reuses its request identi
     expect(host.querySelector('[data-helm-form="preview"]')).toBeNull();
     expect(host.textContent).toContain("Pass fresh source checks");
   } finally { rpc.mockImplementation(base); }
+});
+
+it("opens Orca as a separate destination without starting a worker or code server", async () => {
+  await mount("code");
+  rpc.mockImplementationOnce(async () => ({ state: "missing", message: "Orca artifact is not packaged.", sourceRevision: "fixture" }));
+  rpc.mockImplementationOnce(async () => []);
+  click("destination-orca"); await settle();
+  expect(host.querySelector('[aria-label="Orca workers"]')).toBeTruthy();
+  expect(host.textContent).toContain("Runtime not installed");
+  expect(rpc.mock.calls.some(([method]) => method === "helm.orca.start" || method === "helm.code.open")).toBe(false);
 });

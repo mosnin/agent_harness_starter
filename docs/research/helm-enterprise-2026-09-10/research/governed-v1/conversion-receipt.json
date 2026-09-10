@@ -1,0 +1,26 @@
+{
+  "original_report_sha256": "1c5b1a6872a8b56277375c762b379a079e7c1ba51e50a0b0020eefd80066cd4e",
+  "corrected_report_sha256": "c75c02fff94af9a3a6b9a0124d98b7f997573340655912789ce718987d8baf2e",
+  "conversion_time": "2026-09-10T06:22:29.242795+00:00",
+  "new_acquisition": false,
+  "original_source_bodies_overwritten": false,
+  "source_count": 41,
+  "claim_count": 27,
+  "structural_status": "build_governed_packet and prepare_semantic_review both ok",
+  "semantic_status": "needs_fresh_independent_review",
+  "producer": "/root/provider_readiness",
+  "observation_policy": "No observation clocks refreshed. S01-S30 direct acquisitions retained; S31-S35 null observed time due incomplete transport receipts; metadata retains original acquisition timestamp.",
+  "kernel_quality": {
+    "status": "needs_evidence",
+    "semantic_entailment": "pending_independent_review",
+    "source_independence": "caller_declared_conservative_lineage_groups",
+    "original_objective_accepted": false,
+    "source_text_authority": "untrusted_data_only"
+  },
+  "dossier_sha256": "c7b24f6f277716c0ff01ae1718bbe91315c01334db154a451eda3701a0c06145",
+  "packet_sha256": "0b3f8871c40c1c259db6d6aa1876f77bd9866a24d1d32cbb0e1230b12b1a4cad",
+  "archive": "archive-final",
+  "packet_serialized_byte_upper_bound": 113578,
+  "budget_note": "First 50000 byte-upper-bound packet budget insufficient; raised to250000 representation ceiling, not provider spend or execution token authorization. No claims omitted.",
+  "lineage_correction": "Generic vendor-doc acquisition labels resolved to URL-identified OpenAI or Anthropic. Cross-vendor shared-authors edges removed; OpenCode/OpenWork remain conservatively common independence label for advertised relationship only. Previous archive retained as superseded."
+}

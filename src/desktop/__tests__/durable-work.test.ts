@@ -23,9 +23,49 @@ async function settled(f:ReturnType<typeof fixture>,id:string) {
  for(let i=0;i<100;i++){const g=f.worker.get(id,"owner");if(g.status!=="running")return g;await new Promise(r=>setTimeout(r,5));}
  throw Error("Work did not settle");
 }
-const task=(id:string,profile="a",dependsOn:string[]=[])=>({id,title:id,prompt:`Complete ${id}`,profile,dependsOn});
+// These executors only return reports. Tests that edit files declare paths.
+const task=(id:string,profile="a",dependsOn:string[]=[])=>({id,title:id,prompt:`Complete ${id}`,profile,dependsOn,writes:[]});
 
 describe("DurableWork real SQLite and filesystem integration",()=>{
+ it("does not release a dependent task on a success message when its artifact check fails",async()=>{
+  const calls:string[]=[];const f=fixture(async input=>{calls.push(input.task);return ok;});
+  const g=f.create({tasks:[{...task("a"),acceptance:[{path:"missing.txt"}]},task("b","b",["a"])]});
+  f.worker.run(g.id,"owner");const done=await settled(f,g.id);
+  expect(calls).toEqual(["a"]);expect(done.status).toBe("needs_review");expect(done.tasks[0].status).toBe("failed");
+ });
+ it("keeps exact attempt identity and unmeasured reservations across stop and reopen",async()=>{
+  const gate=deferred<Result>();let input!:WorkExecution;const f=fixture(async(i,_s,bind)=>{input=i;bind("persisted-session");return gate.promise;});
+  const g=f.create();f.worker.run(g.id,"owner");f.worker.stop(g.id,"owner");
+  const saved=f.second().get(g.id,"owner");expect(saved.tasks[0].attempts).toHaveLength(1);
+  expect(saved.tasks[0].attempts![0]).toMatchObject({id:input.attemptId,status:"cancelled",session:"persisted-session",reservedTokens:300000});
+  expect(saved.tasks[0].attempts![0].tokens).toBeUndefined();gate.resolve(ok);
+ });
+ it("admits a newly ready task while an independent slow task is still running",async()=>{
+  const slow=deferred<Result>(),fast=deferred<Result>(),calls:string[]=[];
+  const f=fixture(async input=>{calls.push(input.task);return input.task==="slow"?slow.promise:input.task==="fast"?fast.promise:ok;});
+  const g=f.create({maxConcurrent:2,tasks:[{...task("slow"),writes:[]},{...task("fast"),writes:[]},{...task("child","a",["fast"]),writes:[]}]});
+  f.worker.run(g.id,"owner");fast.resolve(ok);await new Promise(r=>setTimeout(r,25));expect(calls).toEqual(["slow","fast","child"]);
+  slow.resolve(ok);expect((await settled(f,g.id)).status).toBe("completed");
+ });
+ it("serializes overlapping edit reservations across owners while allowing disjoint tasks",async()=>{
+  const gates=[deferred<Result>(),deferred<Result>()],calls:string[]=[];
+  const f=fixture(async input=>{calls.push(input.goal);return gates[calls.length-1]?.promise??ok;});
+  const first=f.create({tasks:[{...task("a"),writes:["src"]}]}),second=f.create({tasks:[{...task("b"),writes:["src/ui"]}]});
+  f.worker.run(first.id,"owner");f.second().run(second.id,"owner");expect(calls).toEqual([first.id]);
+  gates[0].resolve(ok);await new Promise(r=>setTimeout(r,90));expect(calls).toEqual([first.id,second.id]);gates[1].resolve(ok);
+  expect((await settled(f,second.id)).status).toBe("completed");
+ });
+ it("rejects stale dependency receipts before a resumed child can act",async()=>{
+  const calls:string[]=[];const f=fixture(async input=>{calls.push(input.task);return input.task==="b"?{...ok,error:"Temporary failure"}:ok;});
+  const g=f.create({tasks:[{...task("a"),acceptance:[{path:"result.txt",contains:"verified"}]},task("b","b",["a"])]});
+  f.worker.run(g.id,"owner");await settled(f,g.id);writeFileSync(join(f.root,"result.txt"),"changed verified");
+  f.worker.resume(g.id,"owner");const done=await settled(f,g.id);expect(calls).toEqual(["a","b"]);expect(done.status).toBe("needs_review");expect(done.error).toMatch(/changed|evidence/i);
+ });
+ it("bounds concurrency and validates declared edit paths and per-task output checks",()=>{
+  const f=fixture();for(const maxConcurrent of [0,9,1.5])expect(()=>f.create({maxConcurrent})).toThrow();
+  for(const writes of [["../other"],["/tmp"],["src/*"],"src"])expect(()=>f.create({tasks:[{...task("a"),writes}]})).toThrow();
+  expect(()=>f.create({tasks:[{...task("a"),acceptance:[{path:"../outside"}]}]})).toThrow();
+ });
  it("keeps the database and live SQLite sidecars private",()=>{
   const f=fixture();for(const path of [f.path,`${f.path}-wal`,`${f.path}-shm`])expect(statSync(path).mode & 0o777).toBe(0o600);
  });
@@ -53,7 +93,8 @@ describe("DurableWork real SQLite and filesystem integration",()=>{
  it("requires output checks and rejects missing contents, directories, oversized files and symlinks",async()=>{
   const f=fixture();for(const path of ["../outside","/tmp/outside",f.root])expect(()=>f.create({acceptance:[{path}]})).toThrow();
   mkdirSync(join(f.root,"folder"));writeFileSync(join(f.home,"outside.txt"),"verified");symlinkSync(join(f.home,"outside.txt"),join(f.root,"link.txt"));symlinkSync(f.home,join(f.root,"linked-dir"));writeFileSync(join(f.root,"large.txt"),Buffer.alloc(2000001));
-  for(const acceptance of [[],[{path:"result.txt",contains:"missing"}],[{path:"folder"}],[{path:"large.txt"}],[{path:"link.txt"}],[{path:"linked-dir/outside.txt"}]]){
+  for(const acceptance of [[{path:"link.txt"}],[{path:"linked-dir/outside.txt"}]])expect(()=>f.create({acceptance})).toThrow(/symbolic/);
+  for(const acceptance of [[],[{path:"result.txt",contains:"missing"}],[{path:"folder"}],[{path:"large.txt"}]]){
    const g=f.create({acceptance});f.worker.run(g.id,"owner");expect((await settled(f,g.id)).status).toBe("needs_review");
   }
  });
@@ -106,8 +147,9 @@ describe("DurableWork real SQLite and filesystem integration",()=>{
  it("records elapsed time on close and stops work whose elapsed budget is reached",async()=>{
   const gate=deferred<Result>(),f=fixture(async()=>gate.promise);const g=f.create({maxMinutes:1});f.worker.run(g.id,"owner");f.setNow(21000);f.worker.close();
   const reopened=f.second();expect(reopened.get(g.id,"owner")).toMatchObject({elapsedMs:20000,status:"needs_review"});
-  const db=new DatabaseSync(f.path);const row=db.prepare("SELECT payload FROM work_goals WHERE id=?").get(g.id) as {payload:string};const stored=JSON.parse(row.payload);stored.elapsedMs=60000;db.prepare("UPDATE work_goals SET payload=? WHERE id=?").run(JSON.stringify(stored),g.id);db.close();
-  reopened.resume(g.id,"owner");await new Promise(r=>setTimeout(r,5));expect(reopened.get(g.id,"owner").status).toBe("budget_exhausted");gate.resolve(ok);
+  reopened.resume(g.id,"owner",{maxTokens:600000});f.setNow(61000);reopened.close();
+  const exhausted=f.second();expect(exhausted.get(g.id,"owner").elapsedMs).toBe(60000);
+  exhausted.resume(g.id,"owner",{maxTokens:900000});await new Promise(r=>setTimeout(r,5));expect(exhausted.get(g.id,"owner").status).toBe("budget_exhausted");gate.resolve(ok);
  });
  it("refuses unknown token accounting instead of recording free successful work",async()=>{
   const f=fixture(async()=>({...ok,tokens:NaN})),g=f.create();f.worker.run(g.id,"owner");const done=await settled(f,g.id);expect(done.status).toBe("budget_exhausted");expect(done.tasks[0].error).toContain("valid token usage");expect(done.tokens).toBe(0);expect(done.tasks[0].reservedTokens).toBe(300000);

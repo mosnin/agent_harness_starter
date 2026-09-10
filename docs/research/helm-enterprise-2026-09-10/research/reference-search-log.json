@@ -1,0 +1,343 @@
+[
+  {
+    "batch": 1,
+    "queries": [
+      "site:code.claude.com/docs agent teams limitations subagents background tasks",
+      "site:openai.com Codex agent ChatGPT agent work",
+      "OpenWork opencode GitHub license",
+      "site:github.com/stablyai/orca orchestration worktrees"
+    ],
+    "intent": "neutral discovery and explicit limitation/counterevidence challenge",
+    "representation": "discovery-01.json",
+    "representation_sha256": "37975b151657deae94602127aa662da7d72bd0898455825a818ec428b8f9fa3e",
+    "candidate_query_assignment": "aggregated provider return; no per-query mapping asserted",
+    "candidates": [
+      {
+        "url": "https://cdn.openai.com/business-guides-and-resources/a-business-leaders-guide-to-working-with-agents.pdf",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://cdn.openai.com/osa/chatgpt-regulated-workspace.pdf",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://cdn.openai.com/pdf/23eca107-a9b1-4d2c-b156-7deb4fbc697c/GPT-5-3-Codex-System-Card-02.pdf",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://cdn.openai.com/pdf/8a9f00cf-d379-4e20-b06f-dd7ba5196a11/OAI_WhitePaper_Codex-maxxing26.pdf",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://cdn.openai.com/pdf/ac7c37ae-7f4c-4442-b741-2eabdeaf77e0/oai_5_2_Codex.pdf",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://code.claude.com/docs/en/agent-teams",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://code.claude.com/docs/en/agent-view",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://code.claude.com/docs/en/agents",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://code.claude.com/docs/en/glossary",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://code.claude.com/docs/en/sub-agents",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://code.claude.com/docs/en/sub-agents?_bhlid=fab9dd4ba867c6a3f19d2ee04c0262e5f9fc2d40",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://code.claude.com/docs/llms.txt",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://de.wikipedia.org/wiki/Zentrum_f%C3%BCr_Digitale_Souver%C3%A4nit%C3%A4t_der_%C3%96ffentlichen_Verwaltung",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://developers.openai.com/codex/cloud/agent-internet",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://developers.openai.com/codex/cloud/internet-access#risks-of-agent-internet-access.",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/DasDigitaleMomentum/opencode-processing-skills",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/anomalyco/opencode",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/different-ai/openwork",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/different-ai/openwork/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/different-ai/openwork/pull/1416",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/different-ai/openwork/tree/main",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/blob/main/skill-guides/orca-cli.md",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/blob/main/skill-guides/orchestration.md",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/issues/13360",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/issues/9295",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://opencode.ai/go",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://opensource.microsoft.com/codeofconduct/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://stackoverflow.com/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.cisco.com/c/dam/en_us/about/doing_business/open_source/docs/StealthwatchEnterpriseofficial-750-1701987308.pdf",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/BlackboxAI_/comments/1qczgd2/i_built_an_opensource_alternative_to_claude/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/ClaudeAI/comments/1qcf8mu/i_built_an_opensource_alternative_to_claude/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/GithubCopilot/comments/1qff4ak/beware_of_fast_premium_request_burn_using_opencode/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/LocalLLaMA/comments/1sgnppg/openwork_an_opensource_claude_cowork_alternative/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/OpenAIDev/comments/1skqro9/open_source_claude_cowork_compatible_with_openai/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/WebAfterAI/comments/1u4unfx/opencode_just_crossed_174k_stars_here_are_5/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/opencode/comments/1tz2xfb/with_open_code_being_open_sourced/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/opencodeCLI/comments/1qbqn96/openpackage_a_better_universal_open_source/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/opencodeCLI/comments/1qeq8fw/i_built_openwork_an_opensource_claude_cowork/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/opencodeCLI/comments/1riyo9f/openwork_sessions/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/opencodeCLI/comments/1rj6v0y/setup_for_a_company/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/opencodeCLI/comments/1rtcla2/opensource_projects_that_connect_opencode_with_ims/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      }
+    ]
+  },
+  {
+    "batch": 2,
+    "queries": [
+      "site:support.claude.com Cowork scheduled tasks limitations",
+      "site:code.claude.com/docs long running tasks limitations agent teams",
+      "site:help.openai.com ChatGPT agent limitations confirmation",
+      "site:github.com/different-ai/openwork LICENSE enterprise license"
+    ],
+    "intent": "neutral discovery and explicit limitation/counterevidence challenge",
+    "representation": "discovery-02.json",
+    "representation_sha256": "7159dcee51770b741af693c963723410b914dd20aed7086c1243126b10d8e464",
+    "candidate_query_assignment": "aggregated provider return; no per-query mapping asserted",
+    "candidates": [
+      {
+        "url": "https://code.claude.com/docs/en/agent-sdk/agent-loop",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://code.claude.com/docs/en/agents",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://code.claude.com/docs/en/scheduled-tasks",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://code.claude.com/docs/en/sub-agents?_bhlid=fab9dd4ba867c6a3f19d2ee04c0262e5f9fc2d40",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://code.claude.com/docs/llms.txt",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/customer-terms/github-enterprise-server-product-specific-terms",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/different-ai/openwork.git",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/different-ai/openwork/blob/dev/CONTRIBUTING.md",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/different-ai/openwork/blob/dev/LICENSE",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/different-ai/openwork/issues/1412?ref=genaisecretsauce.com",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/different-ai/openwork?aid=recltc55XbR6WmbdI",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://help.openai.com/en/articles/11752874",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://help.openai.com/en/articles/11752874-chatgpt-agen",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://partner.github.com/assets/channel-partner-agreement.pdf",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://partner.github.com/assets/legal/reseller.and.distribution.terms_20210413_locked.pdf",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://support.claude.com/en/articles/13345190-get-started-with-claude-cowork",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://support.claude.com/en/articles/13854387-schedule-recurring-tasks-in-claude-cowork",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/LocalLLaMA/comments/1sgnppg/openwork_an_opensource_claude_cowork_alternative/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://www.reddit.com/r/LocalLLaMA/comments/1sgnppg/openwork_an_opensource_claude_cowork_alternative/--------------------------------------------------------------------------------",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      }
+    ]
+  },
+  {
+    "batch": 3,
+    "queries": [
+      "site:github.com/openai/codex multi agent resume ownership recovery sandbox",
+      "site:github.com/anomalyco/opencode background subagent cancelled restart",
+      "site:github.com/stablyai/orca orchestration worker-start operation_unknown dispatch",
+      "site:help.openai.com \"ChatGPT Work\" \"Codex\" \"local\""
+    ],
+    "intent": "neutral discovery and explicit limitation/counterevidence challenge",
+    "representation": "discovery-03.json",
+    "representation_sha256": "ca582f5e382f2470f04543f1283bfbc94c0bf13e2a0ebd6b9f30e7419abbeb8f",
+    "candidate_query_assignment": "aggregated provider return; no per-query mapping asserted",
+    "candidates": [
+      {
+        "url": "https://github.com/anomalyco/opencode/issues/44931",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/anomalyco/opencode/issues/45480",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/openai/codex/blob/main/sdk/python/docs/getting-started.md",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/blob/main/skill-guides/orchestration.md",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/blob/main/src/main/runtime/rpc/methods/orchestration-worker-control.ts",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/issues/12736",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/issues/13005",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/issues/13360",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/issues/13653",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/issues/15190",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://github.com/stablyai/orca/issues/15581",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      },
+      {
+        "url": "https://help.openai.com/en/articles/20001275/",
+        "screening": "Included via direct body if in source-index; versioned issue reports are regression leads only; secondary/community results excluded from product truth claims."
+      }
+    ]
+  }
+]

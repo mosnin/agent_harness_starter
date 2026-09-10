@@ -37,6 +37,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
+import { checkHelmProvenance } from "./check-helm-provenance.mjs";
 import { buildSidecar } from "./build-sidecar.mjs";
 import { buildDesktop } from "./build-desktop.mjs";
 
@@ -179,6 +180,7 @@ function defaultRunTauri({ log } = { log: console.log }) {
  * @param {NodeJS.Platform} [options.platform]
  * @param {(...a:any[])=>void} [options.log]
  * @param {(...a:any[])=>void} [options.logError]
+ * @param {()=>unknown} [options.checkHelmFn]
  * @param {(ctx:{log:Function})=>{status:number,error?:Error}} [options.runTauri]
  * @returns {Promise<{ok:boolean, dryRun:boolean, plan:ReturnType<typeof planPackage>, sidecar:object,
  *          ui:object, prerequisites:object, tauriRan:boolean, failedStep?:string}>}
@@ -194,6 +196,7 @@ export async function packageDesktop(options = {}) {
     log = console.log,
     logError = console.error,
     runTauri = defaultRunTauri,
+    checkHelmFn = checkHelmProvenance,
   } = options;
 
   const prerequisites = detectPrerequisites({ lookup, env, platform });
@@ -257,6 +260,7 @@ export async function packageDesktop(options = {}) {
     return { ok: true, dryRun: true, plan, prerequisites, tauriRan: false, sidecar, ui };
   }
 
+  try { checkHelmFn(); } catch (error) { logError("Helm provenance refused packaging", error); return {ok:false,dryRun:false,plan,prerequisites,tauriRan:false,failedStep:"helm-provenance",sidecar,ui}; }
   const tauri = runTauri({ log });
   if (tauri.error || (tauri.status ?? 0) !== 0) {
     logError(`[package-desktop] cargo tauri build FAILED (status=${tauri.status})`, tauri.error ?? "");

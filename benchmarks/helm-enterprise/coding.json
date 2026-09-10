@@ -1,0 +1,99 @@
+[
+  {
+    "id": "money-allocation",
+    "kind": "bug",
+    "directory": "coding/money-allocation",
+    "entry": "index.mjs",
+    "allowedChanges": [
+      "index.mjs"
+    ],
+    "trials": 3,
+    "classification": "coding-fixture",
+    "defaultStatus": "unavailable"
+  },
+  {
+    "id": "cart-refactor",
+    "kind": "refactor",
+    "directory": "coding/cart-refactor",
+    "entry": "index.mjs",
+    "allowedChanges": [
+      "index.mjs"
+    ],
+    "trials": 3,
+    "classification": "coding-fixture",
+    "defaultStatus": "unavailable"
+  },
+  {
+    "id": "dependency-batches",
+    "kind": "feature",
+    "directory": "coding/dependency-batches",
+    "entry": "index.mjs",
+    "allowedChanges": [
+      "index.mjs"
+    ],
+    "trials": 3,
+    "classification": "coding-fixture",
+    "defaultStatus": "unavailable"
+  },
+  {
+    "id": "quoted-csv",
+    "kind": "parser",
+    "directory": "coding/quoted-csv",
+    "entry": "index.mjs",
+    "allowedChanges": [
+      "index.mjs"
+    ],
+    "trials": 3,
+    "classification": "coding-fixture",
+    "defaultStatus": "unavailable"
+  },
+  {
+    "id": "attempt-recovery",
+    "kind": "state-recovery",
+    "directory": "coding/attempt-recovery",
+    "entry": "index.mjs",
+    "allowedChanges": [
+      "index.mjs"
+    ],
+    "trials": 3,
+    "classification": "coding-fixture",
+    "defaultStatus": "unavailable"
+  },
+  {
+    "id": "async-cancellation",
+    "kind": "async-cancellation",
+    "directory": "coding/async-cancellation",
+    "entry": "index.mjs",
+    "allowedChanges": [
+      "index.mjs"
+    ],
+    "trials": 3,
+    "classification": "coding-fixture",
+    "defaultStatus": "unavailable"
+  },
+  {
+    "id": "workspace-isolation",
+    "kind": "workspace-isolation",
+    "directory": "coding/workspace-isolation",
+    "entry": "index.mjs",
+    "allowedChanges": [
+      "index.mjs"
+    ],
+    "trials": 3,
+    "classification": "coding-fixture",
+    "defaultStatus": "unavailable"
+  },
+  {
+    "id": "invoice-integration",
+    "kind": "multi-file-integration",
+    "directory": "coding/invoice-integration",
+    "entry": "index.mjs",
+    "allowedChanges": [
+      "index.mjs",
+      "pricing.mjs"
+    ],
+    "trials": 3,
+    "classification": "coding-fixture",
+    "defaultStatus": "unavailable"
+  }
+]

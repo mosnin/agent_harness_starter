@@ -1,0 +1,118 @@
+{
+  "schema": "hades.enterprise-program-status.v1",
+  "updatedAt": "2026-09-10T07:30:58.633108+00:00",
+  "goal": "active",
+  "productAccepted": false,
+  "hadesBaseline": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
+  "helmSource": "89bac15fcea8f7fb90d50c6d4cf457b25673a7b5",
+  "orcaSource": "bf4e2705046cf9ef9c915929a9646da85717af07",
+  "gates": [
+    {
+      "id": "G01",
+      "status": "partial",
+      "evidence": "Helm product branding committed locally at 89bac15f; 17 pure helper assertions pass. Built/native UI remains unverified."
+    },
+    {
+      "id": "G02",
+      "status": "partial",
+      "evidence": "79 documented catalog entries; initial/governed research and 43-file OpenWork extraction reviewed within explicit source gaps. Full capability acceptance is incomplete."
+    },
+    {
+      "id": "G03",
+      "status": "blocked_environment",
+      "evidence": "Actual pinned Orca adapter and package recipe exist. Exact build/native dependencies absent; real orcad/PTY boot has not run."
+    },
+    {
+      "id": "G04",
+      "status": "partial",
+      "evidence": "Eight coding fixtures and hidden oracles frozen; broken/reference calibration passes. No real product coding trial in this program."
+    },
+    {
+      "id": "G05",
+      "status": "partial",
+      "evidence": "38 actual-adapter contract fixtures passed, including unknown dispatch and reconciliation. Three repeated real crash-boundary trials remain open."
+    },
+    {
+      "id": "G06",
+      "status": "fixture_verified",
+      "evidence": "Rolling DAG admission, concurrency, overlapping edits and fairness pass local fixtures and independent source review. Real-provider coverage remains G13."
+    },
+    {
+      "id": "G07",
+      "status": "fixture_verified",
+      "evidence": "Task artifact hashes, stale dependencies, symlink/path rejection and missing/changed outputs pass local fixtures and independent review."
+    },
+    {
+      "id": "G08",
+      "status": "partial",
+      "evidence": "Profile/root/lease/child and cancelled queued-operation fixtures pass. Enterprise identity and native/provider authority trials remain open."
+    },
+    {
+      "id": "G09",
+      "status": "partial",
+      "evidence": "Hades Work persists measured usage and unknown reservations. Orca provider-wide token/time/spend enforcement is not implemented."
+    },
+    {
+      "id": "G10",
+      "status": "partial",
+      "evidence": "Cancellation, reserved native/sidecar slots, pending-start removal, late wire responses and shutdown fixtures independently pass. Real runtime/cancellation remains unverified."
+    },
+    {
+      "id": "G11",
+      "status": "not_run",
+      "evidence": "No real 60-minute provider run with process restart has been performed."
+    },
+    {
+      "id": "G12",
+      "status": "partial",
+      "evidence": "Existing isolated Helm review/apply/source-check path retained. Current real coding run through reviewed source integration remains unverified; Orca change integration is incomplete."
+    },
+    {
+      "id": "G13",
+      "status": "blocked_environment",
+      "evidence": "No current real Hades/OpenCode/Orca/provider workflow acceptance. Native Hades control was denied; exact Orca and Helm build prerequisites are absent."
+    },
+    {
+      "id": "G14",
+      "status": "missing",
+      "evidence": "Real sourced research/document/spreadsheet/connector deliverable comparison workflows remain to be implemented and exercised."
+    },
+    {
+      "id": "G15",
+      "status": "blocked_environment",
+      "evidence": "Prior spatial implementation retained. No current native/browser capture-to-code round trip was executed."
+    },
+    {
+      "id": "G16",
+      "status": "partial",
+      "evidence": "Work, audit history and Orca controls have DOM coverage. Current native keyboard/pointer/visual acceptance has not run."
+    },
+    {
+      "id": "G17",
+      "status": "partial",
+      "evidence": "Atomic audit export/current-state binding and existing staged backup tests pass. Authenticated organization/RBAC/SSO/credential policy/retention remains incomplete."
+    },
+    {
+      "id": "G18",
+      "status": "partial",
+      "evidence": "253/253 selected offline fixtures; 22/22 Node script tests; types and desktop frontend/sidecar build pass. Full listener/GUI/runtime/provider regression remains open."
+    },
+    {
+      "id": "G19",
+      "status": "blocked_environment",
+      "evidence": "24-case benchmark manifest and three-trial requirement frozen. Separate comparison task creation was denied; no real matched benchmark has run."
+    },
+    {
+      "id": "G20",
+      "status": "partial",
+      "evidence": "Independent source/fixture reviews repaired material findings. Product-wide independent acceptance is not complete."
+    }
+  ],
+  "nextExecutionOrder": [
+    "Build and package exact foundations on an authorized host with sufficient space; verify actual worker/PTY and provider authentication",
+    "Exercise actual default conversation-to-worker-to-checked-artifact-to-reviewed-apply flow; repair failures",
+    "Enforce negotiated cross-engine budget and recovery contracts before autonomous team expansion",
+    "Deliver and benchmark real general-work and enterprise policy workflows",
+    "Run native usability and 24-case three-trial matched comparison, then independent product acceptance"
+  ]
+}

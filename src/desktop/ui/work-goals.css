@@ -1,0 +1,34 @@
+.work-page .work-team-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0 12px;
+}
+.work-page .work-team-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.work-page .work-team-summary span { color: var(--muted); font-size: 12px; }
+.work-page .work-team-summary strong { font-size: 20px; font-weight: 600; }
+.work-page .work-attention, .work-page .work-pending {
+  padding: 12px;
+  border-left: 2px solid var(--accent);
+  background: var(--panel);
+  border-radius: 4px;
+}
+.work-page .work-task p, .work-page .work-task h2 { overflow-wrap: anywhere; }
+.work-page details > summary { cursor: pointer; }
+.work-page :is(button, summary, input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .work-page .work-team-summary { grid-template-columns: 1fr; }
+  .work-page .work-task-heading { align-items: start; flex-direction: column; gap: 6px; }
+  .work-page .work-limits { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,51 @@
+[
+  {
+    "input": {
+      "total": 10,
+      "weights": [
+        1,
+        1,
+        1
+      ]
+    },
+    "expected": [
+      4,
+      3,
+      3
+    ]
+  },
+  {
+    "input": {
+      "total": 7,
+      "weights": [
+        0,
+        2,
+        1
+      ]
+    },
+    "expected": [
+      0,
+      5,
+      2
+    ]
+  },
+  {
+    "input": {
+      "total": -1,
+      "weights": [
+        1
+      ]
+    },
+    "throws": true
+  },
+  {
+    "input": {
+      "total": 4,
+      "weights": [
+        0,
+        0
+      ]
+    },
+    "throws": true
+  }
+]
