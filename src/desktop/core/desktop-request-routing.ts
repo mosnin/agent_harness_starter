@@ -17,7 +17,7 @@ const inspections = new Set([
   "work.list", "work.get", "work.audit.head", "work.audit.read", "work.audit.export",
   "work.source.status", "work.orca.acceptance", "work.orca.replacement",
   "helm.code.status", "helm.list", "helm.get", "helm.orca.info", "helm.orca.list",
-  "helm.orca.get", "helm.orca.read", "helm.orca.refresh", "helm.orca.recover",
+  "helm.orca.get", "helm.orca.read", "helm.orca.usage", "helm.orca.refresh", "helm.orca.recover",
   "spatial.status", "browser.status", "session.get",
   "ecosystem.list", "ecosystem.data", "ecosystem.record", "ecosystem.sync", "ecosystem.permissions",
   "native.ecosystem.unlock", "native.ecosystem.callback", "companyos.status", "companyos.check",

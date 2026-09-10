@@ -459,7 +459,7 @@ export class WorkbenchService {
       },
       owns:target=>(meta.orcaIntents??[]).some(entry=>entry.id===target),
       start:(requestId,input)=>this.helmOrca.start(scope,{requestId,prompt:input.prompt,agent:input.agent,...(input.model?{model:input.model}:{})},signal),
-      status:target=>this.helmOrca.status(scope,target),read:(target,cursor)=>this.helmOrca.read(scope,target,cursor),
+      status:target=>this.helmOrca.status(scope,target),usage:(target,offset)=>this.helmOrca.usage(scope,target,offset),read:(target,cursor)=>this.helmOrca.read(scope,target,cursor),
       reconcile:target=>this.helmOrca.recover(scope,target),stop:target=>this.helmOrca.stop(scope,target),
     });
   }
@@ -1150,6 +1150,7 @@ export class WorkbenchService {
         });
         this.emit({kind: "desktop.helm", profile: result.profile}); return result;
       }
+      case "helm.orca.usage": return this.helmOrca.usage({root: this.root(a.root), profile: this.profile(a.profile).id}, ident(a.id), a.offset as number|undefined);
       case "helm.orca.refresh": return this.helmOrca.status({root: this.root(a.root), profile: this.profile(a.profile).id}, ident(a.id));
       case "helm.orca.recover": return this.helmOrca.recover({root: this.root(a.root), profile: this.profile(a.profile).id}, ident(a.id));
       case "helm.orca.stop": return this.helmOrca.stop({root: this.root(a.root), profile: this.profile(a.profile).id}, ident(a.id));

@@ -12,3 +12,15 @@ describe('conversation Orca authority boundary',()=>{
  it('child scope has no start and cap limitations are explicit',()=>{const f=fixture();f.scope.canStart=false;expect(helmOrcaTools(f.scope).some(t=>t.name==='helm_orca_start')).toBe(false);expect(helmOrcaTools(f.scope)[0].description).toContain('not enforced');});
  it('guard is rechecked after async status response',async()=>{const f=fixture();await f.run('helm_orca_start',input);const id=[...f.reservations.values()][0].id;f.scope.status=async()=>{f.controller.abort();return {state:'ready'};};expect((await f.run('helm_orca_status',{id})).ok).toBe(false);});
 });
+
+it('usage evidence tool enforces conversation ownership, bounded offsets and post-read revocation',async()=>{
+ const f=fixture();f.scope.usage=vi.fn(()=>({state:'available',aggregation:'unknown',observations:[]}));
+ expect((await f.run('helm_orca_usage',{id:randomUUID()})).ok).toBe(false);
+ expect(f.scope.usage).not.toHaveBeenCalled();
+ await f.run('helm_orca_start',input);const id=[...f.reservations.values()][0].id;
+ for(const offset of [-1,0.5,'100'])expect((await f.run('helm_orca_usage',{id,offset})).ok).toBe(false);
+ expect((await f.run('helm_orca_usage',{id,offset:100})).ok).toBe(true);
+ expect(f.scope.usage).toHaveBeenCalledWith(id,100);
+ f.scope.usage=async()=>{f.controller.abort();return {state:'available'};};
+ expect((await f.run('helm_orca_usage',{id})).ok).toBe(false);
+});

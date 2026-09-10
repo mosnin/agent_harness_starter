@@ -9,6 +9,7 @@ export interface HelmOrcaToolScope {
  owns(id:string):boolean;
  start(id:string,input:HelmOrcaToolInput):Promise<unknown>;
  status(id:string):Promise<unknown>;
+ usage?(id:string,offset?:number):unknown|Promise<unknown>;
  read(id:string,cursor?:string|number):Promise<unknown>;
  reconcile(id:string):Promise<unknown>;
  stop(id:string):Promise<unknown>;
@@ -29,6 +30,7 @@ export function helmOrcaTools(scope:HelmOrcaToolScope):Tool[]{
   tool('helm_orca_reconcile','Read durable receipt for your uncertain Orca intent. JSON {"id":string}. Does not replay dispatch; missing acknowledgement remains unknown.',target,id=>wait(()=>scope.reconcile(id))),
   tool('helm_orca_stop','Request stop for your Orca intent. Requires approval. JSON {"id":string}. Cancellation does not prove the provider process stopped; inspect the returned verdict.',target,id=>wait(()=>scope.stop(id))),
  ];
+ if(scope.usage)tools.push(tool('helm_orca_usage','Read retained provider usage evidence for your Orca intent. JSON {"id":string,"offset"?:number}. Reports are partial observations, not billing totals or released reservations. Follow nextOffset for retained pages; unavailable or empty does not mean zero.',v=>{keys(v,['id','offset']);if(v.offset!==undefined&&(!Number.isSafeInteger(v.offset)||Number(v.offset)<0))throw new Error('Invalid usage offset');return {id:owned(v.id),offset:v.offset as number|undefined};},v=>wait(()=>scope.usage!(v.id,v.offset))));
  if(scope.canStart)tools.unshift(tool('helm_orca_start','Start actual Orca coding work in an isolated worktree. Requires approval. JSON {"key":string,"prompt":string,"agent":"codex"|"claude"|"opencode","model"?:string}. Reuse the SAME key and exact instructions after an uncertain result. Four allocations per conversation; unknown allocations are retained. Setup hooks disabled. This adapter does NOT enforce provider token/time caps or measure spend. No automatic merge, verification or retry.',v=>{keys(v,['key','prompt','agent','model']);const key=string(v.key,100);if(!/^[\w-]+$/.test(key))throw new Error('Choose a stable alphanumeric request key');if(!['codex','claude','opencode'].includes(String(v.agent)))throw new Error('Choose a supported Orca provider');const model=v.model===undefined?undefined:string(v.model,200);if(model?.startsWith('-'))throw new Error('Invalid model');return {key,prompt:string(v.prompt,20000),agent:v.agent as HelmOrcaToolInput['agent'],...(model?{model}:{})};},async input=>{
   await wait(scope.preflight);guard();const id=scope.reserve(input);guard();return wait(()=>scope.start(id,input));
  }));

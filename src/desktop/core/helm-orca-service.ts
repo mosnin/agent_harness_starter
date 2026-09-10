@@ -9,6 +9,9 @@ import {
   snapshotOrcaWorkspace,
   type HelmOrcaImportDescriptor,
 } from "./helm-orca-import";
+import { decodeHelmOrcaUsage } from "./helm-orca-usage";
+import { HelmOrcaUsageStore } from "./helm-orca-usage-store";
+
 export interface HelmOrcaScope {
   root: string;
   profile: string;
@@ -80,6 +83,18 @@ export interface HelmOrcaRecord extends HelmOrcaScope {
   requestId: string;
   error?: string;
   receipt?: unknown;
+  usageSessionId?: string;
+  usageConflict?: boolean;
+  usageStatus?: {
+    state:
+      | "unsupported"
+      | "unavailable"
+      | "malformed"
+      | "mismatch"
+      | "available";
+    reason?: string;
+    truncated?: boolean;
+  };
 }
 const coordinatorQueues = new Map<string, Promise<void>>();
 async function reserveCoordinator(key: string, signal: AbortSignal) {
@@ -119,6 +134,7 @@ export class HelmOrcaService {
   private settling = new Map<string, Promise<void>>();
   private closed = false;
   private db: DatabaseSync;
+  private usageStore: HelmOrcaUsageStore;
   private operations = new Set<Promise<unknown>>();
   private stopping = new Map<string, Promise<HelmOrcaRecord>>();
   private shutdown?: Promise<void>;
@@ -146,6 +162,27 @@ export class HelmOrcaService {
     this.db.exec(
       "PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS attempts(id TEXT PRIMARY KEY,payload TEXT NOT NULL,active INTEGER NOT NULL,cancel_requested INTEGER NOT NULL DEFAULT 0,revision INTEGER NOT NULL DEFAULT 0);",
     );
+    this.usageStore = new HelmOrcaUsageStore(this.db);
+  }
+  usage(s: HelmOrcaScope, id: string, offset = 0) {
+    if (!Number.isSafeInteger(offset) || offset < 0)
+      throw new Error("Invalid usage offset");
+    const record = this.get(s, id);
+    if (!record.dispatchId || !record.usageSessionId)
+      return {
+        state: record.usageStatus?.state ?? "unsupported",
+        lastRead: record.usageStatus,
+      };
+    const retained = this.usageStore.read(
+      id,
+      { dispatchId: record.dispatchId, sessionId: record.usageSessionId },
+      offset,
+    );
+    return {
+      ...retained,
+      conflict: retained.conflict || record.usageConflict === true,
+      lastRead: record.usageStatus,
+    };
   }
   private rows(): HelmOrcaRecord[] {
     return (
@@ -504,12 +541,58 @@ export class HelmOrcaService {
     if (this.get(s, id).replacementSeal) return this.get(s, id);
     if (result?.dispatch?.id !== r.dispatchId)
       throw new Error("Mismatched worker observation");
-    r.receipt = result;
+    const { usage: reportedUsage, ...receipt } = result;
+    r.receipt = receipt;
     const matchingWorker =
       !!r.runtimeId &&
       result?.worker?.dispatchId === r.dispatchId &&
       result.worker.runtimeEpoch === r.runtimeId &&
       (!r.baseSha || result.worker.startOptions?.baseBranch === r.baseSha);
+    const incarnation = result.dispatch?.processIncarnation;
+    const sessionId =
+      typeof incarnation === "string" && incarnation.startsWith("structured:")
+        ? incarnation.slice("structured:".length)
+        : "";
+    const usageAuthority =
+      matchingWorker &&
+      result.observation?.exactWorker === true &&
+      result.dispatch.runId === r.runId &&
+      result.dispatch.hostScope?.kind === "local" &&
+      typeof result.worker.agentTerminalHandle === "string" &&
+      result.worker.agentTerminalHandle.startsWith("structworker_") &&
+      result.dispatch.assigneeHandle === result.worker.agentTerminalHandle &&
+      !!sessionId &&
+      (!r.usageSessionId || r.usageSessionId === sessionId);
+    let usage =
+      reportedUsage === undefined
+        ? { state: "unsupported" as const }
+        : usageAuthority
+          ? decodeHelmOrcaUsage(reportedUsage, {
+              dispatchId: r.dispatchId!,
+              sessionId,
+            })
+          : { state: "mismatch" as const, reason: "worker_authority_unproven" };
+    if (
+      usage.state === "available" &&
+      usage.observations.some(
+        (row) =>
+          row.observation.provider !== r.input.agent ||
+          row.observation.identity.runtimeId !==
+            result.dispatch.hostScope.hostId,
+      )
+    )
+      usage = { state: "mismatch", reason: "worker_authority_unproven" };
+    r.usageStatus =
+      usage.state === "available"
+        ? { state: usage.state, truncated: usage.truncated }
+        : {
+            state: usage.state,
+            ...("reason" in usage ? { reason: usage.reason } : {}),
+          };
+    if (usage.state === "available") {
+      r.usageSessionId = sessionId;
+      r.usageConflict = r.usageConflict === true || usage.conflict;
+    }
     if (
       matchingWorker &&
       result.observation?.exactWorker === true &&
@@ -527,8 +610,16 @@ export class HelmOrcaService {
       r.state = "unknown";
       r.error = "Worker liveness/identity is unconfirmed";
     }
-    // A completed report with a still-live terminal does not release worker admission.
-    this.save(r);
+    // Evidence and its intent revision commit together; stale polls cannot overwrite ownership.
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      if (usage.state === "available") this.usageStore.retain(r.id, usage);
+      this.save(r);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
     return r;
   }
   stop(s: HelmOrcaScope, id: string) {
