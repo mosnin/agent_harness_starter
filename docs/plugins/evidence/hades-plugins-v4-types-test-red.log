@@ -1,0 +1,2 @@
+src/desktop/__tests__/company-os-resources.test.ts(249,12): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/desktop/__tests__/company-os-resources.test.ts(272,10): error TS2722: Cannot invoke an object which is possibly 'undefined'.

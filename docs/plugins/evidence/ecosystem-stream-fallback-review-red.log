@@ -1,0 +1,35 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:48235) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/ecosystem-stream-fallback-review.test.ts (2 tests | 1 failed) 126ms
+   × failed stream catch-up is one sync attempt, not an immediate duplicate fallback 70ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/ecosystem-stream-fallback-review.test.ts > failed stream catch-up is one sync attempt, not an immediate duplicate fallback
+AssertionError: expected 2 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ src/desktop/__tests__/ecosystem-stream-fallback-review.test.ts:137:59
+    135|  f.setEvents(async()=>new Response(new ReadableStream(),{headers:{'con…
+    136|  f.setChanges(async()=>new Response(null,{status:503}));
+    137|  f.service.tick();await f.drain();expect(f.changeCalls()).toBe(1);
+       |                                                           ^
+    138| });
+    139| it("pause during an in-flight fallback preserves cursor and cancels re…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  07:05:50
+   Duration  250ms (transform 50ms, setup 0ms, import 62ms, tests 126ms, environment 0ms)
+

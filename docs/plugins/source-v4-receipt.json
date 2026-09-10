@@ -1,0 +1,1222 @@
+{
+  "schema": "hades.plugins-source.v4",
+  "recordedAt": "2026-09-10T11:19:55.776677+00:00",
+  "scope": "Streaming-outage reconciliation, complete verified framework resource access and selective local provider delivery",
+  "repository": "https://github.com/mosnin/agent_harness_starter.git",
+  "root": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+  "branch": "claude/hermes-swarm-framework-vbhrot",
+  "precommitHead": "0ce9849738f4851a4c80d66a99a8cd23431be54a",
+  "previousPluginsCheckpoint": {
+    "path": "docs/plugins/source-v3-receipt.json",
+    "bytes": 50768,
+    "sha256": "d7d14b70ca21c652c126a86a8c7865bca696d183891f7b0d80607b6eeec0fef2"
+  },
+  "previousOrcaCheckpoint": {
+    "path": "docs/research/helm-enterprise-2026-09-10/audit/orca-output-v1-receipt.json",
+    "bytes": 24357,
+    "sha256": "3d1aad8fe2454a309a7d077cd37d72c1fce0b719777ab46e0a3182f6182f68d3"
+  },
+  "files": [
+    {
+      "path": "docs/plugins/ACCEPTANCE_V4.md",
+      "bytes": 7462,
+      "sha256": "af3b118d079e05c65d2153872ec1419d73a035ab561bfa778f33e2b991e89d30"
+    },
+    {
+      "path": "docs/plugins/COMPANY_OS.md",
+      "bytes": 5785,
+      "sha256": "be35b21dea92ebc760a326b9debbe3d7be1602c859ecd5822387ce76a6d9d292"
+    },
+    {
+      "path": "docs/plugins/PROGRAM.md",
+      "bytes": 5336,
+      "sha256": "26c00480fb54ca46a2d87499217e6821753ecb2498c29c11a5c8a2645743e639"
+    },
+    {
+      "path": "docs/plugins/SYNC_FRAMEWORK_V4_REVIEW.md",
+      "bytes": 5423,
+      "sha256": "c8362e1e5b77e9fcb034310c695ff1f71e14d8d1bd5213c1d10fb0a96c5e719a"
+    },
+    {
+      "path": "docs/plugins/company-os-resources-v4-receipt.json",
+      "bytes": 6752,
+      "sha256": "74099dfc03d9288373cd4d733689a4c8767870ac25ebcf6384e83b7d3165f640"
+    },
+    {
+      "path": "docs/plugins/evidence/company-os-host-resources-green.log",
+      "bytes": 407,
+      "sha256": "9f8d5455136bd6434debef2335bb0796794eaa0ee955eae822f17795244bcee4"
+    },
+    {
+      "path": "docs/plugins/evidence/ecosystem-stream-fallback-cooldown-author-final.log",
+      "bytes": 915,
+      "sha256": "8991bc4343c5bce7179d811fe31d843c999e03f8e149816624e5dc827fb182b6"
+    },
+    {
+      "path": "docs/plugins/evidence/ecosystem-stream-fallback-final-v2.log",
+      "bytes": 915,
+      "sha256": "14e5dafa0007d01db5b9f4cb035f574c8c9c55936d7cb43639efc42f12b0a83e"
+    },
+    {
+      "path": "docs/plugins/evidence/ecosystem-stream-fallback-red.log",
+      "bytes": 1151,
+      "sha256": "85d0a9584cf3ed5b66289c14d90d04cd81daf67f76c348426bd6c375ae915e21"
+    },
+    {
+      "path": "docs/plugins/evidence/ecosystem-stream-fallback-review-green.log",
+      "bytes": 405,
+      "sha256": "2ecdf8067c27c507c20425fb82dc0c8a0588f30d09c32c2da2e504ceb8bdf077"
+    },
+    {
+      "path": "docs/plugins/evidence/ecosystem-stream-fallback-review-red-v2.log",
+      "bytes": 1513,
+      "sha256": "bffb5d23dde69b22aedc7d5c945b87030c639d295347a30324648743900f37f7"
+    },
+    {
+      "path": "docs/plugins/evidence/ecosystem-stream-fallback-review-red.log",
+      "bytes": 1453,
+      "sha256": "3ae9cecfa52be4c58ca6845a223fce4f4e1de76e25d7889c2a3b698eec3e9393"
+    },
+    {
+      "path": "docs/plugins/evidence/hades-company-os-resources-final.log",
+      "bytes": 745,
+      "sha256": "1931a4febb9642fda11297e3b19c4036b610fb55de85e16b9e9ea783bbef5a76"
+    },
+    {
+      "path": "docs/plugins/evidence/hades-company-os-resources-green.log",
+      "bytes": 407,
+      "sha256": "293ba8031f06a6a626d6d8560b520946c420ba39bafb5c6d8a504457580cb1b6"
+    },
+    {
+      "path": "docs/plugins/evidence/hades-company-os-resources-red.log",
+      "bytes": 31864,
+      "sha256": "2eed14110328bbdcc69c8f93f633d1d602fa3402e76f45ee03c03b77d79e75c7"
+    },
+    {
+      "path": "docs/plugins/evidence/hades-company-os-resources-type-repair.log",
+      "bytes": 407,
+      "sha256": "14a6a93376375af497d2a30bb7b23fb875280850142649441fdad063868a9429"
+    },
+    {
+      "path": "docs/plugins/evidence/hades-plugins-v4-before-type-repair-tests.log",
+      "bytes": 2849,
+      "sha256": "7cb885a132421104669a65bc92a885db5163926ecad8edd709e36193b0558dee"
+    },
+    {
+      "path": "docs/plugins/evidence/hades-plugins-v4-final-build.log",
+      "bytes": 432,
+      "sha256": "c3c8365c367faa231aeb6c03863a7e013ffab1862fc32bee5352ca1ae0842209"
+    },
+    {
+      "path": "docs/plugins/evidence/hades-plugins-v4-final-tests.log",
+      "bytes": 2851,
+      "sha256": "5cf27d55355505bbc02e1dc0a11498b9babaae9d9665d2f9b50e3a2c523cca16"
+    },
+    {
+      "path": "docs/plugins/evidence/hades-plugins-v4-final-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugins/evidence/hades-plugins-v4-final-work.log",
+      "bytes": 3706,
+      "sha256": "74c97525a6df28a9c4ceb15da6cede3370850b6f66c65e76199723496a055878"
+    },
+    {
+      "path": "docs/plugins/evidence/hades-plugins-v4-types-test-red.log",
+      "bytes": 258,
+      "sha256": "fe203408be3beb233ad9260c8a1c3fd34cba1fbc8001bd9a4693e0c60f18c7c6"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/CAPABILITIES.md",
+      "bytes": 34950,
+      "sha256": "7bce2cb55fbfe737e5c035e2ff1e071a773e9fa0460461a1f49cf08180540fce"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/PROGRAM.md",
+      "bytes": 15103,
+      "sha256": "90a63a69febacf1504e4a2bf620e2a3e5458f7c926dcc0bbda2794510bb46bef"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/STATUS.json",
+      "bytes": 6538,
+      "sha256": "05aaa6b56816f70f99c59845a4fc9fdf8c09f86a7e235663f80b1b219544f665"
+    },
+    {
+      "path": "scripts/check-plugins.mjs",
+      "bytes": 1536,
+      "sha256": "ba960d0e9a4f98706fd6b3a0e623b471b2624616b40599c37c119c4308c64e79"
+    },
+    {
+      "path": "src/desktop/__tests__/company-os-resilience.test.ts",
+      "bytes": 9760,
+      "sha256": "24796bd78c0530bfc9222e782da7ef9cd164a6c43686f86531ce7eb5746aa1b4"
+    },
+    {
+      "path": "src/desktop/__tests__/company-os-resources.test.ts",
+      "bytes": 15413,
+      "sha256": "d5f5123978de21fc279c6ed84dafc402464d6892d60aa7d07913c6877e91b015"
+    },
+    {
+      "path": "src/desktop/__tests__/company-os.test.ts",
+      "bytes": 6877,
+      "sha256": "baa3d1bbd336023b45b76443ddaf1f220c33ca306d211d82e542e9ad264a1ff7"
+    },
+    {
+      "path": "src/desktop/__tests__/desktop-request-routing.test.ts",
+      "bytes": 9230,
+      "sha256": "212b3a23a4f59053fa45b25fdb2d2e45fb6652add47102ef95a168ba0747c310"
+    },
+    {
+      "path": "src/desktop/__tests__/durable-work-review.test.ts",
+      "bytes": 2278,
+      "sha256": "d2cf202595b900228962e647031d8e6bb6e8d878f4ea3bd053f8f11a1a1a7f21"
+    },
+    {
+      "path": "src/desktop/__tests__/durable-work.test.ts",
+      "bytes": 16325,
+      "sha256": "6fb91a12f0bb761a8b9a6cc9f1c1d91bf6018a27c6c798125b638272bbebce10"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-catalog.test.ts",
+      "bytes": 31248,
+      "sha256": "43e5853d3e75eb1a328e1429fa73d494c196bf7c9f6f78e5baae39968e322dc8"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-detail-ui.test.ts",
+      "bytes": 12382,
+      "sha256": "69e75785051a0a149075791f98a36e5a54d186a30cbd0085c49c2c6586caf8c5"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-events.test.ts",
+      "bytes": 2871,
+      "sha256": "90c3af5576cda4e1ffe60ef1d039b99373d17bda2e434b976b343030ae0422a3"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-plugins-ui.test.ts",
+      "bytes": 15865,
+      "sha256": "7a004d2608792e1b01b06f44de7525b91a7d93177926fbfe05ea5c5a772b3d3f"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-read-review.test.ts",
+      "bytes": 8557,
+      "sha256": "9097f3cb3294917d6cde014af1394d2c40394e5b8060cb8e8a9141e0ab0f3189"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-recovery.test.ts",
+      "bytes": 8417,
+      "sha256": "0e52182c99c8c11bdb83cc961801c0cdf50966766797c01934ddf110efdc19ec"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-scalar-review.test.ts",
+      "bytes": 7665,
+      "sha256": "c0c59d7748234192f9512b41478cf22dcdd0c43fc377b34dd1e8f6be99404fa6"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-scopes-review.test.ts",
+      "bytes": 13040,
+      "sha256": "e665d66b1ba3e19eaf0a49ceb6f60fbc6467166c353f7baafe758a7e75923590"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-service.test.ts",
+      "bytes": 26913,
+      "sha256": "292c0c24a3ded6952c2759850680e724a87044665e09af2d078cfb208c2b8355"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-stream-fallback-review.test.ts",
+      "bytes": 6412,
+      "sha256": "f894336972c5266e354ed665efdc325beacb30e3d9d5557d7a51941f285a80ed"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-stream-fallback.test.ts",
+      "bytes": 11006,
+      "sha256": "7cba4393a57891d5c1311f2328024523f59d781931c0b25052ba6e3ce08afc87"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-tools.test.ts",
+      "bytes": 4632,
+      "sha256": "d7d241c00628ad203676c018390ccb8aa3c98d084d7b32156a9d3d4731946b83"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-write-ack-review.test.ts",
+      "bytes": 7205,
+      "sha256": "976e54d510e4530b5a2f9e93c98811c58dbde7ae4fe55d4f67c3f4d1d6003323"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-integration-claims.test.ts",
+      "bytes": 16274,
+      "sha256": "09f451e91c3ea8fdf659f44adc5ea92f02db854584c2bdca8f1b16553edb2dcd"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-integration.test.ts",
+      "bytes": 11224,
+      "sha256": "03d8215ff4a3788f01c5926d668822ae1eb8c3137ff7ff62342517b6bccfa29d"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-import-review.test.ts",
+      "bytes": 7454,
+      "sha256": "5c9e683e9e3e43ca2044db8fccba4cc955d2681ac584474f11012d55f711e8b1"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-import.test.ts",
+      "bytes": 5074,
+      "sha256": "97574ab62b41acfe546f5405c0adcb186ef361114d945cca8366eedf0157b9de"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-ownership.test.ts",
+      "bytes": 3852,
+      "sha256": "e8a62cbf711d07f28016c097d81dd323e762ed7fc88ad030bcb59f49ba9998a1"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-readiness.test.ts",
+      "bytes": 2033,
+      "sha256": "93e2038f6116484e60b02f904a0dff42da0788377af3f4ee7b53560f81bfcac6"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-review.test.ts",
+      "bytes": 7363,
+      "sha256": "2fe266923c1f17d3a99f28d1ad0f49f62e2db58bf3decfeddcb6edaed7bac3f0"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-runtime.test.ts",
+      "bytes": 1431,
+      "sha256": "2a59e866532dfd2cb65965fdd524726f7899c975a9152520a3977ede376c86e7"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-service.test.ts",
+      "bytes": 11872,
+      "sha256": "29c1f302265fec41783639f926412a0bb729e30c66ba2fba8555c30b3d28000a"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-tools.test.ts",
+      "bytes": 3822,
+      "sha256": "e6cfc2e27b1b6811a94239e632cdb21f0599db7864cf08e863d7bca3d30062d1"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-transport.test.ts",
+      "bytes": 2285,
+      "sha256": "7a0e20b39c07f6c1341b00f7e10e819a3c8584aae4ae64759b9d5f11fa5318d4"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-ui.test.ts",
+      "bytes": 10053,
+      "sha256": "9941146c0c2ed8429caf3123d1638cf6f26813016f04f7e07439d90b4d3181ad"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-workbench-tools.test.ts",
+      "bytes": 4493,
+      "sha256": "0194b19ed73f58dab62612cb5078cbc1d27aefb7b6f21c613ac236337f2c1aa8"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-service.test.ts",
+      "bytes": 14083,
+      "sha256": "c984ca59be5930389298cf1c646b8f214ac1b057dd4132a27db9ed95bae74648"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-source-checks-cancellation.test.ts",
+      "bytes": 6376,
+      "sha256": "11d0bd402d1ff2157e6e23a1ca26f911b1566cd201414d5e5f9ded9e6755132e"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-source-checks.test.ts",
+      "bytes": 8821,
+      "sha256": "c9e59b329204c70ca8dbf7cbbc2156803c3e71ad5528ad835952e21a66e0a718"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-ui.test.ts",
+      "bytes": 31317,
+      "sha256": "7678e8cf4014092f12b07908ef38591de6ba619b07442f6abe79eef170894edc"
+    },
+    {
+      "path": "src/desktop/__tests__/orca-work-review-ui.test.ts",
+      "bytes": 21902,
+      "sha256": "62841d58976cf741ab089f20a3b659ca040e6a86fa28a5dafe3c7e770da47fd9"
+    },
+    {
+      "path": "src/desktop/__tests__/work-goals.test.ts",
+      "bytes": 16723,
+      "sha256": "4567a148c032aeadd82a2d4a1511a6b95e32c5dc12d11f11fb7f9ffac8893d7c"
+    },
+    {
+      "path": "src/desktop/__tests__/work-orca-import-independent.test.ts",
+      "bytes": 4508,
+      "sha256": "9412ed76b20a1addc65d32616b7c340979abd4ff105ce0eea4b6959dd8bfbe17"
+    },
+    {
+      "path": "src/desktop/__tests__/work-orca-review.test.ts",
+      "bytes": 7233,
+      "sha256": "da6ef98d6555d5bff49c23d900042366e694b1fa348e39c8eb190e073e863394"
+    },
+    {
+      "path": "src/desktop/__tests__/work-orca.test.ts",
+      "bytes": 8854,
+      "sha256": "de564189e841ad1ab7be671ac7511b024ba201608729b5be6474536456d5393e"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-durable-work-offline.test.ts",
+      "bytes": 7146,
+      "sha256": "bd4061ed975feb0258be49876b0fb19ed56a6577b1c6d4e3566f2a6ed4740870"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-ecosystem-ui.test.ts",
+      "bytes": 6390,
+      "sha256": "d2323824b637e1a03cd91701bee93bb5a06c5b178a9c9ae9ad661a9ceb4f3ddb"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-ecosystem.test.ts",
+      "bytes": 7997,
+      "sha256": "81d67e461a7729304081d5f7ddaae74a72e9c1c0e4507d4b84a9582ac155d328"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-experience.test.ts",
+      "bytes": 21063,
+      "sha256": "524a0df496118acc383a99cad9b785c0cd6c6b260b7b589d0da43a2174f6fe55"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-orca-acceptance.test.ts",
+      "bytes": 11221,
+      "sha256": "8441c3f7417d32401958a2ac0afcf3c613634817475135f54c6fa77c1980fd33"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-orca-independent.test.ts",
+      "bytes": 8493,
+      "sha256": "74e1b2b81834c362e4090513d158534de97a10ed93498fe151b172891ef39bfb"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-shutdown.test.ts",
+      "bytes": 6704,
+      "sha256": "59e8996b6e11c0d48b4c2f6ecf39767dbf6abe553df33acafa045b330b4bc2ae"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-work-orca.test.ts",
+      "bytes": 1590,
+      "sha256": "23dc91cdbea0dd1b9c81426a478a324db766857882cfdfe6f74f5daf603be60f"
+    },
+    {
+      "path": "src/desktop/core/company-os-tools.ts",
+      "bytes": 4739,
+      "sha256": "bb85ae83ad19135c5e496cdd62e7670e7a3271c9a03cc54715cda14644042fb7"
+    },
+    {
+      "path": "src/desktop/core/company-os-updates.ts",
+      "bytes": 7258,
+      "sha256": "2ca4379511b9f717c774996c30adc85c9b48ddf10a7f822754f4f7ea51a87965"
+    },
+    {
+      "path": "src/desktop/core/company-os.ts",
+      "bytes": 26133,
+      "sha256": "bc8c31ba9b282fe08fa462fdb7088f09641ce6d8d86efe5dde30fedb3c4c73c3"
+    },
+    {
+      "path": "src/desktop/core/ecosystem-service.ts",
+      "bytes": 48034,
+      "sha256": "a1dbc0ec8afc668ed3532d58ec4383481824b5b175877b7f6a7998c1e2d89653"
+    },
+    {
+      "path": "third_party/company-os/bundle.json",
+      "bytes": 9167400,
+      "sha256": "bab686685a36437967e3445934c4af983085a82962c84d63ae17adcf0244d59d"
+    },
+    {
+      "path": "third_party/company-os/manifest.json",
+      "bytes": 552,
+      "sha256": "b0231803a9b61fc4be2d65d61c59ee606214a9fd729a48bc35f97c226b6b9790"
+    }
+  ],
+  "builtArtifacts": [
+    {
+      "path": "dist/desktop/sidecar-entry.js",
+      "bytes": 2485452,
+      "sha256": "cb689844634a0174f67be19fa647624224206b607eb4cb110c56488e35dd8b45"
+    },
+    {
+      "path": "dist/desktop/main.js",
+      "bytes": 2130848,
+      "sha256": "4162f8a1bc720d5e1a443caa87e6abde777207390100bc5c839d52cf81f4f5cd"
+    },
+    {
+      "path": "dist/desktop/main.css",
+      "bytes": 82163,
+      "sha256": "9369e8cbc7fd7e35e257b7d1d6b49eb845514aba5522ffb5f20806a673f6cd5c"
+    },
+    {
+      "path": "dist/desktop/index.html",
+      "bytes": 334,
+      "sha256": "6c7d5136d4698b1709214ef6047e158eb61d5b3f5edd7a02ece0d983df85b11b"
+    }
+  ],
+  "providers": [
+    {
+      "provider": "govern",
+      "root": "/Users/preston/govern-remediation-integration",
+      "baseline": "0a64d0e87b357630cf956a1af6cebf857ae04d9e",
+      "head": "4405bb13a387b37dd0ef1748cb89c6ca777e7c43",
+      "branch": "codex/hades-plugins-oauth",
+      "committedThisPhase": true,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "src/app/api/hades/authorize/route.ts",
+          "sha256": "451b642c8ce51d1138739dd8d36c194d56267a8c48632917e046a0a77d4bf18d",
+          "bytes": 444
+        },
+        {
+          "path": "src/app/api/hades/changes/route.ts",
+          "sha256": "840aef2794760c5ed6197b7c0c7725573ad4408d46bfb1b7b256caef4126b41a",
+          "bytes": 169
+        },
+        {
+          "path": "src/app/api/hades/records/route.ts",
+          "sha256": "b0db18873c87f6b6efbe13c695ee508bcabf48cc25d63fd20f7a29678b83b083",
+          "bytes": 277
+        },
+        {
+          "path": "src/app/api/hades/revoke/route.ts",
+          "sha256": "17e5e4155a55bce7d4ad72de90d1710f974c55497065acdf3131b28878ca2a99",
+          "bytes": 159
+        },
+        {
+          "path": "src/app/api/hades/token/route.ts",
+          "sha256": "90ddb3c0ca1e5e0df6e4c90060619e80d018d83c7eaaafe7e3e7082e432fbd74",
+          "bytes": 163
+        },
+        {
+          "path": "src/app/api/hades/userinfo/route.ts",
+          "sha256": "9c80cbbec7c851fedaa74ec8c8cb1d9fb7d84458beda91a48285e6b4e9d21e92",
+          "bytes": 170
+        },
+        {
+          "path": "src/app/hades/authorize/page.tsx",
+          "sha256": "16b5c78a7943b9df12d65868877634e0583bfac9f2f4d204d6d92c035f401b8e",
+          "bytes": 2504
+        },
+        {
+          "path": "src/lib/hades-oauth.ts",
+          "sha256": "672b47418c7e7a297be2314f405044b949715c33925dfa73b8a66c95f41c79e6",
+          "bytes": 17395
+        },
+        {
+          "path": "supabase/migrations/20260910_hades_oauth.sql",
+          "sha256": "de66a867c6b4573f1ddddf58d05fbc500c377ee6b9a1c4aee4419bad1911b314",
+          "bytes": 17141
+        }
+      ],
+      "origin": "https://github.com/mosnin/agentid.git",
+      "localCommitFiles": [
+        "scripts/HADES_PROVIDER_V2_REVIEW.md",
+        "scripts/HADES_REVIEW.md",
+        "scripts/run-hades-review.mjs",
+        "src/app/api/hades/authorize/route.ts",
+        "src/app/api/hades/changes/route.ts",
+        "src/app/api/hades/records/route.ts",
+        "src/app/api/hades/revoke/route.ts",
+        "src/app/api/hades/token/route.ts",
+        "src/app/api/hades/userinfo/route.ts",
+        "src/app/hades/authorize/page.tsx",
+        "src/lib/hades-oauth-independent.review.mjs",
+        "src/lib/hades-oauth-v2.review.mjs",
+        "src/lib/hades-oauth.test.ts",
+        "src/lib/hades-oauth.ts",
+        "supabase/migrations/20260910_hades_oauth.sql"
+      ]
+    },
+    {
+      "provider": "cadre",
+      "root": "/Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo",
+      "baseline": "b3cdf808e8c975f2b81627eb78a1866e8198bf58",
+      "head": "81188b66656053de979010218044445f7856bc07",
+      "branch": "codex/hades-plugins-messages",
+      "committedThisPhase": false,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "b9738182c46747cb7cd36cad62d55c8922ca8d0029df280d3d73bb3c95d34935",
+          "bytes": 9717
+        },
+        {
+          "path": "apps/api/src/app.ts",
+          "sha256": "d7579a340728675edfea1a117ba202ca48232e8b056a5a0ca2bc14429db1c2b4",
+          "bytes": 22036
+        },
+        {
+          "path": "apps/api/src/hades-oauth.test.ts",
+          "sha256": "1275359ed4c503c92cdcec4552e1651d2eac8e22ce2c4196a1dfedfd1469b2b0",
+          "bytes": 4527
+        },
+        {
+          "path": "apps/api/src/hades-oauth.ts",
+          "sha256": "caace5ba22341e8813f744410d90190f0c766d2587ed439414795ead795aad78",
+          "bytes": 3952
+        },
+        {
+          "path": "docs/reports/HADES_MESSAGES_INDEPENDENT_REVIEW.md",
+          "sha256": "5b67747cc9ef0027ec500df4a594ae6a4bc3ecd21e7e4c739bdcf4c8ffb9f0c0",
+          "bytes": 5531
+        },
+        {
+          "path": "package.json",
+          "sha256": "a42958a0f26992e10c5a59b03f7ff8adce5fced44778fba0e3afa2437bd07ba2",
+          "bytes": 2508
+        },
+        {
+          "path": "packages/core/package.json",
+          "sha256": "3c9853cc8609a11a3247ddd9ec0dea05a62190475ef1c0266872ccb292ad8a11",
+          "bytes": 1558
+        },
+        {
+          "path": "packages/core/src/message-visibility.test.ts",
+          "sha256": "637570e3b11e22ad445041459ce52e2300b470b179254381184947ef622145ab",
+          "bytes": 4806
+        },
+        {
+          "path": "packages/core/src/message-visibility.ts",
+          "sha256": "774d8ebcab5b39aeaa895fcb839ef4d640b7596c68fc53188aa42cd3bca67aa5",
+          "bytes": 3167
+        },
+        {
+          "path": "packages/core/src/node/hades-messages-independent.review.mjs",
+          "sha256": "ee83c8c631672ed2a5c81ebac0b985d6c5ed414b7608a1f66508b3aea737ea42",
+          "bytes": 11025
+        },
+        {
+          "path": "packages/core/src/node/hades-messages.review.mjs",
+          "sha256": "e6a06189eab4a1be0a848bf1fee44d45e625f2883250da8b8ef85a569138d06a",
+          "bytes": 18236
+        },
+        {
+          "path": "packages/core/src/node/hades-messages.ts",
+          "sha256": "da91a1d32a255de9674eba3a446af96f5a8e709992cbd25ac3c7e1b59c213b74",
+          "bytes": 7983
+        },
+        {
+          "path": "packages/core/src/node/hades-oauth-independent.review.mjs",
+          "sha256": "9249e38655673a71ee9cc34427ab0da3884f00b4ea2777a526d6196232d65c72",
+          "bytes": 14442
+        },
+        {
+          "path": "packages/core/src/node/hades-oauth-v2-independent.review.mjs",
+          "sha256": "9c79e9daaa9f56ccff2749742fa504b7d140d357a573c51110fe98b75734dc58",
+          "bytes": 5872
+        },
+        {
+          "path": "packages/core/src/node/hades-oauth.ts",
+          "sha256": "5b22d3137104189838c14477db33881cd9550c63a1c34eed52e1d83d1c0c7096",
+          "bytes": 16529
+        },
+        {
+          "path": "packages/db/prisma/migrations/20260910000000_hades_oauth/migration.sql",
+          "sha256": "148f07dbb2bd776fbb46b110d47e429fa10e58801614f44fe9689cb1c3d4e587",
+          "bytes": 15424
+        },
+        {
+          "path": "packages/db/prisma/migrations/20260910010000_hades_messages/migration.sql",
+          "sha256": "0a84aa0cec8343250dfbcbbb58874b3eda14ee706b27a6dd0528c5e2ad5dbcb7",
+          "bytes": 13637
+        },
+        {
+          "path": "packages/db/prisma/schema.prisma",
+          "sha256": "1c92b95a6ef9d66cf2cdf5ff65ea07a9dfc2479d1fcf01b2f8ba3926f82262ca",
+          "bytes": 42668
+        },
+        {
+          "path": "scripts/HADES_MESSAGES.md",
+          "sha256": "a7880e91931a918c56cb0f62f86d0432a42c34f15018c60a111bcd23e9b2f086",
+          "bytes": 9245
+        },
+        {
+          "path": "scripts/HADES_REVIEW.md",
+          "sha256": "147a58705389d4007068276fdf045cec7bee74fc9ad1690c69c8914a8709c939",
+          "bytes": 1089
+        },
+        {
+          "path": "scripts/HADES_REVIEW_V2.md",
+          "sha256": "b0aa2b9de0039be33d711030f380a89638fb9ba9607efc326282b00deaf1489f",
+          "bytes": 4975
+        },
+        {
+          "path": "scripts/HADES_REVIEW_V2_REPLAY.md",
+          "sha256": "2ebf4cb5e9d297a9bae5cc6d681a6f97951ee2ee8999b25073e87c7161d837dd",
+          "bytes": 3982
+        },
+        {
+          "path": "scripts/run-hades-messages-independent-review.mjs",
+          "sha256": "4b12f890abe56c7c433a1da786081047ef6615f20e24ac97fd77698f0347ed0e",
+          "bytes": 2853
+        },
+        {
+          "path": "scripts/run-hades-messages-review.mjs",
+          "sha256": "8762eace1f68a23d08d431b63cf44ea89612a8ca5fad1101f563e1bcb0ef5420",
+          "bytes": 3041
+        },
+        {
+          "path": "scripts/run-hades-review.mjs",
+          "sha256": "42839731b33664609520a7310f7f919e9be3cd318497c1ec46d9b7065411556f",
+          "bytes": 2930
+        }
+      ],
+      "origin": "https://github.com/mosnin/cadre.git"
+    },
+    {
+      "provider": "glove",
+      "root": "/Users/preston/Documents/Codex/2026-09-06/glove-audit/source",
+      "baseline": "89e49e4fb4e13ec77699ac043e50087ad567df05",
+      "head": "89e49e4fb4e13ec77699ac043e50087ad567df05",
+      "branch": "codex/persistent-demo-computers",
+      "committedThisPhase": false,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "app/api/hades/authorize/route.ts",
+          "sha256": "871d6127b998648379585caf2d43cd9af156b95201ef5b38f7fff1cf0ad4e4fb",
+          "bytes": 298
+        },
+        {
+          "path": "app/api/hades/changes/route.ts",
+          "sha256": "a502cd982322b94e9d22860015b73976c67da3ea2f4f7cd413e5e14456302aa0",
+          "bytes": 192
+        },
+        {
+          "path": "app/api/hades/records/route.ts",
+          "sha256": "ecbf35b2ee8de3f10114e57a503b5cf51b770f6049d5ca4ee35626022b69b392",
+          "bytes": 294
+        },
+        {
+          "path": "app/api/hades/revoke/route.ts",
+          "sha256": "00a58fed80c85d78803e2f22a880069b4c89d171222a95ae1029f9d69562e09f",
+          "bytes": 192
+        },
+        {
+          "path": "app/api/hades/token/route.ts",
+          "sha256": "f96b2d684d676b1d32ea88b3a46926742562a9162a1b90488118d3666ef66454",
+          "bytes": 191
+        },
+        {
+          "path": "app/api/hades/userinfo/route.ts",
+          "sha256": "501c9de33da196ce0b11f87980ee88e65b64dddb11f45902870b9e0dac0d3801",
+          "bytes": 193
+        },
+        {
+          "path": "convex/_generated/api.ts",
+          "sha256": "836138e136ec2a3bf69a193e410a361c9c703aba945168118cd53c5847d731b0",
+          "bytes": 10148
+        },
+        {
+          "path": "convex/_lib/hadesOAuthContract.ts",
+          "sha256": "79904c39521a2f6f9ccd8d3bda5cc7154ae3df68199fb516531b4419ad0e68cd",
+          "bytes": 8540
+        },
+        {
+          "path": "convex/_lib/hadesOAuthSchema.ts",
+          "sha256": "274a310ac3c91f2e6e5ee8eafd36e9cc9dcfb6ffcb61d1e1ed947eddc68ad992",
+          "bytes": 1871
+        },
+        {
+          "path": "convex/hadesOAuth.ts",
+          "sha256": "6a0a10b651d0815ba5ea6da90aa95950d7b0dacdbcc6400dc96b7d551b7059d8",
+          "bytes": 9943
+        },
+        {
+          "path": "convex/hadesOAuthStore.ts",
+          "sha256": "a91861893f4ae27c28e5608d48ed70c9b6cfa84b949cfdadc3fd1f8c0044a7df",
+          "bytes": 19691
+        },
+        {
+          "path": "convex/schema.ts",
+          "sha256": "f3786a8b142c5d3687798cfc848e6672376449cf95d00926b6146930ce0f6b00",
+          "bytes": 117914
+        },
+        {
+          "path": "lib/hades/server.ts",
+          "sha256": "dc6847dfaf6747339079e24e3270edde244fa2d45ef22da0497b270511999a6f",
+          "bytes": 811
+        },
+        {
+          "path": "lib/hades/transport.ts",
+          "sha256": "cf9d68c5a63a62878c12208f23ca8ee6d20a269316d0009d18d1f6952ef5e6e1",
+          "bytes": 8240
+        },
+        {
+          "path": "proxy.ts",
+          "sha256": "1d2a34fc4fb5cf02d0b36718db31bee19c43acfb7a6f95e8b43764d77be74fb1",
+          "bytes": 2895
+        }
+      ],
+      "origin": "https://github.com/mosnin/aidemo.git"
+    },
+    {
+      "provider": "companyos",
+      "root": "/Users/preston/company-os-web",
+      "baseline": "dfb526de427f9f7f8123a4fabcb92811c46f85f0",
+      "head": "3992fe67c0b7fafeffeb14642c68fd374f0fd7cb",
+      "branch": "codex/hades-plugins-oauth",
+      "committedThisPhase": true,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "app/.well-known/oauth-authorization-server/route.ts",
+          "sha256": "142396af6fd7cde78929624c65a70ba09aeddfa0e2349f9b70fe3b1d470d17aa",
+          "bytes": 164
+        },
+        {
+          "path": "app/api/plugins/v1/account/route.ts",
+          "sha256": "be403dfe8645211383a838f6a63c1f4cf9d0ee9e770475e81f051e4c3e13b3c2",
+          "bytes": 153
+        },
+        {
+          "path": "app/api/plugins/v1/changes/route.ts",
+          "sha256": "77d1098ca7174254776dd11f7226073d64fafa19cdb89f17a8bd6fc5f94ea2ce",
+          "bytes": 153
+        },
+        {
+          "path": "app/api/plugins/v1/events/route.ts",
+          "sha256": "6da94de9eaf8cffde8fcd9c0be0af5b14d2d0bb5df1391578d419437a28a0bdd",
+          "bytes": 2154
+        },
+        {
+          "path": "app/api/plugins/v1/records/[id]/route.ts",
+          "sha256": "78dc0d926c750f94bd57e52f1cf35e9d32ae92186cad36441c98817d89580d3e",
+          "bytes": 385
+        },
+        {
+          "path": "app/api/plugins/v1/snapshot/route.ts",
+          "sha256": "9f2f0616929f38f8af189fa867c5316925096d8c3beda1f07a48581776c26e32",
+          "bytes": 154
+        },
+        {
+          "path": "app/api/plugins/v1/write/route.ts",
+          "sha256": "361d61484ec5b8bc799fd77a810438eddef0050e4d5ce932c5491ee5aef81e5b",
+          "bytes": 152
+        },
+        {
+          "path": "app/oauth/authorize/consent.tsx",
+          "sha256": "f5e69e2a95383647d1af052ee297261662a89c3b2b92d86b2cce94ce9723e0a7",
+          "bytes": 4659
+        },
+        {
+          "path": "app/oauth/authorize/page.tsx",
+          "sha256": "43b4d2b55710905a1e8f847e13dba0325f9806d73cf04f6182aac9edde3f4b4a",
+          "bytes": 1159
+        },
+        {
+          "path": "app/oauth/revoke/route.ts",
+          "sha256": "49a05aa3c3728eacb2a60206d66eb5dba415268d4df2763b752172c6205044fd",
+          "bytes": 144
+        },
+        {
+          "path": "app/oauth/token/route.ts",
+          "sha256": "4c3b13a6a20703d156ede9848f57437c9cd88f4fc47df3e7533e5ec843d59b4b",
+          "bytes": 143
+        },
+        {
+          "path": "convex/http.ts",
+          "sha256": "f28c14bfa313ad460a5c898bdbcd51ff568afd602232af44412a1ff42b1a8c55",
+          "bytes": 1308
+        },
+        {
+          "path": "convex/oauth.test.ts",
+          "sha256": "99d89521bf8e220851c8ccbf3f67b740dbcf1658e74825976017d043002a242b",
+          "bytes": 20378
+        },
+        {
+          "path": "convex/oauth.ts",
+          "sha256": "75a59c5478b57252882abc59f41f5ba1cc3e7cd172d67f82a3e523b6d1c241f4",
+          "bytes": 22726
+        },
+        {
+          "path": "convex/oauthHttp.ts",
+          "sha256": "0ed0a9c8d5f263375e3707a64888e54d4b5cbdef7ab163ea3e650aa017790da9",
+          "bytes": 8528
+        },
+        {
+          "path": "convex/oauthPolicy.ts",
+          "sha256": "4d486efbae3b586e54140da773e89692af4edf4fa32d92d23ec8f905a306c7d4",
+          "bytes": 2129
+        },
+        {
+          "path": "convex/schema.ts",
+          "sha256": "63b46e3ba8e06072fb7f9e1760ed6b917925699932b84ed090121e8b4dd10cf1",
+          "bytes": 15052
+        },
+        {
+          "path": "lib/oauth-body.test.ts",
+          "sha256": "7d2cf99e5ba89dc249eb0419889d494bcecc7147a48cc5967fa167926987f92d",
+          "bytes": 1187
+        },
+        {
+          "path": "lib/oauth-body.ts",
+          "sha256": "b4cb03feaa7286cf29b3030773d9a1b22d031944357065a98642609869cd7c6e",
+          "bytes": 1109
+        },
+        {
+          "path": "lib/oauth-events.test.ts",
+          "sha256": "7e917bee78f66a6abc3833652385d411af5d50177b916d9379a45804d64b3a1a",
+          "bytes": 2456
+        },
+        {
+          "path": "lib/oauth-events.ts",
+          "sha256": "1c249146faef94028e85421db7a38f6bd2ec3f61f4c3009a3097751d0573e523",
+          "bytes": 2666
+        },
+        {
+          "path": "lib/oauth-proxy.ts",
+          "sha256": "7703eb464c73ac0939b05a42b822364c535aa9ad3e488f90b0289cb0e0a4388e",
+          "bytes": 2587
+        }
+      ],
+      "origin": "https://github.com/mosnin/company-os-web.git",
+      "additionalVerifiedFiles": [
+        {
+          "path": "convex/oauth-independent.test.ts",
+          "bytes": 8972,
+          "sha256": "60e14a6ef352e09000c15a1057b236f5ff61e528df7ff0964b5b95d302fa10c7"
+        }
+      ],
+      "preservedUnrelatedFiles": 41
+    },
+    {
+      "provider": "operate",
+      "root": "/Users/preston/operate-companyos-connect",
+      "baseline": "849ddaa28b68adcd3b80c4b6b6a9aa23e0d8f4bd",
+      "head": "db0344050e4058f8956446748a4e075debd38b7d",
+      "branch": "codex/hades-plugins-oauth",
+      "committedThisPhase": true,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "convex/companyOsChanges.ts",
+          "sha256": "135fe7b43e5842d18201ea4fe833464efd4f7314077554987e41edfb01331096",
+          "bytes": 5442
+        },
+        {
+          "path": "convex/companyOsConnector.ts",
+          "sha256": "59605d22e05edfee2faa0e1ccb3ff6b562ead769fa7769e5c395b4274af5942a",
+          "bytes": 31037
+        },
+        {
+          "path": "convex/companyOsNotifications.ts",
+          "sha256": "c3f9b5d58f8fbbd9d1f54cd326164f587fb39603c582d95c3339348dea13d6f1",
+          "bytes": 3823
+        },
+        {
+          "path": "convex/companyOsWrite.ts",
+          "sha256": "35b6c99a661db23bf35140585a33216240f3d7f6fa2c4b7c347c4deb394f5038",
+          "bytes": 2977
+        },
+        {
+          "path": "convex/http.ts",
+          "sha256": "d371d6c8cc5efec231169e96d7b5e94c4af936b128ab547e2e688afca42607e9",
+          "bytes": 32916
+        },
+        {
+          "path": "convex/oauth.ts",
+          "sha256": "d1f1f77ba07cd8bc709495fdc80150a89cbdd2ce41a0f6692166486492950fec",
+          "bytes": 27811
+        },
+        {
+          "path": "convex/schema.ts",
+          "sha256": "3c68d93d915c4cc87df0505aaafc8bb5d7a42fcad44f79785472b1970ae5f405",
+          "bytes": 122337
+        },
+        {
+          "path": "src/app/.well-known/companyos-connector/route.ts",
+          "sha256": "6a6fc9dcc67507527a99a2bf35d9ad4715461ed548adb26d2152d9160cfbe9d2",
+          "bytes": 1953
+        },
+        {
+          "path": "src/app/api/companyos/v1/changes/route.ts",
+          "sha256": "136142277f74a04bf6a709a90fa40a7ad4a4607c2c6bb17ff52c89a493ab6684",
+          "bytes": 1046
+        },
+        {
+          "path": "src/app/api/companyos/v1/events/route.ts",
+          "sha256": "838396693bbbbbe45002b247786e4850b4431a5d6a3504b933f499bebbdb5143",
+          "bytes": 2257
+        },
+        {
+          "path": "src/app/api/companyos/v1/snapshot/route.ts",
+          "sha256": "2d0012b77f49cff56a9f3eb6ca425ef955f13453718b03ad3c8e84b0d0ae2541",
+          "bytes": 17420
+        },
+        {
+          "path": "src/app/api/companyos/v1/write/route.ts",
+          "sha256": "dcd6301bf337c3733959ff1e14f2ddee044b38efa4421f09cb5cbe6290e282ab",
+          "bytes": 2760
+        },
+        {
+          "path": "src/app/oauth/authorize/oauth-authorize.tsx",
+          "sha256": "1833e535cdc90cf2f4de8aef61ec69cdeda90c61cff827032efcbffff692ce4c",
+          "bytes": 11118
+        },
+        {
+          "path": "src/lib/companyos-connect.ts",
+          "sha256": "68ed686ffb6a1a849a0cd15f0966bda0a1d40e6726115c47797cd368191eb95c",
+          "bytes": 5089
+        },
+        {
+          "path": "src/lib/companyos-events.ts",
+          "sha256": "b975fe7b352dbe97eae1fc598f759a84ea448af30295e1e166e823721a7678a9",
+          "bytes": 2670
+        },
+        {
+          "path": "src/lib/oauth-server.ts",
+          "sha256": "edc9f15d60dc8ccadbce0cb6181ff6cad691f2f89d71e24c9311fe52058fe611",
+          "bytes": 5412
+        },
+        {
+          "path": "tests/companyos-connector.test.ts",
+          "sha256": "89adfaef65d91c8589a6b7ace2b8e0546b191658045f392d4d9dcd53aa7ec9c3",
+          "bytes": 36655
+        },
+        {
+          "path": "tests/companyos-discovery.test.ts",
+          "sha256": "7e82ac627e346844aafb2b5f852484046ad2484bb5d3e4caabf4d3d0f9d0bf05",
+          "bytes": 3705
+        },
+        {
+          "path": "tests/companyos-events.test.ts",
+          "sha256": "18f94495ebbb40ecb4d14d5ec06678c8cae465411ea991ae2da29692d4b775be",
+          "bytes": 2474
+        },
+        {
+          "path": "tests/companyos-routes.test.ts",
+          "sha256": "895cc333b9f126616cbec5f1c4c577fc92f3b788d90b270b345fec2325471d33",
+          "bytes": 10013
+        },
+        {
+          "path": "tests/oauth.test.ts",
+          "sha256": "8576b2a55fdb7ed9ff6373078c948b0e2e33eb9862c7887f57bbd19315d0013f",
+          "bytes": 20993
+        }
+      ],
+      "origin": "https://github.com/mosnin/Clickup.git"
+    },
+    {
+      "provider": "scalar",
+      "root": "/Users/preston/Documents/Codex/2026-09-06/sicarii-ui-reference",
+      "baseline": "7922be8b22e6f7cd3e6041ddecfeceac8f0a4414",
+      "head": "542aea19d5bfbca44b998a6342fc69a0359e6b7b",
+      "branch": "codex/hades-plugins-crm-v2",
+      "committedThisPhase": false,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "docs/oauth/CRM_V2_INDEPENDENT_REVIEW.md",
+          "sha256": "8e3c93d00548c88c8d48f725128b4fc6f467eed06bff7958fb59a3238d37cc47",
+          "bytes": 4131
+        },
+        {
+          "path": "docs/oauth/CRM_V2_REVIEW.md",
+          "sha256": "67419d9e19e297c276d8d9a2ac91a3825487b4996b318eaff95606311fe21560",
+          "bytes": 9966
+        },
+        {
+          "path": "prisma/schema.prisma",
+          "sha256": "f38e68ceb677e715eba357fedb35098ab6ab79e10172cdf03fe897b2e82418e3",
+          "bytes": 41402
+        },
+        {
+          "path": "src/app/api/oauth/contacts/route.ts",
+          "sha256": "d42fcc3f59497b50be4bb21a4caa1ff7901bc789fe694d360e210aaf09bf6aee",
+          "bytes": 1580
+        },
+        {
+          "path": "src/app/api/oauth/records/route.ts",
+          "sha256": "46a638df6c71d459411eb56bd81e12f60fc18033580ac5f4e122a0ff8e3bf06f",
+          "bytes": 2536
+        },
+        {
+          "path": "src/app/oauth/register/route.ts",
+          "sha256": "2132cb9f6b407f4b59e02408509b9baadaebf89301618db1f8b7971ec70904dd",
+          "bytes": 3075
+        },
+        {
+          "path": "src/app/oauth/userinfo/route.ts",
+          "sha256": "8353fb4c69f47322e7cc928b54ffd7183d361f7c98b6adcc182b3aebfc28b0c5",
+          "bytes": 3814
+        },
+        {
+          "path": "src/lib/oauth-contact-data.ts",
+          "sha256": "daa837ed071af30399ab62187f43b8fd938ec5a2db4c283da64b930f0da64c06",
+          "bytes": 5122
+        },
+        {
+          "path": "src/lib/oauth-crm-data.ts",
+          "sha256": "3e9cfb6c727d2afbd3fc3a89add13b0567ce6b3be576d18f5da6c23f3c9d9ea1",
+          "bytes": 13128
+        },
+        {
+          "path": "src/lib/oauth-server.ts",
+          "sha256": "b6b713e321617e742fe6ea250a3e684d91dc6b9909140d47aaff7472e5b0a084",
+          "bytes": 21981
+        },
+        {
+          "path": "tests/oauth-contact-data.test.ts",
+          "sha256": "7efd6ec8ec3579cb2fce55a7db6a89301002208fd531438c71c0c4048fe5f5c1",
+          "bytes": 4078
+        },
+        {
+          "path": "tests/oauth-crm-data.test.ts",
+          "sha256": "ce608c5415aaea49df7265b8f652e249593f11163fd670f372f2332622ef7fd9",
+          "bytes": 12644
+        },
+        {
+          "path": "tests/oauth-crm-independent-review.test.ts",
+          "sha256": "f5f05b0acb28d4a6c7775d9cb30abe7efb6ba227b7f08da436479e0284e769f3",
+          "bytes": 10176
+        },
+        {
+          "path": "tests/oauth-crm-route.test.ts",
+          "sha256": "65a9c194773edc7d8e4e75134e04acc2229ea183d349d47d47434a7d162da7ef",
+          "bytes": 2776
+        },
+        {
+          "path": "tests/oauth-native-client.test.ts",
+          "sha256": "17ce19c3b4b653bae4b7f3d052ab084a7b9a6d5cdb7d77a6f52c59a5db88e8e6",
+          "bytes": 1856
+        }
+      ],
+      "origin": "https://github.com/mosnin/Sicarii.git"
+    },
+    {
+      "provider": "stored",
+      "root": "/Users/preston/Documents/Codex/2026-09-10/stored-oauth-source-patch",
+      "baseline": "37ef3dfb155e7169b866fced81675dc886676b24",
+      "head": null,
+      "branch": null,
+      "committedThisPhase": false,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "MANIFEST.json",
+          "sha256": "d1538212d345daf366004fccd26e720cf929f85ba581e7c3213626d707e07630",
+          "bytes": 4226
+        },
+        {
+          "path": "stored-oauth.patch",
+          "sha256": "04b7940ccacca31d61380b0ab01d6a80cd47378c4cc11f251d67c616805dd673",
+          "bytes": 25904
+        }
+      ]
+    }
+  ],
+  "verification": [
+    {
+      "command": "npm run test:plugins",
+      "exitCode": 0,
+      "passed": 303,
+      "files": 21,
+      "log": "docs/plugins/evidence/hades-plugins-v4-final-tests.log"
+    },
+    {
+      "command": "npm run test:work:offline",
+      "exitCode": 0,
+      "passed": 296,
+      "files": 29,
+      "log": "docs/plugins/evidence/hades-plugins-v4-final-work.log"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "exitCode": 0,
+      "log": "docs/plugins/evidence/hades-plugins-v4-final-types.log"
+    },
+    {
+      "command": "npm run desktop:build",
+      "exitCode": 0,
+      "log": "docs/plugins/evidence/hades-plugins-v4-final-build.log"
+    }
+  ],
+  "runnerFiles": {
+    "check-plugins": [
+      "src/desktop/__tests__/ecosystem-service.test.ts",
+      "src/desktop/__tests__/ecosystem-events.test.ts",
+      "src/desktop/__tests__/ecosystem-recovery.test.ts",
+      "src/desktop/__tests__/ecosystem-catalog.test.ts",
+      "src/desktop/__tests__/ecosystem-tools.test.ts",
+      "src/desktop/__tests__/ecosystem-plugins-ui.test.ts",
+      "src/desktop/__tests__/ecosystem-detail-ui.test.ts",
+      "src/desktop/__tests__/ecosystem-scopes-review.test.ts",
+      "src/desktop/__tests__/workbench-ecosystem-ui.test.ts",
+      "src/desktop/__tests__/ecosystem-read-review.test.ts",
+      "src/desktop/__tests__/ecosystem-scalar-review.test.ts",
+      "src/desktop/__tests__/ecosystem-write-ack-review.test.ts",
+      "src/desktop/__tests__/ecosystem-stream-fallback.test.ts",
+      "src/desktop/__tests__/ecosystem-stream-fallback-review.test.ts",
+      "src/desktop/__tests__/workbench-ecosystem.test.ts",
+      "src/desktop/__tests__/company-os.test.ts",
+      "src/desktop/__tests__/company-os-resilience.test.ts",
+      "src/desktop/__tests__/company-os-resources.test.ts",
+      "src/desktop/__tests__/workbench-shutdown.test.ts",
+      "src/desktop/__tests__/desktop-request-routing.test.ts",
+      "src/desktop/__tests__/workbench-experience.test.ts"
+    ],
+    "check-work-offline": [
+      "src/desktop/__tests__/durable-work.test.ts",
+      "src/desktop/__tests__/durable-work-review.test.ts",
+      "src/desktop/__tests__/work-goals.test.ts",
+      "src/desktop/__tests__/work-orca.test.ts",
+      "src/desktop/__tests__/work-orca-review.test.ts",
+      "src/desktop/__tests__/workbench-work-orca.test.ts",
+      "src/desktop/__tests__/workbench-durable-work-offline.test.ts",
+      "src/desktop/__tests__/helm-orca-service.test.ts",
+      "src/desktop/__tests__/helm-orca-ownership.test.ts",
+      "src/desktop/__tests__/helm-orca-runtime.test.ts",
+      "src/desktop/__tests__/helm-orca-tools.test.ts",
+      "src/desktop/__tests__/helm-orca-transport.test.ts",
+      "src/desktop/__tests__/helm-orca-workbench-tools.test.ts",
+      "src/desktop/__tests__/helm-orca-review.test.ts",
+      "src/desktop/__tests__/helm-orca-ui.test.ts",
+      "src/desktop/__tests__/helm-orca-readiness.test.ts",
+      "src/desktop/__tests__/helm-service.test.ts",
+      "src/desktop/__tests__/helm-integration.test.ts",
+      "src/desktop/__tests__/helm-integration-claims.test.ts",
+      "src/desktop/__tests__/helm-source-checks.test.ts",
+      "src/desktop/__tests__/helm-ui.test.ts",
+      "src/desktop/__tests__/helm-orca-import.test.ts",
+      "src/desktop/__tests__/helm-orca-import-review.test.ts",
+      "src/desktop/__tests__/work-orca-import-independent.test.ts",
+      "src/desktop/__tests__/workbench-orca-acceptance.test.ts",
+      "src/desktop/__tests__/desktop-request-routing.test.ts",
+      "src/desktop/__tests__/helm-source-checks-cancellation.test.ts",
+      "src/desktop/__tests__/workbench-orca-independent.test.ts",
+      "src/desktop/__tests__/orca-work-review-ui.test.ts"
+    ]
+  },
+  "sharedRunnerFiles": [
+    "src/desktop/__tests__/desktop-request-routing.test.ts"
+  ],
+  "sharedCases": 11,
+  "distinctCases": 588,
+  "distinctTestFiles": 49,
+  "newPluginCases": {
+    "streamAuthor": 13,
+    "streamIndependent": 3,
+    "frameworkResourceAuthor": 32,
+    "workbenchCompleteSkill": 1
+  },
+  "runtime": {
+    "node": "v22.22.2",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "goalStatus": "active",
+  "productAccepted": false,
+  "liveAccountJourneysPassed": 0,
+  "liveAccountJourneysRequired": 7,
+  "delivery": "Local source commits only. No push, deployment, native installation or provider registration.",
+  "caveats": [
+    "Injected HTTPS/model boundaries with actual temporary SQLite/Git and DOM tests do not prove live providers or native app behavior.",
+    "Focused, historical and independent reruns overlap the combined runner and are not additional cases.",
+    "Streaming fallback has a bounded retry cadence while the application runs, not a guaranteed remote latency.",
+    "Framework resources remain text data. Controllers, script execution, registry publication/latest verification and Bun execution remain open.",
+    "Glove unrelated changes remain unstaged; Stored remains a retained patch after its denied remote delivery.",
+    "Historical parent receipts preserve their own tested revisions; superseded file/build hashes are not assertions about this candidate."
+  ]
+}

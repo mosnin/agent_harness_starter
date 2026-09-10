@@ -1,0 +1,11 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:83198) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  1 passed (1)
+      Tests  32 passed (32)
+   Start at  07:15:32
+   Duration  3.36s (transform 42ms, setup 0ms, import 77ms, tests 3.21s, environment 0ms)
+

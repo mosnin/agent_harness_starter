@@ -1,6 +1,6 @@
 # Company OS framework in Hades
 
-> Current addendum: missing/corrupt bundles now fail closed without crashing Hades, and 19 framework tests cover availability and recovery. The actual npm pack archive was parsed into the same pinned bundle; npm-archive-receipt.json records this. ACCEPTANCE_V2.md is the current integrated evidence index; earlier counts below are historical.
+> Current addendum: [ACCEPTANCE_V4.md](ACCEPTANCE_V4.md) is the latest integrated evidence index. The reader now loads complete skills up to64,000bytes and exposes all688 retained resources with bounded discovery and exact version-bound text paging. The actual capability catalog reconstructs byte-for-byte. Earlier API/test counts below are historical; instructions-only runtime and live update/distribution limits remain.
 
 Source integration, not native or remote-release acceptance. Canonical source is `/Users/preston/companyos-release`, origin `mosnin/companyos`, clean branch `codex/npm-distribution`, revision `5b374ba2066332c44f74eafddab4f8f575715ba3`. Package `@mosnin/companyos` version0.6.0 declares Node>=20 and UNLICENSED; no blanket open-source license is asserted. This is the framework, not the CompanyOS SaaS account or the Agentic Research repository.
 

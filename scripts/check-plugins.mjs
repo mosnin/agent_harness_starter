@@ -18,7 +18,9 @@ const suites = [
   "ecosystem-catalog", "ecosystem-tools", "ecosystem-plugins-ui",
   "ecosystem-detail-ui", "ecosystem-scopes-review", "workbench-ecosystem-ui",
   "ecosystem-read-review", "ecosystem-scalar-review", "ecosystem-write-ack-review",
+  "ecosystem-stream-fallback", "ecosystem-stream-fallback-review",
   "workbench-ecosystem", "company-os", "company-os-resilience",
+  "company-os-resources",
   "workbench-shutdown", "desktop-request-routing", "workbench-experience",
 ].map((name) => `src/desktop/__tests__/${name}.test.ts`);
 const result = spawnSync(process.execPath, [vitest, "run", ...suites, "--maxWorkers=2"], {

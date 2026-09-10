@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "lane": "company-os-resources-v1",
+  "state": "source_frozen_fixture_verified_pending_independent_review",
+  "recordedAt": "2026-09-10T11:15:59.916991+00:00",
+  "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+  "ownedFiles": [
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/core/company-os.ts",
+      "bytes": 26133,
+      "sha256": "bc8c31ba9b282fe08fa462fdb7088f09641ce6d8d86efe5dde30fedb3c4c73c3"
+    },
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/core/company-os-tools.ts",
+      "bytes": 4739,
+      "sha256": "bb85ae83ad19135c5e496cdd62e7670e7a3271c9a03cc54715cda14644042fb7"
+    },
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/company-os-resources.test.ts",
+      "bytes": 15413,
+      "sha256": "d5f5123978de21fc279c6ed84dafc402464d6892d60aa7d07913c6877e91b015"
+    }
+  ],
+  "sourceBundle": {
+    "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/third_party/company-os/bundle.json",
+    "bytes": 9167400,
+    "sha256": "bab686685a36437967e3445934c4af983085a82962c84d63ae17adcf0244d59d"
+  },
+  "bundleRelease": {
+    "schema": 1,
+    "package": "@mosnin/companyos",
+    "version": "0.6.0",
+    "revision": "5b374ba2066332c44f74eafddab4f8f575715ba3",
+    "sha256": "bab686685a36437967e3445934c4af983085a82962c84d63ae17adcf0244d59d",
+    "bytes": 9167400,
+    "files": 688,
+    "license": "UNLICENSED",
+    "repository": "https://github.com/mosnin/companyos",
+    "npm": {
+      "name": "@mosnin/companyos",
+      "engines": {
+        "node": ">=20"
+      }
+    },
+    "compatibility": "Data-only JSON; vendor script uses Node builtins available in Node20+ and Bun. Bun execution not verified."
+  },
+  "verification": {
+    "red": {
+      "command": "./node_modules/.bin/vitest run src/desktop/__tests__/company-os-resources.test.ts --maxWorkers=1",
+      "exitCode": 1,
+      "failed": 24,
+      "passed": 5,
+      "log": {
+        "path": "/tmp/hades-company-os-resources-red.log",
+        "bytes": 31864,
+        "sha256": "2eed14110328bbdcc69c8f93f633d1d602fa3402e76f45ee03c03b77d79e75c7"
+      }
+    },
+    "initialGreen": {
+      "exitCode": 0,
+      "passed": 29,
+      "log": {
+        "path": "/tmp/hades-company-os-resources-green.log",
+        "bytes": 407,
+        "sha256": "293ba8031f06a6a626d6d8560b520946c420ba39bafb5c6d8a504457580cb1b6"
+      }
+    },
+    "final": {
+      "command": "./node_modules/.bin/vitest run src/desktop/__tests__/company-os-resources.test.ts src/desktop/__tests__/company-os.test.ts src/desktop/__tests__/company-os-resilience.test.ts --maxWorkers=1",
+      "exitCode": 0,
+      "files": 3,
+      "passed": 51,
+      "newResourceTests": 32,
+      "log": {
+        "path": "/tmp/hades-company-os-resources-final.log",
+        "bytes": 745,
+        "sha256": "1931a4febb9642fda11297e3b19c4036b610fb55de85e16b9e9ea783bbef5a76"
+      }
+    },
+    "diffCheck": {
+      "exitCode": 0
+    },
+    "resourcesAfterTypeRepair": {
+      "command": "./node_modules/.bin/vitest run src/desktop/__tests__/company-os-resources.test.ts --maxWorkers=1",
+      "exitCode": 0,
+      "passed": 32,
+      "testSourceSha256": "d5f5123978de21fc279c6ed84dafc402464d6892d60aa7d07913c6877e91b015",
+      "log": {
+        "path": "/tmp/hades-company-os-resources-type-repair.log",
+        "bytes": 407,
+        "sha256": "14a6a93376375af497d2a30bb7b23fb875280850142649441fdad063868a9429"
+      }
+    }
+  },
+  "api": {
+    "legacy": [
+      "{} returns the existing skill path array",
+      "{skill:string} returns one complete skill up to 64000 bytes; initial context default remains 24000 bytes"
+    ],
+    "catalog": "{resources:true,prefix?:string,limit?:1..100,cursor?:string}; default 50 entries with additional 24000-byte entry-metadata budget",
+    "resource": "{resource:string,from?:string,maxBytes?:512..32768,cursor?:string}; default 16000 UTF-8 bytes; from is an existing retained file for relative reference resolution",
+    "continuation": "Stateless position cursor checked against calling profile, current release SHA, operation, and canonical path/file SHA or catalog prefix; not an authorization capability",
+    "metadata": [
+      "version",
+      "revision",
+      "sha256",
+      "profile",
+      "path / prefix",
+      "fileSha256 on resource and catalog entries",
+      "directory",
+      "offset",
+      "nextOffset",
+      "totalBytes",
+      "complete",
+      "nextCursor when incomplete",
+      "chunkSha256 on resource",
+      "interpretation=data on resource",
+      "authority and incomplete JSON warning"
+    ]
+  },
+  "acceptanceEvidence": [
+    "Actual 27226-byte Emil skill returned in full",
+    "Actual 2137476-byte capability catalog reconstructed exactly with matching source SHA256 across bounded chunks",
+    "All 688 actual retained resource paths discovered through bounded pages",
+    "Exact UTF-8 chunk boundaries, including multibyte edge and empty file",
+    "Scripts returned as text without execution",
+    "Relative parent references constrained to verified bundle inventory",
+    "Foreign profile, release, path, file hash, malformed/missing continuation identity and invalid offset refused",
+    "Post-activation and tampered-bundle continuation refused",
+    "Disabled and cancellation checks before/after reads",
+    "Strict schema enforced both by validate and run",
+    "Oversized skill refused without implicit truncation; explicit data paging remains available"
+  ],
+  "limits": [
+    "No native/app/UI controls, listeners, network, providers, installation, deployment or commits",
+    "No runtime scripts or controller/scheduler activation",
+    "No general filesystem reads exposed to callers",
+    "No cache or update-policy rewrite",
+    "Full project types/build and independent acceptance owned by root"
+  ],
+  "revisions": [
+    {
+      "kind": "test_only_type_repair",
+      "priorReceiptSha256": "bda5248baa4ff66afe7d1d85f209af47d1815e63eb15ae13fd9095f650e9f4d3",
+      "before": {
+        "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/company-os-resources.test.ts",
+        "bytes": 15409,
+        "sha256": "2645742686930ba55b1aa99ce18951d2316a207548c77f94e15a2e880be23930"
+      },
+      "after": {
+        "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/company-os-resources.test.ts",
+        "bytes": 15413,
+        "sha256": "d5f5123978de21fc279c6ed84dafc402464d6892d60aa7d07913c6877e91b015"
+      },
+      "change": "Two optional Tool.validate calls use optional chaining; the existing string assertion still fails if the validator is absent. No production changes."
+    }
+  ]
+}

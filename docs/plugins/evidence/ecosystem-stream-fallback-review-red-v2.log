@@ -1,0 +1,35 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:48411) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/ecosystem-stream-fallback-review.test.ts (3 tests | 1 failed) 360ms
+   × bounded stream lifetime rotation catches up once and resumes only one live watch 123ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/ecosystem-stream-fallback-review.test.ts > bounded stream lifetime rotation catches up once and resumes only one live watch
+AssertionError: expected 1 to be 2 // Object.is equality
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ src/desktop/__tests__/ecosystem-stream-fallback-review.test.ts:157:27
+    155|   f.service.tick();await vi.waitFor(()=>expect(f.service.list('p')[0].…
+    156|   expect(f.changeCalls()).toBe(1);f.setTime(160000);rotation!.abort(ne…
+    157|   expect(f.changeCalls()).toBe(2);expect(f.service.list('p')[0].syncMo…
+       |                           ^
+    158|   f.setTime(175000);f.service.tick();f.service.tick();await vi.waitFor…
+    159|   expect(f.changeCalls()).toBe(3);await f.service.pauseBackground();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  07:07:35
+   Duration  492ms (transform 52ms, setup 0ms, import 64ms, tests 360ms, environment 0ms)
+

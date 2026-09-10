@@ -1,6 +1,6 @@
 {
   "schema": "hades.enterprise-program-status.v1",
-  "updatedAt": "2026-09-10T10:52:22.275762+00:00",
+  "updatedAt": "2026-09-10T11:18:50.319203+00:00",
   "goal": "active",
   "productAccepted": false,
   "hadesBaseline": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
@@ -75,7 +75,7 @@
     {
       "id": "G14",
       "status": "partial",
-      "evidence": "Seven native plugin source adapters and real framework instruction integration exist; expanded Scalar CRM and Cadre conversation reads are locally verified. All seven live OAuth journeys and real general-work comparisons remain open."
+      "evidence": "Seven plugin source adapters and the actual Company OS framework/resources are integrated. Expanded Scalar/Cadre reads and stream-outage fallback pass local fixtures. All seven live OAuth journeys and real general-work comparisons remain open."
     },
     {
       "id": "G15",
@@ -95,7 +95,7 @@
     {
       "id": "G18",
       "status": "partial",
-      "evidence": "Final Work/Helm offline gate296/296, Plugins254/254, full TypeScript and desktop source bundles pass. Runners share11 routing cases (539 distinct cases,46 files). Full native/runtime/provider regression remains open."
+      "evidence": "Final Plugins303/303 and Work/Helm296/296, full TypeScript and desktop source bundles pass. Runners share11 routing cases (588 distinct cases,49files). Full native/runtime/provider regression remains open."
     },
     {
       "id": "G19",
@@ -105,7 +105,7 @@
     {
       "id": "G20",
       "status": "partial",
-      "evidence": "Independent provenance, apply, Work and source-check reviews repaired destination, cancellation, shutdown, transaction and completed-claim recovery defects. Final exact files are receipt-bound; product-wide independent acceptance remains open."
+      "evidence": "Independent Orca/Work reviews and streaming/resource reviews repaired provenance, cancellation, recovery and duplicate catch-up defects. Final source/evidence is receipt-bound; product-wide independent acceptance remains open."
     }
   ],
   "nextExecutionOrder": [
@@ -115,8 +115,8 @@
     "Deliver and benchmark real general-work and enterprise policy workflows",
     "Run native usability and 24-case three-trial matched comparison, then independent product acceptance"
   ],
-  "sourceCandidate": "c44644192872ff9e0887e38c9a68df1e910dc376",
-  "sourceState": "Committed baseline for the follow-up Orca output candidate, pinned by the source receipt. No remote, installed, live or product acceptance.",
+  "sourceCandidate": "0ce9849738f4851a4c80d66a99a8cd23431be54a",
+  "sourceState": "Committed Orca baseline for the Plugins recovery/resource follow-up, pinned by the source receipt. No remote, installed, live or product acceptance.",
   "pluginProgram": "docs/plugins/PROGRAM.md",
-  "sourceReceipt": "docs/research/helm-enterprise-2026-09-10/audit/orca-output-v1-receipt.json"
+  "sourceReceipt": "docs/plugins/source-v4-receipt.json"
 }

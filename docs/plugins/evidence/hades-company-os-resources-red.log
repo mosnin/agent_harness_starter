@@ -1,0 +1,1065 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:48343) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/company-os-resources.test.ts (29 tests | 24 failed) 376ms
+   × loads the actual complete Emil skill through the existing skill input 123ms
+   × discovers all actual resources through bounded deterministic pages 90ms
+   × reconstructs the actual 2MB capability catalog with exact hash-bound text chunks 89ms
+   × keeps UTF-8 boundaries exact and returns empty and script resources as data 3ms
+   × binds resource continuation to current profile, release, path, hash and UTF-8 offset 4ms
+   × binds discovery continuation to prefix, profile, release and operation 3ms
+   × refuses continuation after verified activation rather than mixing revisions 4ms
+   × honors cancellation before and after resource reads without exposing a late payload 3ms
+   × rejects malformed input undefined in validation and execution 3ms
+   × rejects malformed input {"profile":"other"} in validation and execution 3ms
+   × rejects malformed input {"resources":false} in validation and execution 3ms
+   × rejects malformed input {"resources":true,"limit":0} in validation and execution 3ms
+   × rejects malformed input {"resources":true,"limit":101} in validation and execution 3ms
+   × rejects malformed input {"resource":"x","maxBytes":511} in validation and execution 3ms
+   × rejects malformed input {"resource":"x","maxBytes":32769} in validation and execution 3ms
+   × rejects malformed input {"resource":"x","offset":1} in validation and execution 3ms
+   × rejects malformed input {"resource":"x","cursor":""} in validation and execution 2ms
+   × rejects malformed input {"resources":true,"cursor":{}} in validation and execution 3ms
+   × refuses non-retained or unsafe resource /etc/passwd 3ms
+   × refuses non-retained or unsafe resource ../../secret 2ms
+   × refuses non-retained or unsafe resource file:///etc/passwd 2ms
+   × refuses non-retained or unsafe resource company-os/example/../SKILL.md 2ms
+   × refuses non-retained or unsafe resource company-os\example\SKILL.md 3ms
+   × refuses non-retained or unsafe resource company-os/example/missing.json 2ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 24 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > loads the actual complete Emil skill through the existing skill input
+AssertionError: Framework skill exceeds context budget; select a smaller skill: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ Object.read src/desktop/__tests__/company-os-resources.test.ts:59:38
+     57|   async function read(input: unknown) {
+     58|     const result = await tool.run(JSON.stringify(input));
+     59|     expect(result.ok, result.output).toBe(true);
+       |                                      ^
+     60|     return JSON.parse(result.output);
+     61|   }
+ ❯ src/desktop/__tests__/company-os-resources.test.ts:75:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/24]⎯
+
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > discovers all actual resources through bounded deterministic pages
+AssertionError: expected [ Array(103) ] to match object { total: 688, …(1) }
+
+- Expected:
+{
+  "sha256": "bab686685a36437967e3445934c4af983085a82962c84d63ae17adcf0244d59d",
+  "total": 688,
+}
+
++ Received:
+[
+  {
+    "bytes": 732,
+    "path": "company-os/accept-outcome-reality/SKILL.md",
+  },
+  {
+    "bytes": 1484,
+    "path": "company-os/assemble-outcome-candidate/SKILL.md",
+  },
+  {
+    "bytes": 1396,
+    "path": "company-os/assemble-outcome-evaluations/SKILL.md",
+  },
+  {
+    "bytes": 6497,
+    "path": "company-os/assign-capability-skills/SKILL.md",
+  },
+  {
+    "bytes": 4170,
+    "path": "company-os/assign-capability-skills/vendor/business/capability-assessment/SKILL.md",
+  },
+  {
+    "bytes": 4109,
+    "path": "company-os/assign-capability-skills/vendor/business/market-definition/SKILL.md",
+  },
+  {
+    "bytes": 4947,
+    "path": "company-os/assign-capability-skills/vendor/business/market-opportunity-artifact/SKILL.md",
+  },
+  {
+    "bytes": 4576,
+    "path": "company-os/assign-capability-skills/vendor/business/marketing-context-intake/SKILL.md",
+  },
+  {
+    "bytes": 4108,
+    "path": "company-os/assign-capability-skills/vendor/business/risk-matrix/SKILL.md",
+  },
+  {
+    "bytes": 4280,
+    "path": "company-os/assign-capability-skills/vendor/business/scenario-development/SKILL.md",
+  },
+  {
+    "bytes": 4003,
+    "path": "company-os/assign-capability-skills/vendor/engineering/browser-boundary-design/SKILL.md",
+  },
+  {
+    "bytes": 4133,
+    "path": "company-os/assign-capability-skills/vendor/engineering/durable-state-design/SKILL.md",
+  },
+  {
+    "bytes": 3768,
+    "path": "company-os/assign-capability-skills/vendor/engineering/engineering-adversarial-review/SKILL.md",
+  },
+  {
+    "bytes": 3970,
+    "path": "company-os/assign-capability-skills/vendor/engineering/engineering-red-green-evidence/SKILL.md",
+  },
+  {
+    "bytes": 4144,
+    "path": "company-os/assign-capability-skills/vendor/engineering/mcp-tool-contract-design/SKILL.md",
+  },
+  {
+    "bytes": 4369,
+    "path": "company-os/assign-capability-skills/vendor/engineering/systematic-debugging/SKILL.md",
+  },
+  {
+    "bytes": 1615,
+    "path": "company-os/authorize-outcome-scale/SKILL.md",
+  },
+  {
+    "bytes": 2448,
+    "path": "company-os/bootstrap-outcome/SKILL.md",
+  },
+  {
+    "bytes": 3535,
+    "path": "company-os/brand-architect/SKILL.md",
+  },
+  {
+    "bytes": 2446,
+    "path": "company-os/brand-creative-system/SKILL.md",
+  },
+  {
+    "bytes": 2048,
+    "path": "company-os/build-outcome-evaluators/SKILL.md",
+  },
+  {
+    "bytes": 3689,
+    "path": "company-os/business-architect/SKILL.md",
+  },
+  {
+    "bytes": 1412,
+    "path": "company-os/calibrate-outcome-evaluator/SKILL.md",
+  },
+  {
+    "bytes": 2267,
+    "path": "company-os/calibrate-outcome-stack/SKILL.md",
+  },
+  {
+    "bytes": 3693,
+    "path": "company-os/civilization-builder/SKILL.md",
+  },
+  {
+    "bytes": 1940,
+    "path": "company-os/close-outcome-discovery/SKILL.md",
+  },
+  {
+    "bytes": 2952,
+    "path": "company-os/commercial-customer-system/SKILL.md",
+  },
+  {
+    "bytes": 5366,
+    "path": "company-os/company-blueprint/SKILL.md",
+  },
+  {
+    "bytes": 2409,
+    "path": "company-os/company-context-ledger/SKILL.md",
+  },
+  {
+    "bytes": 22143,
+    "path": "company-os/company-os/SKILL.md",
+  },
+  {
+    "bytes": 654,
+    "path": "company-os/compile-outcome-benchmarks/SKILL.md",
+  },
+  {
+    "bytes": 2909,
+    "path": "company-os/compile-outcome-contract/SKILL.md",
+  },
+  {
+    "bytes": 899,
+    "path": "company-os/compile-outcome-evaluators/SKILL.md",
+  },
+  {
+    "bytes": 2081,
+    "path": "company-os/compile-outcome-organization/SKILL.md",
+  },
+  {
+    "bytes": 3800,
+    "path": "company-os/corporate-departments/SKILL.md",
+  },
+  {
+    "bytes": 4682,
+    "path": "company-os/corporate-management/SKILL.md",
+  },
+  {
+    "bytes": 944,
+    "path": "company-os/define-outcome-artifacts/SKILL.md",
+  },
+  {
+    "bytes": 3108,
+    "path": "company-os/department-charters/SKILL.md",
+  },
+  {
+    "bytes": 3330,
+    "path": "company-os/design/SKILL.md",
+  },
+  {
+    "bytes": 3817,
+    "path": "company-os/direct-outcome/SKILL.md",
+  },
+  {
+    "bytes": 3593,
+    "path": "company-os/economics-architect/SKILL.md",
+  },
+  {
+    "bytes": 18808,
+    "path": "company-os/elastic-company-os/SKILL.md",
+  },
+  {
+    "bytes": 5303,
+    "path": "company-os/engineering-execution-constitution/SKILL.md",
+  },
+  {
+    "bytes": 2206,
+    "path": "company-os/execute-outcome-evaluator/SKILL.md",
+  },
+  {
+    "bytes": 6136,
+    "path": "company-os/force-first-execution/SKILL.md",
+  },
+  {
+    "bytes": 6644,
+    "path": "company-os/goal-route-system/SKILL.md",
+  },
+  {
+    "bytes": 5576,
+    "path": "company-os/govern-outcome-execution/SKILL.md",
+  },
+  {
+    "bytes": 3489,
+    "path": "company-os/hr-architect/SKILL.md",
+  },
+  {
+    "bytes": 5459,
+    "path": "company-os/intelligence/company-scorecard/SKILL.md",
+  },
+  {
+    "bytes": 1877,
+    "path": "company-os/intelligence/evidence-research-campaign/SKILL.md",
+  },
+  {
+    "bytes": 1626,
+    "path": "company-os/intelligence/innovation-bets/SKILL.md",
+  },
+  {
+    "bytes": 2633,
+    "path": "company-os/intelligence/research-intelligence/SKILL.md",
+  },
+  {
+    "bytes": 1118,
+    "path": "company-os/intelligence/technology-radar/SKILL.md",
+  },
+  {
+    "bytes": 1309,
+    "path": "company-os/intelligence/voice-of-customer/SKILL.md",
+  },
+  {
+    "bytes": 3253,
+    "path": "company-os/interface-design/SKILL.md",
+  },
+  {
+    "bytes": 8260,
+    "path": "company-os/interface-design/references/source/frontend-design/SKILL.md",
+  },
+  {
+    "bytes": 9599,
+    "path": "company-os/interface-design/vendor/better-accessibility/SKILL.md",
+  },
+  {
+    "bytes": 8557,
+    "path": "company-os/interface-design/vendor/better-colors/SKILL.md",
+  },
+  {
+    "bytes": 13421,
+    "path": "company-os/interface-design/vendor/better-interface/SKILL.md",
+  },
+  {
+    "bytes": 6216,
+    "path": "company-os/interface-design/vendor/better-layout/SKILL.md",
+  },
+  {
+    "bytes": 12886,
+    "path": "company-os/interface-design/vendor/better-typography/SKILL.md",
+  },
+  {
+    "bytes": 8269,
+    "path": "company-os/interface-design/vendor/better-ui/SKILL.md",
+  },
+  {
+    "bytes": 7810,
+    "path": "company-os/interface-design/vendor/better-writing/SKILL.md",
+  },
+  {
+    "bytes": 10227,
+    "path": "company-os/interface-design/vendor/interface-review/SKILL.md",
+  },
+  {
+    "bytes": 5450,
+    "path": "company-os/manage-company-program/SKILL.md",
+  },
+  {
+    "bytes": 3700,
+    "path": "company-os/marketing-architect/SKILL.md",
+  },
+  {
+    "bytes": 3687,
+    "path": "company-os/marketing-os/SKILL.md",
+  },
+  {
+    "bytes": 1835,
+    "path": "company-os/materialize-outcome-stack/SKILL.md",
+  },
+  {
+    "bytes": 3459,
+    "path": "company-os/middle-manager-operating-doctrine/SKILL.md",
+  },
+  {
+    "bytes": 2406,
+    "path": "company-os/mission-execution-control/SKILL.md",
+  },
+  {
+    "bytes": 2624,
+    "path": "company-os/navigation-control/SKILL.md",
+  },
+  {
+    "bytes": 2424,
+    "path": "company-os/operational-control/SKILL.md",
+  },
+  {
+    "bytes": 3514,
+    "path": "company-os/ops-architect/SKILL.md",
+  },
+  {
+    "bytes": 3123,
+    "path": "company-os/project-manager/SKILL.md",
+  },
+  {
+    "bytes": 7275,
+    "path": "company-os/project-program-management/SKILL.md",
+  },
+  {
+    "bytes": 7423,
+    "path": "company-os/recursive-skill-foundry/SKILL.md",
+  },
+  {
+    "bytes": 1550,
+    "path": "company-os/register-outcome-evaluators/SKILL.md",
+  },
+  {
+    "bytes": 5002,
+    "path": "company-os/run-outcome-loop/SKILL.md",
+  },
+  {
+    "bytes": 3462,
+    "path": "company-os/sales-architect/SKILL.md",
+  },
+  {
+    "bytes": 3324,
+    "path": "company-os/select-execution-loop/SKILL.md",
+  },
+  {
+    "bytes": 3789,
+    "path": "company-os/steve/SKILL.md",
+  },
+  {
+    "bytes": 2227,
+    "path": "company-os/synthesize-outcome-model/SKILL.md",
+  },
+  {
+    "bytes": 5917,
+    "path": "company-os/ui-design-quality/SKILL.md",
+  },
+  {
+    "bytes": 13128,
+    "path": "company-os/ui-design-quality/vendor/animation-vocabulary/SKILL.md",
+  },
+  {
+    "bytes": 22715,
+    "path": "company-os/ui-design-quality/vendor/apple-design/SKILL.md",
+  },
+  {
+    "bytes": 27226,
+    "path": "company-os/ui-design-quality/vendor/emil-design-eng/SKILL.md",
+  },
+  {
+    "bytes": 9491,
+    "path": "company-os/ui-design-quality/vendor/find-animation-opportunities/SKILL.md",
+  },
+  {
+    "bytes": 7915,
+    "path": "company-os/ui-design-quality/vendor/improve-animations/SKILL.md",
+  },
+  {
+    "bytes": 4514,
+    "path": "company-os/ui-design-quality/vendor/pick-ui-library/SKILL.md",
+  },
+  {
+    "bytes": 7488,
+    "path": "company-os/ui-design-quality/vendor/prototype/SKILL.md",
+  },
+  {
+    "bytes": 8108,
+    "path": "company-os/ui-design-quality/vendor/review-animations/SKILL.md",
+  },
+  {
+    "bytes": 3736,
+    "path": "company-os/value-creation-delivery/SKILL.md",
+  },
+  {
+    "bytes": 6489,
+    "path": "autonomy-suite/SKILL.md",
+  },
+  {
+    "bytes": 2351,
+    "path": "autonomy-suite/delegation/supervised-subagent-tree/SKILL.md",
+  },
+  {
+    "bytes": 5059,
+    "path": "autonomy-suite/execute-bounded-task/SKILL.md",
+  },
+  {
+    "bytes": 4959,
+    "path": "autonomy-suite/loops/bounded-autonomy-loop/SKILL.md",
+  },
+  {
+    "bytes": 15074,
+    "path": "autonomy-suite/orchestration/luna-execution-fabric/SKILL.md",
+  },
+  {
+    "bytes": 1647,
+    "path": "autonomy-suite/quality/verified-work-loop/SKILL.md",
+  },
+  {
+    "bytes": 2574,
+    "path": "autonomy-suite/routing/tiered-agent-routing/SKILL.md",
+  },
+  {
+    "bytes": 1714,
+    "path": "autonomy-suite/strategy/portfolio-direction/SKILL.md",
+  },
+  {
+    "bytes": 1072,
+    "path": "autonomy-suite/strategy/project-kickoff-roadmap/SKILL.md",
+  },
+  {
+    "bytes": 1969,
+    "path": "autonomy-suite/strategy/strategy-pillar/SKILL.md",
+  },
+  {
+    "bytes": 2046,
+    "path": "autonomy-suite/work-graphs/durable-task-dag/SKILL.md",
+  },
+]
+
+ ❯ src/desktop/__tests__/company-os-resources.test.ts:92:18
+     90|     expect(page.entries.length).toBeLessThanOrEqual(37);
+     91|     expect(Buffer.byteLength(JSON.stringify(page))).toBeLessThanOrEqua…
+     92|     expect(page).toMatchObject({ total: actualBundle.files.length, sha…
+       |                  ^
+     93|     expect(page.offset).toBe(paths.length);
+     94|     for (const item of page.entries) {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/24]⎯
+
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > reconstructs the actual 2MB capability catalog with exact hash-bound text chunks
+AssertionError: expected [ Array(103) ] to match object { …(8) }
+
+- Expected:
+{
+  "fileSha256": "eaff2f1a03189d72b3ded9290df7f92bc236e1eaa28e6c6df2328c4f8a765ca9",
+  "interpretation": "data",
+  "offset": 0,
+  "path": "company-os/assign-capability-skills/references/capability-catalog.json",
+  "revision": "5b374ba2066332c44f74eafddab4f8f575715ba3",
+  "sha256": "bab686685a36437967e3445934c4af983085a82962c84d63ae17adcf0244d59d",
+  "totalBytes": 2137476,
+  "version": "0.6.0",
+}
+
++ Received:
+[
+  {
+    "bytes": 732,
+    "path": "company-os/accept-outcome-reality/SKILL.md",
+  },
+  {
+    "bytes": 1484,
+    "path": "company-os/assemble-outcome-candidate/SKILL.md",
+  },
+  {
+    "bytes": 1396,
+    "path": "company-os/assemble-outcome-evaluations/SKILL.md",
+  },
+  {
+    "bytes": 6497,
+    "path": "company-os/assign-capability-skills/SKILL.md",
+  },
+  {
+    "bytes": 4170,
+    "path": "company-os/assign-capability-skills/vendor/business/capability-assessment/SKILL.md",
+  },
+  {
+    "bytes": 4109,
+    "path": "company-os/assign-capability-skills/vendor/business/market-definition/SKILL.md",
+  },
+  {
+    "bytes": 4947,
+    "path": "company-os/assign-capability-skills/vendor/business/market-opportunity-artifact/SKILL.md",
+  },
+  {
+    "bytes": 4576,
+    "path": "company-os/assign-capability-skills/vendor/business/marketing-context-intake/SKILL.md",
+  },
+  {
+    "bytes": 4108,
+    "path": "company-os/assign-capability-skills/vendor/business/risk-matrix/SKILL.md",
+  },
+  {
+    "bytes": 4280,
+    "path": "company-os/assign-capability-skills/vendor/business/scenario-development/SKILL.md",
+  },
+  {
+    "bytes": 4003,
+    "path": "company-os/assign-capability-skills/vendor/engineering/browser-boundary-design/SKILL.md",
+  },
+  {
+    "bytes": 4133,
+    "path": "company-os/assign-capability-skills/vendor/engineering/durable-state-design/SKILL.md",
+  },
+  {
+    "bytes": 3768,
+    "path": "company-os/assign-capability-skills/vendor/engineering/engineering-adversarial-review/SKILL.md",
+  },
+  {
+    "bytes": 3970,
+    "path": "company-os/assign-capability-skills/vendor/engineering/engineering-red-green-evidence/SKILL.md",
+  },
+  {
+    "bytes": 4144,
+    "path": "company-os/assign-capability-skills/vendor/engineering/mcp-tool-contract-design/SKILL.md",
+  },
+  {
+    "bytes": 4369,
+    "path": "company-os/assign-capability-skills/vendor/engineering/systematic-debugging/SKILL.md",
+  },
+  {
+    "bytes": 1615,
+    "path": "company-os/authorize-outcome-scale/SKILL.md",
+  },
+  {
+    "bytes": 2448,
+    "path": "company-os/bootstrap-outcome/SKILL.md",
+  },
+  {
+    "bytes": 3535,
+    "path": "company-os/brand-architect/SKILL.md",
+  },
+  {
+    "bytes": 2446,
+    "path": "company-os/brand-creative-system/SKILL.md",
+  },
+  {
+    "bytes": 2048,
+    "path": "company-os/build-outcome-evaluators/SKILL.md",
+  },
+  {
+    "bytes": 3689,
+    "path": "company-os/business-architect/SKILL.md",
+  },
+  {
+    "bytes": 1412,
+    "path": "company-os/calibrate-outcome-evaluator/SKILL.md",
+  },
+  {
+    "bytes": 2267,
+    "path": "company-os/calibrate-outcome-stack/SKILL.md",
+  },
+  {
+    "bytes": 3693,
+    "path": "company-os/civilization-builder/SKILL.md",
+  },
+  {
+    "bytes": 1940,
+    "path": "company-os/close-outcome-discovery/SKILL.md",
+  },
+  {
+    "bytes": 2952,
+    "path": "company-os/commercial-customer-system/SKILL.md",
+  },
+  {
+    "bytes": 5366,
+    "path": "company-os/company-blueprint/SKILL.md",
+  },
+  {
+    "bytes": 2409,
+    "path": "company-os/company-context-ledger/SKILL.md",
+  },
+  {
+    "bytes": 22143,
+    "path": "company-os/company-os/SKILL.md",
+  },
+  {
+    "bytes": 654,
+    "path": "company-os/compile-outcome-benchmarks/SKILL.md",
+  },
+  {
+    "bytes": 2909,
+    "path": "company-os/compile-outcome-contract/SKILL.md",
+  },
+  {
+    "bytes": 899,
+    "path": "company-os/compile-outcome-evaluators/SKILL.md",
+  },
+  {
+    "bytes": 2081,
+    "path": "company-os/compile-outcome-organization/SKILL.md",
+  },
+  {
+    "bytes": 3800,
+    "path": "company-os/corporate-departments/SKILL.md",
+  },
+  {
+    "bytes": 4682,
+    "path": "company-os/corporate-management/SKILL.md",
+  },
+  {
+    "bytes": 944,
+    "path": "company-os/define-outcome-artifacts/SKILL.md",
+  },
+  {
+    "bytes": 3108,
+    "path": "company-os/department-charters/SKILL.md",
+  },
+  {
+    "bytes": 3330,
+    "path": "company-os/design/SKILL.md",
+  },
+  {
+    "bytes": 3817,
+    "path": "company-os/direct-outcome/SKILL.md",
+  },
+  {
+    "bytes": 3593,
+    "path": "company-os/economics-architect/SKILL.md",
+  },
+  {
+    "bytes": 18808,
+    "path": "company-os/elastic-company-os/SKILL.md",
+  },
+  {
+    "bytes": 5303,
+    "path": "company-os/engineering-execution-constitution/SKILL.md",
+  },
+  {
+    "bytes": 2206,
+    "path": "company-os/execute-outcome-evaluator/SKILL.md",
+  },
+  {
+    "bytes": 6136,
+    "path": "company-os/force-first-execution/SKILL.md",
+  },
+  {
+    "bytes": 6644,
+    "path": "company-os/goal-route-system/SKILL.md",
+  },
+  {
+    "bytes": 5576,
+    "path": "company-os/govern-outcome-execution/SKILL.md",
+  },
+  {
+    "bytes": 3489,
+    "path": "company-os/hr-architect/SKILL.md",
+  },
+  {
+    "bytes": 5459,
+    "path": "company-os/intelligence/company-scorecard/SKILL.md",
+  },
+  {
+    "bytes": 1877,
+    "path": "company-os/intelligence/evidence-research-campaign/SKILL.md",
+  },
+  {
+    "bytes": 1626,
+    "path": "company-os/intelligence/innovation-bets/SKILL.md",
+  },
+  {
+    "bytes": 2633,
+    "path": "company-os/intelligence/research-intelligence/SKILL.md",
+  },
+  {
+    "bytes": 1118,
+    "path": "company-os/intelligence/technology-radar/SKILL.md",
+  },
+  {
+    "bytes": 1309,
+    "path": "company-os/intelligence/voice-of-customer/SKILL.md",
+  },
+  {
+    "bytes": 3253,
+    "path": "company-os/interface-design/SKILL.md",
+  },
+  {
+    "bytes": 8260,
+    "path": "company-os/interface-design/references/source/frontend-design/SKILL.md",
+  },
+  {
+    "bytes": 9599,
+    "path": "company-os/interface-design/vendor/better-accessibility/SKILL.md",
+  },
+  {
+    "bytes": 8557,
+    "path": "company-os/interface-design/vendor/better-colors/SKILL.md",
+  },
+  {
+    "bytes": 13421,
+    "path": "company-os/interface-design/vendor/better-interface/SKILL.md",
+  },
+  {
+    "bytes": 6216,
+    "path": "company-os/interface-design/vendor/better-layout/SKILL.md",
+  },
+  {
+    "bytes": 12886,
+    "path": "company-os/interface-design/vendor/better-typography/SKILL.md",
+  },
+  {
+    "bytes": 8269,
+    "path": "company-os/interface-design/vendor/better-ui/SKILL.md",
+  },
+  {
+    "bytes": 7810,
+    "path": "company-os/interface-design/vendor/better-writing/SKILL.md",
+  },
+  {
+    "bytes": 10227,
+    "path": "company-os/interface-design/vendor/interface-review/SKILL.md",
+  },
+  {
+    "bytes": 5450,
+    "path": "company-os/manage-company-program/SKILL.md",
+  },
+  {
+    "bytes": 3700,
+    "path": "company-os/marketing-architect/SKILL.md",
+  },
+  {
+    "bytes": 3687,
+    "path": "company-os/marketing-os/SKILL.md",
+  },
+  {
+    "bytes": 1835,
+    "path": "company-os/materialize-outcome-stack/SKILL.md",
+  },
+  {
+    "bytes": 3459,
+    "path": "company-os/middle-manager-operating-doctrine/SKILL.md",
+  },
+  {
+    "bytes": 2406,
+    "path": "company-os/mission-execution-control/SKILL.md",
+  },
+  {
+    "bytes": 2624,
+    "path": "company-os/navigation-control/SKILL.md",
+  },
+  {
+    "bytes": 2424,
+    "path": "company-os/operational-control/SKILL.md",
+  },
+  {
+    "bytes": 3514,
+    "path": "company-os/ops-architect/SKILL.md",
+  },
+  {
+    "bytes": 3123,
+    "path": "company-os/project-manager/SKILL.md",
+  },
+  {
+    "bytes": 7275,
+    "path": "company-os/project-program-management/SKILL.md",
+  },
+  {
+    "bytes": 7423,
+    "path": "company-os/recursive-skill-foundry/SKILL.md",
+  },
+  {
+    "bytes": 1550,
+    "path": "company-os/register-outcome-evaluators/SKILL.md",
+  },
+  {
+    "bytes": 5002,
+    "path": "company-os/run-outcome-loop/SKILL.md",
+  },
+  {
+    "bytes": 3462,
+    "path": "company-os/sales-architect/SKILL.md",
+  },
+  {
+    "bytes": 3324,
+    "path": "company-os/select-execution-loop/SKILL.md",
+  },
+  {
+    "bytes": 3789,
+    "path": "company-os/steve/SKILL.md",
+  },
+  {
+    "bytes": 2227,
+    "path": "company-os/synthesize-outcome-model/SKILL.md",
+  },
+  {
+    "bytes": 5917,
+    "path": "company-os/ui-design-quality/SKILL.md",
+  },
+  {
+    "bytes": 13128,
+    "path": "company-os/ui-design-quality/vendor/animation-vocabulary/SKILL.md",
+  },
+  {
+    "bytes": 22715,
+    "path": "company-os/ui-design-quality/vendor/apple-design/SKILL.md",
+  },
+  {
+    "bytes": 27226,
+    "path": "company-os/ui-design-quality/vendor/emil-design-eng/SKILL.md",
+  },
+  {
+    "bytes": 9491,
+    "path": "company-os/ui-design-quality/vendor/find-animation-opportunities/SKILL.md",
+  },
+  {
+    "bytes": 7915,
+    "path": "company-os/ui-design-quality/vendor/improve-animations/SKILL.md",
+  },
+  {
+    "bytes": 4514,
+    "path": "company-os/ui-design-quality/vendor/pick-ui-library/SKILL.md",
+  },
+  {
+    "bytes": 7488,
+    "path": "company-os/ui-design-quality/vendor/prototype/SKILL.md",
+  },
+  {
+    "bytes": 8108,
+    "path": "company-os/ui-design-quality/vendor/review-animations/SKILL.md",
+  },
+  {
+    "bytes": 3736,
+    "path": "company-os/value-creation-delivery/SKILL.md",
+  },
+  {
+    "bytes": 6489,
+    "path": "autonomy-suite/SKILL.md",
+  },
+  {
+    "bytes": 2351,
+    "path": "autonomy-suite/delegation/supervised-subagent-tree/SKILL.md",
+  },
+  {
+    "bytes": 5059,
+    "path": "autonomy-suite/execute-bounded-task/SKILL.md",
+  },
+  {
+    "bytes": 4959,
+    "path": "autonomy-suite/loops/bounded-autonomy-loop/SKILL.md",
+  },
+  {
+    "bytes": 15074,
+    "path": "autonomy-suite/orchestration/luna-execution-fabric/SKILL.md",
+  },
+  {
+    "bytes": 1647,
+    "path": "autonomy-suite/quality/verified-work-loop/SKILL.md",
+  },
+  {
+    "bytes": 2574,
+    "path": "autonomy-suite/routing/tiered-agent-routing/SKILL.md",
+  },
+  {
+    "bytes": 1714,
+    "path": "autonomy-suite/strategy/portfolio-direction/SKILL.md",
+  },
+  {
+    "bytes": 1072,
+    "path": "autonomy-suite/strategy/project-kickoff-roadmap/SKILL.md",
+  },
+  {
+    "bytes": 1969,
+    "path": "autonomy-suite/strategy/strategy-pillar/SKILL.md",
+  },
+  {
+    "bytes": 2046,
+    "path": "autonomy-suite/work-graphs/durable-task-dag/SKILL.md",
+  },
+]
+
+ ❯ src/desktop/__tests__/company-os-resources.test.ts:119:18
+    117|       ...(cursor ? { cursor } : {}),
+    118|     });
+    119|     expect(page).toMatchObject({
+       |                  ^
+    120|       path, version: actualRelease.version, revision: actualRelease.re…
+    121|       sha256: actualRelease.sha256, fileSha256: source.sha256,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/24]⎯
+
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > keeps UTF-8 boundaries exact and returns empty and script resources as data
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ❯ src/desktop/__tests__/company-os-resources.test.ts:146:30
+    144|   do {
+    145|     const page = await f.read({ resource, maxBytes: 512, ...(cursor ? …
+    146|     expect(page.content).not.toContain("\uFFFD");
+       |                              ^
+    147|     expect(page.bytes).toBeGreaterThan(0);
+    148|     content += page.content; cursor = page.nextCursor;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/24]⎯
+
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > binds resource continuation to current profile, release, path, hash and UTF-8 offset
+AssertionError: expected undefined to be type of 'string'
+
+Expected: "string"
+Received: "undefined"
+
+ ❯ src/desktop/__tests__/company-os-resources.test.ts:161:28
+    159|   const f = fixture(), resource = "company-os/example/references/unico…
+    160|   const first = await f.read({ resource, maxBytes: 512 });
+    161|   expect(first.nextCursor).toBeTypeOf("string");
+       |                            ^
+    162|   for (const change of [
+    163|     { profile: "other" }, { sha256: "1".repeat(64) },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/24]⎯
+
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > binds discovery continuation to prefix, profile, release and operation
+AssertionError: expected undefined to be 4 // Object.is equality
+
+- Expected:
+4
+
++ Received:
+undefined
+
+ ❯ src/desktop/__tests__/company-os-resources.test.ts:179:22
+    177|   const f = fixture();
+    178|   const page = await f.read({ resources: true, prefix: "company-os/exa…
+    179|   expect(page.total).toBe(4);
+       |                      ^
+    180|   for (const change of [{ profile: "other" }, { sha256: "3".repeat(64)…
+    181|     expect((await f.tool.run(JSON.stringify({ resources: true, prefix:…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/24]⎯
+
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > refuses continuation after verified activation rather than mixing revisions
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/desktop/__tests__/company-os-resources.test.ts:194:89
+    192|   writeFileSync(path, raw);
+    193|   f.service.activateVerified(path, { version: next.version, revision: …
+    194|   expect((await f.tool.run(JSON.stringify({ resource, cursor: first.ne…
+       |                                                                                         ^
+    195|   expect((await f.tool.run(JSON.stringify({ resources: true, cursor: l…
+    196|   expect((await f.read({ resource })).version).toBe("0.6.1");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/24]⎯
+
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > honors cancellation before and after resource reads without exposing a late payload
+TypeError: Cannot read properties of undefined (reading 'bind')
+ ❯ src/desktop/__tests__/company-os-resources.test.ts:218:43
+    216| it("honors cancellation before and after resource reads without exposi…
+    217|   const f = fixture(), input = { resource: "company-os/example/referen…
+    218|   const original = f.service.readResource.bind(f.service);
+       |                                           ^
+    219|   vi.spyOn(f.service, "readResource").mockImplementation((...args) => {
+    220|     const page = original(...args); f.controller.abort(); return page;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/24]⎯
+
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > rejects malformed input undefined in validation and execution
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > rejects malformed input {"profile":"other"} in validation and execution
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > rejects malformed input {"resources":false} in validation and execution
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > rejects malformed input {"resources":true,"limit":0} in validation and execution
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > rejects malformed input {"resources":true,"limit":101} in validation and execution
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > rejects malformed input {"resource":"x","maxBytes":511} in validation and execution
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > rejects malformed input {"resource":"x","maxBytes":32769} in validation and execution
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > rejects malformed input {"resource":"x","offset":1} in validation and execution
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > rejects malformed input {"resource":"x","cursor":""} in validation and execution
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > rejects malformed input {"resources":true,"cursor":{}} in validation and execution
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/desktop/__tests__/company-os-resources.test.ts:235:38
+    233|   const f = fixture(), raw = JSON.stringify(input);
+    234|   expect(f.tool.validate(raw)).toBeTypeOf("string");
+    235|   expect((await f.tool.run(raw)).ok).toBe(false);
+       |                                      ^
+    236| });
+    237|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/24]⎯
+
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > refuses non-retained or unsafe resource /etc/passwd
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > refuses non-retained or unsafe resource ../../secret
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > refuses non-retained or unsafe resource file:///etc/passwd
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > refuses non-retained or unsafe resource company-os/example/../SKILL.md
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > refuses non-retained or unsafe resource company-os\example\SKILL.md
+ FAIL  src/desktop/__tests__/company-os-resources.test.ts > refuses non-retained or unsafe resource company-os/example/missing.json
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/desktop/__tests__/company-os-resources.test.ts:241:65
+    239|   "refuses non-retained or unsafe resource %s", async (resource) => {
+    240|     const f = fixture();
+    241|     expect((await f.tool.run(JSON.stringify({ resource }))).ok).toBe(f…
+       |                                                                 ^
+    242|   },
+    243| );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/24]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  24 failed | 5 passed (29)
+   Start at  07:07:08
+   Duration  518ms (transform 38ms, setup 0ms, import 76ms, tests 376ms, environment 0ms)
+

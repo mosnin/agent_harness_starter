@@ -69,6 +69,9 @@ export class EcosystemService {
   private refreshes = new Map<string, Promise<PluginTokens>>();
   private retryAt = new Map<string, number>();
   private watches = new Set<string>();
+  private interruptedWatches = new Set<string>();
+  private fallbackAt = new Map<string, number>();
+  private failedBackgroundSyncUntil = new Map<string, number>();
   private backgroundPaused = false;
   private background = new Map<
     string,
@@ -718,8 +721,12 @@ export class EcosystemService {
           this.store.commit(
             {
               ...this.active(c),
-              status: "connected",
-              reason: undefined,
+              status: this.interruptedWatches.has(c.generation)
+                ? "stale"
+                : "connected",
+              reason: this.interruptedWatches.has(c.generation)
+                ? "Live updates are interrupted. Account data is refreshing periodically."
+                : undefined,
               lastSyncedAt: this.now(),
               cursor: checkpoint,
             },
@@ -734,8 +741,12 @@ export class EcosystemService {
           this.store.commit(
             {
               ...this.active(c),
-              status: "connected",
-              reason: undefined,
+              status: this.interruptedWatches.has(c.generation)
+                ? "stale"
+                : "connected",
+              reason: this.interruptedWatches.has(c.generation)
+                ? "Live updates are interrupted. Account data is refreshing periodically."
+                : undefined,
               lastSyncedAt: this.now(),
               cursor: snapshot.cursor,
             },
@@ -1083,6 +1094,10 @@ export class EcosystemService {
       clearTimeout(this.reconnects.get(c.generation));
       this.reconnects.delete(c.generation);
       this.retryAt.delete(c.generation);
+      this.fallbackAt.delete(c.generation);
+      this.failedBackgroundSyncUntil.delete(c.generation);
+      this.interruptedWatches.delete(c.generation);
+      this.watches.delete(c.generation);
       this.background.get(c.generation)?.controller.abort();
     }
     let token: PluginTokens | undefined;
@@ -1134,6 +1149,27 @@ export class EcosystemService {
         : {}),
     };
   }
+  private async syncBackgroundWatch(c: PluginConnection, signal: AbortSignal) {
+    this.active(c);
+    signal.throwIfAborted();
+    if (this.now() < (this.failedBackgroundSyncUntil.get(c.generation) ?? 0))
+      throw new Error("Account refresh is waiting after a failed attempt");
+    this.fallbackAt.set(c.generation, this.now());
+    try {
+      await this.sync(c.profile, c.pluginId, signal);
+      this.active(c);
+      signal.throwIfAborted();
+      this.failedBackgroundSyncUntil.delete(c.generation);
+    } catch (error) {
+      if (
+        !this.closed &&
+        !signal.aborted &&
+        this.store.get(c.profile, c.pluginId)?.generation === c.generation
+      )
+        this.failedBackgroundSyncUntil.set(c.generation, this.now() + 30_000);
+      throw error;
+    }
+  }
   /** Host schedules this only while the application runs; no invented background cloud worker. */
   tick() {
     if (this.closed || this.backgroundPaused || !this.store.unlocked) return;
@@ -1161,11 +1197,12 @@ export class EcosystemService {
                 async () => {
                   this.active(c);
                   signal.throwIfAborted();
-                  await this.sync(c.profile, c.pluginId, signal);
+                  await this.syncBackgroundWatch(c, signal);
                   this.active(c);
                   signal.throwIfAborted();
+                  this.interruptedWatches.delete(c.generation);
                   this.watches.add(c.generation);
-                  this.changed(c);
+                  this.update(c, { status: "connected", reason: undefined });
                 },
                 () => {
                   this.update(c, {
@@ -1185,6 +1222,7 @@ export class EcosystemService {
                 this.store.get(c.profile, c.pluginId)?.generation ===
                   c.generation
               ) {
+                this.watches.delete(c.generation);
                 const revoked =
                   error instanceof PluginHttpError &&
                   [401, 403].includes(error.status);
@@ -1195,6 +1233,27 @@ export class EcosystemService {
                     ? "This account needs authorization again. Reconnect in Plugins."
                     : "Live updates are interrupted. Saved data may be out of date.",
                 });
+                if (
+                  !revoked &&
+                  !this.backgroundPaused &&
+                  this.active(c).status !== "error"
+                ) {
+                  this.interruptedWatches.add(c.generation);
+                  const last = Math.max(
+                    this.fallbackAt.get(c.generation) ?? 0,
+                    this.active(c).lastSyncedAt ?? 0,
+                  );
+                  if (this.now() - last >= 30_000) {
+                    // Same owned background job/signal, with the normal account/scope and atomic cursor checks.
+                    // Record attempts too: a failing data API must not create a tight polling loop.
+                    try {
+                      signal.throwIfAborted();
+                      await this.syncBackgroundWatch(c, signal);
+                    } catch {
+                      /* sync retains its precise authorization/freshness failure; never promote it here. */
+                    }
+                  }
+                }
               }
             } finally {
               this.watches.delete(c.generation);

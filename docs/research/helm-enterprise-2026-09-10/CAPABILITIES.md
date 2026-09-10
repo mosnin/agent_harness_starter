@@ -112,3 +112,5 @@ Upstream research snapshots differ from integration pins: research inspected Ope
 ## Orca output follow-up
 
 The [Orca output checkpoint](audit/orca-output-v1.md) adds provenance-bound stopped-worker import into the existing Helm review workflow, cross-process reviewed apply claims, fresh source checks, explicit checked Work acceptance with unknown usage retained, scoped Stop fencing, and reconciliation of confirmed applied receipts. These capabilities are implemented and locally fixture-verified. Actual packaged Orca/provider/native acceptance and general uncertain-import recovery remain open; no previous platform coverage requirement is removed.
+
+Plugins v4 follow-up: unavailable Company OS/Operate streams fall back to scoped atomic reconciliation with bounded retries. The actual Company OS resource inventory and complete skill reads are available through the host tool, including the previously inaccessible capability catalog. [Acceptance and remaining live gates](../../plugins/ACCEPTANCE_V4.md) preserve the existing required capability scope.

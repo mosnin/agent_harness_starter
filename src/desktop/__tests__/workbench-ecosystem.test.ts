@@ -1,6 +1,7 @@
 import {afterEach,expect,it,vi} from 'vitest';
 import {mkdtempSync,mkdirSync,rmSync} from 'node:fs';import {join} from 'node:path';import {tmpdir} from 'node:os';
 import {WorkbenchService,type WorkbenchEvent} from '../core/workbench-service';
+import type {ChatRequest} from '../../hades/models/client';
 vi.mock('../core/webhook-service',async()=>({WebhookService:(await import('./fixtures/offline-webhooks')).OfflineWebhookFixture}));
 const cleanup:Array<()=>Promise<void>>=[];afterEach(async()=>{for(const close of cleanup.splice(0))await close();});
 async function fixture(tool:string,input:object){
@@ -27,6 +28,23 @@ it('tool profile smuggling is refused and new profile has no other account recor
 });
 it('disabled slash command refuses; enabled bundle supplies real framework and reader tool',async()=>{
  const f=await fixture('company_os_read',{});await expect(f.service.dispatch('chat.send',{id:f.session.id,input:'/company-os inspect'})).rejects.toThrow('Enable Company OS');expect(f.chat).not.toHaveBeenCalled();await f.service.dispatch('companyos.configure',{enabled:true});await f.service.dispatch('chat.send',{id:f.session.id,input:'/company-os inspect'});await done(f);const context=(f.service as any).companyOs.context('default');expect(JSON.stringify(f.chat.mock.calls)).toContain(JSON.stringify(context.content.slice(0,100)).slice(1,-1));expect(f.events.some(e=>e.kind==='desktop.tool'&&e.tool==='company_os_read'&&e.status==='done'&&e.ok)).toBe(true);
+});
+it('the real chat loop receives the complete bundled design skill through company_os_read',async()=>{
+ const skill='company-os/ui-design-quality/vendor/emil-design-eng/SKILL.md';
+ const f=await fixture('company_os_read',{skill});
+ await f.service.dispatch('companyos.configure',{enabled:true});
+ const expected=(f.service as any).companyOs.context('default',{skill,maxBytes:64000});
+ expect(expected.bytes).toBeGreaterThan(24000);
+ await f.service.dispatch('chat.send',{id:f.session.id,input:'/company-os review this interface using the installed design guidance.'});
+ await done(f);
+ const requests=f.chat.mock.calls as unknown as Array<[ChatRequest]>;
+ expect(requests).toHaveLength(2);
+ const observation=requests[1][0].messages.find(m=>m.content.startsWith('TOOL_RESULT: '));
+ expect(observation).toBeDefined();
+ const received=JSON.parse(observation!.content.slice('TOOL_RESULT: '.length));
+ expect(received).toEqual(expected);
+ expect(Buffer.byteLength(received.content)).toBe(expected.bytes);
+ expect(f.events.some(e=>e.kind==='desktop.approval')).toBe(false);
 });
 it('Workbench snapshot barrier drains plugin background work and blocks new chat admission',async()=>{
  const f=await fixture('plugins_list',{});f.ec.definitions[0].adapter.eventsEndpoint='https://fixture.invalid/events';const cancelled=vi.fn();f.ec.fetcher=vi.fn(async(url:string)=>url.endsWith('/events')?new Response(new ReadableStream({cancel:cancelled}),{headers:{'content-type':'text/event-stream'}}):new Response(JSON.stringify({id:'account',tenantId:'tenant',name:'Offline account'}),{headers:{'content-type':'application/json'}}));f.ec.tick();await vi.waitFor(()=>expect(f.ec.watches.size).toBe(1));
