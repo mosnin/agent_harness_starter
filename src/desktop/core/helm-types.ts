@@ -1,4 +1,7 @@
 import type { HelmProviderReadiness } from './helm-provider-readiness.js';
+import type { HelmOrcaImportDescriptor } from './helm-orca-import.js';
+export interface HelmWorkOrigin { goalId:string; taskId:string; ownerProfile:string; taskProfile:string; requestId:string; attemptId:string }
+export interface HelmRun { orcaOrigin?: HelmOrcaImportDescriptor; workOrigin?: HelmWorkOrigin }
 export type HelmAgentId = 'codex' | 'claude' | 'gemini' | 'opencode' | 'grok' | 'hades';
 export interface HelmAgent { id: HelmAgentId; name: string; installed: boolean; version?: string; auth: 'unknown' | 'signed-in' | 'signed-out'; error?: string; readiness?: HelmProviderReadiness }
 export type HelmStatus = 'starting' | 'running' | 'needs_review' | 'verified' | 'failed' | 'cancelled' | 'interrupted';

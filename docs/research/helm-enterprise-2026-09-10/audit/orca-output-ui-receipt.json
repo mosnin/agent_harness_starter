@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "lane": "orca-work-ui-v1",
+  "status": "source_frozen_fixture_verified",
+  "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+  "recordedAt": "2026-09-10T10:49:34.104664+00:00",
+  "files": [
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/ui/work-goals.ts",
+      "bytes": 35195,
+      "sha256": "803b57e30f8ea3d4bc221364465527f2268278da4165a689099fd0ac93ef7ddd"
+    },
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/ui/helm.ts",
+      "bytes": 67354,
+      "sha256": "fc609941a50d2739eb2477413579274946a04723cd0994095e98ebadaa4d120f"
+    },
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/ui/helm-orca.ts",
+      "bytes": 17599,
+      "sha256": "634834dd5d3c068f00cae113120cdad7042b656c06fa20f7b66bb357164a0f55"
+    },
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/ui/workbench.ts",
+      "bytes": 123410,
+      "sha256": "82210205842b6119f42136b8e3fb26ac12f815704529340a19f0549569bc7fd1"
+    },
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/ui/work-goals.css",
+      "bytes": 1657,
+      "sha256": "e3489950f5a4f2a38d9116ce3d4c8ba90bd3f19d60dd921fada5da56c909914e"
+    },
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/ui/helm.css",
+      "bytes": 8053,
+      "sha256": "1a7060ddcb23e0ba57b2386e8643f712d77655c0a0f402e1c41432b0e99e7882"
+    },
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/orca-work-review-ui.test.ts",
+      "bytes": 21902,
+      "sha256": "62841d58976cf741ab089f20a3b659ca040e6a86fa28a5dafe3c7e770da47fd9"
+    },
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/__tests__/workbench-experience.test.ts",
+      "bytes": 21063,
+      "sha256": "524a0df496118acc383a99cad9b785c0cd6c6b260b7b589d0da43a2174f6fe55"
+    }
+  ],
+  "verification": {
+    "dom": {
+      "command": "./node_modules/.bin/vitest run src/desktop/__tests__/orca-work-review-ui.test.ts src/desktop/__tests__/work-goals.test.ts src/desktop/__tests__/helm-orca-ui.test.ts src/desktop/__tests__/helm-ui.test.ts src/desktop/__tests__/workbench-experience.test.ts --maxWorkers=1",
+      "exitCode": 0,
+      "files": 5,
+      "tests": 102,
+      "log": {
+        "path": "/tmp/hades-orca-review-ui-final.log",
+        "bytes": 244,
+        "sha256": "3daff0e29da1a2cb14650da496706bfde05f4c0e824c7412cc08b83f0e00df5b"
+      }
+    },
+    "typescript": {
+      "command": "./node_modules/.bin/tsc --noEmit --incremental false --pretty false",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/hades-orca-review-ui-types.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "diffCheck": {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  },
+  "scope": [
+    "Work task imports exact acknowledged Orca changes into the existing Helm review",
+    "Direct Orca review opens the same Helm surface",
+    "Explicit full-patch apply, source checks, and Work acceptance with exact evidence IDs",
+    "Owner, scope, request, attempt, source revision, late response and cached verdict fences",
+    "workGoalId hints on verify, prepare, apply and source start",
+    "Explicit scoped unknown-application reconciliation",
+    "Workbench callbacks and Work change invalidation",
+    "Keyboard focus, escaped output, retained disclosures and responsive theme styles"
+  ],
+  "limits": [
+    "DOM and mocked RPC fixture evidence only in this UI lane",
+    "No native app control, listeners, provider execution, network, installation, deployment or remote writes",
+    "Native visual and interaction acceptance remains open",
+    "No independent acceptance of the overall product",
+    "No worker exit implies acceptance; unknown reservations remain held; no automatic apply or resume"
+  ],
+  "design": {
+    "skills": [
+      "/Users/preston/.codex/skills/company-os/ui-design-quality/SKILL.md",
+      "/Users/preston/.codex/skills/company-os/ui-design-quality/vendor/apple-design/SKILL.md",
+      "/Users/preston/.codex/skills/company-os/ui-design-quality/vendor/emil-design-eng/SKILL.md"
+    ],
+    "direction": "Existing Hades theme and real Helm review surfaces retained",
+    "dependenciesAdded": false,
+    "motionAdded": false
+  }
+}

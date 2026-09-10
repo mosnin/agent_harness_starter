@@ -14,6 +14,7 @@ import type { HelmPreviewReceipt } from "../core/helm-preview";
 import type { HelmSourceCheckReceipt } from "../core/helm-source-checks";
 import type { HelmIntegrationReview } from "../core/helm-integration";
 import type { HelmHandoff as BrowserDraft } from "../core/helm-handoff";
+type WorkAcceptance = { eligible: boolean; reasons: string[]; goalId: string; taskId: string; runId: string; reviewId: string; sourceCheckId: string; evidence: Array<{ path: string; bytes: number; sha256: string }>; sourceRevision?: string; accepted?: boolean };
 type Note = {
   id: string;
   parentId?: string;
@@ -31,6 +32,7 @@ type Callbacks = {
     pane: "files" | "git" | "terminal",
   ): Promise<void>;
   openSession(id: string): void;
+  openWork?(scope: { goalId: string; taskId: string; ownerProfile: string; root: string }): Promise<void>;
 };
 const esc = (value: unknown) =>
   String(value ?? "").replace(
@@ -118,21 +120,29 @@ export class HelmView {
   private previewUrl = "";
   private previewRequests = new Map<string, string>();
   private sourceCheck?: HelmSourceCheckReceipt;
+  private workAcceptance?: WorkAcceptance;
+  private acceptanceError = "";
+  private acceptanceReads = 0;
+  private uncertainAcceptances = new Set<string>();
   private sourceSeconds = "300";
   private integration?: HelmIntegrationReview;
   private diff = "";
   private diffMeta?: HelmDiff;
   private noteEditor?: Partial<Note>;
   private generation = 0;
+  private selectionVersion = 0;
+  private operationVersion = 0;
+  private focusAfterRender?: string;
   constructor(
     private rpc: Rpc,
     private actions: Callbacks,
-  ) { this.orca = new HelmOrcaView(rpc); }
+  ) { this.orca = new HelmOrcaView(rpc, run => this.selectRun(run)); }
   async open(context: Context) {
     if (
       this.context?.root !== context.root ||
       this.context?.profile !== context.profile
     ) {
+      this.selectionVersion++; this.operationVersion++; this.busy = false;
       this.code.attach();
       this.codeReady = this.codeScope === `${context.root}\n${context.profile}`;
       if (this.handoffId && this.handoffs.find((draft) => draft.id === this.handoffId)?.status !== "draft") {
@@ -149,6 +159,7 @@ export class HelmView {
       this.diffMeta = undefined;
       this.integration = undefined;
       this.sourceCheck = undefined;
+      this.workAcceptance = undefined; this.acceptanceError = ""; this.acceptanceReads++;
       this.previews = [];
       this.previewsLoaded = false;
       this.previewUrl = "";
@@ -165,6 +176,45 @@ export class HelmView {
     this.host = host;
     this.render();
   }
+  private runProfile(run = this.selected) { return run?.owner ?? this.context!.profile; }
+  private workHint(run = this.selected) { return run?.workOrigin ? { workGoalId: run.workOrigin.goalId } : {}; }
+  private assertRunScope(run: Run, id?: string) {
+    if (!run?.id || (id && run.id !== id) || run.root !== this.context?.root || (run.owner && run.owner !== this.context?.profile)) throw new Error("The coding task did not match this project and profile.");
+    if (run.orcaOrigin && (!run.owner || !run.orcaOrigin.intentId || !run.orcaOrigin.runId || !run.orcaOrigin.dispatchId)) throw new Error("The Orca review snapshot is missing its worker identity.");
+    const origin = run.workOrigin;
+    if (origin && (!origin.goalId || !origin.taskId || !origin.attemptId || !origin.taskProfile || origin.ownerProfile !== run.owner || origin.requestId !== run.orcaOrigin?.intentId)) throw new Error("The coding task did not match its Work task and attempt.");
+  }
+  /** Open an already imported snapshot. This never starts a worker or applies a patch. */
+  async selectRun(run: Run) {
+    this.assertRunScope(run);
+    if (this.busy) throw new Error("Wait for the current Helm action before opening another review.");
+    await this.perform(() => this.showRun(run, "changes"));
+  }
+  async refreshWorkAcceptance() {
+    if (!this.selected?.workOrigin) return;
+    const selection = this.selectionVersion;
+    this.workAcceptance = undefined; this.render();
+    await this.loadWorkAcceptance();
+    if (selection === this.selectionVersion) this.render();
+  }
+  private async showRun(run: Run, tab: typeof this.tab) {
+    this.assertRunScope(run);
+    const version = ++this.selectionVersion, { root, profile } = this.context!;
+    this.generation++;
+    const current = () => version === this.selectionVersion && this.context?.root === root && this.context?.profile === profile && this.selected?.id === run.id;
+    this.selected = run; this.creating = false; this.destination = "tasks"; this.tab = tab;
+    this.integration = undefined; this.sourceCheck = undefined; this.workAcceptance = undefined; this.acceptanceError = ""; this.acceptanceReads++;
+    this.diff = ""; this.diffMeta = undefined;
+    const check = run.requestedChecks?.[0]; this.useCheck = !!check;
+    if (check) { this.command = check.command; this.args = JSON.stringify(check.args); }
+    this.runs = [run, ...this.runs.filter(item => item.id !== run.id)]; this.render();
+    const reviews = run.status === "starting" ? [] : await this.rpc("helm.integration.list", { id: run.id, profile: this.runProfile(run) });
+    if (!current()) return;
+    this.integration = this.reviewFor(run, reviews); await this.loadSourceChecks();
+    if (!current()) return;
+    if (tab === "changes") await this.fetchDiff();
+    if (current()) this.focusAfterRender = "#helm-selected-heading";
+  }
   async refresh(refreshAgents = false) {
     if (!this.context) return;
     const generation = ++this.generation;
@@ -177,17 +227,18 @@ export class HelmView {
         root ? this.rpc("helm.list", { root, profile }) : Promise.resolve([]),
         root ? this.rpc("helm.context.list", { root }) : Promise.resolve([]),
         this.selected
-          ? this.rpc("helm.get", { id: this.selected.id, profile })
+          ? this.rpc("helm.get", { id: this.selected.id, profile: this.runProfile() })
           : Promise.resolve(undefined),
-        this.selected && this.selected.status !== "starting" ? this.rpc("helm.integration.list", { id: this.selected.id, profile }) : Promise.resolve([]),
+        this.selected && this.selected.status !== "starting" ? this.rpc("helm.integration.list", { id: this.selected.id, profile: this.runProfile() }) : Promise.resolve([]),
         this.rpc("helm.handoff.list", { profile }),
       ]);
       if (generation !== this.generation) return;
       this.handoffs = Array.isArray(handoffs) ? handoffs : [];
       this.agents = agents;
-      this.runs = runs;
+      this.runs = Array.isArray(runs) ? runs.filter((run: Run) => run.root === root && (!run.owner || run.owner === profile)) : [];
       this.notes = notes;
       if (selected) {
+        this.assertRunScope(selected, this.selected?.id);
         this.selected = selected;
         this.integration = this.reviewFor(selected, reviews);
         await this.loadSourceChecks();
@@ -209,17 +260,23 @@ export class HelmView {
   }
   private async perform(action: () => Promise<void>) {
     if (this.busy) return;
+    const operation = ++this.operationVersion;
+    const focus = this.host ? captureFocus(this.host) : undefined;
     this.busy = true;
     this.error = "";
     this.notice = "";
     this.render();
+    const temporarilyLostFocus = focus && !this.host?.contains(document.activeElement) ? document.activeElement : undefined;
     try {
       await action();
     } catch (error) {
-      this.error = message(error);
+      if (operation === this.operationVersion) this.error = message(error);
     } finally {
-      this.busy = false;
-      this.render();
+      if (operation === this.operationVersion) {
+        const restore = temporarilyLostFocus && document.activeElement === temporarilyLostFocus && !this.focusAfterRender;
+        this.busy = false; this.render();
+        if (restore && this.host) restoreFocus(this.host, focus);
+      }
     }
   }
   private checks(): Array<{ command: string; args: string[] }> {
@@ -270,24 +327,67 @@ export class HelmView {
   }
   private reviewFor(run: Run, reviews: unknown): HelmIntegrationReview | undefined {
     if (!Array.isArray(reviews)) return undefined;
-    const scoped = reviews.filter((review: HelmIntegrationReview) => review.runId === run.id && review.root === run.root);
+    const scoped = reviews.filter((review: HelmIntegrationReview) => review.runId === run.id && review.root === run.root && (!review.owner || review.owner === this.runProfile(run)));
     return scoped.find((review: HelmIntegrationReview) => review.status === "applying" || review.status === "unknown") ?? scoped[0];
   }
   private async loadSourceChecks() {
     const review = this.integration;
     this.sourceCheck = undefined;
+    this.workAcceptance = undefined; this.acceptanceError = ""; this.acceptanceReads++;
     if (!review || review.status !== "applied") return;
-    const { root, profile } = this.context!;
+    const { root } = this.context!, profile = this.runProfile(), selection = this.selectionVersion;
     const rows = await this.rpc("helm.source.list", { id: review.runId, reviewId: review.id, profile });
-    if (this.integration?.id !== review.id || this.context?.root !== root || this.context?.profile !== profile) return;
-    this.sourceCheck = Array.isArray(rows) ? rows.find((row: HelmSourceCheckReceipt) => row.reviewId === review.id && row.runId === review.runId && row.root === root) : undefined;
+    if (selection !== this.selectionVersion || this.integration?.id !== review.id || this.context?.root !== root || this.context?.profile !== profile) return;
+    this.sourceCheck = Array.isArray(rows) ? rows.find((row: HelmSourceCheckReceipt) => row.reviewId === review.id && row.runId === review.runId && row.root === root && (!row.owner || row.owner === profile)) : undefined;
+    await this.loadWorkAcceptance();
+    if (selection !== this.selectionVersion) return;
     await this.loadPreviews();
+  }
+  private acceptanceBinding() {
+    const run = this.selected, review = this.integration, source = this.sourceCheck, origin = run?.workOrigin;
+    if (!run || !origin || !review || !source || review.status !== "applied" || review.runId !== run.id || source.runId !== run.id || source.reviewId !== review.id || run.root !== this.context?.root || review.root !== run.root || source.root !== run.root || origin.ownerProfile !== run.owner || run.owner !== this.context?.profile || origin.requestId !== run.orcaOrigin?.intentId) return undefined;
+    return { id: origin.goalId, task: origin.taskId, profile: this.runProfile(run), runId: run.id, reviewId: review.id, sourceCheckId: source.id };
+  }
+  private acceptanceKey(binding = this.acceptanceBinding()) { return binding ? JSON.stringify([this.context?.root, binding.id, binding.task, binding.profile, binding.runId, binding.reviewId, binding.sourceCheckId]) : ""; }
+  private matchesAcceptance(result: WorkAcceptance, binding: NonNullable<ReturnType<HelmView["acceptanceBinding"]>>) {
+    return result?.goalId === binding.id && result.taskId === binding.task && result.runId === binding.runId && result.reviewId === binding.reviewId && result.sourceCheckId === binding.sourceCheckId && typeof result.eligible === "boolean" && (result.accepted === undefined || typeof result.accepted === "boolean") && (result.sourceRevision === undefined || typeof result.sourceRevision === "string") && Array.isArray(result.reasons) && result.reasons.every(reason => typeof reason === "string") && Array.isArray(result.evidence) && result.evidence.every(item => typeof item.path === "string" && typeof item.bytes === "number" && typeof item.sha256 === "string");
+  }
+  private async loadWorkAcceptance() {
+    const binding = this.acceptanceBinding(), key = this.acceptanceKey(binding), read = ++this.acceptanceReads, selection = this.selectionVersion;
+    this.workAcceptance = undefined; this.acceptanceError = "";
+    if (!binding) return;
+    const current = () => read === this.acceptanceReads && selection === this.selectionVersion && key === this.acceptanceKey();
+    try {
+      const result = await this.rpc("work.orca.acceptance", binding);
+      if (!current()) return;
+      if (!this.matchesAcceptance(result, binding)) throw new Error("Acceptance status did not match this task, review, and source check.");
+      this.workAcceptance = result;
+      this.uncertainAcceptances.delete(key);
+    } catch (error) { if (current()) this.acceptanceError = message(error); }
+  }
+  private workAcceptancePanel() {
+    const binding = this.acceptanceBinding();
+    if (!binding) return "";
+    const receipt = this.workAcceptance, uncertain = this.uncertainAcceptances.has(this.acceptanceKey(binding));
+    const eligible = receipt?.eligible === true && this.sourceCheck?.status === "passed" && !uncertain && !receipt.accepted;
+    const status = uncertain ? "Acceptance unconfirmed" : receipt?.accepted ? "Task result accepted" : eligible ? "Ready to accept the task result" : "Task result not accepted";
+    return `<section class="helm-work-acceptance" aria-label="Work task acceptance"><h3>Accept the Work task result</h3><p id="helm-work-acceptance-status" tabindex="-1" role="status"><strong>${status}</strong></p><p class="help">Goal ${esc(binding.id)} · Task ${esc(binding.task)}. Acceptance records this checked result. Resume Work separately to continue eligible dependent tasks.</p>${uncertain ? '<p class="inline-notice">The acceptance reply was not confirmed. Refresh its saved status before another action.</p>' : ""}${this.acceptanceError ? `<p class="inline-notice" role="alert">${esc(this.acceptanceError)}</p>` : ""}${receipt?.reasons.length ? `<ul class="helm-acceptance-reasons">${receipt.reasons.map(reason => `<li>${esc(reason)}</li>`).join("")}</ul>` : !receipt && !this.acceptanceError && !uncertain ? '<p class="help">Loading acceptance status…</p>' : ""}${receipt?.sourceRevision ? `<p class="help">Checked source fingerprint<br><code class="helm-evidence-hash">${esc(receipt.sourceRevision)}</code></p>` : ""}${receipt?.evidence.length ? `<details class="helm-acceptance-evidence"><summary>Checked task outputs · ${receipt.evidence.length}</summary>${receipt.evidence.map(item => `<p><strong>${esc(item.path)}</strong> · ${Number(item.bytes).toLocaleString()} bytes<br><code class="helm-evidence-hash">SHA-256 ${esc(item.sha256)}</code></p>`).join("")}</details>` : ""}<div class="page-actions">${eligible ? button("Accept task result", "work-accept", `class="primary-button" ${this.busy ? "disabled" : ""}`) : ""}${button("Refresh acceptance status", "work-acceptance-refresh", this.busy ? "disabled" : "")}${this.actions.openWork ? button("Open work", "work-open") : ""}</div></section>`;
+  }
+  private reviewStages() {
+    if (!this.selected?.orcaOrigin) return "";
+    const review = this.integration;
+    const applied = review?.status === "applied";
+    return `<ol class="helm-review-stages" aria-label="Review progress"><li><span>Review snapshot</span><strong>${this.selected.status === "verified" ? "Task checks passed" : "Needs review and checks"}</strong></li><li><span>Source application</span><strong>${applied ? "Applied" : review?.status === "prepared" ? "Ready to apply" : review ? "Outcome unconfirmed" : "Not applied"}</strong></li><li><span>Source checks</span><strong>${esc(this.sourceCheck?.status === "passed" ? "Passed" : this.sourceCheck?.status === "stale" ? "Source changed" : this.sourceCheck?.status ?? "Not run")}</strong></li>${this.selected.workOrigin ? `<li><span>Work task</span><strong>${this.workAcceptance?.accepted ? "Result accepted" : "Not accepted"}</strong></li>` : ""}</ol>`;
+  }
+  private fileScope(files: unknown, title: string) {
+    if (!Array.isArray(files) || files.some(file => typeof file !== "string")) return '<p class="help">The changed file list is not loaded.</p>';
+    return `<details class="helm-file-scope" open><summary>${esc(title)} · ${files.length} file${files.length === 1 ? "" : "s"}</summary>${files.length ? `<ul>${files.map(file => `<li><code>${esc(file)}</code></li>`).join("")}</ul>` : '<p class="help">No changed files reported.</p>'}</details>`;
   }
   private async loadPreviews() {
     const run = this.selected;
     this.previewsLoaded = false;
     if (!run?.handoffId) { this.previews = []; return; }
-    const { root, profile } = this.context!;
+    const { root } = this.context!, profile = this.runProfile(run);
     const rows = await this.rpc("helm.preview.list", { id: run.id, profile });
     if (this.selected?.id !== run.id || this.context?.root !== root || this.context?.profile !== profile) return;
     this.previews = Array.isArray(rows) ? rows.filter((row: HelmPreviewReceipt) => row.runId === run.id && row.root === root) : [];
@@ -302,12 +402,12 @@ export class HelmView {
     const receipt = this.sourceCheck;
     const running = receipt?.status === "running";
     const label = receipt ? { running: "Source checks running", passed: "Source checks passed", failed: "Source checks failed", interrupted: "Source checks interrupted · not replayed", cancelled: "Source checks stopped", stale: "Source changed · fresh checks needed" }[receipt.status] : "Source not checked yet";
-    return `<section class="helm-source-checks" aria-label="Source project verification"><h3>Check the source project</h3><p role="status">${esc(label)}</p><p class="help">These commands run in ${esc(this.context?.root)} with your local account permissions. They verify the applied source separately from the isolated task.</p>${receipt?.error ? `<p class="inline-notice">${esc(receipt.error)}</p>` : ""}${receipt ? `<p class="help">Receipt ${esc(receipt.id)} · Limit ${esc(receipt.maxSeconds)} seconds${receipt.after ? ` · Source fingerprint ${esc(receipt.after)}` : ""}</p>${receipt.checks.map((check) => `<p class="help">Command: ${esc(check.command)} ${esc(JSON.stringify(check.args))}</p>`).join("")}${receipt.results.map((result) => `<details><summary>${esc(result.command)} ${esc(result.args.join(" "))} · Exit ${esc(result.exitCode ?? "unavailable")}</summary><pre class="helm-output" tabindex="0" aria-label="Source check output">${esc(result.output)}</pre>${result.truncated ? '<p class="help">Output truncated.</p>' : ""}${result.error ? `<p class="help">${esc(result.error)}</p>` : ""}</details>`).join("")}${button("Refresh source results", "source-refresh")}` : ""}${running ? button("Stop source checks", "source-cancel", this.busy ? "disabled" : "") : `<form data-helm-form="source-checks">${this.checkForm("source project")}<label class="field">Source check time limit · seconds<input id="helm-source-seconds" data-helm-field="sourceSeconds" type="number" min="1" max="300" value="${esc(this.sourceSeconds)}" required></label><button type="submit" class="primary-button" ${this.busy ? "disabled" : ""}>Run source checks</button></form>`}${this.previewPanel()}</section>`;
+    return `<section class="helm-source-checks" aria-label="Source project verification"><h3>Check the source project</h3><p role="status">${esc(label)}</p><p class="help">These commands run in ${esc(this.context?.root)} with your local account permissions. They verify the applied source separately from the isolated task.</p>${receipt?.error ? `<p class="inline-notice">${esc(receipt.error)}</p>` : ""}${receipt ? `<p class="help">Receipt ${esc(receipt.id)} · Limit ${esc(receipt.maxSeconds)} seconds${receipt.after ? ` · Source fingerprint ${esc(receipt.after)}` : ""}</p>${receipt.checks.map((check) => `<p class="help">Command: ${esc(check.command)} ${esc(JSON.stringify(check.args))}</p>`).join("")}${receipt.results.map((result) => `<details><summary>${esc(result.command)} ${esc(result.args.join(" "))} · Exit ${esc(result.exitCode ?? "unavailable")}</summary><pre class="helm-output" tabindex="0" aria-label="Source check output">${esc(result.output)}</pre>${result.truncated ? '<p class="help">Output truncated.</p>' : ""}${result.error ? `<p class="help">${esc(result.error)}</p>` : ""}</details>`).join("")}${button("Refresh source results", "source-refresh")}` : ""}${running ? button("Stop source checks", "source-cancel", this.busy ? "disabled" : "") : `<form data-helm-form="source-checks">${this.checkForm("source project")}<label class="field">Source check time limit · seconds<input id="helm-source-seconds" data-helm-field="sourceSeconds" type="number" min="1" max="300" value="${esc(this.sourceSeconds)}" required></label><button type="submit" class="primary-button" ${this.busy ? "disabled" : ""}>Run source checks</button></form>`}${this.previewPanel()}${this.workAcceptancePanel()}</section>`;
   }
   private integrationPanel() {
     const review = this.integration;
     if (!review || review.runId !== this.selected?.id || review.root !== this.context?.root) return "";
-    return `<section class="helm-integration" aria-label="Review changes for source project"><h2>Review for source project</h2><p class="help">Destination: ${esc(review.root)}. These changes modify the source folder. The source needs new checks after applying; task checks cover only the isolated checkout.</p><p class="help">Source snapshot: ${esc(review.sourceRevision)} · Task revision: ${esc(review.revision)}</p><pre class="helm-output" id="helm-integration-patch" tabindex="0" aria-label="Full patch to apply">${esc(review.patch)}</pre>${review.status === "prepared" ? button("Apply reviewed changes", "integration-apply", `class="primary-button" ${this.busy ? "disabled" : ""}`) : `<p role="status" class="inline-notice">${review.status === "applied" ? "Applied to source. Run checks in the source project before relying on the result." : "Application outcome is uncertain. Inspect the source and check the saved review status before taking further action."}</p>${button("Refresh application status", "integration-status")}`}${button("Open source terminal", "source-terminal")}${review.status === "applied" ? this.sourceChecksPanel() : ""}</section>`;
+    return `<section class="helm-integration" aria-label="Review changes for source project"><h2>Review for source project</h2><p class="help">Destination: ${esc(review.root)}. These changes modify the source folder. The source needs new checks after applying; task checks cover only the isolated checkout.</p><p class="help">Source snapshot: ${esc(review.sourceRevision)} · Task revision: ${esc(review.revision)}</p>${this.fileScope(review.files, "Files to apply")}<pre class="helm-output" id="helm-integration-patch" tabindex="0" aria-label="Full patch to apply">${esc(review.patch)}</pre>${review.status === "prepared" ? button("Apply reviewed changes", "integration-apply", `class="primary-button" ${this.busy ? "disabled" : ""}`) : `<p role="status" class="inline-notice">${review.status === "applied" ? "Applied to source. Run checks in the source project before relying on the result." : "Application outcome is uncertain. Inspect the source and check the saved review status before taking further action."}</p>${button("Refresh application status", "integration-status")}`}${button("Open source terminal", "source-terminal")}${review.status === "applied" ? this.sourceChecksPanel() : ""}</section>`;
   }
   private detail() {
     const run = this.selected!;
@@ -322,7 +422,7 @@ export class HelmView {
     if (this.tab === "overview")
       content = `<p class="helm-objective">${esc(run.prompt)}</p>${run.error ? `<p class="inline-notice" role="alert">${esc(run.error)}</p>` : ""}<dl class="helm-facts"><div><dt>Agent</dt><dd>${esc(agentName(run.agent))}</dd></div><div><dt>Requested model</dt><dd>${esc(run.model || "Agent configuration · actual model not reported")}</dd></div><div><dt>Time limit</dt><dd>${esc(run.maxMinutes)} minutes</dd></div><div><dt>Branch</dt><dd>${esc(run.branch || "Preparing checkout")}</dd></div><div><dt>Starting revision</dt><dd>${esc(run.baseSha?.slice(0, 12) || "Not recorded")}</dd></div><div><dt>Source project</dt><dd>${esc(run.root)}</dd></div><div><dt>Task checkout</dt><dd>${esc(run.workspace || "Preparing checkout")}</dd></div>${run.owner ? `<div><dt>Owner</dt><dd>${esc(run.owner)}</dd></div>` : ""}${run.parentSession ? `<div><dt>Delegated from</dt><dd>${esc(run.parentSession)} ${button("Open parent conversation", "parent")}</dd></div>` : ""}</dl>${run.sourceDirty ? '<p class="inline-notice">This task started from the recorded commit. Uncommitted changes in the original project were excluded.</p>' : ""}${run.sourceDirty || run.exclusions.length ? `<details><summary>Preparation notes</summary>${run.exclusions.length ? `<ul>${run.exclusions.map((note) => `<li>${esc(note)}</li>`).join("")}</ul>` : '<p class="help">Uncommitted project changes were excluded from the task checkout.</p>'}</details>` : ""}<p class="help">${run.status === "interrupted" ? "This task was interrupted and has not been restarted. Review its changes and output before deciding whether to create another task." : run.status === "cancelled" ? "This task was stopped. Its checkout remains available for review; starting another task is a separate action." : run.status === "verified" ? "The recorded checks passed at the recorded revision. Review the diff before merging." : live(run) ? "Output updates here while the agent works. You can stop the task at any time." : "Review the changes and recorded checks before accepting this work."}</p><div class="page-actions">${button("Review changes", "tab", 'data-tab="changes"')}${button("Read output", "tab", 'data-tab="output"')}${!live(run) ? button("Use task again", "reuse") : ""}${!live(run) ? button("Save reviewed outcome", "outcome") : ""}</div>`;
     if (this.tab === "changes")
-      content = `<div class="page-actions">${button("Refresh changes", "diff")}${run.status === "verified" && !["applying", "unknown"].includes(this.integration?.status ?? "") ? button("Review for source project", "integration-prepare", this.busy ? "disabled" : "") : `<span class="help">${["applying", "unknown"].includes(this.integration?.status ?? "") ? "Inspect the source and reconcile the saved application status before preparing another review." : "Run passing checks on the current task changes before applying them to the source."}</span>`}${button("Open files", "workspace", 'data-pane="files"')}${button("Open terminal", "workspace", 'data-pane="terminal"')}</div>${this.diffMeta?.stale ? '<p class="inline-notice">The checkout changed since verification. Run checks again before relying on the earlier result.</p>' : ""}${this.diffMeta?.truncated ? '<p class="help">This diff is truncated. Open the task terminal to review the complete changes.</p>' : ""}<pre class="helm-output helm-diff" tabindex="0" aria-label="Task changes">${esc(this.diff || "Choose Refresh changes to inspect the task checkout.")}</pre>${this.integrationPanel()}`;
+      content = `<div class="page-actions">${button("Refresh changes", "diff")}${run.status === "verified" && !this.diffMeta?.stale && !["applying", "unknown"].includes(this.integration?.status ?? "") ? button("Review for source project", "integration-prepare", this.busy ? "disabled" : "") : `<span class="help">${["applying", "unknown"].includes(this.integration?.status ?? "") ? "Inspect the source and reconcile the saved application status before preparing another review." : "Run passing checks on the current task changes before applying them to the source."}</span>`}${button("Open files", "workspace", 'data-pane="files"')}${button("Open terminal", "workspace", 'data-pane="terminal"')}</div>${this.diffMeta?.stale ? '<p class="inline-notice">The checkout changed since verification. Run checks again before relying on the earlier result.</p>' : ""}${this.diffMeta?.truncated ? '<p class="help">This diff is truncated. Open the task terminal to review the complete changes.</p>' : ""}${this.fileScope(this.diffMeta?.files, "Changed files")}<pre class="helm-output helm-diff" tabindex="0" aria-label="Task changes">${esc(this.diff || "Choose Refresh changes to inspect the task checkout.")}</pre>${this.integrationPanel()}`;
     if (this.tab === "output")
       content = `<pre class="helm-output" tabindex="0" aria-label="Agent output">${esc(run.output || (live(run) ? "Waiting for output…" : "No output was recorded."))}</pre>${run.outputTruncated ? '<p class="inline-notice">Only the retained output is shown; earlier output was truncated.</p>' : ""}`;
     if (this.tab === "checks")
@@ -330,7 +430,7 @@ export class HelmView {
     if (this.tab === "context")
       content = `<p class="help">This is the context copied into this task when it started. It stays unchanged when project notes are edited.</p><pre class="helm-output" tabindex="0" aria-label="Task context snapshot">${esc(run.contextSnapshot || "No saved context was attached.")}</pre>`;
 
-    return `<div class="helm-detail"><div class="page-heading"><h1 title="${esc(run.title)}">${esc(run.title)}</h1><p><span class="helm-status helm-status--${esc(run.status)}">${esc(runStatus(run))}</span> · ${new Date(run.updatedAt).toLocaleString()}</p></div><div class="page-actions">${live(run) ? button("Stop task", "cancel", 'class="danger-button"') : ""}${run.sessionId ? button("Open conversation", "session") : ""}</div><nav class="helm-tabs" aria-label="Task details">${sections.map(([id, label]) => button(label, "tab", `data-tab="${id}" aria-pressed="${this.tab === id}" class="${this.tab === id ? "active" : ""}"`)).join("")}</nav><section class="helm-detail-content">${content}</section></div>`;
+    return `<div class="helm-detail"><div class="page-heading"><h1 id="helm-selected-heading" tabindex="-1" title="${esc(run.title)}">${esc(run.title)}</h1><p><span class="helm-status helm-status--${esc(run.status)}">${esc(runStatus(run))}</span> · ${new Date(run.updatedAt).toLocaleString()}</p></div>${this.reviewStages()}${run.orcaOrigin ? `<p class="help">Orca worker ${esc(run.orcaOrigin.intentId)} · Snapshot revision ${esc(run.orcaOrigin.revision)}. Review and task checks cover this saved snapshot.</p>` : ""}<div class="page-actions">${run.workOrigin && this.actions.openWork ? button("Open work", "work-open") : ""}${live(run) ? button("Stop task", "cancel", 'class="danger-button"') : ""}${run.sessionId ? button("Open conversation", "session") : ""}</div><nav class="helm-tabs" aria-label="Task details">${sections.map(([id, label]) => button(label, "tab", `data-tab="${id}" aria-pressed="${this.tab === id}" class="${this.tab === id ? "active" : ""}"`)).join("")}</nav><section class="helm-detail-content">${content}</section></div>`;
   }
   private contextPanel() {
     const note = this.noteEditor;
@@ -380,6 +480,7 @@ export class HelmView {
     });
     this.host.scrollTop = scroll;
     restoreFocus(this.host, focus);
+    if (this.focusAfterRender) { this.host.querySelector<HTMLElement>(this.focusAfterRender)?.focus({ preventScroll: true }); this.focusAfterRender = undefined; }
     this.host.onclick = (event) => {
       const target = (event.target as Element).closest<HTMLElement>(
         "[data-helm]",
@@ -433,7 +534,7 @@ export class HelmView {
   }
   private async submit(kind: string) {
     await this.perform(async () => {
-      const { root, profile } = this.context!;
+      const { root } = this.context!, profile = kind === "start" || kind === "note" ? this.context!.profile : this.runProfile();
       if (kind === "start") {
         if (
           !root ||
@@ -489,8 +590,8 @@ export class HelmView {
         const checks = this.checks(), maxSeconds = Number(this.sourceSeconds);
         if (!checks.length) throw new Error("Select Run a verification command and review its executable and arguments first.");
         if (!Number.isInteger(maxSeconds) || maxSeconds < 1 || maxSeconds > 300) throw new Error("Choose a source check time limit from 1 to 300 seconds.");
-        const receipt = await this.rpc("helm.source.start", { id: review.runId, reviewId: review.id, profile, checks, maxSeconds });
-        if (this.context?.root === root && this.context?.profile === profile && this.integration?.id === review.id) this.sourceCheck = receipt;
+        const receipt = await this.rpc("helm.source.start", { id: review.runId, reviewId: review.id, profile, checks, maxSeconds, ...this.workHint() });
+        if (this.context?.root === root && this.context?.profile === profile && this.integration?.id === review.id) { this.sourceCheck = receipt; await this.loadWorkAcceptance(); }
       } else if (kind === "verify") {
         const checks = this.checks();
         if (!checks.length)
@@ -502,6 +603,7 @@ export class HelmView {
           id,
           profile,
           checks,
+          ...this.workHint(),
         });
         if (this.selected?.id !== id || this.context?.root !== root || this.context?.profile !== profile) return;
         this.selected = verified;
@@ -572,17 +674,45 @@ export class HelmView {
     }
     if (action === "preview-refresh") return this.perform(async () => { await this.loadPreviews(); });
     if (action === "source-refresh") return this.perform(async () => { await this.loadSourceChecks(); });
+    if (action === "work-acceptance-refresh") return this.perform(() => this.loadWorkAcceptance());
+    if (action === "work-open") {
+      const run = this.selected, origin = run?.workOrigin;
+      if (run && origin && this.actions.openWork) {
+        this.assertRunScope(run);
+        return this.actions.openWork({ goalId: origin.goalId, taskId: origin.taskId, ownerProfile: origin.ownerProfile, root: run.root });
+      }
+      return;
+    }
+    if (action === "work-accept") {
+      if (this.busy) return;
+      const binding = this.acceptanceBinding(), eligibility = this.workAcceptance;
+      if (!binding || !eligibility || !this.matchesAcceptance(eligibility, binding) || eligibility.eligible !== true || eligibility.accepted || this.sourceCheck?.status !== "passed" || this.uncertainAcceptances.has(this.acceptanceKey(binding))) throw new Error("Refresh the current task, review, and passing source checks before acceptance.");
+      const key = this.acceptanceKey(binding), selection = this.selectionVersion, run = this.selected!, origin = run.workOrigin!;
+      return this.perform(async () => {
+        this.workAcceptance = undefined; this.uncertainAcceptances.add(key); const readAtDispatch = ++this.acceptanceReads; this.render();
+        const goal = await this.rpc("work.orca.accept", binding);
+        if (selection !== this.selectionVersion || key !== this.acceptanceKey()) return;
+        const task = goal?.tasks?.find((item: any) => item.id === binding.task), accepted = task?.orcaAcceptance;
+        if (goal?.id !== binding.id || goal.root !== run.root || goal.profile !== binding.profile || task?.status !== "completed" || task.engine?.requestId !== origin.requestId || accepted?.runId !== binding.runId || accepted.requestId !== origin.requestId || accepted.reviewId !== binding.reviewId || accepted.sourceCheckId !== binding.sourceCheckId || (eligibility.sourceRevision && accepted.sourceRevision !== eligibility.sourceRevision)) throw new Error("The acceptance reply did not confirm this exact task result. Refresh its saved status.");
+        if (readAtDispatch !== this.acceptanceReads) { await this.loadWorkAcceptance(); return; }
+        this.uncertainAcceptances.delete(key);
+        this.workAcceptance = { ...eligibility, eligible: false, accepted: true };
+        this.notice = "Task result accepted. Open Work to resume eligible dependent tasks.";
+        this.focusAfterRender = "#helm-work-acceptance-status";
+      });
+    }
     if (action === "source-cancel") return this.perform(async () => {
-      const review = this.integration!, receipt = this.sourceCheck!, { root, profile } = this.context!;
+      const review = this.integration!, receipt = this.sourceCheck!, { root } = this.context!, profile = this.runProfile();
       const result = await this.rpc("helm.source.cancel", { id: review.runId, reviewId: review.id, sourceCheckId: receipt.id, profile });
-      if (this.context?.root === root && this.context?.profile === profile && this.integration?.id === review.id) this.sourceCheck = result;
+      if (this.context?.root === root && this.context?.profile === profile && this.integration?.id === review.id) { this.sourceCheck = result; await this.loadWorkAcceptance(); }
     });
     if (action === "source-terminal") return this.actions.openWorkspace(this.context!.root, "terminal");
     if (action === "integration-prepare") return this.perform(async () => {
-      const run = this.selected!, { root, profile } = this.context!;
+      const run = this.selected!, { root } = this.context!, profile = this.runProfile(run);
       if (["applying", "unknown"].includes(this.integration?.status ?? "")) throw new Error("Inspect the source and reconcile the previous application before preparing another review.");
       this.integration = undefined;
-      const review: HelmIntegrationReview = await this.rpc("helm.integration.prepare", { id: run.id, profile });
+      this.sourceCheck = undefined; this.workAcceptance = undefined; this.acceptanceReads++;
+      const review: HelmIntegrationReview = await this.rpc("helm.integration.prepare", { id: run.id, profile, ...this.workHint(run) });
       if (this.selected?.id !== run.id || this.context?.root !== root || this.context?.profile !== profile) return;
       if (review.runId !== run.id || review.root !== root || typeof review.patch !== "string" || !review.patch) throw new Error("The review did not match this task and source project.");
       this.integration = review;
@@ -592,18 +722,19 @@ export class HelmView {
       const displayed = this.host?.querySelector("#helm-integration-patch")?.textContent;
       if (!review || review.status !== "prepared" || displayed !== review.patch) throw new Error("Prepare and read the complete patch before applying changes.");
       return this.perform(async () => {
-        const { root, profile } = this.context!;
+        const { root } = this.context!, profile = this.runProfile(), selection = this.selectionVersion;
         const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(displayed));
+        if (selection !== this.selectionVersion || this.integration?.id !== review.id || this.context?.root !== root || this.context?.profile !== profile) return;
         const patchDigest = [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
         review.status = "unknown"; // Never offer automatic retry after a lost acknowledgement.
-        const result = await this.rpc("helm.integration.apply", { id: review.runId, reviewId: review.id, profile, patchDigest });
+        const result = await this.rpc("helm.integration.apply", { id: review.runId, reviewId: review.id, profile, patchDigest, ...this.workHint() });
         if (this.integration?.id !== review.id || this.context?.root !== root || this.context?.profile !== profile) return;
         this.integration = result;
         await this.loadSourceChecks();
       });
     }
     if (action === "integration-status") return this.perform(async () => {
-      const review = this.integration!, { root, profile } = this.context!;
+      const review = this.integration!, { root } = this.context!, profile = this.runProfile();
       const result = await this.rpc("helm.integration.get", { id: review.runId, reviewId: review.id, profile });
       if (this.integration?.id === review.id && this.context?.root === root && this.context?.profile === profile) { this.integration = result; await this.loadSourceChecks(); }
     });
@@ -678,28 +809,13 @@ export class HelmView {
         const { root, profile } = this.context!;
         const selected = await this.rpc("helm.get", { id: element.dataset.id, profile });
         if (this.context?.root !== root || this.context?.profile !== profile) return;
-        if (selected.root !== root) throw new Error("Open the linked task’s source project and Hades profile before selecting it.");
-        const reviews = selected.status === "starting" ? [] : await this.rpc("helm.integration.list", { id: selected.id, profile });
-        if (this.context?.root !== root || this.context?.profile !== profile) return;
-        this.selected = selected;
-        this.integration = this.reviewFor(selected, reviews);
-        await this.loadSourceChecks();
-        if (this.context?.root !== root || this.context?.profile !== profile) return;
-        this.creating = false;
-        this.tab = "overview";
-        this.diff = "";
-        this.diffMeta = undefined;
-        const check = this.selected?.requestedChecks?.[0];
-        this.useCheck = !!check;
-        if (check) {
-          this.command = check.command;
-          this.args = JSON.stringify(check.args);
-        }
+        this.assertRunScope(selected, element.dataset.id);
+        await this.showRun(selected, "overview");
       }
       if (action === "cancel") {
         await this.rpc("helm.cancel", {
           id: this.selected!.id,
-          profile: this.context!.profile,
+          profile: this.runProfile(),
         });
         await this.refresh();
       }
@@ -714,14 +830,15 @@ export class HelmView {
     });
   }
   private async loadDiff() {
-    await this.perform(async () => {
-      const id = this.selected!.id;
-      const { root, profile } = this.context!;
-      const result = await this.rpc("helm.diff", { id, profile });
-      if (this.selected?.id !== id || this.context?.root !== root || this.context?.profile !== profile) return;
-      this.diffMeta = result;
-      this.diff = result.text || "No changes in the task checkout.";
-    });
+    await this.perform(() => this.fetchDiff());
+  }
+  private async fetchDiff() {
+    const id = this.selected!.id, selection = this.selectionVersion;
+    const { root } = this.context!, profile = this.runProfile();
+    const result = await this.rpc("helm.diff", { id, profile });
+    if (selection !== this.selectionVersion || this.selected?.id !== id || this.context?.root !== root || this.context?.profile !== profile) return;
+    this.diffMeta = result;
+    this.diff = result.text || "No changes in the task checkout.";
   }
 }
 function message(error: unknown) {

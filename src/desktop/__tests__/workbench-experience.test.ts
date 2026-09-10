@@ -38,6 +38,41 @@ async function mount(compact = false) {
 beforeEach(() => { root = document.createElement("div"); document.body.append(root); localStorage.clear(); terminal.focus.mockClear(); restoredSession = undefined; restoredArtifacts = []; });
 afterEach(() => { window.dispatchEvent(new Event("beforeunload")); document.body.replaceChildren(); vi.unstubAllGlobals(); });
 describe("workbench interaction experience", () => {
+  it("opens the exact Work review in Helm, invalidates acceptance on Work events, and returns to the task", async () => {
+    await mount();
+    const goal = { id: "work-goal", root: "/project", profile: "p", objective: "Review delivery", status: "needs_review", maxTokens: 30000, maxMinutes: 10, tasks: [{ id: "work-task", title: "Reviewed parser", profile: "p", status: "failed", engine: { kind: "orca", agent: "codex", requestId: "intent", dispatchIntent: true }, attempts: [{ id: "attempt", number: 1, status: "failed", startedAt: 1 }], dependsOn: [] }] };
+    const run = { id: "imported-run", root: "/project", owner: "p", workspace: "/review", agent: "codex", title: "Reviewed parser", prompt: "Inspect parser", status: "verified", updatedAt: 1, maxMinutes: 5, output: "", exclusions: [], orcaOrigin: { intentId: "intent", runId: "worker-run", dispatchId: "dispatch", revision: "snapshot" }, workOrigin: { goalId: goal.id, taskId: "work-task", ownerProfile: "p", taskProfile: "p", requestId: "intent", attemptId: "attempt" } };
+    const review = { id: "review", runId: run.id, root: "/project", status: "applied", patch: "full patch", files: ["result.md"], sourceRevision: "before", revision: "snapshot" };
+    const source = { id: "check", reviewId: "review", runId: run.id, root: "/project", status: "passed", after: "source", checks: [], results: [], maxSeconds: 30 };
+    let eligible = true;
+    const invoke = (globalThis as any).__TAURI__.core.invoke, original = invoke.getMockImplementation();
+    invoke.mockImplementation(async (nativeMethod: string, args: any) => {
+      const method = args?.cmd?.method;
+      if (method === "work.list") return { result: [goal] };
+      if (method === "work.get") return { result: goal };
+      if (method === "work.orca.import") return { result: { goal, run } };
+      if (method === "helm.get") return { result: run };
+      if (method === "helm.integration.list") return { result: [review] };
+      if (method === "helm.source.list") return { result: [source] };
+      if (method === "helm.diff") return { result: { text: "full patch", files: ["result.md"], stale: false, truncated: false } };
+      if (method === "work.orca.acceptance") return { result: { eligible, reasons: eligible ? [] : ["New instructions invalidate the previous result"], goalId: goal.id, taskId: "work-task", runId: run.id, reviewId: "review", sourceCheckId: "check", evidence: [] } };
+      return original(nativeMethod, args);
+    });
+    click('[data-action="nav"][data-view="work"]'); await settle();
+    click('[data-work="open"]'); await settle(); click('[data-work="orca-review"]');
+    await vi.waitFor(() => expect(root.querySelector('[data-helm="work-accept"]')).toBeTruthy());
+    expect(root.querySelector("#helm-selected-heading")?.textContent).toBe("Reviewed parser");
+    const methodCalls = (method: string) => invoke.mock.calls.filter(([, args]: any[]) => args?.cmd?.method === method);
+    expect(methodCalls("work.orca.import")[0][1].cmd.args).toEqual({ id: goal.id, task: "work-task", profile: "p" });
+    const before = methodCalls("work.orca.acceptance").length;
+    emit({ kind: "desktop.work", profile: "other" }); await settle(); expect(methodCalls("work.orca.acceptance")).toHaveLength(before);
+    eligible = false; emit({ kind: "desktop.work", profile: "p" });
+    expect(root.querySelector('[data-helm="work-accept"]')).toBeNull(); await settle();
+    expect(root.querySelector(".helm-work-acceptance")?.textContent).toContain("New instructions invalidate");
+    click('[data-helm="work-open"]'); await vi.waitFor(() => expect(root.querySelector('[data-work-task="work-task"]')).toBeTruthy()); await settle();
+    expect((document.activeElement as HTMLElement)?.dataset.workTask).toBe("work-task");
+    for (const method of ["helm.code.open", "helm.orca.start", "work.orca.accept", "work.resume"]) expect(methodCalls(method)).toHaveLength(0);
+  });
   it("opens all new native management pages from Tools and connections", async () => {
     await mount();
     for (const [route, heading] of [["credentials", "Credentials"], ["channels", "Channels"], ["hooks", "Hooks"], ["maintenance", "Maintenance"]]) {

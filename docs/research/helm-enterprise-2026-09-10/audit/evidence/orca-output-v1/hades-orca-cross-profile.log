@@ -1,0 +1,30 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:58705) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/workbench-orca-acceptance.test.ts (5 tests | 1 failed) 14539ms
+   × keeps the assigned worker profile separate from the goal owner throughout import and acceptance 110ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/workbench-orca-acceptance.test.ts > keeps the assigned worker profile separate from the goal owner throughout import and acceptance
+Error: Work belongs to another profile
+ ❯ DurableWork.get src/desktop/core/durable-work.ts:140:126
+
+ ❯ DurableWork.run src/desktop/core/durable-work.ts:287:20
+ ❯ WorkbenchService.dispatchCommand src/desktop/core/workbench-service.ts:1338:41
+ ❯ src/desktop/core/workbench-service.ts:965:53
+ ❯ WorkbenchService.withMaintenanceAdmission src/desktop/core/workbench-service.ts:927:18
+ ❯ WorkbenchService.dispatch src/desktop/core/workbench-service.ts:965:17
+ ❯ fixture src/desktop/__tests__/workbench-orca-acceptance.test.ts:42:17
+ ❯ src/desktop/__tests__/workbench-orca-acceptance.test.ts:103:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 passed (5)
+   Start at  06:46:44
+   Duration  15.03s (transform 348ms, setup 0ms, import 425ms, tests 14.54s, environment 0ms)
+

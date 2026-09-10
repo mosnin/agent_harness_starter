@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The review never launches Orca, a provider, or a listener.
 const processFixture = vi.hoisted(() => ({ spawn: vi.fn() }));
-vi.mock('node:child_process', () => ({ spawn: processFixture.spawn }));
+vi.mock('node:child_process', () => ({ spawn: processFixture.spawn, execFile: vi.fn(() => { throw new Error('Review fixture forbids subprocess execution'); }) }));
 import { HelmOrcaService, type HelmOrcaConnection } from '../core/helm-orca-service';
 import { HelmOrcaRuntime } from '../core/helm-orca-runtime';
 
@@ -45,7 +45,7 @@ function fixture() {
   });
   const connection = { runtimeId: 'runtime-owned', coordinator: 'terminal-owned', repo: 'repo-owned', call };
   const connect = vi.fn(async () => connection);
-  const service = new HelmOrcaService(directory, { connect });
+  const service = new HelmOrcaService(directory, { connect, resolveBase: async () => 'a'.repeat(40) });
   services.push(service);
   return { root, scope, directory, service, connect, call, input: { requestId: randomUUID(), prompt: 'Inspect fixture', agent: 'codex' as const } };
 }
@@ -74,7 +74,7 @@ describe('independent Orca adapter lifecycle review', () => {
     }));
     const runtime = new HelmOrcaRuntime(join(f.root, 'runtime'), artifact);
     runtimes.push(runtime);
-    const service = new HelmOrcaService(join(f.root, 'preflight-intents'), {
+    const service = new HelmOrcaService(join(f.root, 'preflight-intents'), { resolveBase: async () => 'a'.repeat(40),
       connect: (scope, signal) => runtime.connect(scope, signal),
     });
     services.push(service);
@@ -118,7 +118,7 @@ describe('independent Orca adapter lifecycle review', () => {
     stopReceipt.resolve({ state: 'stopped', dispatchId: record.dispatchId });
     const settled = await stopping;
     expect(settled).toMatchObject({ value: { state: 'stopped', active: false } });
-    const reopened = new HelmOrcaService(f.directory, { connect: f.connect });
+    const reopened = new HelmOrcaService(f.directory, { connect: f.connect, resolveBase: async () => 'a'.repeat(40) });
     services.push(reopened);
     expect(reopened.get(f.scope, record.id)).toMatchObject({ state: 'stopped', active: false });
   });

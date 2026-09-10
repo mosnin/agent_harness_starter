@@ -5,7 +5,8 @@ import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync, lstatSy
 import { join, resolve } from 'node:path';
 import { HELM_AGENTS, helmArgs, helmBinary, helmEnv, helmProviderError, helmAgentEnv } from './helm-adapters.js';
 import { probeHelmAgent } from './helm-provider-readiness.js';
-import type { HelmAgent, HelmCheck, HelmDiff, HelmOptions, HelmRun, HelmStart } from './helm-types.js';
+import { materializeOrcaImport, type HelmOrcaImportDescriptor } from './helm-orca-import.js';
+import type { HelmAgent, HelmCheck, HelmDiff, HelmOptions, HelmRun, HelmStart, HelmWorkOrigin } from './helm-types.js';
 const LIMIT = 200_000;
 const WORKTREE_QUEUES = new Map<string,Promise<void>>();
 const ACTIVE = new Set(['starting', 'running']);
@@ -96,6 +97,39 @@ export class HelmService {
     return {minutes,requestedChecks,root};
   }
   validateStart(input: HelmStart): void { this.prepareStart(input); }
+  /** Host-only import. The descriptor comes from the owned Orca service, never RPC arguments.
+   * A stopped worker becomes a retained review snapshot, not a verified coding result. */
+  async importOrca(descriptor: HelmOrcaImportDescriptor, input: {agent:'codex'|'claude'|'opencode';prompt:string;owner:string;title?:string;workOrigin?:HelmWorkOrigin}, signal?:AbortSignal): Promise<HelmRun> {
+    if(this.closed)throw new Error('Helm is closed');signal?.throwIfAborted();
+    if(input.workOrigin && (input.workOrigin.ownerProfile!==input.owner || input.workOrigin.taskProfile!==descriptor.profile || input.workOrigin.requestId!==descriptor.intentId))throw new Error('Orca Work import ownership mismatch');
+    if(!input.workOrigin && input.owner!==descriptor.profile)throw new Error('Orca import ownership mismatch');
+    const binding=createHash('sha256').update(JSON.stringify({descriptor,owner:input.owner,workOrigin:input.workOrigin})).digest('hex');
+    const id=`${binding.slice(0,8)}-${binding.slice(8,12)}-${binding.slice(12,16)}-${binding.slice(16,20)}-${binding.slice(20,32)}`;
+    const prior=this.runs.get(id);
+    if(prior){
+      if(JSON.stringify(prior.orcaOrigin)!==JSON.stringify(descriptor)||JSON.stringify(prior.workOrigin)!==JSON.stringify(input.workOrigin)||prior.owner!==input.owner)throw new Error('Orca import identity conflict');
+      if(!this.ownsWorkspace(prior.workspace))throw new Error('Retained Orca import is incomplete or its workspace identity changed. Inspect it; no import was replayed.');
+      return this.get(id);
+    }
+    if(this.runs.size>=500||this.live.size>=4)throw new Error('Helm retained run or active job limit reached');
+    const directory=join(this.directory,'orca-imports');mkdirSync(directory,{recursive:true,mode:0o700});
+    const claim=join(directory,id+'.json');let fd:number;
+    try{fd=openSync(claim,'wx',0o600);}catch(error){if((error as NodeJS.ErrnoException).code==='EEXIST')throw new Error('Orca import already claimed. Inspect its retained run after refresh; no snapshot was replayed.');throw error;}
+    try{writeFileSync(fd,JSON.stringify({schema:1,id,binding,descriptor,owner:input.owner,workOrigin:input.workOrigin,status:'importing'}));fsyncSync(fd);}finally{closeSync(fd);}
+    const directoryFd=openSync(directory,'r');try{fsyncSync(directoryFd);}finally{closeSync(directoryFd);}
+    const run:HelmRun={id,root:descriptor.root,workspace:join(this.directory,'workspaces',id),branch:'detached',baseSha:descriptor.baseSha,agent:input.agent,title:(input.title??'Orca output for review').slice(0,200),prompt:input.prompt,status:'starting',createdAt:Date.now(),updatedAt:Date.now(),output:'Imported output needs explicit verification, patch review, and fresh source checks.',maxMinutes:15,sourceDirty:false,exclusions:['Ignored files and local dependencies are excluded from this review snapshot.','Provider token usage remains unknown. Importing output does not dispatch another worker.'],owner:input.owner,orcaOrigin:structuredClone(descriptor),workOrigin:input.workOrigin?structuredClone(input.workOrigin):undefined};
+    const live:Live={controller:new AbortController()},abort=()=>live.controller.abort(signal?.reason);signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
+    this.runs.set(id,run);this.live.set(id,live);
+    live.done=(async()=>{
+      try{
+        this.changed(run);mkdirSync(join(this.directory,'workspaces'),{recursive:true,mode:0o700});
+        const snapshot=await materializeOrcaImport(descriptor,run.workspace,live.controller.signal);live.controller.signal.throwIfAborted();
+        run.workspaceIdentity=snapshot.workspaceIdentity;run.status='needs_review';this.changed(run);
+      }catch(error){run.status=live.controller.signal.aborted?'interrupted':'failed';run.error='Orca snapshot import did not complete. Inspect the retained destination; no automatic replay. '+String(error);this.changed(run);throw error;}
+      finally{signal?.removeEventListener('abort',abort);this.live.delete(id);}
+    })();
+    await live.done;return this.get(id);
+  }
   async start(input: HelmStart): Promise<HelmRun> {
     const {minutes,requestedChecks,root}=this.prepareStart(input);
     const id = randomUUID();

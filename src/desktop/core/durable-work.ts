@@ -11,8 +11,11 @@ export interface WorkAttempt {
   reservedTokens: number; tokens?: number; error?: string; engineRequestId?: string;
 }
 export type WorkEngine = { kind: "hades" } | { kind: "orca"; agent: "codex" | "claude" | "opencode"; model?: string; requestId: string; dispatchIntent?: boolean };
+export interface WorkOrcaImport { runId:string; requestId:string; attemptId:string; revision:string; importedAt:number }
+export interface WorkOrcaAcceptance { runId:string; requestId:string; reviewId:string; sourceCheckId:string; sourceRevision:string; patchDigest:string; acceptedAt:number }
 export interface WorkTask {
   engine?: WorkEngine;
+  orcaImports?: WorkOrcaImport[]; orcaAcceptance?: WorkOrcaAcceptance;
   id: string; title: string; prompt: string; profile: string; dependsOn: string[];
   status: WorkTaskStatus; session?: string; answer?: string; error?: string;
   /** Upper bound reserved for interrupted calls whose usage is unknown. Not measured spend. */
@@ -59,6 +62,9 @@ export class DurableWork {
   private audit: WorkAuditJournal;
   private owner = randomUUID();
   private active = new Map<string, { controller: AbortController; owner: string }>();
+  private sourceOperations = new Map<string,AbortController>();
+  private sourceSettlements = new Map<string,Promise<void>>();
+  private shutdown?:Promise<void>;
   private closed = false;
   private now: () => number;
   constructor(path: string, private deps: WorkDependencies) {
@@ -66,7 +72,9 @@ export class DurableWork {
     this.db = new DatabaseSync(path);
     this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS work_goals(id TEXT PRIMARY KEY, profile TEXT NOT NULL,
-      payload TEXT NOT NULL, owner TEXT, lease INTEGER, started INTEGER, revision INTEGER NOT NULL DEFAULT 0);`);
+      payload TEXT NOT NULL, owner TEXT, lease INTEGER, started INTEGER, revision INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE IF NOT EXISTS work_source_operations(id TEXT PRIMARY KEY, root TEXT NOT NULL, profile TEXT NOT NULL,
+      goal TEXT, task TEXT, kind TEXT NOT NULL, owner TEXT NOT NULL, started INTEGER NOT NULL, cancelled INTEGER NOT NULL DEFAULT 0);`);
     if (!(this.db.prepare("PRAGMA table_info(work_goals)").all() as Array<{name:string}>).some(c => c.name === "started")) this.db.exec("ALTER TABLE work_goals ADD COLUMN started INTEGER");
     for (const file of [path, `${path}-wal`, `${path}-shm`]) if (existsSync(file)) chmodSync(file, 0o600);
     this.audit = new WorkAuditJournal(this.db);
@@ -126,10 +134,90 @@ export class DurableWork {
     this.reconcile();
     // Check the entire durable store, not the UI's 200-item profile page. An
     // owner may still be finalizing a stopped plan in another local process.
-    return this.active.size > 0 || Boolean(this.db.prepare("SELECT 1 FROM work_goals WHERE owner IS NOT NULL OR json_extract(payload, '$.status')='running' LIMIT 1").get());
+    return this.active.size > 0 || Boolean(this.db.prepare("SELECT 1 FROM work_source_operations LIMIT 1").get()) || Boolean(this.db.prepare("SELECT 1 FROM work_goals WHERE owner IS NOT NULL OR json_extract(payload, '$.status')='running' LIMIT 1").get());
   }
   list(profile: string) { this.reconcile(); return (this.db.prepare("SELECT payload FROM work_goals WHERE profile=? ORDER BY rowid DESC LIMIT 200").all(profile) as unknown as Row[]).map(r => this.decode(r)); }
   get(id: string, profile: string) { this.reconcile(); const g = this.decode(this.row(id)); if (g.profile !== profile) throw new Error("Work belongs to another profile"); return g; }
+  orcaTask(id:string,profile:string,taskId:string) {
+    const goal=this.get(id,profile),task=goal.tasks.find(t=>t.id===taskId);
+    if(!task || task.engine?.kind!=="orca" || !task.engine.dispatchIntent || !task.attempts?.length)throw new Error("This task has no dispatched Orca worker");
+    return {goal,task,engine:task.engine,attempt:task.attempts.at(-1)!};
+  }
+  /** Coordinates host source edits with Work admission across desktop processes.
+   * A crash leaves a visible reservation. It never expires into permission to edit. */
+  async withSourceOperation<T>(root:string,profile:string,kind:string,binding:{goal:string;task:string}|undefined,operation:(signal:AbortSignal,assertActive:()=>void)=>Promise<T>):Promise<T> {
+    if(this.closed)throw new Error("Work service is closed");this.deps.profile(profile);root=realpathSync(this.deps.root(root));
+    if(binding)this.orcaTask(binding.goal,profile,binding.task);
+    const id=randomUUID(),controller=new AbortController();let revision:number|undefined;
+    this.db.exec("BEGIN IMMEDIATE");
+    try{
+      if(binding){const row=this.row(binding.goal),goal=this.decode(row);if(goal.profile!==profile||goal.root!==root||goal.status==="running"||row.owner)throw new Error("Stop and inspect Work before reviewing Orca output");revision=row.revision;}
+      const claims=this.db.prepare("SELECT root FROM work_source_operations").all() as Array<{root:string}>;
+      if(claims.some(c=>workPlanWritesOverlap(root,undefined,c.root,undefined)))throw new Error("A source operation is active or unconfirmed for this project. Inspect its saved receipt before continuing.");
+      const goals=(this.db.prepare("SELECT payload FROM work_goals WHERE owner IS NOT NULL").all() as unknown as Row[]).map(row=>this.decode(row));
+      if(goals.some(g=>g.tasks.some(t=>t.status==="running"&&workPlanWritesOverlap(root,undefined,g.root,t.writes))))throw new Error("Another Work task is editing this project. Stop it or wait before applying or checking source changes.");
+      this.db.prepare("INSERT INTO work_source_operations(id,root,profile,goal,task,kind,owner,started) VALUES(?,?,?,?,?,?,?,?)").run(id,root,profile,binding?.goal??null,binding?.task??null,clean(kind,"source operation",150),this.owner,this.now());
+      this.db.exec("COMMIT");
+    }catch(error){this.db.exec("ROLLBACK");throw error;}
+    this.sourceOperations.set(id,controller);
+    let settled!:()=>void;this.sourceSettlements.set(id,new Promise(resolve=>{settled=resolve;}));
+    const assertActive=()=>{
+      controller.signal.throwIfAborted();if(this.closed)throw new Error("Work service is closed");
+      const claim=this.db.prepare("SELECT cancelled,owner FROM work_source_operations WHERE id=?").get(id) as {cancelled:number;owner:string}|undefined;
+      if(!claim||claim.cancelled||claim.owner!==this.owner)throw new Error("Source operation was stopped or lost ownership");
+      if(binding){const row=this.row(binding.goal);if(row.revision!==revision||this.decode(row).status==="running")throw new Error("Work changed during source review; refresh before continuing");}
+    };
+    try{assertActive();return await operation(controller.signal,assertActive);}
+    finally{
+      try{this.db.prepare("DELETE FROM work_source_operations WHERE id=? AND owner=?").run(id,this.owner);}
+      finally{this.sourceOperations.delete(id);this.sourceSettlements.delete(id);settled();}
+    }
+  }
+  sourceOperationStatus(profile:string) {
+    this.deps.profile(profile);
+    const rows=this.db.prepare("SELECT id,root,goal,task,kind,started,cancelled FROM work_source_operations WHERE profile=? ORDER BY started").all(profile) as Array<{id:string;root:string;goal:string|null;task:string|null;kind:string;started:number;cancelled:number}>;
+    return rows.map(row=>({...row,state:this.sourceOperations.has(row.id)?"active" as const:"unconfirmed" as const}));
+  }
+  /** Host calls this only after checking the exact durable terminal effect receipt. */
+  releaseCompletedSourceOperation(id:string,profile:string,expected:{root:string;kind:string}) {
+    this.deps.profile(profile);if(this.sourceOperations.has(id))throw new Error("The source operation is still settling. Wait before checking recovery.");
+    return this.transaction(()=>{
+      const row=this.sourceOperationStatus(profile).find(row=>row.id===id);
+      if(!row)throw new Error("Source operation not found for this profile");
+      if(row.root!==expected.root||row.kind!==expected.kind)throw new Error("Source operation receipt changed");
+      this.db.prepare("DELETE FROM work_source_operations WHERE id=? AND profile=? AND kind=?").run(id,profile,expected.kind);
+      return {id,reconciled:true};
+    });
+  }
+  bindOrcaImport(id:string,profile:string,taskId:string,record:WorkOrcaImport,assertActive:()=>void) {
+    const {engine,attempt}=this.orcaTask(id,profile,taskId);assertActive();
+    if(record.requestId!==engine.requestId||record.attemptId!==attempt.id||!record.runId||!/^[a-f0-9]{64}$/.test(record.revision))throw new Error("Orca import does not belong to this Work attempt");
+    const current=this.get(id,profile).tasks.find(t=>t.id===taskId)!;
+    const prior=current.orcaImports?.find(item=>item.runId===record.runId);
+    if(prior){if(JSON.stringify({...prior,importedAt:0})!==JSON.stringify({...record,importedAt:0}))throw new Error("Orca import identity conflict");return this.get(id,profile);}
+    if((current.orcaImports?.length??0)>=32)throw new Error("Task import limit reached");
+    return this.edit(id,g=>{assertActive();const t=g.tasks.find(t=>t.id===taskId)!;if(t.engine?.kind!=="orca"||t.engine.requestId!==record.requestId||t.attempts?.at(-1)?.id!==record.attemptId)throw new Error("Work import attempt changed");(t.orcaImports??=[]).push(structuredClone(record));},undefined,"task.orca_imported",taskId);
+  }
+  acceptOrca(id:string,profile:string,taskId:string,receipt:Omit<WorkOrcaAcceptance,"acceptedAt">,assertActive:()=>void) {
+    const {goal,task,engine}=this.orcaTask(id,profile,taskId);assertActive();
+    if(goal.status==="running"||this.row(id).owner||task.messages.length)throw new Error("Stop Work and resolve pending task instructions before accepting output");
+    if(receipt.requestId!==engine.requestId||!task.orcaImports?.some(r=>r.runId===receipt.runId&&r.requestId===receipt.requestId))throw new Error("Import does not belong to this task");
+    if(!task.acceptance?.length)throw new Error("Configure task output checks before accepting Orca output");
+    if(task.orcaAcceptance){
+      if(JSON.stringify({...task.orcaAcceptance,acceptedAt:0})!==JSON.stringify({...receipt,acceptedAt:0}))throw new Error("This task already accepted another review");
+      assertWorkEvidence(goal.root,task.acceptance,task.evidence);return goal;
+    }
+    for(const dependency of task.dependsOn.map(id=>goal.tasks.find(t=>t.id===id)!)){if(dependency.status!=="completed")throw new Error("Task dependency is not accepted");assertWorkEvidence(goal.root,dependency.acceptance??[],dependency.evidence);}
+    const evidence=verifyWorkOutputs(goal.root,task.acceptance);assertActive();
+    return this.edit(id,g=>{
+      assertActive();const t=g.tasks.find(t=>t.id===taskId)!;
+      if(t.engine?.kind!=="orca"||t.engine.requestId!==receipt.requestId||t.messages.length||g.status==="running")throw new Error("Work task changed before acceptance");
+      t.status="completed";t.error=undefined;t.evidence=evidence;t.orcaAcceptance={...receipt,acceptedAt:this.now()};
+      t.answer=`Reviewed Orca output applied and checked in the source project. Review ${receipt.reviewId}; source checks ${receipt.sourceCheckId}. Provider usage remains unmeasured.`;
+      // Acceptance records artifacts only: unknown usage and original attempt outcomes stay intact.
+      g.status="needs_review";g.error="Task result accepted. Resume to run remaining tasks and the objective checks.";
+    },undefined,"task.orca_accepted",taskId);
+  }
   private auditSnapshot(id: string, profile: string) {
     // Audit inspection is read-only. In particular a denied request must not run
     // the scheduler's global expired-lease reconciliation before checking scope.
@@ -198,10 +286,13 @@ export class DurableWork {
     if (this.closed) throw new Error("Work service is closed");
     const g = this.get(id, profile);
     if (g.status !== "draft") throw new Error("Inspect this work and use Resume before running it again");
+    if(this.db.prepare("SELECT 1 FROM work_source_operations WHERE goal=?").get(id))throw new Error("Wait for the source operation to finish before running Work");
     if (this.active.size >= 3) throw new Error("Three work plans are already running");
     const owner = `${this.owner}:${randomUUID()}`;
     const started = this.transaction(() => {
-      const claimed = this.db.prepare("UPDATE work_goals SET owner=?,lease=?,started=?,revision=revision+1 WHERE id=? AND owner IS NULL AND (SELECT count(*) FROM work_goals WHERE owner IS NOT NULL AND lease>?)<3").run(owner, this.now() + 60000, this.now(), id, this.now()).changes;
+      const current=this.row(id);
+      if(this.decode(current).status!=="draft"||this.db.prepare("SELECT 1 FROM work_source_operations WHERE goal=?").get(id))throw new Error("Work changed or a source operation is active. Refresh before running it.");
+      const claimed = this.db.prepare("UPDATE work_goals SET owner=?,lease=?,started=?,revision=revision+1 WHERE id=? AND owner IS NULL AND json_extract(payload,'$.status')='draft' AND NOT EXISTS(SELECT 1 FROM work_source_operations WHERE goal=?) AND (SELECT count(*) FROM work_goals WHERE owner IS NOT NULL AND lease>?)<3").run(owner, this.now() + 60000, this.now(), id, id, this.now()).changes;
       if (claimed !== 1) throw new Error("Work is owned by another worker or three plans are already running");
       return this.edit(id, g => { g.status = "running"; g.error = undefined; }, owner, "work.started", undefined, false);
     });
@@ -212,6 +303,7 @@ export class DurableWork {
   }
   resume(id: string, profile: string, limits: Record<string, unknown> = {}) {
     const g = this.get(id, profile); if (g.status === "running" || g.status === "completed") throw new Error("Only stopped or interrupted work can be resumed");
+    if(this.db.prepare("SELECT 1 FROM work_source_operations WHERE goal=?").get(id))throw new Error("Wait for the source operation to finish before resuming Work");
     this.edit(id, goal => { goal.status = "draft"; goal.error = undefined;
       if (limits.maxTokens !== undefined) goal.maxTokens = bound(limits.maxTokens, goal.maxTokens, Math.max(1000, goal.tokens + reserved(goal) + 1000), 10000000);
       if (limits.maxRounds !== undefined) goal.maxRounds = bound(limits.maxRounds, goal.maxRounds, Math.max(...goal.tasks.map(t => t.rounds)) + 1, 64);
@@ -223,6 +315,9 @@ export class DurableWork {
   }
   stop(id: string, profile: string) {
     const current = this.get(id, profile); if (current.status === "completed") return current;
+    const sourceClaims=this.db.prepare("SELECT id FROM work_source_operations WHERE goal=?").all(id) as Array<{id:string}>;
+    this.db.prepare("UPDATE work_source_operations SET cancelled=1 WHERE goal=?").run(id);
+    for(const claim of sourceClaims)this.sourceOperations.get(claim.id)?.abort(new Error("Work stopped during source review"));
     this.active.get(id)?.controller.abort();
     const row = this.row(id);
     const g = this.edit(id, g => {
@@ -233,6 +328,7 @@ export class DurableWork {
   }
   message(id: string, profile: string, task: string, input: string) {
     const goal = this.get(id, profile); if (!goal.tasks.some(t => t.id === task)) throw new Error("Task not found");
+    if(this.db.prepare("SELECT 1 FROM work_source_operations WHERE goal=?").get(id))throw new Error("Stop or finish the source operation before changing task instructions");
     return this.edit(id, g => { const t = g.tasks.find(t => t.id === task)!;
       if (t.messages.length >= 32) throw new Error("This task has too many pending messages");
       t.messages.push({ id: randomUUID(), input: clean(input, "message", 8000), at: this.now() });
@@ -242,7 +338,7 @@ export class DurableWork {
         if (g.status === "running") throw new Error("Stop the plan before revising a completed task");
         const affected = new Set([task]); let grew = true;
         while (grew) { grew = false; for (const child of g.tasks) if (!affected.has(child.id) && child.dependsOn.some(d => affected.has(d))) { affected.add(child.id); grew = true; } }
-        for (const child of g.tasks) if (affected.has(child.id)) { child.status = "queued"; child.evidence = undefined; }
+        for (const child of g.tasks) if (affected.has(child.id)) { child.status = "queued"; child.evidence = undefined; child.orcaAcceptance=undefined; }
         g.status = "draft"; g.evidence = undefined;
       }
     }, undefined, "task.steered", task);
@@ -266,6 +362,7 @@ export class DurableWork {
       const busy = (this.db.prepare("SELECT payload FROM work_goals WHERE owner IS NOT NULL AND lease>?").all(this.now()) as unknown as Row[])
         .map(r => this.decode(r))
         .flatMap(g => g.tasks.filter(t => t.status === "running").map(task => ({ root: g.root, writes: task.writes })));
+      busy.push(...(this.db.prepare("SELECT root FROM work_source_operations").all() as Array<{root:string}>).map(c=>({root:c.root,writes:undefined})));
       const slots = goal.maxConcurrent - goal.tasks.filter(t => t.status === "running").length;
       const ready: WorkTask[] = [];
       for (const task of goal.tasks) {
@@ -398,10 +495,11 @@ export class DurableWork {
     }
   }
   close() {
-    if (this.closed) return;
+    if (this.closed) return this.shutdown;
     // Revocation must reach every worker even when the disk cannot record the
     // first checkpoint. Expired leases will reconcile any unsaved interruption.
     for (const active of this.active.values()) active.controller.abort();
+    for(const controller of this.sourceOperations.values())controller.abort(new Error("Hades closed during source operation"));
     let failed = false;
     for (const [id, active] of this.active) {
       try {
@@ -415,8 +513,10 @@ export class DurableWork {
       } catch { failed = true; }
     }
     this.closed = true;
-    try { this.db.close(); } catch { failed = true; }
-    if (failed) this.deps.failed?.("Work stopped, but its final checkpoint could not be saved. Review interrupted tasks after reopening Hades.");
+    const finish=()=>{try { this.db.close(); } catch { failed = true; }
+      if (failed) this.deps.failed?.("Work stopped, but its final checkpoint could not be saved. Review interrupted tasks after reopening Hades.");};
+    if(this.sourceSettlements.size){this.shutdown=Promise.allSettled([...this.sourceSettlements.values()]).then(finish);return this.shutdown;}
+    finish();
   }
 }
 

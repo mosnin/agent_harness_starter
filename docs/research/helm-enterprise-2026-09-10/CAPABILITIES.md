@@ -108,3 +108,7 @@ Each test pointer is relevant evidence, not proof of the whole upstream topic. T
 }
 
 Upstream research snapshots differ from integration pins: research inspected OpenCode859106e and Orca34790ce; current integration uses the pinned local fork and bf4e270. Do not transfer newer experimental features automatically. Full English heading inventory and retained source hashes are in the JSON. Actual standalone Orca/OpenCode features are not automatically available through Hades. No network, app or provider operations were used for this artifact.
+
+## Orca output follow-up
+
+The [Orca output checkpoint](audit/orca-output-v1.md) adds provenance-bound stopped-worker import into the existing Helm review workflow, cross-process reviewed apply claims, fresh source checks, explicit checked Work acceptance with unknown usage retained, scoped Stop fencing, and reconciliation of confirmed applied receipts. These capabilities are implemented and locally fixture-verified. Actual packaged Orca/provider/native acceptance and general uncertain-import recovery remain open; no previous platform coverage requirement is removed.

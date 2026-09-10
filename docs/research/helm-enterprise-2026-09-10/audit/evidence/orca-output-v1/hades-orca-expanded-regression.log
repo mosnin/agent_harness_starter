@@ -1,0 +1,87 @@
+
+> hades-agent@0.1.0 test:work:offline
+> node scripts/check-work-offline.mjs
+
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:70563) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:80853) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87776) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90586) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91304) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91931) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91937) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91952) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91953) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91955) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91956) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91957) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91958) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91959) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91960) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/desktop-request-routing.test.ts (5 tests | 1 failed) 10192ms
+   × still stops a retained active worker when the removed queue item was a duplicate 10047ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/desktop-request-routing.test.ts > still stops a retained active worker when the removed queue item was a duplicate
+AssertionError: expected { …(11) } to match object { …(3) }
+(11 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "active": false,
+    "id": "c4738034-91e2-4c63-956a-dafa895c3780",
+-   "state": "stopped",
++   "state": "failed",
+  }
+
+ ❯ src/desktop/__tests__/desktop-request-routing.test.ts:50:18
+     48|   const stop = f.submit("helm.orca.stop", { ...f.scope, id: task }); a…
+     49|   const result: any = f.events.find(event => event.id === stop.id)?.re…
+     50|   expect(result).toMatchObject({ id: task, state: "stopped", active: f…
+       |                  ^
+     51|   expect(calls.filter(method => method === "orchestration.workerStart"…
+     52|   expect(calls.filter(method => method === "orchestration.workerStop")…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/desktop/__tests__/desktop-request-routing.test.ts > still stops a retained active worker when the removed queue item was a duplicate
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ src/desktop/__tests__/desktop-request-routing.test.ts:12:1
+     10|
+     11| const cleanup: Array<() => Promise<void>> = [];
+     12| afterEach(async () => { for (const close of cleanup.splice(0)) await c…
+       | ^
+     13| function deferred() { let resolve!: () => void; const promise = new Pr…
+     14| type Request = { id: string; method: string; args?: Record<string, unk…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 25 passed (26)
+      Tests  1 failed | 244 passed (245)
+   Start at  06:33:57
+   Duration  44.32s (transform 552ms, setup 0ms, import 1.11s, tests 77.27s, environment 301ms)
+
+(node:29501) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)

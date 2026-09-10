@@ -3,6 +3,7 @@ import { chmodSync, mkdirSync, readdirSync, realpathSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
 import { HelmOrcaPreflightError } from './helm-orca-errors';
+import { resolveOrcaSourceBase, orcaSourceIdentity, snapshotOrcaWorkspace, type HelmOrcaImportDescriptor } from './helm-orca-import';
 export interface HelmOrcaScope { root: string; profile: string }
 export interface HelmOrcaConnection {
   runtimeId: string; coordinator: string; repo: string;
@@ -11,7 +12,7 @@ export interface HelmOrcaConnection {
 export interface HelmOrcaInput { requestId: string; prompt: string; agent: 'codex'|'claude'|'opencode'; model?: string }
 export interface HelmOrcaRecord extends HelmOrcaScope {
   id: string; fingerprint: string; input: HelmOrcaInput; state: 'starting'|'ready'|'failed'|'unknown'|'stopping'|'stopped'|'needs_review';
-  active: boolean; revision: number;
+  active: boolean; revision: number; baseSha?: string; sourceIdentity?: HelmOrcaImportDescriptor['sourceIdentity'];
   stage: 'connect'|'run'|'dispatch'|'stop'; runtimeId?: string; runId?: string; dispatchId?: string; requestId: string; error?: string; receipt?: unknown;
 }
 const coordinatorQueues=new Map<string,Promise<void>>();
@@ -35,7 +36,7 @@ export class HelmOrcaService {
   private operations = new Set<Promise<unknown>>();
   private stopping = new Map<string, Promise<HelmOrcaRecord>>();
   private shutdown?: Promise<void>;
-  constructor(private directory: string, private options: { connect(scope: HelmOrcaScope, signal: AbortSignal): Promise<HelmOrcaConnection> }) {
+  constructor(private directory: string, private options: { connect(scope: HelmOrcaScope, signal: AbortSignal): Promise<HelmOrcaConnection>; resolveBase?(root:string,signal:AbortSignal):Promise<string> }) {
     mkdirSync(directory,{recursive:true,mode:0o700});
     if(readdirSync(directory).some(f=>f.endsWith('.json')||f.endsWith('.claim')))throw new Error('Legacy Orca intent files require explicit migration; no records changed');
     this.db=new DatabaseSync(join(directory,'intents.sqlite'));chmodSync(join(directory,'intents.sqlite'),0o600);
@@ -82,11 +83,12 @@ export class HelmOrcaService {
     const controller=new AbortController();this.live.set(r.id,controller);const abort=()=>controller.abort();signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
     let releaseCoordinator:(()=>void)|undefined;
     try {
+      try{r.baseSha=await (this.options.resolveBase??resolveOrcaSourceBase)(r.root,controller.signal);}catch(e){controller.signal.throwIfAborted();throw new HelmOrcaPreflightError(e instanceof Error?e.message:'Source base unavailable');}if(!/^[a-f0-9]{40}$/.test(r.baseSha))throw new HelmOrcaPreflightError('Invalid source base SHA');if(!this.options.resolveBase)r.sourceIdentity=await orcaSourceIdentity(r.root,controller.signal);this.save(r);
       const c=await this.connection(r,controller.signal);r.runtimeId=c.runtimeId;releaseCoordinator=await reserveCoordinator(c.runtimeId+':'+c.coordinator,controller.signal);controller.signal.throwIfAborted();if(this.cancelled(r.id))throw new Error('Cancellation requested');r.stage='run';this.save(r);
       const created=await c.call('orchestration.runCreate',{objective:input.prompt,from:c.coordinator},{requestId:r.requestId,signal:controller.signal});
       if(typeof created?.run?.id!=='string')throw new Error('Malformed Orca Run receipt');r.runId=created.run.id;
       controller.signal.throwIfAborted();if(this.cancelled(r.id))throw new Error('Cancellation requested');r.stage='dispatch';r.requestId=randomUUID();this.save(r);
-      const result=await c.call('orchestration.workerStart',{spec:input.prompt,agent:input.agent,...(input.model?{model:input.model}:{}),run:r.runId,from:c.coordinator,repo:c.repo,worktree:'new-top-level',setup:'skip',timeoutMs:30000},{requestId:r.requestId,signal:controller.signal});
+      const result=await c.call('orchestration.workerStart',{spec:input.prompt,agent:input.agent,...(input.model?{model:input.model}:{}),run:r.runId,from:c.coordinator,repo:c.repo,worktree:'new-top-level',baseBranch:r.baseSha,setup:'skip',timeoutMs:30000},{requestId:r.requestId,signal:controller.signal});
       this.accept(r,result);
     }catch(e){
       r.state='unknown';r.error=e instanceof Error?e.message:'Orca outcome unknown';
@@ -153,6 +155,30 @@ export class HelmOrcaService {
     const c=await this.connection(r,new AbortController().signal);
     r.state='stopping';r.stage='stop';r.requestId=randomUUID();this.save(r);
     try{r.receipt=await c.call('orchestration.workerStop',{dispatch:r.dispatchId},{requestId:r.requestId});const receipt=r.receipt as any;r.state=receipt?.dispatchId===r.dispatchId&&receipt?.state==='stopped'?'stopped':'unknown';if(r.state==='stopped')r.active=false;else r.error='Stop outcome is uncertain; inspect the retained receipt.';}catch(e){r.state='unknown';r.error=String(e);}this.save(r);return r;
+  }
+  prepareImport(s:HelmOrcaScope,id:string,signal=new AbortController().signal):Promise<HelmOrcaImportDescriptor>{
+    return this.operation(async()=>{
+      const r=this.get(s,id);signal.throwIfAborted();
+      if(!r.baseSha||!r.sourceIdentity||!r.runtimeId||!r.runId||!r.dispatchId||this.live.has(id))throw new Error('No authoritative stopped-worker import provenance');
+      const c=await this.connection(r,signal);
+      const observe=async()=>{
+        signal.throwIfAborted();const result=await c.call('orchestration.workerShow',{dispatch:r.dispatchId},{signal});
+        signal.throwIfAborted();
+        if(result?.dispatch?.id!==r.dispatchId||result?.worker?.dispatchId!==r.dispatchId||result.worker.runtimeEpoch!==r.runtimeId||result.worker.startOptions?.baseBranch!==r.baseSha||result.observation?.exactWorker!==true||result.observation.status!=='exited'||typeof result.worker.worktreeId!=='string')throw new Error('Worker identity, base or stopped observation is unconfirmed');
+        return result.worker.worktreeId as string;
+      };
+      const worktreeId=await observe();
+      const result=await c.call('worktree.show',{worktree:'id:'+worktreeId},{signal});signal.throwIfAborted();
+      const worktree=result?.worktree;
+      if(worktree?.id!==worktreeId||worktree.repoId!==c.repo||typeof worktree.git?.path!=='string')throw new Error('Managed workspace ownership mismatch');
+      const workspace=worktree.git.path;
+      const before=await snapshotOrcaWorkspace(r.root,workspace,r.baseSha,signal);
+      if(JSON.stringify(before.sourceIdentity)!==JSON.stringify(r.sourceIdentity))throw new Error('Source identity changed since dispatch');
+      if(await observe()!==worktreeId)throw new Error('Worker workspace changed');
+      const after=await snapshotOrcaWorkspace(r.root,workspace,r.baseSha,signal);
+      if(JSON.stringify(before)!==JSON.stringify(after)||this.get(s,id).revision!==r.revision)throw new Error('Orca output changed during import preparation');
+      return {intentId:r.id,runtimeId:r.runtimeId,runId:r.runId,dispatchId:r.dispatchId,worktreeId,root:r.root,profile:r.profile,baseSha:r.baseSha,workspace,...after};
+    });
   }
   hasActiveWork(){return this.live.size>0||(this.db.prepare('SELECT count(*) AS n FROM attempts WHERE active=1').get() as {n:number}).n>0;}
   close(){

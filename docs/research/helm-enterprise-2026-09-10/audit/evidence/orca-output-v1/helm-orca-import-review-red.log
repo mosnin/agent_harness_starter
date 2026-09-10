@@ -1,0 +1,45 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:9437) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/helm-orca-import-review.test.ts (7 tests | 1 failed) 3503ms
+   × rejects materialization nested inside the actual source without creating files 818ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/helm-orca-import-review.test.ts > rejects materialization nested inside the actual source without creating files
+AssertionError: promise resolved "{ sourceIdentity: { …(5) }, …(2) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "revision": "ce68fdbee80553bb5dddfe97f2c7f9674773a4208fb327ebce8122d3daf9ee55",
++   "sourceIdentity": {
++     "commonDev": 16777229,
++     "commonDir": "/private/var/folders/zp/3_gt4g9d0q5_jmxnw_spqp900000gn/T/orca-import-review-FPcc2X/source/.git",
++     "commonIno": 106403810,
++     "dev": 16777229,
++     "ino": 106403809,
++   },
++   "workspaceIdentity": {
++     "dev": 16777229,
++     "gitFileDigest": "b6f7a1f5191d5c640e6f963944e8e2837a01725c892ec7df47563f13e449b8ff",
++     "ino": 106403932,
++   },
+  }
+
+ ❯ src/desktop/__tests__/helm-orca-import-review.test.ts:17:245
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  06:30:13
+   Duration  3.62s (transform 36ms, setup 0ms, import 47ms, tests 3.50s, environment 0ms)
+

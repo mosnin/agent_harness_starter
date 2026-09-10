@@ -22,6 +22,11 @@
   border-radius: 4px;
 }
 .work-page .work-task p, .work-page .work-task h2 { overflow-wrap: anywhere; }
+.work-page .work-orca-review { padding: 16px; margin: 16px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.work-page .work-orca-review > strong { font-size: 14px; font-weight: 600; }
+.work-page .work-orca-review details { margin: 12px 0; }
+.work-page .work-task:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.work-page .work-source-operations article + article { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
 .work-page details > summary { cursor: pointer; }
 .work-page :is(button, summary, input, select, textarea):focus-visible {
   outline: 2px solid var(--accent);

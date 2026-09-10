@@ -1,0 +1,45 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:91528) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/work-orca-import-independent.test.ts (2 tests | 1 failed) 14ms
+   × clean shutdown cancellation before any source effect must not strand a permanent reservation 8ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/work-orca-import-independent.test.ts > clean shutdown cancellation before any source effect must not strand a permanent reservation
+AssertionError: expected [ { …(7) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "cancelled": 0,
++     "goal": null,
++     "id": "830a662b-f153-4cc8-8024-304cca29ccb9",
++     "kind": "fixture-no-effect",
++     "root": "/private/var/folders/zp/3_gt4g9d0q5_jmxnw_spqp900000gn/T/work-import-review-clNeUf",
++     "started": 1789036015006,
++     "task": null,
++   },
++ ]
+
+ ❯ src/desktop/__tests__/work-orca-import-independent.test.ts:14:77
+     12|  const outcome=pending.catch(()=>{});await Promise.resolve();work.clos…
+     13|  const reopened=new DurableWork(file,deps);
+     14|  try{expect(effect).toBe(false);expect(reopened.sourceOperationStatus(…
+       |                                                                             ^
+     15|  finally{reopened.close();rmSync(dir,{recursive:true,force:true});}
+     16| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  06:26:54
+   Duration  140ms (transform 45ms, setup 0ms, import 56ms, tests 14ms, environment 0ms)
+

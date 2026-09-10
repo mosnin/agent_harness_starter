@@ -15,6 +15,7 @@ const inspections = new Set([
   "codex.status", "codex.login", "voice.transcribe", "local.list",
   "computer.configure", "terminal.write", "terminal.resize", "key.set",
   "work.list", "work.get", "work.audit.head", "work.audit.read", "work.audit.export",
+  "work.source.status", "work.orca.acceptance",
   "helm.code.status", "helm.list", "helm.get", "helm.orca.info", "helm.orca.list",
   "helm.orca.get", "helm.orca.read", "helm.orca.refresh", "helm.orca.recover",
   "spatial.status", "browser.status", "session.get",
@@ -43,7 +44,8 @@ function queuedStartMatchesStop(start: DesktopQueuedRequest, stop: DesktopQueued
   const a = start.args as Record<string, unknown> | undefined, b = stop.args as Record<string, unknown> | undefined;
   if (!a || !b || a.profile !== b.profile) return false;
   if (stop.method === 'ecosystem.disconnect' && start.method === 'ecosystem.connect') return typeof b.pluginId === 'string' && a.pluginId === b.pluginId;
-  if (stop.method === "work.stop" && ["work.run", "work.resume"].includes(start.method)) return typeof b.id === "string" && a.id === b.id;
+  if (stop.method === "work.stop" && ["work.run", "work.resume", "work.orca.import", "work.orca.accept"].includes(start.method)) return typeof b.id === "string" && a.id === b.id;
+  if (stop.method === "work.stop" && ["helm.verify","helm.integration.prepare","helm.integration.apply","helm.source.start"].includes(start.method)) return typeof b.id === "string" && a.workGoalId === b.id;
   if (stop.method === "helm.code.close" && start.method === "helm.code.open") return typeof b.root === "string" && a.root === b.root;
   if (stop.method === "spatial.cancel" && start.method === "spatial.capture") return typeof b.sessionId === "string" && a.sessionId === b.sessionId;
   if (stop.method === "spatial.workflow" && start.method === "spatial.workflow" && (b.operation === "stop" || b.operation === "cancel") && (a.operation === "start" || a.operation === "replay")) return typeof b.sessionId === "string" && a.sessionId === b.sessionId && typeof b.tabId === "string" && a.tabId === b.tabId;

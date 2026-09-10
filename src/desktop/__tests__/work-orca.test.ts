@@ -251,7 +251,7 @@ for (let trial = 1; trial <= 3; trial++)
         throw Error("Unexpected " + method);
       },
     });
-    let service = new HelmOrcaService(join(dir, "orca"), { connect });
+    let service = new HelmOrcaService(join(dir, "orca"), { connect, resolveBase: async () => 'a'.repeat(40) });
     i.markDispatchIntent = () => {
       if (i.engine?.kind === "orca") i.engine.dispatchIntent = true;
     };
@@ -262,7 +262,7 @@ for (let trial = 1; trial <= 3; trial++)
         new AbortController().signal,
       );
       await service.close();
-      service = new HelmOrcaService(join(dir, "orca"), { connect });
+      service = new HelmOrcaService(join(dir, "orca"), { connect, resolveBase: async () => 'a'.repeat(40) });
       const result = await executeWorkOrca(
         { service, preflight: () => {} },
         i,

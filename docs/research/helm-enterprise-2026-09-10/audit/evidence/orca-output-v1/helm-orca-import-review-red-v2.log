@@ -1,0 +1,85 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:13388) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/helm-orca-import-review.test.ts (8 tests | 2 failed) 4028ms
+   × rejects materialization nested inside source or its Git metadata: import 746ms
+   × rejects materialization nested inside source or its Git metadata: .git/import 729ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/helm-orca-import-review.test.ts > rejects materialization nested inside source or its Git metadata: import
+AssertionError: promise resolved "{ sourceIdentity: { …(5) }, …(2) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "revision": "a65a4817757219bdc4f3257df70efa36787c38ed32ac4ea9e2c754b38ad4b638",
++   "sourceIdentity": {
++     "commonDev": 16777229,
++     "commonDir": "/private/var/folders/zp/3_gt4g9d0q5_jmxnw_spqp900000gn/T/orca-import-review-xjp8Dh/source/.git",
++     "commonIno": 106404922,
++     "dev": 16777229,
++     "ino": 106404921,
++   },
++   "workspaceIdentity": {
++     "dev": 16777229,
++     "gitFileDigest": "a4cccb38f45ebdd2f32cb8b5b7cb5807e661b884d5e6b369fe49d8e658b1f781",
++     "ino": 106405030,
++   },
+  }
+
+ ❯ src/desktop/__tests__/helm-orca-import-review.test.ts:107:51
+    105|     const d = await f.service.prepareImport(f.scope, f.id),
+    106|       target = join(f.root, relative);
+    107|     await expect(materializeOrcaImport(d, target)).rejects.toThrow(
+       |                                                   ^
+    108|       "destination",
+    109|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/desktop/__tests__/helm-orca-import-review.test.ts > rejects materialization nested inside source or its Git metadata: .git/import
+AssertionError: promise resolved "{ sourceIdentity: { …(5) }, …(2) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "revision": "a20c1d0d884cb780ff727f049a10cad6115a207193f4718a5446717231430e59",
++   "sourceIdentity": {
++     "commonDev": 16777229,
++     "commonDir": "/private/var/folders/zp/3_gt4g9d0q5_jmxnw_spqp900000gn/T/orca-import-review-RvUxaT/source/.git",
++     "commonIno": 106405050,
++     "dev": 16777229,
++     "ino": 106405049,
++   },
++   "workspaceIdentity": {
++     "dev": 16777229,
++     "gitFileDigest": "ecf3b3ea3db88291044d5720511715a6e9a43e029981a1a5cd32d1a9abd80fee",
++     "ino": 106405157,
++   },
+  }
+
+ ❯ src/desktop/__tests__/helm-orca-import-review.test.ts:107:51
+    105|     const d = await f.service.prepareImport(f.scope, f.id),
+    106|       target = join(f.root, relative);
+    107|     await expect(materializeOrcaImport(d, target)).rejects.toThrow(
+       |                                                   ^
+    108|       "destination",
+    109|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 passed (8)
+   Start at  06:30:59
+   Duration  4.13s (transform 32ms, setup 0ms, import 42ms, tests 4.03s, environment 0ms)
+

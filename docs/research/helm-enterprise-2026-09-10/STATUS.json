@@ -1,6 +1,6 @@
 {
   "schema": "hades.enterprise-program-status.v1",
-  "updatedAt": "2026-09-10T10:01:07.673628+00:00",
+  "updatedAt": "2026-09-10T10:52:22.275762+00:00",
   "goal": "active",
   "productAccepted": false,
   "hadesBaseline": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
@@ -30,17 +30,17 @@
     {
       "id": "G05",
       "status": "partial",
-      "evidence": "Durable Work now dispatches to the existing Orca service with persisted identity, no replay on unknown recovery, and three repeated in-process fault fixtures. Six independent review cases pass. Real runtime/crash-boundary trials remain open."
+      "evidence": "Dispatch now pins source base/identity and repeated owned-worker observations; source import and durable apply claims pass fault fixtures, including an owned child SIGKILL. Real Orca runtime/restart trials remain open."
     },
     {
       "id": "G06",
       "status": "fixture_verified",
-      "evidence": "Rolling DAG/edit reservations and fairness pass source fixtures. An independently reproduced Orca preflight starvation bug is repaired; unrelated Hades tasks continue. Default multi-profile Workbench execution passes with injected models."
+      "evidence": "Work source-operation reservations and task admission coordinate across shared-store processes; transaction, Stop, clean shutdown and dependent-release fixtures pass. External editors are outside these cooperative reservations."
     },
     {
       "id": "G07",
       "status": "fixture_verified",
-      "evidence": "Task artifact hashes, stale dependencies, symlink/path rejection and missing/changed outputs pass local fixtures and independent review."
+      "evidence": "Explicit Orca task acceptance binds the import, applied review, fresh source checks and task file hashes. Stale source, pending instructions and foreign receipts refuse acceptance in real Workbench/Git fixtures."
     },
     {
       "id": "G08",
@@ -50,12 +50,12 @@
     {
       "id": "G09",
       "status": "partial",
-      "evidence": "Work retains unknown Orca reservations across restart and reconciliation adds no token reservation. Provider token/time/spend enforcement remains unimplemented."
+      "evidence": "Checked Orca output acceptance retains unknown provider reservations and original attempt history. Provider token/time/spend enforcement and replacement-worker retry semantics remain unimplemented."
     },
     {
       "id": "G10",
       "status": "partial",
-      "evidence": "Cancellation, reserved native/sidecar slots, pending-start removal, late wire responses and shutdown fixtures independently pass. Real runtime/cancellation remains unverified."
+      "evidence": "Queued Work-bound Helm mutations are revoked by Stop; source apply/checks recheck authority at dispatch. Independent Stop/close-during-fingerprint cases pass. Real provider cancellation remains unverified."
     },
     {
       "id": "G11",
@@ -65,7 +65,7 @@
     {
       "id": "G12",
       "status": "partial",
-      "evidence": "Existing isolated Helm review/apply/source-check path retained. Current real coding run through reviewed source integration remains unverified; Orca change integration is incomplete."
+      "evidence": "Orca stopped output imports into a separate Helm review snapshot, followed by explicit verification, full-patch apply, fresh source checks and Work acceptance. Dirty/index/binary/deletion, drift, cross-process apply and known-applied recovery fixtures pass; actual packaged Orca/native workflow remains unverified."
     },
     {
       "id": "G13",
@@ -85,7 +85,7 @@
     {
       "id": "G16",
       "status": "partial",
-      "evidence": "Work engine selection and readable native Plugins collections/details have DOM coverage. Installed native keyboard/pointer/visual acceptance has not run."
+      "evidence": "Work and Orca link to existing Helm review UI with scoped explicit acceptance, stale-state invalidation and confirmed-application recovery controls. 102 focused DOM/RPC cases pass; installed native visual and interaction acceptance remains open."
     },
     {
       "id": "G17",
@@ -95,7 +95,7 @@
     {
       "id": "G18",
       "status": "partial",
-      "evidence": "Current Plugins247/247 and Work/Orca127/127 in-process tests, full TypeScript and desktop source builds pass. Older benchmark/helper evidence is retained separately. Full native/runtime/provider regression remains open."
+      "evidence": "Final Work/Helm offline gate296/296, Plugins254/254, full TypeScript and desktop source bundles pass. Runners share11 routing cases (539 distinct cases,46 files). Full native/runtime/provider regression remains open."
     },
     {
       "id": "G19",
@@ -105,7 +105,7 @@
     {
       "id": "G20",
       "status": "partial",
-      "evidence": "Fresh independent client, SQL and Work reviews repaired admission, input, acknowledgement and message-bound defects on hashed source. Product-wide independent acceptance remains open."
+      "evidence": "Independent provenance, apply, Work and source-check reviews repaired destination, cancellation, shutdown, transaction and completed-claim recovery defects. Final exact files are receipt-bound; product-wide independent acceptance remains open."
     }
   ],
   "nextExecutionOrder": [
@@ -115,8 +115,8 @@
     "Deliver and benchmark real general-work and enterprise policy workflows",
     "Run native usability and 24-case three-trial matched comparison, then independent product acceptance"
   ],
-  "sourceCandidate": "b6ec8b860252b34eefc80e0914bc1d1393eefb6a",
-  "sourceState": "Prior committed Hades baseline; the follow-up local source is pinned by docs/plugins/source-v3-receipt.json. No remote or installed release accepted.",
+  "sourceCandidate": "c44644192872ff9e0887e38c9a68df1e910dc376",
+  "sourceState": "Committed baseline for the follow-up Orca output candidate, pinned by the source receipt. No remote, installed, live or product acceptance.",
   "pluginProgram": "docs/plugins/PROGRAM.md",
-  "sourceReceipt": "docs/plugins/source-v3-receipt.json"
+  "sourceReceipt": "docs/research/helm-enterprise-2026-09-10/audit/orca-output-v1-receipt.json"
 }

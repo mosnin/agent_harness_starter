@@ -154,8 +154,21 @@ export function mountWorkbench(root: HTMLElement) {
     selectProject: async next => {setProject(next);view="helm";await refresh();},
     openWorkspace: async (next,nextPane) => {setProject(await rpc("project.add",{path:next}));await navigate("workspace");if(nextPane!=="files")await loadPane(nextPane);},
     openSession: id => {void selectSession(id).catch(toast);},
+    openWork: async origin => {
+      if (profile.id !== origin.ownerProfile) throw new Error("Open the owning Hades profile before returning to this work.");
+      setProject(origin.root);
+      await navigate("work");
+      if (view !== "work" || profile.id !== origin.ownerProfile || project !== origin.root) return;
+      await workGoals.selectGoal(origin.goalId, origin.taskId);
+    },
   });
-  const workGoals = new WorkGoalsView(rpc, id => { void selectSession(id).catch(toast); });
+  const workGoals = new WorkGoalsView(rpc, id => { void selectSession(id).catch(toast); }, async run => {
+    if (!run.owner || profile.id !== run.owner) throw new Error("Open the owning Hades profile before reviewing this task.");
+    setProject(run.root);
+    await navigate("helm");
+    if (view !== "helm" || profile.id !== run.owner || project !== run.root) return;
+    await helm.selectRun(run);
+  });
   const browserView = new BrowserView(rpc, (account, value) => tauri().core.invoke("hades_key", { account, value }));
   const credentials = new CredentialsView(rpc, (account, value) => tauri().core.invoke("hades_key", { account, value }));
   const ecosystem = new EcosystemPluginsView(rpc, url => rpc("link.open", { url }), () => tauri().core.invoke("hades_ecosystem_unlock"));
@@ -2078,6 +2091,7 @@ export function mountWorkbench(root: HTMLElement) {
         if (e.kind === "desktop.helm") { if(view === "helm")void helm.refresh(); return; }
         if (e.kind === "desktop.work") {
           if (view === "work" && (!e.profile || e.profile === profile.id)) void workGoals.refresh();
+          if (view === "helm" && (!e.profile || e.profile === profile.id)) void helm.refreshWorkAcceptance();
           return;
         }
         if (e.kind === "desktop.codex.auth") {

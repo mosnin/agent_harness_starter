@@ -1,4 +1,5 @@
 import { captureFocus, restoreFocus } from "./focus";
+import type { HelmRun } from "../core/helm-types";
 import "./helm-orca.css";
 type Scope = { root: string; profile: string };
 type Rpc = (method: string, args?: Record<string, unknown>) => Promise<any>;
@@ -67,12 +68,12 @@ export class HelmOrcaView {
       this.schedule();
     }
   }
-  constructor(private rpc: Rpc) {}
+  constructor(private rpc: Rpc, private openReview?: (run: HelmRun) => Promise<void>) {}
   setScope(scope: Scope) {
     const key = JSON.stringify([scope.root, scope.profile]);
     if (key === this.key) return;
     this.stopTimer(); this.pollDelay = 4000;
-    this.key = key; this.scope = { ...scope }; this.generation++; this.busy = false; this.stopping = false; this.error = ""; this.info = undefined;
+    this.key = key; this.scope = { root: scope.root, profile: scope.profile }; this.generation++; this.busy = false; this.stopping = false; this.error = ""; this.info = undefined;
     if (!this.states.has(key)) this.states.set(key, { records: [], prompt: "", agent: "codex", model: "", output: "", truncated: false });
     this.render();
   }
@@ -99,6 +100,10 @@ export class HelmOrcaView {
     try { await work(); } catch (e) { if (generation === this.generation) this.error = e instanceof Error ? e.message : String(e); }
     finally { if (generation === this.generation) { this.busy = false; this.render(); } }
   }
+  private reviewControl(record: any) {
+    if (!this.openReview || record.active || !record.runId || !record.dispatchId || !["needs_review", "stopped", "failed"].includes(record.state)) return "";
+    return button("Review changes in Helm", "import", this.busy);
+  }
   private render() {
     if (!this.host || !this.scope) return;
     const s = this.state, selected = s.records.find(r => r.id === s.selected);
@@ -108,7 +113,7 @@ export class HelmOrcaView {
     const counts = {active:s.records.filter(r => ["starting","ready","stopping"].includes(r.state)).length, uncertain:s.records.filter(r => r.state === "unknown").length, review:s.records.filter(r => r.state === "needs_review").length};
     const availability = this.info?.state === "packaged";
     const form = '<form><label class="field">Task<textarea id="orca-prompt" rows="5" maxlength="20000" required ' + (s.pending ? "disabled" : "") + '>' + esc(s.prompt) + '</textarea></label><label class="field">Coding agent<select id="orca-agent" ' + (s.pending ? "disabled" : "") + '>' + [["codex","Codex"],["claude","Claude Code"],["opencode","Helm"]].map(([id,name]) => '<option value="' + id + '" ' + (s.agent === id ? "selected" : "") + '>' + name + '</option>').join("") + '</select></label><details><summary>Model preference</summary><label class="field">Requested model<input id="orca-model" maxlength="200" value="' + esc(s.model) + '" placeholder="Provider default" ' + (s.pending ? "disabled" : "") + '></label><p class="help">Requested preference; actual model is not yet reported.</p></details>' + (s.pending ? '<p role="status">Acknowledgement is pending or uncertain. Refresh to find the retained intent, or retry the exact same request. Editing is paused to prevent duplicate tasks.</p>' + button("Request stop", "stop-pending", this.stopping) : "") + '<button type="submit" class="primary-button" ' + (this.busy || !availability ? "disabled" : "") + '>' + (this.busy ? "Working…" : s.pending ? "Retry same request" : "Start Orca task") + '</button><p class="help">Orca owns the worker and checkout. Reviewed integration remains a separate step.</p></form>';
-    const detail = selected ? '<h2>' + esc(label(selected.state)) + '</h2><p>' + esc(selected.input.prompt) + '</p><dl><dt>Agent</dt><dd>' + esc(selected.input.agent === "opencode" ? "Helm" : selected.input.agent) + '</dd><dt>Requested model</dt><dd>' + esc(selected.input.model || "Provider default · actual model not reported") + '</dd><dt>Worker reservation</dt><dd>' + (selected.active ? "Active or uncertain" : "Released") + '</dd></dl><p class="help">' + (selected.state === "ready" ? "Dispatch was acknowledged; completion has not been verified. Inspect the worker and changes." : selected.state === "unknown" ? "Outcome uncertain. Reconcile this retained request before sending replacement work." : selected.state === "needs_review" ? "Worker exited. Review changes and run independent checks before accepting output." : "Inspect saved state and output before continuing.") + '</p>' + (selected.error ? '<p class="inline-notice" role="alert">' + esc(selected.error) + '</p>' : "") + '<div class="page-actions">' + button("Refresh worker state","refresh-one",this.busy) + button("Reconcile request","recover",this.busy) + button("Read worker output","read",this.busy || !selected.dispatchId) + button("Stop worker","stop",this.busy || !selected.active) + '</div>' + (s.output ? '<pre class="orca-output" tabindex="0" aria-label="Orca worker output">' + esc(s.output) + '</pre>' + (s.truncated ? '<p class="help">Only bounded retained output is shown.</p>' : "") : "") + '<details><summary>Dispatch details</summary><p>Task ' + esc(selected.id) + ' · Run ' + esc(selected.runId || "not acknowledged") + ' · Dispatch ' + esc(selected.dispatchId || "not acknowledged") + '</p><pre class="orca-output">' + esc(JSON.stringify(selected.receipt ?? {},null,2).slice(0,16000)) + '</pre><p class="help">Receipt display is limited to 16,000 characters.</p></details>' : form;
+    const detail = selected ? '<h2>' + esc(label(selected.state)) + '</h2><p>' + esc(selected.input.prompt) + '</p><dl><dt>Agent</dt><dd>' + esc(selected.input.agent === "opencode" ? "Helm" : selected.input.agent) + '</dd><dt>Requested model</dt><dd>' + esc(selected.input.model || "Provider default · actual model not reported") + '</dd><dt>Worker reservation</dt><dd>' + (selected.active ? "Active or uncertain" : "Released") + '</dd></dl><p class="help">' + (selected.state === "ready" ? "Dispatch was acknowledged; completion has not been verified. Inspect the worker and changes." : selected.state === "unknown" ? "Outcome uncertain. Reconcile this retained request before sending replacement work." : selected.state === "needs_review" ? "Worker exited. Review changes and run independent checks before accepting output." : "Inspect saved state and output before continuing.") + '</p>' + (selected.error ? '<p class="inline-notice" role="alert">' + esc(selected.error) + '</p>' : "") + '<div class="page-actions">' + button("Refresh worker state","refresh-one",this.busy) + button("Reconcile request","recover",this.busy) + button("Read worker output","read",this.busy || !selected.dispatchId) + button("Stop worker","stop",this.busy || !selected.active) + this.reviewControl(selected) + '</div>' + (s.output ? '<pre class="orca-output" tabindex="0" aria-label="Orca worker output">' + esc(s.output) + '</pre>' + (s.truncated ? '<p class="help">Only bounded retained output is shown.</p>' : "") : "") + '<details><summary>Dispatch details</summary><p>Task ' + esc(selected.id) + ' · Run ' + esc(selected.runId || "not acknowledged") + ' · Dispatch ' + esc(selected.dispatchId || "not acknowledged") + '</p><pre class="orca-output">' + esc(JSON.stringify(selected.receipt ?? {},null,2).slice(0,16000)) + '</pre><p class="help">Receipt display is limited to 16,000 characters.</p></details>' : form;
     this.host.innerHTML = '<section class="helm-orca" aria-label="Orca workers"><header><div><h1>Orca</h1><p class="help">Coding tasks in Orca-managed workers and checkouts.</p></div>' + button("Refresh workers","refresh",this.busy) + '</header><div class="orca-availability" role="status"><strong>' + (availability ? "Runtime artifact available" : this.info?.state === "invalid" ? "Runtime integrity check failed" : this.info ? "Runtime not installed" : "Checking runtime") + '</strong><p>' + esc(this.info?.message ?? "Load runtime status before starting.") + '</p>' + (availability ? '<p class="help">Artifact presence does not confirm provider sign-in or readiness. Starting may require provider setup.</p>' : "") + '</div>' + (this.error ? '<p class="inline-notice" role="alert">' + esc(this.error) + '</p>' : "") + '<p class="orca-counts" role="status">' + counts.active + ' active · ' + counts.uncertain + ' uncertain · ' + counts.review + ' need review</p><div class="orca-layout"><aside aria-label="Orca task list">' + button("New Orca task","new",this.busy || !!s.pending) + (s.records.map(r => button('<strong>' + esc(r.input.prompt.slice(0,80)) + '</strong><span>' + esc(label(r.state)) + '</span>',"select",this.busy || !!s.pending,r.id)).join("") || '<p class="help">No Orca workers in this project and profile.</p>') + '</aside><main>' + detail + '</main></div></section>';
     this.host.querySelectorAll<HTMLElement>('[data-orca="select"]').forEach(el => el.setAttribute("aria-pressed", String(el.dataset.id === s.selected)));
     this.host.querySelectorAll<HTMLElement>("[data-orca]").forEach(el => { el.onclick = () => { void this.action(el.dataset.orca!,el.dataset.id); }; });
@@ -169,6 +174,14 @@ export class HelmOrcaView {
     if (!selected || !this.scope) return;
     const scope = { ...this.scope }, generation = this.generation, selectedId = selected.id;
     await this.perform(async () => {
+      if (action === "import") {
+        if (!this.openReview || !this.reviewControl(selected)) return;
+        const run = await this.rpc("helm.orca.import", { ...scope, id: selectedId });
+        if (generation !== this.generation || this.state.selected !== selectedId) return;
+        if (!run?.id || run.root !== scope.root || run.owner !== scope.profile || run.orcaOrigin?.intentId !== selectedId || run.orcaOrigin.runId !== selected.runId || run.orcaOrigin.dispatchId !== selected.dispatchId || (selected.runtimeId && run.orcaOrigin.runtimeId !== selected.runtimeId)) throw Error("The review snapshot did not match this Orca worker.");
+        await this.openReview(run);
+        return;
+      }
       const result = await this.rpc("helm.orca." + (action === "refresh-one" ? "refresh" : action),{...scope,id:selectedId});
       if (generation !== this.generation || this.state.selected !== selectedId) return;
       if (action === "read") {

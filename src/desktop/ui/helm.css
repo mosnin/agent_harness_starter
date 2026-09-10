@@ -311,3 +311,16 @@
   .helm-project-select { flex: 1 1 100%; }
   .helm-project-select select { flex: 1; max-width: 100%; min-width: 0; }
 }
+.helm-review-stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; list-style: none; margin: 16px 0; padding: 0; }
+.helm-review-stages li { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.helm-review-stages span { color: var(--muted); font-size: 12px; }
+.helm-review-stages strong { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.helm-file-scope { margin: 16px 0; }
+.helm-file-scope ul { padding-left: 20px; max-height: 180px; overflow: auto; }
+.helm-file-scope li { padding: 3px 0; overflow-wrap: anywhere; }
+.helm-work-acceptance { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; margin-top: 20px; padding: 18px; }
+.helm-work-acceptance h3 { margin-top: 0; }
+.helm-evidence-hash { display: inline-block; max-width: 100%; overflow-wrap: anywhere; font-size: 12px; }
+.helm-acceptance-evidence { margin: 14px 0; }
+.helm-acceptance-reasons { padding-left: 20px; line-height: 1.6; }
+@media (max-width: 600px) { .helm-review-stages { grid-template-columns: 1fr 1fr; } .helm-work-acceptance { padding: 14px; } }

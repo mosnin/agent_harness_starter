@@ -1,0 +1,608 @@
+{
+  "schema": "hades.orca-output-source.v1",
+  "recordedAt": "2026-09-10T10:53:38.017630+00:00",
+  "repository": "mosnin/agent_harness_starter",
+  "root": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+  "branch": "claude/hermes-swarm-framework-vbhrot",
+  "precommitHead": "c44644192872ff9e0887e38c9a68df1e910dc376",
+  "goalStatus": "active",
+  "productAccepted": false,
+  "delivery": "local source; no push, deployment or app installation",
+  "foundations": {
+    "helm": "mosnin/opencode@89bac15fcea8f7fb90d50c6d4cf457b25673a7b5",
+    "orca": "stablyai/orca@bf4e2705046cf9ef9c915929a9646da85717af07"
+  },
+  "previousCheckpoint": {
+    "path": "docs/plugins/source-v3-receipt.json",
+    "bytes": 50768,
+    "sha256": "d7d14b70ca21c652c126a86a8c7865bca696d183891f7b0d80607b6eeec0fef2"
+  },
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 250,
+      "sha256": "3f7cebf0ab3f8df3beafe5535b143767acebc4f6000e64dda4686c909d542c55"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/CAPABILITIES.md",
+      "bytes": 34544,
+      "sha256": "c3b54a5061d96331e25cba3439ef24f57e71d7911c05ef7eb56b64bb5c998208"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/PROGRAM.md",
+      "bytes": 14590,
+      "sha256": "074c6c7788fe9fbb75e311358c356f36e271c1e6ecbf3cbc72125bc959aca1d4"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/STATUS.json",
+      "bytes": 6586,
+      "sha256": "26b0fe26d63f590a2a71ee5cbd56e4006430d3532a206ba0741a173ba0444fbb"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-cross-profile.log",
+      "bytes": 1531,
+      "sha256": "6c25b7d3a1f397a2952b0ed7c23891090e149183370e707511e74f8b02da6a34"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-expanded-regression.log",
+      "bytes": 5061,
+      "sha256": "fd64b5a87ec43c553ffd7a7e270ed8cacc6af3cc108af3570f48b89b109ac491"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-output-build.log",
+      "bytes": 431,
+      "sha256": "2e9c88a527824128feef270fc0a00313eee5dbd361717094a889e3744a13e16e"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-output-final-plugins.log",
+      "bytes": 2342,
+      "sha256": "2a6cf396abf609de1087d867630799ec5da599663e001fb6401914c972c221af"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-output-final-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-output-final-work.log",
+      "bytes": 4839,
+      "sha256": "5db7faecfff9fee40b3bd40f30ba61c35d817fde8f84532737ecfaf6da28e9ac"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-output-work-green.log",
+      "bytes": 3705,
+      "sha256": "43712670074be9cfa0740bad435d6741e33dddcf71f1978c053c57c565393c34"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-review-ui-final.log",
+      "bytes": 244,
+      "sha256": "3daff0e29da1a2cb14650da496706bfde05f4c0e824c7412cc08b83f0e00df5b"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-review-ui-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/helm-integration-applied-recovery-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/helm-integration-applied-recovery.log",
+      "bytes": 577,
+      "sha256": "29ad11a0ffc2a159fd72ae84a4ee7674e46d8946c30ac3ac17945fbef0e45f3d"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/helm-orca-import-independent-green.log",
+      "bytes": 576,
+      "sha256": "ebccb22b6193ac4775255093486ca0f1ade9d5d11d1911f67f0de4aa6150d8ac"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/helm-orca-import-review-red-v2.log",
+      "bytes": 3282,
+      "sha256": "f39d0c27474c3e3d7dfd1983c6384f7fa2b59cca6c2baf2dafc1039be19fac5e"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/helm-orca-import-review-red.log",
+      "bytes": 1629,
+      "sha256": "30bded988769d493f9d25587b525a274cf09b77dd81dd3d2f86f4edab58f3ab8"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/helm-orca-import-tests.log",
+      "bytes": 915,
+      "sha256": "a447ae3acc37d2ee7abd788c8763c0fde79573e9719ea4f10a565e6bdfacc8e0"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/helm-source-checks-cancellation-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/helm-source-checks-cancellation.log",
+      "bytes": 238,
+      "sha256": "b0b9b7fe935e6d7f6748b7f784cfa538574e2cd37fefbfcaf5ac45c02698a261"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/orca-final-admission-review.log",
+      "bytes": 578,
+      "sha256": "e1830bc71d5b95cd212b7cd9a29e209c1b5391134e3d682b32f2f3194cdc02b9"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/orca-final-recovery-review.log",
+      "bytes": 1087,
+      "sha256": "ef6959e02f5e25637f9b4d94f481e3e188485ad7fbc0a3f52fdde45b89696065"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/work-orca-import-independent-green.log",
+      "bytes": 403,
+      "sha256": "2e16b01db55a472ae90fe176cde560972651050883e6e6b491963055acbe0256"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/work-orca-import-independent.log",
+      "bytes": 1770,
+      "sha256": "57146b3b00331f50a96f933a971d95f7dde32d8f6c6e364c0b777c2206dd67f6"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/workbench-orca-independent-green.log",
+      "bytes": 409,
+      "sha256": "77e2b1274d586162acbc13a3a6758b63b483a68b2bcae7b428bd34e6bf55f9a1"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/workbench-orca-independent-red.log",
+      "bytes": 2050,
+      "sha256": "84b93c99e09abe72fb9ef09238fbe20f5e7c365c0128eba66a4127de6c68b467"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/helm-orca-import-independent-review.md",
+      "bytes": 4173,
+      "sha256": "cd461fb685ecb0856fb0826fa3e6f437d4e9b97907eea26e506ed052b22a4e3e"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/orca-output-ui-receipt.json",
+      "bytes": 4485,
+      "sha256": "c680bb376f043e753373e8d90af23a4bc7ad03a898521bbeb281f6b438d827a6"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/orca-output-v1.md",
+      "bytes": 7495,
+      "sha256": "4e601481cd493ba215490ed9ecbd430ca61d9a97b1decf720d2b6612774b2580"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/work-orca-import-review.md",
+      "bytes": 7690,
+      "sha256": "965d2d6139caa0b4ae3194568101014ee815e7e10a9bfbd68f096e069b53a868"
+    },
+    {
+      "path": "scripts/check-work-offline.mjs",
+      "bytes": 1587,
+      "sha256": "4b38ee5ed525fc98aefac6d1efd66e380ac9b16863166e2094db83d381472a17"
+    },
+    {
+      "path": "src/desktop/__tests__/company-os-resilience.test.ts",
+      "bytes": 9760,
+      "sha256": "24796bd78c0530bfc9222e782da7ef9cd164a6c43686f86531ce7eb5746aa1b4"
+    },
+    {
+      "path": "src/desktop/__tests__/company-os.test.ts",
+      "bytes": 6877,
+      "sha256": "baa3d1bbd336023b45b76443ddaf1f220c33ca306d211d82e542e9ad264a1ff7"
+    },
+    {
+      "path": "src/desktop/__tests__/desktop-request-routing.test.ts",
+      "bytes": 9230,
+      "sha256": "212b3a23a4f59053fa45b25fdb2d2e45fb6652add47102ef95a168ba0747c310"
+    },
+    {
+      "path": "src/desktop/__tests__/durable-work-review.test.ts",
+      "bytes": 2278,
+      "sha256": "d2cf202595b900228962e647031d8e6bb6e8d878f4ea3bd053f8f11a1a1a7f21"
+    },
+    {
+      "path": "src/desktop/__tests__/durable-work.test.ts",
+      "bytes": 16325,
+      "sha256": "6fb91a12f0bb761a8b9a6cc9f1c1d91bf6018a27c6c798125b638272bbebce10"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-catalog.test.ts",
+      "bytes": 31248,
+      "sha256": "43e5853d3e75eb1a328e1429fa73d494c196bf7c9f6f78e5baae39968e322dc8"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-detail-ui.test.ts",
+      "bytes": 12382,
+      "sha256": "69e75785051a0a149075791f98a36e5a54d186a30cbd0085c49c2c6586caf8c5"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-events.test.ts",
+      "bytes": 2871,
+      "sha256": "90c3af5576cda4e1ffe60ef1d039b99373d17bda2e434b976b343030ae0422a3"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-plugins-ui.test.ts",
+      "bytes": 15865,
+      "sha256": "7a004d2608792e1b01b06f44de7525b91a7d93177926fbfe05ea5c5a772b3d3f"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-read-review.test.ts",
+      "bytes": 8557,
+      "sha256": "9097f3cb3294917d6cde014af1394d2c40394e5b8060cb8e8a9141e0ab0f3189"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-recovery.test.ts",
+      "bytes": 8417,
+      "sha256": "0e52182c99c8c11bdb83cc961801c0cdf50966766797c01934ddf110efdc19ec"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-scalar-review.test.ts",
+      "bytes": 7665,
+      "sha256": "c0c59d7748234192f9512b41478cf22dcdd0c43fc377b34dd1e8f6be99404fa6"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-scopes-review.test.ts",
+      "bytes": 13040,
+      "sha256": "e665d66b1ba3e19eaf0a49ceb6f60fbc6467166c353f7baafe758a7e75923590"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-service.test.ts",
+      "bytes": 26913,
+      "sha256": "292c0c24a3ded6952c2759850680e724a87044665e09af2d078cfb208c2b8355"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-tools.test.ts",
+      "bytes": 4632,
+      "sha256": "d7d241c00628ad203676c018390ccb8aa3c98d084d7b32156a9d3d4731946b83"
+    },
+    {
+      "path": "src/desktop/__tests__/ecosystem-write-ack-review.test.ts",
+      "bytes": 7205,
+      "sha256": "976e54d510e4530b5a2f9e93c98811c58dbde7ae4fe55d4f67c3f4d1d6003323"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-integration-claims.test.ts",
+      "bytes": 16274,
+      "sha256": "09f451e91c3ea8fdf659f44adc5ea92f02db854584c2bdca8f1b16553edb2dcd"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-integration.test.ts",
+      "bytes": 11224,
+      "sha256": "03d8215ff4a3788f01c5926d668822ae1eb8c3137ff7ff62342517b6bccfa29d"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-import-review.test.ts",
+      "bytes": 7454,
+      "sha256": "5c9e683e9e3e43ca2044db8fccba4cc955d2681ac584474f11012d55f711e8b1"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-import.test.ts",
+      "bytes": 5074,
+      "sha256": "97574ab62b41acfe546f5405c0adcb186ef361114d945cca8366eedf0157b9de"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-ownership.test.ts",
+      "bytes": 3852,
+      "sha256": "e8a62cbf711d07f28016c097d81dd323e762ed7fc88ad030bcb59f49ba9998a1"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-readiness.test.ts",
+      "bytes": 2033,
+      "sha256": "93e2038f6116484e60b02f904a0dff42da0788377af3f4ee7b53560f81bfcac6"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-review.test.ts",
+      "bytes": 7363,
+      "sha256": "2fe266923c1f17d3a99f28d1ad0f49f62e2db58bf3decfeddcb6edaed7bac3f0"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-runtime.test.ts",
+      "bytes": 1431,
+      "sha256": "2a59e866532dfd2cb65965fdd524726f7899c975a9152520a3977ede376c86e7"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-service.test.ts",
+      "bytes": 11872,
+      "sha256": "29c1f302265fec41783639f926412a0bb729e30c66ba2fba8555c30b3d28000a"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-tools.test.ts",
+      "bytes": 3822,
+      "sha256": "e6cfc2e27b1b6811a94239e632cdb21f0599db7864cf08e863d7bca3d30062d1"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-transport.test.ts",
+      "bytes": 2285,
+      "sha256": "7a0e20b39c07f6c1341b00f7e10e819a3c8584aae4ae64759b9d5f11fa5318d4"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-ui.test.ts",
+      "bytes": 10053,
+      "sha256": "9941146c0c2ed8429caf3123d1638cf6f26813016f04f7e07439d90b4d3181ad"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-orca-workbench-tools.test.ts",
+      "bytes": 4493,
+      "sha256": "0194b19ed73f58dab62612cb5078cbc1d27aefb7b6f21c613ac236337f2c1aa8"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-service.test.ts",
+      "bytes": 14083,
+      "sha256": "c984ca59be5930389298cf1c646b8f214ac1b057dd4132a27db9ed95bae74648"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-source-checks-cancellation.test.ts",
+      "bytes": 6376,
+      "sha256": "11d0bd402d1ff2157e6e23a1ca26f911b1566cd201414d5e5f9ded9e6755132e"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-source-checks.test.ts",
+      "bytes": 8821,
+      "sha256": "c9e59b329204c70ca8dbf7cbbc2156803c3e71ad5528ad835952e21a66e0a718"
+    },
+    {
+      "path": "src/desktop/__tests__/helm-ui.test.ts",
+      "bytes": 31317,
+      "sha256": "7678e8cf4014092f12b07908ef38591de6ba619b07442f6abe79eef170894edc"
+    },
+    {
+      "path": "src/desktop/__tests__/orca-work-review-ui.test.ts",
+      "bytes": 21902,
+      "sha256": "62841d58976cf741ab089f20a3b659ca040e6a86fa28a5dafe3c7e770da47fd9"
+    },
+    {
+      "path": "src/desktop/__tests__/work-goals.test.ts",
+      "bytes": 16723,
+      "sha256": "4567a148c032aeadd82a2d4a1511a6b95e32c5dc12d11f11fb7f9ffac8893d7c"
+    },
+    {
+      "path": "src/desktop/__tests__/work-orca-import-independent.test.ts",
+      "bytes": 4508,
+      "sha256": "9412ed76b20a1addc65d32616b7c340979abd4ff105ce0eea4b6959dd8bfbe17"
+    },
+    {
+      "path": "src/desktop/__tests__/work-orca-review.test.ts",
+      "bytes": 7233,
+      "sha256": "da6ef98d6555d5bff49c23d900042366e694b1fa348e39c8eb190e073e863394"
+    },
+    {
+      "path": "src/desktop/__tests__/work-orca.test.ts",
+      "bytes": 8854,
+      "sha256": "de564189e841ad1ab7be671ac7511b024ba201608729b5be6474536456d5393e"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-durable-work-offline.test.ts",
+      "bytes": 7146,
+      "sha256": "bd4061ed975feb0258be49876b0fb19ed56a6577b1c6d4e3566f2a6ed4740870"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-ecosystem-ui.test.ts",
+      "bytes": 6390,
+      "sha256": "d2323824b637e1a03cd91701bee93bb5a06c5b178a9c9ae9ad661a9ceb4f3ddb"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-ecosystem.test.ts",
+      "bytes": 6865,
+      "sha256": "82cfa04db51b1bc31a105d9ccef98e1cfa77bd34864a79d79e0331dd312f1604"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-experience.test.ts",
+      "bytes": 21063,
+      "sha256": "524a0df496118acc383a99cad9b785c0cd6c6b260b7b589d0da43a2174f6fe55"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-orca-acceptance.test.ts",
+      "bytes": 11221,
+      "sha256": "8441c3f7417d32401958a2ac0afcf3c613634817475135f54c6fa77c1980fd33"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-orca-independent.test.ts",
+      "bytes": 8493,
+      "sha256": "74e1b2b81834c362e4090513d158534de97a10ed93498fe151b172891ef39bfb"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-shutdown.test.ts",
+      "bytes": 6704,
+      "sha256": "59e8996b6e11c0d48b4c2f6ecf39767dbf6abe553df33acafa045b330b4bc2ae"
+    },
+    {
+      "path": "src/desktop/__tests__/workbench-work-orca.test.ts",
+      "bytes": 1590,
+      "sha256": "23dc91cdbea0dd1b9c81426a478a324db766857882cfdfe6f74f5daf603be60f"
+    },
+    {
+      "path": "src/desktop/core/desktop-request-routing.ts",
+      "bytes": 5029,
+      "sha256": "75df4320f28bf0b0f7ce7fbc125ef198672f239e488a6d07b59c2db3f32d2111"
+    },
+    {
+      "path": "src/desktop/core/durable-work.ts",
+      "bytes": 45171,
+      "sha256": "e16f83de892eb8fe22810d0c18b6d3238813ed96d089cbf432acfc0b63c054aa"
+    },
+    {
+      "path": "src/desktop/core/helm-integration.ts",
+      "bytes": 22948,
+      "sha256": "a79cf8f8adb7228e46afb19fa154e6eb98f3d3d2108bd4b68c24c77af4e8ed26"
+    },
+    {
+      "path": "src/desktop/core/helm-orca-import.ts",
+      "bytes": 7992,
+      "sha256": "150e0038a10c93e6af957863dea2ebf81b1803fc9514f5d8ef9ab07c961aee01"
+    },
+    {
+      "path": "src/desktop/core/helm-orca-service.ts",
+      "bytes": 17824,
+      "sha256": "8d3f73a32142d3d29baf5be880b02277c323d652045c23b99ea3744ac8727e16"
+    },
+    {
+      "path": "src/desktop/core/helm-service.ts",
+      "bytes": 28127,
+      "sha256": "4d82c6af19227501d8f9ff91a42a9dbf5075028f0ebbea0a980b39195a4b1eee"
+    },
+    {
+      "path": "src/desktop/core/helm-source-checks.ts",
+      "bytes": 15375,
+      "sha256": "fd63af8195f332c927c36f129f7b9d3df635184330a49881ed00e84514f78112"
+    },
+    {
+      "path": "src/desktop/core/helm-types.ts",
+      "bytes": 2510,
+      "sha256": "dbeb5853bd29688dc7418bab1343c7eb5a6b42d3a03b86698bc88cd005c3f1a0"
+    },
+    {
+      "path": "src/desktop/core/workbench-service.ts",
+      "bytes": 188876,
+      "sha256": "d6327785dc2920914182b6853b7265c2c3b8717d1c62aa5b4ce92f5f6fad0ec8"
+    },
+    {
+      "path": "src/desktop/ui/helm-orca.ts",
+      "bytes": 17599,
+      "sha256": "634834dd5d3c068f00cae113120cdad7042b656c06fa20f7b66bb357164a0f55"
+    },
+    {
+      "path": "src/desktop/ui/helm.css",
+      "bytes": 8053,
+      "sha256": "1a7060ddcb23e0ba57b2386e8643f712d77655c0a0f402e1c41432b0e99e7882"
+    },
+    {
+      "path": "src/desktop/ui/helm.ts",
+      "bytes": 67354,
+      "sha256": "fc609941a50d2739eb2477413579274946a04723cd0994095e98ebadaa4d120f"
+    },
+    {
+      "path": "src/desktop/ui/work-goals.css",
+      "bytes": 1657,
+      "sha256": "e3489950f5a4f2a38d9116ce3d4c8ba90bd3f19d60dd921fada5da56c909914e"
+    },
+    {
+      "path": "src/desktop/ui/work-goals.ts",
+      "bytes": 35195,
+      "sha256": "803b57e30f8ea3d4bc221364465527f2268278da4165a689099fd0ac93ef7ddd"
+    },
+    {
+      "path": "src/desktop/ui/workbench.ts",
+      "bytes": 123410,
+      "sha256": "82210205842b6119f42136b8e3fb26ac12f815704529340a19f0549569bc7fd1"
+    }
+  ],
+  "verification": [
+    {
+      "command": "npm run test:work:offline",
+      "exitCode": 0,
+      "passed": 296,
+      "files": 29,
+      "log": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-output-work-green.log"
+    },
+    {
+      "command": "npm run test:plugins",
+      "exitCode": 0,
+      "passed": 254,
+      "files": 18,
+      "log": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-output-final-plugins.log"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "exitCode": 0,
+      "log": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-output-final-types.log"
+    },
+    {
+      "command": "npm run desktop:build",
+      "exitCode": 0,
+      "log": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/hades-orca-output-build.log"
+    }
+  ],
+  "runnerFiles": {
+    "check-work-offline": [
+      "src/desktop/__tests__/durable-work.test.ts",
+      "src/desktop/__tests__/durable-work-review.test.ts",
+      "src/desktop/__tests__/work-goals.test.ts",
+      "src/desktop/__tests__/work-orca.test.ts",
+      "src/desktop/__tests__/work-orca-review.test.ts",
+      "src/desktop/__tests__/workbench-work-orca.test.ts",
+      "src/desktop/__tests__/workbench-durable-work-offline.test.ts",
+      "src/desktop/__tests__/helm-orca-service.test.ts",
+      "src/desktop/__tests__/helm-orca-ownership.test.ts",
+      "src/desktop/__tests__/helm-orca-runtime.test.ts",
+      "src/desktop/__tests__/helm-orca-tools.test.ts",
+      "src/desktop/__tests__/helm-orca-transport.test.ts",
+      "src/desktop/__tests__/helm-orca-workbench-tools.test.ts",
+      "src/desktop/__tests__/helm-orca-review.test.ts",
+      "src/desktop/__tests__/helm-orca-ui.test.ts",
+      "src/desktop/__tests__/helm-orca-readiness.test.ts",
+      "src/desktop/__tests__/helm-service.test.ts",
+      "src/desktop/__tests__/helm-integration.test.ts",
+      "src/desktop/__tests__/helm-integration-claims.test.ts",
+      "src/desktop/__tests__/helm-source-checks.test.ts",
+      "src/desktop/__tests__/helm-ui.test.ts",
+      "src/desktop/__tests__/helm-orca-import.test.ts",
+      "src/desktop/__tests__/helm-orca-import-review.test.ts",
+      "src/desktop/__tests__/work-orca-import-independent.test.ts",
+      "src/desktop/__tests__/workbench-orca-acceptance.test.ts",
+      "src/desktop/__tests__/desktop-request-routing.test.ts",
+      "src/desktop/__tests__/helm-source-checks-cancellation.test.ts",
+      "src/desktop/__tests__/workbench-orca-independent.test.ts",
+      "src/desktop/__tests__/orca-work-review-ui.test.ts"
+    ],
+    "check-plugins": [
+      "src/desktop/__tests__/ecosystem-service.test.ts",
+      "src/desktop/__tests__/ecosystem-events.test.ts",
+      "src/desktop/__tests__/ecosystem-recovery.test.ts",
+      "src/desktop/__tests__/ecosystem-catalog.test.ts",
+      "src/desktop/__tests__/ecosystem-tools.test.ts",
+      "src/desktop/__tests__/ecosystem-plugins-ui.test.ts",
+      "src/desktop/__tests__/ecosystem-detail-ui.test.ts",
+      "src/desktop/__tests__/ecosystem-scopes-review.test.ts",
+      "src/desktop/__tests__/workbench-ecosystem-ui.test.ts",
+      "src/desktop/__tests__/ecosystem-read-review.test.ts",
+      "src/desktop/__tests__/ecosystem-scalar-review.test.ts",
+      "src/desktop/__tests__/ecosystem-write-ack-review.test.ts",
+      "src/desktop/__tests__/workbench-ecosystem.test.ts",
+      "src/desktop/__tests__/company-os.test.ts",
+      "src/desktop/__tests__/company-os-resilience.test.ts",
+      "src/desktop/__tests__/workbench-shutdown.test.ts",
+      "src/desktop/__tests__/desktop-request-routing.test.ts",
+      "src/desktop/__tests__/workbench-experience.test.ts"
+    ]
+  },
+  "sharedRunnerFiles": [
+    "src/desktop/__tests__/desktop-request-routing.test.ts"
+  ],
+  "sharedCases": 11,
+  "distinctCases": 539,
+  "distinctTestFiles": 46,
+  "builtArtifacts": [
+    {
+      "path": "dist/desktop/sidecar-entry.js",
+      "bytes": 2473467,
+      "sha256": "c97be30bbccfaa8574247851ed4af50bb3407471b185d2766437e8d4e38aa64a"
+    },
+    {
+      "path": "dist/desktop/main.js",
+      "bytes": 2130848,
+      "sha256": "4162f8a1bc720d5e1a443caa87e6abde777207390100bc5c839d52cf81f4f5cd"
+    },
+    {
+      "path": "dist/desktop/main.css",
+      "bytes": 82163,
+      "sha256": "9369e8cbc7fd7e35e257b7d1d6b49eb845514aba5522ffb5f20806a673f6cd5c"
+    },
+    {
+      "path": "dist/desktop/index.html",
+      "bytes": 334,
+      "sha256": "6c7d5136d4698b1709214ef6047e158eb61d5b3f5edd7a02ece0d983df85b11b"
+    }
+  ],
+  "runtime": {
+    "node": "v22.22.2",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "liveAccountJourneysPassed": 0,
+  "liveAccountJourneysRequired": 7,
+  "limits": [
+    "Orca runtime/model contracts are injected in local fixtures; exact packaged runtime and real provider execution were not run.",
+    "DOM/RPC and source bundles do not prove installed native visual or keyboard/pointer behavior.",
+    "Unknown import/apply outcomes remain held; only known-completed apply is reconciled. No broad unsafe claim clearing.",
+    "No real 60-minute team trial, matched platform comparison, seven live OAuth journeys or product acceptance.",
+    "No denied native/listener/network/remote action was retried through another route."
+  ]
+}

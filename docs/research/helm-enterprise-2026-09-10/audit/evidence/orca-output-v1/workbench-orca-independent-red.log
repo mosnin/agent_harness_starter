@@ -1,0 +1,57 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:26234) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/workbench-orca-independent.test.ts (2 tests | 1 failed) 7771ms
+   × Stop during source fingerprint prevents a late first command from dispatching 3702ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/workbench-orca-independent.test.ts > Stop during source fingerprint prevents a late first command from dispatching
+AssertionError: expected "command" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st command call:
+
+    Array [
+      Object {
+        "args": Array [
+          "--test",
+          "sum.test.cjs",
+        ],
+        "command": "/Users/preston/.hermes/node/bin/node",
+      },
+      "/private/var/folders/zp/3_gt4g9d0q5_jmxnw_spqp900000gn/T/work-orca-acceptance-XnKuNJ/source",
+      AbortSignal {
+        Symbol(kEvents): Map {},
+        Symbol(events.maxEventTargetListeners): 0,
+        Symbol(events.maxEventTargetListenersWarned): false,
+        Symbol(kHandlers): Map {},
+        Symbol(kAborted): true,
+        Symbol(kReason): [AbortError: This operation was aborted],
+        Symbol(kComposite): false,
+      },
+      300000,
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/desktop/__tests__/workbench-orca-independent.test.ts:69:22
+     67|  const starting=f.service.dispatch('helm.source.start',{id:args.runId,…
+     68|  await entered;await f.service.dispatch('work.stop',{id:f.goal.id});re…
+     69|  expect(command).not.toHaveBeenCalled();expect(f.childCalls()).toBe(0);
+       |                      ^
+     70| },20000);
+     71|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  06:33:44
+   Duration  8.18s (transform 284ms, setup 0ms, import 346ms, tests 7.77s, environment 0ms)
+

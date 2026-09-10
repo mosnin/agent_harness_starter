@@ -28,7 +28,8 @@ import { HelmCodeService } from "./helm-code-service";
 import { helmOrcaTools, type HelmOrcaToolInput } from "./helm-orca-tools";
 import { HelmOrcaService } from "./helm-orca-service";
 import { HelmOrcaRuntime } from "./helm-orca-runtime";
-import type { HelmBuiltinInput } from "./helm-types";
+import type { HelmBuiltinInput, HelmRun, HelmCheck } from "./helm-types";
+import { assertWorkEvidence, verifyWorkOutputs } from "./work-evidence";
 import { HelmContextStore } from "./helm-context";
 import { helmTools } from "./helm-tools";
 import { WebhookService } from "./webhook-service";
@@ -233,6 +234,7 @@ export class WorkbenchService {
   private work: DurableWork;
   private helm: HelmService;
   private helmIntegration: HelmIntegration;
+  private helmSourceSettlements = new Map<string,Promise<unknown>>();
   private helmHandoffs: HelmHandoffStore;
   private helmSourceChecks: HelmSourceChecks;
   private helmPreview: HelmPreview;
@@ -1154,6 +1156,14 @@ export class WorkbenchService {
         // Preserve the upstream projection, with a bounded display fallback.
         return {output: serialized.slice(0, 32000), truncated: serialized.length > 32000};
       }
+      case "helm.orca.import": {
+        const scope={root:this.root(a.root),profile:this.profile(a.profile).id},id=ident(a.id);
+        return this.work.withSourceOperation(scope.root,scope.profile,"orca-import:"+id,undefined,async(signal,assertActive)=>{
+          const descriptor=await this.helmOrca.prepareImport(scope,id,signal);assertActive();
+          const record=this.helmOrca.get(scope,id);
+          return this.helm.importOrca(descriptor,{agent:record.input.agent,prompt:record.input.prompt,owner:scope.profile},signal);
+        });
+      }
       case "helm.agents": return this.helm.agents(a.refresh === true);
       case "helm.list": {
         const root = a.root === undefined || a.root === "" ? undefined : this.root(a.root), owner = this.profile(a.profile).id;
@@ -1193,14 +1203,21 @@ export class WorkbenchService {
       case "helm.source.get":
       case "helm.source.cancel": {
         const run=this.helmRun(a.id,this.profile(a.profile).id);
+        this.validateWorkHint(run,a);
         const scope={root:run.root,owner:run.owner,parentSession:run.parentSession};
         const reviewId=ident(a.reviewId),review=this.helmIntegration.get(reviewId,scope);
         if(review.runId!==run.id) throw new Error("Review belongs to another Helm task.");
-        if(method==="helm.source.start") return this.helmSourceChecks.start(reviewId,scope,a.checks as any,a.maxSeconds===undefined?300:Number(a.maxSeconds));
-        if(method==="helm.source.list") return this.helmSourceChecks.list(reviewId,scope);
+        if(method==="helm.source.start") return this.startHelmSourceChecks(run,reviewId,a.checks as HelmCheck[],a.maxSeconds===undefined?300:Number(a.maxSeconds));
+        if(method==="helm.source.list") {
+          const receipts=await this.helmSourceChecks.list(reviewId,scope);
+          await Promise.all(receipts.filter(receipt=>receipt.status!=="running").map(receipt=>this.helmSourceSettlements.get(receipt.id)?.catch(()=>{})));
+          return this.helmSourceChecks.list(reviewId,scope);
+        }
         const id=ident(a.sourceCheckId),receipt=await this.helmSourceChecks.get(id,scope);
         if(receipt.reviewId!==reviewId || receipt.runId!==run.id) throw new Error("Source checks belong to another review.");
-        return method==="helm.source.cancel"?this.helmSourceChecks.cancel(id,scope):receipt;
+        if(method==="helm.source.cancel")return this.helmSourceChecks.cancel(id,scope);
+        if(receipt.status!=="running")await this.helmSourceSettlements.get(receipt.id)?.catch(()=>{});
+        return this.helmSourceChecks.get(id,scope);
       }
       case "helm.preview.open":
       case "helm.preview.list": {
@@ -1211,9 +1228,19 @@ export class WorkbenchService {
       }
       case "helm.cancel": return this.helm.cancel(this.helmRun(a.id, this.profile(a.profile).id).id);
       case "helm.diff": return this.helm.diff(this.helmRun(a.id, this.profile(a.profile).id).id);
-      case "helm.verify": return this.helm.verify(this.helmRun(a.id, this.profile(a.profile).id).id, a.checks as any);
+      case "helm.verify": {
+        const run=this.helmRun(a.id,this.profile(a.profile).id);
+        this.validateWorkHint(run,a);
+        if(!run.workOrigin)return this.helm.verify(run.id,a.checks as any);
+        return this.withHelmSourceOperation(run,"verify:"+run.id,async(signal,assertActive)=>{
+          const cancel=()=>{void this.helm.cancel(run.id).catch(()=>{});};signal.addEventListener("abort",cancel,{once:true});
+          try{assertActive();const result=await this.helm.verify(run.id,a.checks as any);assertActive();return result;}
+          finally{signal.removeEventListener("abort",cancel);if(signal.aborted)await this.helm.cancel(run.id);}
+        });
+      }
       case "helm.integration.prepare": {
         const run = this.helmRun(a.id, this.profile(a.profile).id);
+        this.validateWorkHint(run,a);
         return this.helmIntegration.prepare(run.id, { root: run.root, owner: run.owner, parentSession: run.parentSession });
       }
       case "helm.integration.list": {
@@ -1223,12 +1250,13 @@ export class WorkbenchService {
       case "helm.integration.get":
       case "helm.integration.apply": {
         const run = this.helmRun(a.id, this.profile(a.profile).id);
+        this.validateWorkHint(run,a);
         const scope = { root: run.root, owner: run.owner, parentSession: run.parentSession };
         const reviewId = ident(a.reviewId);
         const review = this.helmIntegration.get(reviewId, scope);
         if (review.runId !== run.id) throw new Error("Review belongs to another Helm task.");
         if (method === "helm.integration.get") return review;
-        const result = await this.helmIntegration.apply(reviewId, scope, text(a.patchDigest, 64));
+        const result = await this.withHelmSourceOperation(run,"apply:"+reviewId,(signal,assertActive)=>this.helmIntegration.apply(reviewId,scope,text(a.patchDigest,64),{signal,assertActive}));
         this.emit({ kind: "desktop.helm", runId: run.id });
         return result;
       }
@@ -1311,6 +1339,33 @@ export class WorkbenchService {
       case "work.stop": return this.stopWork(ident(a.id), this.profile(a.profile).id);
       case "work.resume": return this.work.resume(ident(a.id), this.profile(a.profile).id, a);
       case "work.message": return this.work.message(ident(a.id), this.profile(a.profile).id, ident(a.task), text(a.input, 8000));
+      case "work.source.status": return this.work.sourceOperationStatus(this.profile(a.profile).id);
+      case "work.source.reconcile": {
+        const profile=this.profile(a.profile).id,id=ident(a.id),claim=this.work.sourceOperationStatus(profile).find(row=>row.id===id);
+        if(!claim)throw new Error("Source operation not found for this profile");
+        if(claim.state==="active")throw new Error("The source operation is still settling. Wait before checking recovery.");
+        if(!claim.kind.startsWith("apply:"))throw new Error("No completed source application is bound to this reservation. Inspect the underlying operation before continuing.");
+        const reviewId=ident(claim.kind.slice(6));
+        for(const run of this.helm.list(claim.root).filter(run=>run.owner===profile)){
+          const scope={root:run.root,owner:profile,parentSession:run.parentSession};
+          if(!this.helmIntegration.list(run.id,scope).some(review=>review.id===reviewId))continue;
+          if(claim.goal&&(run.workOrigin?.goalId!==claim.goal||run.workOrigin.taskId!==claim.task))throw new Error("Application receipt belongs to another Work task");
+          const review=await this.helmIntegration.reconcileApplied(reviewId,scope);
+          if(review.status!=="applied")throw new Error("Application is still unconfirmed. The reservation was retained; no changes were replayed.");
+          return this.work.releaseCompletedSourceOperation(id,profile,{root:claim.root,kind:claim.kind});
+        }
+        throw new Error("The exact application receipt is unavailable. The reservation was retained.");
+      }
+      case "work.orca.import": return this.importWorkOrca(a);
+      case "work.orca.acceptance": return this.inspectWorkOrcaAcceptance(a);
+      case "work.orca.accept": {
+        const profile=this.profile(a.profile).id,id=ident(a.id),task=ident(a.task),goal=this.work.get(id,profile);
+        return this.work.withSourceOperation(goal.root,profile,"accept:"+ident(a.reviewId),{goal:id,task},async(_signal,assertActive)=>{
+          const result=await this.inspectWorkOrcaAcceptance(a);assertActive();
+          if(!result.eligible||!result.sourceRevision)throw new Error(result.reasons.join(" ")||"This result is not ready to accept");
+          return this.work.acceptOrca(id,profile,task,{runId:result.runId,requestId:result.requestId,reviewId:result.reviewId,sourceCheckId:result.sourceCheckId,sourceRevision:result.sourceRevision,patchDigest:result.patchDigest},assertActive);
+        });
+      }
       case "harness.catalog": return harnessCatalog;
       case "harness.launch": {
         const args = parseHarnessArgs(a.command, a.args);
@@ -2701,7 +2756,70 @@ export class WorkbenchService {
     }
   }
   private workView(goal: WorkGoal) {
-    return { ...goal, tasks: goal.tasks.map(task => ({ ...task, pendingApproval: Boolean(task.session && this.progress.get(task.session)?.approval) })) };
+    return { ...goal, sourceOperations:this.work.sourceOperationStatus(goal.profile).filter(row=>row.goal===goal.id),tasks: goal.tasks.map(task => ({ ...task, pendingApproval: Boolean(task.session && this.progress.get(task.session)?.approval) })) };
+  }
+  private workOrigin(run:HelmRun) {
+    const origin=run.workOrigin;if(!origin)return undefined;
+    const {goal,task,engine}=this.work.orcaTask(origin.goalId,origin.ownerProfile,origin.taskId);
+    if(run.owner!==goal.profile||run.root!==goal.root||origin.taskProfile!==task.profile||origin.requestId!==engine.requestId||run.orcaOrigin?.intentId!==engine.requestId||run.orcaOrigin.profile!==task.profile||run.orcaOrigin.root!==goal.root||!task.orcaImports?.some(item=>item.runId===run.id&&item.attemptId===origin.attemptId&&item.requestId===engine.requestId&&item.revision===run.orcaOrigin?.revision))throw new Error("Helm snapshot does not belong to this Work task");
+    return {goal:goal.id,task:task.id};
+  }
+  private validateWorkHint(run:HelmRun,a:Record<string,unknown>) {
+    if(a.workGoalId!==undefined&&a.workGoalId!==run.workOrigin?.goalId)throw new Error("Work cancellation scope does not match this Helm task");
+  }
+  private withHelmSourceOperation<T>(run:HelmRun,kind:string,operation:(signal:AbortSignal,assertActive:()=>void)=>Promise<T>) {
+    return this.work.withSourceOperation(run.root,this.profile(run.owner).id,kind,this.workOrigin(run),operation);
+  }
+  private async startHelmSourceChecks(run:HelmRun,reviewId:string,checks:HelmCheck[],maxSeconds:number) {
+    const scope={root:run.root,owner:run.owner,parentSession:run.parentSession};
+    let started!:(receipt:unknown)=>void,failed!:(error:unknown)=>void;
+    const response=new Promise((resolve,reject)=>{started=resolve;failed=reject;});
+    const pending=this.withHelmSourceOperation(run,"checks:"+reviewId,async(signal,assertActive)=>{
+      let receipt:Awaited<ReturnType<HelmSourceChecks['start']>>|undefined;
+      const cancel=()=>{if(receipt)void this.helmSourceChecks.cancel(receipt.id,scope).catch(()=>{});};
+      signal.addEventListener("abort",cancel,{once:true});
+      try{
+        assertActive();receipt=await this.helmSourceChecks.start(reviewId,scope,checks,maxSeconds,{signal,assertActive});assertActive();this.helmSourceSettlements.set(receipt.id,pending);started(receipt);
+        while(receipt.status==="running"){
+          await new Promise<void>(resolve=>setTimeout(resolve,100));assertActive();receipt=await this.helmSourceChecks.get(receipt.id,scope);
+        }
+        return receipt;
+      }finally{signal.removeEventListener("abort",cancel);if(receipt&&signal.aborted)await this.helmSourceChecks.cancel(receipt.id,scope);}
+    });
+    void pending.catch(error=>{failed(error);this.emit({kind:"desktop.error",message:String(error)});}).finally(()=>{for(const [id,value] of this.helmSourceSettlements)if(value===pending)this.helmSourceSettlements.delete(id);});
+    return response;
+  }
+  private async importWorkOrca(a:Record<string,unknown>) {
+    const profile=this.profile(a.profile).id,id=ident(a.id),taskId=ident(a.task),{goal}=this.work.orcaTask(id,profile,taskId);
+    return this.work.withSourceOperation(goal.root,profile,"orca-import:"+taskId,{goal:id,task:taskId},async(signal,assertActive)=>{
+      const {task,engine,attempt}=this.work.orcaTask(id,profile,taskId);
+      if(task.orcaAcceptance){const run=this.helmRun(task.orcaAcceptance.runId,profile);this.workOrigin(run);return {goal:this.work.get(id,profile),run};}
+      const scope={root:goal.root,profile:task.profile};
+      const descriptor=await this.helmOrca.prepareImport(scope,engine.requestId,signal);assertActive();
+      const run=await this.helm.importOrca(descriptor,{agent:engine.agent,prompt:task.prompt,owner:profile,title:task.title,workOrigin:{goalId:id,taskId,ownerProfile:profile,taskProfile:task.profile,requestId:engine.requestId,attemptId:attempt.id}},signal);assertActive();
+      const updated=this.work.bindOrcaImport(id,profile,taskId,{runId:run.id,requestId:engine.requestId,attemptId:attempt.id,revision:descriptor.revision,importedAt:Date.now()},assertActive);
+      return {goal:updated,run};
+    });
+  }
+  private async inspectWorkOrcaAcceptance(a:Record<string,unknown>) {
+    const profile=this.profile(a.profile).id,id=ident(a.id),taskId=ident(a.task);
+    const {goal,task,engine}=this.work.orcaTask(id,profile,taskId),run=this.helmRun(ident(a.runId),profile);
+    const binding=this.workOrigin(run);
+    if(binding?.goal!==id||binding.task!==taskId)throw new Error("Helm result belongs to another Work task");
+    const scope={root:goal.root,owner:profile,parentSession:run.parentSession},reviewId=ident(a.reviewId),sourceCheckId=ident(a.sourceCheckId);
+    const review=this.helmIntegration.get(reviewId,scope),check=await this.helmSourceChecks.get(sourceCheckId,scope);
+    if(review.runId!==run.id||check.runId!==run.id||check.reviewId!==review.id)throw new Error("Source checks belong to another result");
+    const reasons:string[]=[];let evidence:ReturnType<typeof verifyWorkOutputs>=[];
+    if(goal.status==="running")reasons.push("Stop Work before accepting a task result.");
+    if(task.messages.length)reasons.push("Pending task instructions must be resolved before acceptance.");
+    if(review.status!=="applied")reasons.push("Apply the reviewed changes first.");
+    if(check.status!=="passed"||!check.after||check.before!==check.after||!check.checks.length||check.results.length!==check.checks.length||check.results.some(r=>r.exitCode!==0||r.error))reasons.push("Run fresh passing checks in the source project.");
+    if(!task.acceptance?.length)reasons.push("This task needs configured output checks.");
+    else try{evidence=verifyWorkOutputs(goal.root,task.acceptance);}catch(error){reasons.push(String(error));}
+    for(const dependency of task.dependsOn.map(id=>goal.tasks.find(t=>t.id===id)!))try{if(dependency.status!=="completed")throw new Error("A dependency is not accepted.");assertWorkEvidence(goal.root,dependency.acceptance??[],dependency.evidence);}catch(error){reasons.push(String(error));}
+    if(check.after&&await this.helmIntegration.sourceFingerprint(goal.root)!==check.after)reasons.push("Source changed after the checks. Run them again.");
+    if(task.orcaAcceptance&&(task.orcaAcceptance.runId!==run.id||task.orcaAcceptance.reviewId!==reviewId||task.orcaAcceptance.sourceCheckId!==sourceCheckId))reasons.push("This task already accepted another review.");
+    return {eligible:!reasons.length,reasons,goalId:id,taskId,runId:run.id,requestId:engine.requestId,reviewId,sourceCheckId,evidence,sourceRevision:check.after,patchDigest:createHash("sha256").update(review.patch).digest("hex"),accepted:!!task.orcaAcceptance};
   }
   private preflightWorkOrca() {
     try { this.helmOrcaRuntime.validateArtifacts(); }
