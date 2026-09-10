@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "dispatchId": "worker-dispatch",
+  "aggregation": "unknown",
+  "state": "available",
+  "sessionId": "session",
+  "observations": [
+    {
+      "observation": {
+        "provider": "claude",
+        "identity": {
+          "sessionId": "session",
+          "runtimeId": "host",
+          "dispatchId": "client-operation",
+          "acquisitionGeneration": "acq",
+          "fence": 7,
+          "providerSessionId": "provider",
+          "turnId": null
+        },
+        "eventId": "result",
+        "scope": "provider-result",
+        "aggregation": "unknown",
+        "inputTokens": 0,
+        "outputTokens": 3,
+        "reportedCostUsd": 0.012,
+        "reportedTurns": 1,
+        "cache": {
+          "readTokens": null,
+          "creationTokens": null,
+          "relationToInput": "unknown"
+        },
+        "completeness": "partial"
+      },
+      "observedAt": 123,
+      "observationKey": "cd88d9c5691c4bb8b7fbcf421d8158228343dddb339ea966e59f66a543bc75e7",
+      "payloadHash": "39ce154d3df46df7d654beb32d638db7a90b64f210a8110baf885002581d0c91",
+      "conflict": true
+    },
+    {
+      "observation": {
+        "provider": "claude",
+        "identity": {
+          "sessionId": "session",
+          "runtimeId": "host",
+          "dispatchId": "client-operation",
+          "acquisitionGeneration": "acq",
+          "fence": 7,
+          "providerSessionId": "provider",
+          "turnId": null
+        },
+        "eventId": "result",
+        "scope": "provider-result",
+        "aggregation": "unknown",
+        "inputTokens": 9,
+        "outputTokens": 3,
+        "reportedCostUsd": 0.012,
+        "reportedTurns": 1,
+        "cache": {
+          "readTokens": null,
+          "creationTokens": null,
+          "relationToInput": "unknown"
+        },
+        "completeness": "partial"
+      },
+      "observedAt": 123,
+      "observationKey": "cd88d9c5691c4bb8b7fbcf421d8158228343dddb339ea966e59f66a543bc75e7",
+      "payloadHash": "c0681f508e8e15f74aefc18433ced84cbb33507e79ebdff57d4b9b58a0fdf46d",
+      "conflict": true
+    }
+  ],
+  "conflict": true,
+  "truncated": false
+}

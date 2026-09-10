@@ -1,0 +1,16 @@
+{
+  "sourceRevision": "7c9025408fc2ddebc7be5ddd4bec31d5688bb2f0",
+  "files": {
+    "src/desktop/__tests__/helm-orca-tools.test.ts": "801803dcab0f2f0a931cb7af8bc41992a1cd05e32ea9cb76317c72785d58d2a8",
+    "src/desktop/__tests__/helm-orca-usage-retention.test.ts": "24ebf9ebc685c5aa333aefdccb61dce5c2ec4e8660d4b93d4f7b4c82a346ea3f",
+    "src/desktop/__tests__/helm-orca-usage.test.ts": "e2e679edbb345354ee66ed4805e26d13b971d7ee90d3e05344cd61005ff363c9",
+    "src/desktop/core/desktop-request-routing.ts": "c09510b8a0bc6b88cfc072df3ddd3fe64faacabaf1f02f1e0278763aa56c332e",
+    "src/desktop/core/helm-orca-service.ts": "673a35e1eadcfb229adaf70020e8ade9085a2c473a23c7a706a17423efbaa774",
+    "src/desktop/core/helm-orca-tools.ts": "eeadebd49499673c0d7d73d80f8237cc5738350b4fa4c23077b41d76ecf551cd",
+    "src/desktop/core/helm-orca-usage-store.ts": "e7c49b23d8276408e61cdd161808e3434772250f8484dbb7bb537540a6d89d41",
+    "src/desktop/core/helm-orca-usage.ts": "7df3f8e5c332df0e74c3a366203212a20043d5af6da79462d0e603a9576fb270",
+    "src/desktop/core/workbench-service.ts": "3b6f8866d47f322f37ef43a2a4b5ebd39f194e49faacfe9f690088046f1a6636",
+    "dist/desktop/sidecar-entry.js": "85795c8f8ae1ce81afd57712a2d38d7702fec00c7310cec05d01bdfc1b46591e",
+    "dist/desktop/team-server.js": "f8157813419cc4149beb9d4198df27ae90cc9ba2e625987506762fd3c293175d"
+  }
+}

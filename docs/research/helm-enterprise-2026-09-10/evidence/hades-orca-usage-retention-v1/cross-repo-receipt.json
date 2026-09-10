@@ -1,0 +1,78 @@
+{
+  "scope": "actual in-process Orca parser + SQLite collaborator + worker projection to Hades decoder; no runtime/provider/wire execution",
+  "tests": {
+    "producer": 1,
+    "consumer": 1,
+    "passed": 2
+  },
+  "orcaHead": "7d9a98ec352cc464b9fb695cb69f508c1a260f9c",
+  "producerSources": [
+    {
+      "path": "src/shared/provider-usage-observation.ts",
+      "sha256": "3bf3f719cb846bdf2dd3334ebeb487a8599824a003fc4e8b08abafc1da268fdd",
+      "bytes": 4299,
+      "matches7d9a98ec": true
+    },
+    {
+      "path": "src/main/native-chat/agent-session-journal/journal-usage-observations.ts",
+      "sha256": "d018e411fd4af70bfd2d50d95f8ca3f4a524e9618f1056ba9859e98988f979ec",
+      "bytes": 8819,
+      "matches7d9a98ec": true
+    },
+    {
+      "path": "src/main/native-chat/agent-session-journal/journal-database-schema.ts",
+      "sha256": "5ea63650a0406fa4f6cfbea938a4dfa2f137a2919c12bb013640f821732bfb34",
+      "bytes": 1758,
+      "matches7d9a98ec": true
+    },
+    {
+      "path": "src/main/sqlite/sync-database.ts",
+      "sha256": "ce365e92cb1ffea0146ef0d592ba7488b33a0e7973f57f0119c9ab3db73efd49",
+      "bytes": 3418,
+      "matches7d9a98ec": true
+    },
+    {
+      "path": "src/main/runtime/rpc/methods/orchestration/worker/worker-usage-observations.ts",
+      "sha256": "738cc8c98b8dc824b3ab957ff65cb17ebcf8004cfb15797a7a32fa80e1b41c35",
+      "bytes": 1391,
+      "matches7d9a98ec": true
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/tmp/orca-cross-producer.test.ts",
+      "sha256": "b916fb0385a575c49a4a0455b5aaf1a0c8e56d410129988be51161e0f2d24c90",
+      "bytes": 2249
+    },
+    {
+      "path": "/tmp/orca-cross-consumer.test.ts",
+      "sha256": "e628774f0ca7e29daa44d09d396498184a0b7c418443fd29b6b148d6622fc15a",
+      "bytes": 785
+    },
+    {
+      "path": "/tmp/orca-cross.config.mjs",
+      "sha256": "1feaea8aed263ec537c94521626ee42fdf102a528e89061263d806f9309e09c3",
+      "bytes": 238
+    },
+    {
+      "path": "/tmp/orca-cross-usage-fixture.json",
+      "sha256": "b19b967f1e67fb6249455ddec12b27e6294c660289792885f275c1ec509321e9",
+      "bytes": 2116
+    },
+    {
+      "path": "/tmp/orca-cross-producer.log",
+      "sha256": "90edb1620a38944e7fd01ee361f832cfa84aab9d114a126a5e7bac8fdf33de9b",
+      "bytes": 184
+    },
+    {
+      "path": "/tmp/orca-cross-consumer.log",
+      "sha256": "5c550349aa345c3a7836bff4950291e0d375f00c91b865ce6c4d96dff0c6fe33",
+      "bytes": 183
+    },
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/core/helm-orca-usage.ts",
+      "sha256": "7df3f8e5c332df0e74c3a366203212a20043d5af6da79462d0e603a9576fb270",
+      "bytes": 8479
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+export default {root:'/tmp',oxc:{tsconfig:false},test:{environment:'node',include:['orca-cross-*.test.ts'],maxWorkers:1},resolve:{alias:{vitest:'/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules/vitest/dist/index.js'}}}

@@ -1,0 +1,9 @@
+
+ RUN  v4.1.5 /tmp
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  14:20:45
+   Duration  106ms (transform 26ms, setup 0ms, import 35ms, tests 7ms, environment 0ms)
+

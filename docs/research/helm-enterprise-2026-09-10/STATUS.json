@@ -133,6 +133,12 @@
     "path": "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration",
     "status": "Claude exact-correlated capture, durable storage and local worker projection implemented; remote projection, billing settlement and full provider/native acceptance remain pending",
     "tests": "53 focused source tests; targeted module typecheck passed; extended graph blocked by unavailable modules and node-pty",
-    "report": "audit/orca-usage-integration-plan-v1.md"
+    "report": "audit/orca-usage-integration-plan-v1.md",
+    "receivingSide": {
+      "revision": "7c9025408fc2ddebc7be5ddd4bec31d5688bb2f0",
+      "state": "validated evidence retention only; no billing settlement",
+      "tests": "67 tests across six files; full Hades tsc; sidecar/team source builds; 2 actual cross-repo producer/consumer checks",
+      "report": "audit/orca-usage-integration-plan-v1.md"
+    }
   }
 }
