@@ -4,15 +4,29 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 MODE="run"
+BUILD_ONLY_REQUESTED=0
+OTHER_MODE_REQUESTED=0
 for argument in "$@"; do
-  case "$argument" in --build-only) MODE="build";; --verify) MODE="verify";; --debug|--logs|--telemetry) MODE="logs";; *) echo "Unknown option: $argument" >&2; exit 2;; esac
+  case "$argument" in --build-only) MODE="build"; BUILD_ONLY_REQUESTED=1;; --verify) MODE="verify"; OTHER_MODE_REQUESTED=1;; --debug|--logs|--telemetry) MODE="logs"; OTHER_MODE_REQUESTED=1;; *) echo "Unknown option: $argument" >&2; exit 2;; esac
 done
+if [[ "$BUILD_ONLY_REQUESTED" == 1 && "$OTHER_MODE_REQUESTED" == 1 ]]; then echo "--build-only cannot be combined with an app-launch mode." >&2; exit 2; fi
+source "$ROOT/script/build-output.sh"
+if [[ "$MODE" == build ]]; then
+  APP="$(hades_select_build_output "$ROOT")"
+else
+  APP="${HADES_APP_OUTPUT:-$ROOT/dist-mac/Hades.app}"
+fi
 if [[ "$(uname -s)" != Darwin ]]; then echo "This script builds the macOS application." >&2; exit 1; fi
 node scripts/package-helm-orca.mjs --check
 node scripts/check-helm-provenance.mjs
 if [[ ! -f dist/helm-ui/index.html || ! -f dist/runtime/helm-opencode ]]; then
   echo "Helm's OpenCode fork is not built. Run npm run helm:build -- --source /path/to/the/helm-integration/fork first." >&2
   exit 1
+fi
+# Reserve the fresh path before compilation; a concurrent claimant must fail.
+if [[ "$MODE" == build ]]; then
+  mkdir -p "$(dirname "$APP")"
+  mkdir "$APP" || { echo "Fresh candidate reservation failed: $APP" >&2; exit 1; }
 fi
 HADES_BUNDLE_PROVIDERS=1 npm run desktop:build
 HADES_BUNDLE_PROVIDERS=1 npm run build:hades
@@ -28,7 +42,7 @@ fi
 xcrun swiftc -target "$(uname -m)-apple-macos14.0" -parse-as-library -O scripts/macos-computer.swift -o dist/runtime/hades-computer
 cc -O2 -Wall -Wextra scripts/macos-pty.c -o dist/runtime/hades-pty
 cargo build --manifest-path src-tauri/Cargo.toml --features gui -j "${HADES_BUILD_JOBS:-4}"
-APP="${HADES_APP_OUTPUT:-$ROOT/dist-mac/Hades.app}"
+if [[ "$MODE" != build ]]; then
 # Stop only the previously built application. Other Node processes are untouched.
 pgrep -f "^${APP}/Contents/MacOS/Hades$" | while read -r pid; do
   kill "$pid" 2>/dev/null || true
@@ -39,6 +53,7 @@ pgrep -f "^${APP}/Contents/MacOS/Hades$" | while read -r pid; do
     sleep 0.1
   done
 done || true
+fi
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp src-tauri/target/debug/hades-desktop "$APP/Contents/MacOS/Hades"
 cp dist/desktop/sidecar-entry.js "$APP/Contents/Resources/sidecar-entry.js"

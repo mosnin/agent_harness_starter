@@ -16,3 +16,7 @@ The last verified regression is 683 distinct local source tests across 57 files,
 4. **Run final acceptance and fix failures.** Exercise the default coding-to-reviewed-change flow, native Browser/Maus spatial handoff, Google/passkey profile persistence, keyboard/pointer UX, cancellation and recovery. Complete the existing 60-minute run and 24-case three-trial comparison requirements, then obtain independent acceptance of the exact delivered revisions.
 
 No gate is waived by this ordering. No source test, present app bundle or successful build is a substitute for a real account or provider workflow. Work toward this finite closeout list before expanding the product scope.
+
+## Packaging closeout checkpoint
+
+Orca runtime packaging is committed at `fede5c6faa4d7d8e22033db9795f609c9807b6a1`; the recorded source regression now comprises 696 distinct cases, including 13 packaging cases. The subsequent build-only change selects a fresh candidate, skips process inspection/stopping/launching in build-only mode, and passes that exact candidate to archive wrappers. Ten independently authored path-selection tests pass, covering existing outputs, app ancestors/aliases, newline paths and unique default candidates. Shell syntax checks pass. Full mocked build/wrapper execution, native compilation and installed-app acceptance remain pending; these helper tests do not prove those gates. No new native candidate was installed and no remote write was performed.

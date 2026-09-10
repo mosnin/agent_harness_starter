@@ -3,6 +3,9 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+source "$ROOT/script/build-output.sh"
+HADES_APP_OUTPUT="$(hades_select_build_output "$ROOT")"
+export HADES_APP_OUTPUT
 if [[ "$(uname -s)" != Darwin ]]; then echo "A Mac is required." >&2; exit 1; fi
 : "${HADES_SIGN_IDENTITY:?Set an installed Developer ID Application identity.}"
 : "${HADES_NOTARY_PROFILE:?Set the name of an existing notarytool Keychain profile.}"
@@ -19,7 +22,7 @@ trap 'rmdir "$RELEASE_LOCK" 2>/dev/null || true' EXIT
 export HADES_HELM_REQUIRE_PIN=1
 npm run helm:build -- --source "${HADES_HELM_OPENCODE_SOURCE:-$ROOT/vendor/opencode}"
 ./script/build_and_run.sh --build-only
-APP="${HADES_APP_OUTPUT:-$ROOT/dist-mac/Hades.app}"
+APP="$HADES_APP_OUTPUT"
 if [[ "$(git rev-parse HEAD)" != "$REVISION" || -n "$(git status --porcelain)" ]]; then echo "Source changed during build; release refused." >&2; exit 1; fi
 ARCH="$(uname -m)"
 ARCHIVE="$ROOT/dist-mac/Hades-$ARCH-$REVISION.zip"
