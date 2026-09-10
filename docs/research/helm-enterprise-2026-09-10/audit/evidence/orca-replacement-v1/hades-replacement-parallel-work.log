@@ -1,0 +1,217 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:67401) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:67402) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/helm-integration.test.ts (22 tests | 4 failed) 68333ms
+   × applies binary/addition/deletion once, preserves source index and flags fresh source checks 5131ms
+   × preserves unrelated staged/dirty source changes 5381ms
+   × rejects source drift after review 5457ms
+   × serializes separate reviews and requires re-review after the first integration 5164ms
+(node:87780) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/helm-integration-claims.test.ts (15 tests | 5 failed) 70493ms
+   × pre-aborted and final active-guard cancellation have no file effects and allow explicit later apply 5131ms
+   × rechecks cancellation after a queued apply settles 5379ms
+   × post-dispatch abort retains unknown claims and never replays after reopening 5448ms
+   × binds retained claims to the complete scoped review body 5413ms
+   × rejects body replacement at final dispatch without changing source 5475ms
+(node:88249) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:96136) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:97882) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2324) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4618) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7834) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8417) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8830) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8999) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9170) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10017) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10211) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10290) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10381) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10448) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10666) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10721) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10773) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10864) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10937) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11078) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/helm-integration-claims.test.ts > pre-aborted and final active-guard cancellation have no file effects and allow explicit later apply
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/desktop/__tests__/helm-integration-claims.test.ts:95:1
+     93|   ): Promise<string>;
+     94| };
+     95| it("pre-aborted and final active-guard cancellation have no file effec…
+       | ^
+     96|   const review = await integration.prepare(await ready(), scope());
+     97|   const aborted = new AbortController();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  src/desktop/__tests__/helm-integration-claims.test.ts > rechecks cancellation after a queued apply settles
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/desktop/__tests__/helm-integration-claims.test.ts:121:1
+    119|   ).toBe("applied");
+    120| });
+    121| it("rechecks cancellation after a queued apply settles", async () => {
+       | ^
+    122|   const review = await integration.prepare(await ready(), scope());
+    123|   const internals = integration as unknown as Internals,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  src/desktop/__tests__/helm-integration-claims.test.ts > post-dispatch abort retains unknown claims and never replays after reopening
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/desktop/__tests__/helm-integration-claims.test.ts:149:1
+    147|   await rejection;
+    148| });
+    149| it("post-dispatch abort retains unknown claims and never replays after…
+       | ^
+    150|   const review = await integration.prepare(await ready(), scope());
+    151|   const internals = integration as unknown as Internals,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  src/desktop/__tests__/helm-integration-claims.test.ts > binds retained claims to the complete scoped review body
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/desktop/__tests__/helm-integration-claims.test.ts:178:1
+    176|   expect(effects).toBe(1);
+    177| });
+    178| it("binds retained claims to the complete scoped review body", async (…
+       | ^
+    179|   const review = await integration.prepare(await ready(), scope());
+    180|   const abort = new AbortController();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  src/desktop/__tests__/helm-integration-claims.test.ts > rejects body replacement at final dispatch without changing source
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/desktop/__tests__/helm-integration-claims.test.ts:214:1
+    212|   unchanged();
+    213| });
+    214| it("rejects body replacement at final dispatch without changing source…
+       | ^
+    215|   const review = await integration.prepare(await ready(), scope());
+    216|   let changed = false;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  src/desktop/__tests__/helm-integration.test.ts > applies binary/addition/deletion once, preserves source index and flags fresh source checks
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/desktop/__tests__/helm-integration.test.ts:30:1
+     28|   return run.id;
+     29| }
+     30| it('applies binary/addition/deletion once, preserves source index and …
+       | ^
+     31|   const id = await ready(); const indexBefore = git('diff','--cached');
+     32|   const review = await integration.prepare(id,scope());
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  src/desktop/__tests__/helm-integration.test.ts > preserves unrelated staged/dirty source changes
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/desktop/__tests__/helm-integration.test.ts:42:1
+     40|   expect((await integration.apply(review.id,scope(),hash(review.patch)…
+     41| });
+     42| it('preserves unrelated staged/dirty source changes',async()=>{
+       | ^
+     43|   const id=await ready(); writeFileSync(join(root,'local.txt'),'local'…
+     44|   const staged=git('diff','--cached');const review=await integration.p…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  src/desktop/__tests__/helm-integration.test.ts > rejects source drift after review
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/desktop/__tests__/helm-integration.test.ts:47:1
+     45|   await integration.apply(review.id,scope(),hash(review.patch));expect…
+     46| });
+     47| it('rejects source drift after review',async()=>{
+       | ^
+     48|   const review=await integration.prepare(await ready(),scope());writeF…
+     49|   await expect(integration.apply(review.id,scope(),hash(review.patch))…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+
+ FAIL  src/desktop/__tests__/helm-integration.test.ts > serializes separate reviews and requires re-review after the first integration
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/desktop/__tests__/helm-integration.test.ts:85:1
+     83|   await expect(integration.prepare(id,scope())).rejects.toThrow('confl…
+     84| });
+     85| it('serializes separate reviews and requires re-review after the first…
+       | ^
+     86|   const id=await ready();const first=await integration.prepare(id,scop…
+     87|   const result=await Promise.allSettled([integration.apply(first.id,sc…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+Error: Command failed: git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null diff --no-ext-diff --no-textconv --binary --cached
+fatal: Unable to read current working directory: No such file or directory
+
+ ❯ genericNodeError node:internal/errors:983:15
+ ❯ wrappedFn node:internal/errors:537:14
+ ❯ ChildProcess.exithandler node:child_process:417:12
+ ❯ ChildProcess.emit node:events:519:28
+ ❯ maybeClose node:internal/child_process:1101:16
+ ❯ Socket.<anonymous> node:internal/child_process:456:11
+ ❯ Socket.emit node:events:519:28
+ ❯ Pipe.<anonymous> node:net:346:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 128, killed: false, signal: null, cmd: 'git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null diff --no-ext-diff --no-textconv --binary --cached', stdout: '', stderr: 'fatal: Unable to read current working directory: No such file or directory\n' }
+This error originated in "src/desktop/__tests__/helm-integration-claims.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "post-dispatch abort retains unknown claims and never replays after reopening". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  2 failed | 35 passed (37)
+      Tests  9 failed | 382 passed (391)
+     Errors  1 error
+   Start at  08:00:26
+   Duration  138.19s (transform 1.60s, setup 0ms, import 3.58s, tests 266.07s, environment 1.48s)
+
+(node:67372) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)

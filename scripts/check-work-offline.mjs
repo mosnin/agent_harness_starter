@@ -20,8 +20,13 @@ const suites = [
   "workbench-orca-acceptance", "desktop-request-routing",
   "helm-source-checks-cancellation", "workbench-orca-independent",
   "orca-work-review-ui",
+  "helm-orca-replacement", "work-orca-deadline", "work-orca-deadline-review",
+  "workbench-orca-replacement", "workbench-orca-replacement-review", "work-orca-replacement-ui",
+  "helm-orca-status-authority-review", "work-orca-replacement-ui-review",
 ].map(name => `src/desktop/__tests__/${name}.test.ts`);
-const result = spawnSync(process.execPath, [vitest, "run", ...suites, "--maxWorkers=2"], {
+// The suites themselves exercise concurrent tasks/processes. Serialize files to
+// avoid competing Git fixture trees exhausting short per-test setup deadlines.
+const result = spawnSync(process.execPath, [vitest, "run", ...suites, "--maxWorkers=1"], {
   cwd: root, stdio: "inherit", env: process.env,
 });
 if (result.error) throw result.error;

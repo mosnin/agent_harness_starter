@@ -1,0 +1,50 @@
+{
+  "kind": "author-ui-type-repair-receipt",
+  "version": 2,
+  "createdAt": "2026-09-10T12:04:11.985073+00:00",
+  "supersedesFreeze": {
+    "receipt": "/tmp/hades-work-orca-replacement-ui-receipt.json",
+    "sha256": "87f350dde436d6dee4a426604ab0cd3291009073aee58d26bce1786c6fe70509",
+    "oldWorkGoalsSha256": "7f0e2ee85178673e0ee07fbe512aae325d575b555d4ddc03a9dfc3a449d3e090"
+  },
+  "sourceFrozen": true,
+  "delta": [
+    "Annotated stopped as ReplacementPanel | undefined so phase and error remain correctly typed across asynchronous transitions.",
+    "Captured selected locally with an explicit presence check in the existing scope, profile, goal and root predicate."
+  ],
+  "files": [
+    {
+      "path": "src/desktop/ui/work-goals.ts",
+      "sha256": "120f020ef88f4d0af06061e684fb89a2b8442601d7b0e587db4f843e444b0f10"
+    },
+    {
+      "path": "src/desktop/ui/helm-orca.ts",
+      "sha256": "fbacd8ff994de36b4efa782b1e009dc9fc099f5c2d74b316de18773fa5b49021"
+    },
+    {
+      "path": "src/desktop/__tests__/work-orca-replacement-ui.test.ts",
+      "sha256": "d507752058b273fc19b055a0f56a1262a54dd4f44d8a5df7032cc13c353535f0"
+    },
+    {
+      "path": "src/desktop/__tests__/work-orca-replacement-ui-review.test.ts",
+      "sha256": "6548b623672cfc642cf5f1f62dec2537188de2f1e1c302a904589ced83faebdc"
+    }
+  ],
+  "checks": [
+    {
+      "command": "./node_modules/.bin/tsc --noEmit",
+      "log": "/tmp/hades-work-orca-replacement-ui-type-repair.log",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "./node_modules/.bin/vitest run src/desktop/__tests__/work-orca-replacement-ui.test.ts src/desktop/__tests__/work-goals.test.ts src/desktop/__tests__/helm-orca-ui.test.ts src/desktop/__tests__/orca-work-review-ui.test.ts src/desktop/__tests__/work-orca-replacement-ui-review.test.ts --maxWorkers=1",
+      "log": "/tmp/hades-work-orca-replacement-ui-type-repair-tests.log",
+      "exitCode": 0,
+      "testFiles": 5,
+      "testsPassed": 96,
+      "logSha256": "e6365e9796e3f627b22228bd6100e09bb878dd3085b3596f6ebeda26323db544"
+    }
+  ],
+  "scope": "Source typing and happy-dom/RPC fixtures only. No heavy backend suites, native or browser controls, provider execution, listeners, network, installs, commits or deployment."
+}

@@ -1,0 +1,4 @@
+src/desktop/ui/work-goals.ts(261,144): error TS2532: Object is possibly 'undefined'.
+src/desktop/ui/work-goals.ts(265,52): error TS2322: Type '"uncertain"' is not assignable to type '"stopping"'.
+src/desktop/ui/work-goals.ts(271,9): error TS2322: Type '"uncertain"' is not assignable to type '"stopping"'.
+src/desktop/ui/work-goals.ts(271,38): error TS2322: Type '"The Stop reply was not confirmed. Refresh Work to inspect the saved outcome."' is not assignable to type 'undefined'.

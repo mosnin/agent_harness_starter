@@ -1,6 +1,6 @@
 {
   "schema": "hades.enterprise-program-status.v1",
-  "updatedAt": "2026-09-10T11:18:50.319203+00:00",
+  "updatedAt": "2026-09-10T12:11:19.407Z",
   "goal": "active",
   "productAccepted": false,
   "hadesBaseline": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
@@ -30,7 +30,7 @@
     {
       "id": "G05",
       "status": "partial",
-      "evidence": "Dispatch now pins source base/identity and repeated owned-worker observations; source import and durable apply claims pass fault fixtures, including an owned child SIGKILL. Real Orca runtime/restart trials remain open."
+      "evidence": "Service-owned replacement seals select one successor and fence late predecessor dispatch. Nine actual owned-host SIGKILL trials (three at claim, seal and Work checkpoint) recover SQLite state without duplicate modeled dispatch. Actual Orca runtime/restart trials remain open."
     },
     {
       "id": "G06",
@@ -50,12 +50,12 @@
     {
       "id": "G09",
       "status": "partial",
-      "evidence": "Checked Orca output acceptance retains unknown provider reservations and original attempt history. Provider token/time/spend enforcement and replacement-worker retry semantics remain unimplemented."
+      "evidence": "Explicit replacement retains unknown usage and history; Resume uses saved limits unless explicitly edited and requires new admission allocation/attempts. Host observation deadlines are bounded. The pinned Orca contract has no normalized provider token/spend enforcement or usage receipts; those upstream and live gates remain open."
     },
     {
       "id": "G10",
       "status": "partial",
-      "evidence": "Queued Work-bound Helm mutations are revoked by Stop; source apply/checks recheck authority at dispatch. Independent Stop/close-during-fingerprint cases pass. Real provider cancellation remains unverified."
+      "evidence": "Stop fences queued and pending replacement, current review preparation and late replies, including a new review on an accepted objective. Contradictory worker identity cannot release capacity; detached operations remain maintenance-visible. Actual provider termination remains unverified."
     },
     {
       "id": "G11",
@@ -85,7 +85,7 @@
     {
       "id": "G16",
       "status": "partial",
-      "evidence": "Work and Orca link to existing Helm review UI with scoped explicit acceptance, stale-state invalidation and confirmed-application recovery controls. 102 focused DOM/RPC cases pass; installed native visual and interaction acceptance remains open."
+      "evidence": "Replacement eligibility, exact confirmation, reachable pending Stop, saved-identity recovery, provider-default handling and explicit budget edits pass DOM/RPC fixtures. Native visual, pointer and keyboard acceptance remains open."
     },
     {
       "id": "G17",
@@ -95,7 +95,7 @@
     {
       "id": "G18",
       "status": "partial",
-      "evidence": "Final Plugins303/303 and Work/Helm296/296, full TypeScript and desktop source bundles pass. Runners share11 routing cases (588 distinct cases,49files). Full native/runtime/provider regression remains open."
+      "evidence": "Final serialized Work/Helm 391/391 (37 files), Plugins 303/303 (21 files), fresh TypeScript and desktop source bundles pass: 683 distinct cases across 57 files after 11 shared routing cases. Initial parallel Git fixture timeouts and teardown rejection are retained; the unchanged 37 Git cases passed in isolation before the serialized full gate. Native/runtime/provider regression remains open."
     },
     {
       "id": "G19",
@@ -105,18 +105,18 @@
     {
       "id": "G20",
       "status": "partial",
-      "evidence": "Independent Orca/Work reviews and streaming/resource reviews repaired provenance, cancellation, recovery and duplicate catch-up defects. Final source/evidence is receipt-bound; product-wide independent acceptance remains open."
+      "evidence": "Independent reviews repaired stale eligibility, admission before unsupported model rejection, deadline authority revocation, invisible detached operations, contradictory status capacity release and UI cancellation/budget gaps. Exact source/log receipts bind the candidate; product-wide independent acceptance remains open."
     }
   ],
   "nextExecutionOrder": [
+    "Implement capability-negotiated usage and mandatory-limit contracts in the actual Orca fork; validate each actual provider transport before advertising enforcement",
     "Build and package exact foundations on an authorized host with sufficient space; verify actual worker/PTY and provider authentication",
     "Exercise actual default conversation-to-worker-to-checked-artifact-to-reviewed-apply flow; repair failures",
-    "Enforce negotiated cross-engine budget and recovery contracts before autonomous team expansion",
-    "Deliver and benchmark real general-work and enterprise policy workflows",
-    "Run native usability and 24-case three-trial matched comparison, then independent product acceptance"
+    "Deliver seven live OAuth journeys and real general-work and enterprise policy workflows",
+    "Run the real 60-minute recovery exercise, native usability and 24-case three-trial matched comparison, then independent product acceptance"
   ],
-  "sourceCandidate": "0ce9849738f4851a4c80d66a99a8cd23431be54a",
-  "sourceState": "Committed Orca baseline for the Plugins recovery/resource follow-up, pinned by the source receipt. No remote, installed, live or product acceptance.",
+  "sourceCandidate": "23490e4c1a2a45fb35522b19dde5269337be7a6d",
+  "sourceState": "Local follow-up to 23490e4, frozen by the replacement receipt. No remote, installed, live or product acceptance.",
   "pluginProgram": "docs/plugins/PROGRAM.md",
-  "sourceReceipt": "docs/plugins/source-v4-receipt.json"
+  "sourceReceipt": "docs/research/helm-enterprise-2026-09-10/audit/orca-replacement-v1-receipt.json"
 }

@@ -1,0 +1,22 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:1907) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ src/desktop/__tests__/desktop-request-routing.test.ts > cancels an unadmitted Orca start without creating a fake stopped worker 59ms
+ ✓ src/desktop/__tests__/desktop-request-routing.test.ts > still stops a retained active worker when the removed queue item was a duplicate 63ms
+ ✓ src/desktop/__tests__/desktop-request-routing.test.ts > does not remove another profile's queued start or accept an untrusted cancellation hint 46ms
+ ✓ src/desktop/__tests__/desktop-request-routing.test.ts > a stopped Work plan cannot be restarted by an already queued Resume 70ms
+ ✓ src/desktop/__tests__/desktop-request-routing.test.ts > uses the same reserved controls in the native bridge and leaves startup serialized 1ms
+ ✓ src/desktop/__tests__/desktop-request-routing.test.ts > Stop revokes queued work.orca.import before host mutation 43ms
+ ✓ src/desktop/__tests__/desktop-request-routing.test.ts > Stop revokes queued work.orca.accept before host mutation 41ms
+ ✓ src/desktop/__tests__/desktop-request-routing.test.ts > Stop revokes queued Work-bound helm.verify using exact scope 38ms
+ ✓ src/desktop/__tests__/desktop-request-routing.test.ts > Stop revokes queued Work-bound helm.integration.prepare using exact scope 38ms
+ ✓ src/desktop/__tests__/desktop-request-routing.test.ts > Stop revokes queued Work-bound helm.integration.apply using exact scope 40ms
+ ✓ src/desktop/__tests__/desktop-request-routing.test.ts > Stop revokes queued Work-bound helm.source.start using exact scope 47ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  12:37:12
+   Duration  1.08s (transform 450ms, setup 0ms, import 517ms, tests 487ms, environment 0ms)
+

@@ -1,0 +1,41 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:48235) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/work-orca-deadline-review.test.ts (2 tests | 2 failed) 22ms
+   × authority guard failure after recovery revokes and stops the exact owned worker once 7ms
+   × an actual retained service operation stays maintenance-visible after caller timeout until its late reply settles 14ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/work-orca-deadline-review.test.ts > authority guard failure after recovery revokes and stops the exact owned worker once
+AssertionError: expected "vi.fn()" to be called once with arguments: [ …(2) ]
+
+Number of calls: 0
+
+ ❯ src/desktop/__tests__/work-orca-deadline-review.test.ts:10:23
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/desktop/__tests__/work-orca-deadline-review.test.ts > an actual retained service operation stays maintenance-visible after caller timeout until its late reply settles
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/desktop/__tests__/work-orca-deadline-review.test.ts:19:168
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  07:40:29
+   Duration  226ms (transform 66ms, setup 0ms, import 85ms, tests 22ms, environment 0ms)
+

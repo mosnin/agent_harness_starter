@@ -369,7 +369,7 @@ export class WorkbenchService {
     this.credentials = new CredentialPool(join(dataDir, "credential-pools.sqlite"), account => this.keys.get(account));
     this.computer.configure(this.settings.computerEnabled);
     this.work = new DurableWork(join(dataDir, "work.sqlite"), {
-      preflight: task => { if(task.engine?.kind === "orca") this.preflightWorkOrca(); },
+      preflight: task => { if(task.engine?.kind === "orca") this.preflightWorkOrca(task.engine); },
       profile: id => { this.profile(id); }, root: path => this.root(path),
       execute: (input, signal, bind) => this.executeWorkRequest(input, signal, bind),
       changed: goal => this.emit({ kind: "desktop.work", id: goal.id, profile: goal.profile }),
@@ -1241,7 +1241,11 @@ export class WorkbenchService {
       case "helm.integration.prepare": {
         const run = this.helmRun(a.id, this.profile(a.profile).id);
         this.validateWorkHint(run,a);
-        return this.helmIntegration.prepare(run.id, { root: run.root, owner: run.owner, parentSession: run.parentSession });
+        const scope={root:run.root,owner:run.owner,parentSession:run.parentSession};
+        if(!run.workOrigin)return this.helmIntegration.prepare(run.id,scope);
+        return this.withHelmSourceOperation(run,"prepare:"+run.id,async(_signal,assertActive)=>{
+          assertActive();const review=await this.helmIntegration.prepare(run.id,scope);assertActive();return review;
+        });
       }
       case "helm.integration.list": {
         const run = this.helmRun(a.id, this.profile(a.profile).id);
@@ -1357,6 +1361,8 @@ export class WorkbenchService {
         throw new Error("The exact application receipt is unavailable. The reservation was retained.");
       }
       case "work.orca.import": return this.importWorkOrca(a);
+      case "work.orca.replacement": return this.inspectWorkOrcaReplacement(a);
+      case "work.orca.replace": return this.replaceWorkOrca(a);
       case "work.orca.acceptance": return this.inspectWorkOrcaAcceptance(a);
       case "work.orca.accept": {
         const profile=this.profile(a.profile).id,id=ident(a.id),task=ident(a.task),goal=this.work.get(id,profile);
@@ -2801,6 +2807,44 @@ export class WorkbenchService {
       return {goal:updated,run};
     });
   }
+  private async inspectWorkOrcaReplacement(a:Record<string,unknown>) {
+    const profile=this.profile(a.profile).id,id=ident(a.id),taskId=ident(a.task),goal=this.work.get(id,profile),task=goal.tasks.find(t=>t.id===taskId);
+    if(!task||task.engine?.kind!=="orca")throw new Error("Choose an Orca task owned by this Work goal");
+    const binding={goal:id,task:taskId,attemptId:task.attempts?.at(-1)?.id??"",requestId:task.engine.requestId};
+    const heldTokens=goal.tasks.reduce((total,t)=>total+(t.reservedTokens??0),0);
+    const budget={reportedTokens:goal.tokens,heldTokens,availableTokens:Math.max(0,goal.maxTokens-goal.tokens-heldTokens),elapsedMs:goal.elapsedMs,remainingMs:Math.max(0,goal.maxMinutes*60000-goal.elapsedMs),maxAttempts:goal.maxRounds,attemptsUsed:task.rounds};
+    const prepared=task.orcaReplacements?.findLast(r=>r.toRequestId===(task.engine as {requestId:string}).requestId);
+    if(prepared&&!task.engine.dispatchIntent)return {...binding,budget,eligible:false,prepared:{requestId:prepared.fromRequestId,successorId:prepared.toRequestId,at:prepared.at},reason:"Replacement ready. Resume Work to start it with remaining host allocation and attempts."};
+    try{
+      const {revision}=this.work.orcaReplacementInspection(id,profile,taskId,{requestId:binding.requestId,attemptId:binding.attemptId});
+      const result=await this.helmOrca.inspectReplacement({root:goal.root,profile:task.profile},binding.requestId,AbortSignal.timeout(15000));
+      this.work.orcaReplacementInspection(id,profile,taskId,{requestId:binding.requestId,attemptId:binding.attemptId},revision);
+      return {...binding,budget,eligible:result.eligible,reason:result.reason,proof:result.proof};
+    }catch(error){return {...binding,budget,eligible:false,reason:error instanceof Error?error.message:"Worker termination is unconfirmed. Reconcile the retained request."};}
+  }
+  private async replaceWorkOrca(a:Record<string,unknown>) {
+    const profile=this.profile(a.profile).id,id=ident(a.id),taskId=ident(a.task),expected={requestId:ident(a.expectedRequestId),attemptId:ident(a.expectedAttemptId)};
+    const goal=this.work.get(id,profile),task=goal.tasks.find(t=>t.id===taskId);
+    if(!task||task.engine?.kind!=="orca")throw new Error("Choose an Orca task owned by this Work goal");
+    const scope={root:goal.root,profile:task.profile},kind="orca-replace:"+expected.requestId;
+    const prior=task.orcaReplacements?.find(r=>r.fromRequestId===expected.requestId&&r.fromAttemptId===expected.attemptId);
+    if(prior){
+      if(task.engine.requestId!==prior.toRequestId)throw new Error("This task has moved beyond that replacement. Refresh Work.");
+      const seal=this.helmOrca.get(scope,expected.requestId).replacementSeal;
+      if(!seal||JSON.stringify(seal)!==JSON.stringify(prior.seal))throw new Error("The saved replacement seal is unavailable or changed. No work was dispatched.");
+      // A crash after the Work checkpoint can leave this metadata claim behind.
+      // The exact saved seal proves its only effect; source-edit claims stay held.
+      for(const claim of this.work.sourceOperationStatus(profile).filter(c=>c.goal===id&&c.task===taskId&&c.kind===kind&&c.state==="unconfirmed"))this.work.releaseCompletedSourceOperation(claim.id,profile,{root:goal.root,kind});
+      return this.workView(this.work.get(id,profile));
+    }
+    return this.work.withOrcaReplacement(id,profile,taskId,expected,async(signal,assertActive)=>{
+      const seal=await this.helmOrca.sealForReplacement(scope,expected.requestId,signal,assertActive);assertActive();
+      const updated=this.work.replaceOrca(id,profile,taskId,expected,seal,assertActive);
+      // The source claim drains in withOrcaReplacement.finally before this RPC
+      // resolves. Do not present it as an unfinished operation in the response.
+      return {...this.workView(updated),sourceOperations:[]};
+    });
+  }
   private async inspectWorkOrcaAcceptance(a:Record<string,unknown>) {
     const profile=this.profile(a.profile).id,id=ident(a.id),taskId=ident(a.task);
     const {goal,task,engine}=this.work.orcaTask(id,profile,taskId),run=this.helmRun(ident(a.runId),profile);
@@ -2821,7 +2865,8 @@ export class WorkbenchService {
     if(task.orcaAcceptance&&(task.orcaAcceptance.runId!==run.id||task.orcaAcceptance.reviewId!==reviewId||task.orcaAcceptance.sourceCheckId!==sourceCheckId))reasons.push("This task already accepted another review.");
     return {eligible:!reasons.length,reasons,goalId:id,taskId,runId:run.id,requestId:engine.requestId,reviewId,sourceCheckId,evidence,sourceRevision:check.after,patchDigest:createHash("sha256").update(review.patch).digest("hex"),accepted:!!task.orcaAcceptance};
   }
-  private preflightWorkOrca() {
+  private preflightWorkOrca(engine?:WorkExecution["engine"]) {
+    if(engine?.kind==="orca"&&!engine.dispatchIntent&&engine.agent==="opencode"&&engine.model)throw new Error("The pinned Orca runtime does not support a Helm/OpenCode model override. Use the provider default before starting this task. No worker or host allocation was reserved.");
     try { this.helmOrcaRuntime.validateArtifacts(); }
     catch(error) { throw new Error("Orca packaged artifacts are unavailable or invalid. Open Helm → Orca to inspect readiness; no worker was dispatched.", {cause:error}); }
   }
@@ -2839,7 +2884,7 @@ export class WorkbenchService {
     this.assertMaintenanceAdmission();
     signal.throwIfAborted();
     const p = this.profile(input.profile), root = this.root(input.root);
-    if(input.engine?.kind === "orca") return executeWorkOrca({service:this.helmOrca,preflight:()=>this.preflightWorkOrca()},input,signal);
+    if(input.engine?.kind === "orca") return executeWorkOrca({service:this.helmOrca,preflight:()=>this.preflightWorkOrca(input.engine)},input,signal);
     const session = input.session
       ? await this.dispatch("session.get", { id: input.session, profile: p.id }) as { id: string; root: string }
       : await this.dispatch("session.new", { root, profile: p.id, title: this.work.get(input.goal, input.owner).tasks.find(task => task.id === input.task)?.title ?? "Work task" }) as { id: string; root?: string };

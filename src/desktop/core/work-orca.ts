@@ -41,14 +41,21 @@ export async function executeWorkOrca(
   input.assertActive();
   let owned = host.service.list(scope).find((r) => r.id === engine.requestId);
   let attempted = engine.dispatchIntent === true || !!owned;
-  let stop: Promise<unknown> | undefined;
+  let stopRequested = false;
+  const lifetime = new AbortController();
+  const deadlineError = new Error("Orca host observation deadline reached; inspect the retained worker and stop receipt. Provider usage remains unknown.");
+  const deadline = now() + input.maxRuntimeMs;
+  const timer = setTimeout(() => lifetime.abort(deadlineError), input.maxRuntimeMs);
+  const parentAbort = () => lifetime.abort(signal.reason);
+  signal.addEventListener("abort", parentAbort, { once: true });
+  if (signal.aborted) parentAbort();
   const stopOwned = () => {
     if (!attempted) return;
     // A missing service receipt after a crash is not permission to create one.
-    if (host.service.list(scope).some((r) => r.id === engine.requestId))
-      stop ??= host.service
-        .stop(scope, engine.requestId)
-        .catch(() => undefined);
+    if (!stopRequested && host.service.list(scope).some((r) => r.id === engine.requestId)) {
+      stopRequested = true;
+      void Promise.resolve(host.service.stop(scope, engine.requestId)).catch(() => undefined);
+    }
   };
   const abort = () => {
     try {
@@ -57,9 +64,34 @@ export async function executeWorkOrca(
       /* Unknown stop is retained by Orca. */
     }
   };
-  signal.addEventListener("abort", abort, { once: true });
-  const deadline = now() + input.maxRuntimeMs;
+  lifetime.signal.addEventListener("abort", abort, { once: true });
+  const guard = () => {
+    if (now() >= deadline && !lifetime.signal.aborted) lifetime.abort(deadlineError);
+    lifetime.signal.throwIfAborted();
+    try { input.assertActive(); } catch (error) { lifetime.abort(error); throw error; }
+  };
+  // Retain a rejection handler on detached calls; a late reply never resumes this execution.
+  const bounded = <T>(call: () => Promise<T>): Promise<T> => {
+    guard();
+    return new Promise<T>((resolve, reject) => {
+      const cancelled = () => reject(lifetime.signal.reason);
+      lifetime.signal.addEventListener("abort", cancelled, { once: true });
+      Promise.resolve().then(() => { guard(); return call(); }).then(
+        (value) => {
+          lifetime.signal.removeEventListener("abort", cancelled);
+          if (lifetime.signal.aborted) { abort(); reject(lifetime.signal.reason); return; }
+          try { guard(); resolve(value); } catch (error) { reject(error); }
+        },
+        (error: unknown) => {
+          lifetime.signal.removeEventListener("abort", cancelled);
+          if (lifetime.signal.aborted) abort();
+          reject(error);
+        },
+      );
+    });
+  };
   try {
+    guard();
     if (engine.dispatchIntent && !owned)
       throw new Error(
         "Orca dispatch intent has no acknowledged service record. Inspect recovery; no request was replayed.",
@@ -67,9 +99,8 @@ export async function executeWorkOrca(
     if (!attempted) {
       input.markDispatchIntent();
       attempted = true;
-      input.assertActive();
-      signal.throwIfAborted();
-      owned = await host.service.start(
+      guard();
+      owned = await bounded(() => host.service.start(
         scope,
         {
           requestId: engine.requestId,
@@ -77,35 +108,28 @@ export async function executeWorkOrca(
           agent: engine.agent,
           ...(engine.model ? { model: engine.model } : {}),
         },
-        signal,
-      );
-    } else owned = await host.service.recover(scope, engine.requestId);
-    input.assertActive();
-    signal.throwIfAborted();
+        lifetime.signal,
+      ));
+    } else owned = await bounded(() => host.service.recover(scope, engine.requestId));
+    guard();
     while (owned.state === "ready" || owned.state === "starting") {
-      if (now() >= deadline) {
-        stopOwned();
-        await stop;
-        throw new Error(
-          "Orca host observation deadline reached; inspect the retained worker and stop receipt. Provider usage remains unknown.",
-        );
-      }
-      await (host.wait ?? pause)(signal);
-      input.assertActive();
-      owned = await host.service.status(scope, engine.requestId);
-      input.assertActive();
-      signal.throwIfAborted();
+      await bounded(() => (host.wait ?? pause)(lifetime.signal));
+      guard();
+      owned = await bounded(() => host.service.status(scope, engine.requestId));
+      guard();
     }
     return {
       answer: "",
       tokens: Number.NaN,
       error: `Orca ${engine.requestId}: ${owned.state}. ${owned.error ?? ""} Provider token usage is unknown and the host reservation is retained. Output is unchecked; source integration and exact artifact acceptance are required. Resume only reconciles this intent.`,
     };
+  } catch (error) {
+    lifetime.abort(error);
+    throw error;
   } finally {
-    signal.removeEventListener("abort", abort);
-    if (signal.aborted) {
-      abort();
-      await stop;
-    }
+    clearTimeout(timer);
+    signal.removeEventListener("abort", parentAbort);
+    lifetime.signal.removeEventListener("abort", abort);
+    if (lifetime.signal.aborted) abort();
   }
 }

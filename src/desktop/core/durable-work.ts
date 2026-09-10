@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { chmodSync, existsSync, realpathSync } from "node:fs";
 import { assertWorkEvidence, verifyWorkOutputs, workChecks, workWrites, workPlanWritesOverlap, type WorkOutputCheck, type WorkOutputEvidence } from "./work-evidence";
 import { WorkAuditJournal, hashWorkAuditSnapshot, type WorkAuditHead } from "./work-audit";
+import type { HelmOrcaReplacementSeal } from "./helm-orca-service";
 
 export type WorkTaskStatus = "queued" | "running" | "completed" | "failed" | "interrupted" | "cancelled";
 export interface WorkAttempt {
@@ -13,9 +14,11 @@ export interface WorkAttempt {
 export type WorkEngine = { kind: "hades" } | { kind: "orca"; agent: "codex" | "claude" | "opencode"; model?: string; requestId: string; dispatchIntent?: boolean };
 export interface WorkOrcaImport { runId:string; requestId:string; attemptId:string; revision:string; importedAt:number }
 export interface WorkOrcaAcceptance { runId:string; requestId:string; reviewId:string; sourceCheckId:string; sourceRevision:string; patchDigest:string; acceptedAt:number }
+export interface WorkOrcaReplacement { fromRequestId:string; fromAttemptId:string; toRequestId:string; at:number; seal:HelmOrcaReplacementSeal }
 export interface WorkTask {
   engine?: WorkEngine;
   orcaImports?: WorkOrcaImport[]; orcaAcceptance?: WorkOrcaAcceptance;
+  orcaReplacements?: WorkOrcaReplacement[];
   id: string; title: string; prompt: string; profile: string; dependsOn: string[];
   status: WorkTaskStatus; session?: string; answer?: string; error?: string;
   /** Upper bound reserved for interrupted calls whose usage is unknown. Not measured spend. */
@@ -143,19 +146,72 @@ export class DurableWork {
     if(!task || task.engine?.kind!=="orca" || !task.engine.dispatchIntent || !task.attempts?.length)throw new Error("This task has no dispatched Orca worker");
     return {goal,task,engine:task.engine,attempt:task.attempts.at(-1)!};
   }
+  orcaReplacementTask(id:string,profile:string,taskId:string,expected?:{requestId:string;attemptId:string}) {
+    const context=this.orcaTask(id,profile,taskId),{goal,task,engine,attempt}=context;
+    if(this.closed)throw new Error("Work service is closed");
+    if(goal.status==="running"||this.row(id).owner||task.status==="running"||task.status==="completed"||goal.status==="completed")throw new Error("Stop Work and inspect this unfinished task before preparing a replacement");
+    if(expected&&(engine.requestId!==expected.requestId||attempt.id!==expected.attemptId))throw new Error("Work attempt changed. Refresh before preparing a replacement");
+    if((task.orcaReplacements?.length??0)>=32)throw new Error("This task reached its replacement history limit");
+    return context;
+  }
+  orcaReplacementInspection(id:string,profile:string,taskId:string,expected?:{requestId:string;attemptId:string},revision?:number) {
+    const context=this.orcaReplacementTask(id,profile,taskId,expected),row=this.row(id),{goal,engine}=context;
+    if(revision!==undefined&&row.revision!==revision)throw new Error("Work changed during replacement inspection. Inspect the current attempt again.");
+    const claims=this.db.prepare("SELECT id,root,profile,goal,task,kind FROM work_source_operations").all() as Array<{id:string;root:string;profile:string;goal:string;task:string;kind:string}>;
+    const conflicts=claims.filter(c=>workPlanWritesOverlap(goal.root,undefined,c.root,undefined)),prior=conflicts.length===1?conflicts[0]:undefined;
+    const recoverable=prior&&prior.root===goal.root&&prior.profile===profile&&prior.goal===id&&prior.task===taskId&&prior.kind==="orca-replace:"+engine.requestId&&!this.sourceOperations.has(prior.id);
+    if(conflicts.length&&!recoverable)throw new Error("A source operation is active or unconfirmed for this project. Inspect its saved receipt before preparing a replacement.");
+    const busy=(this.db.prepare("SELECT payload FROM work_goals WHERE owner IS NOT NULL").all() as unknown as Row[]).map(r=>this.decode(r));
+    if(busy.some(g=>g.tasks.some(t=>t.status==="running"&&workPlanWritesOverlap(goal.root,undefined,g.root,t.writes))))throw new Error("Another Work task is editing this project. Wait before preparing a replacement.");
+    return {...context,revision:row.revision};
+  }
+  /** Only a host-owned seal can retire a worker. This prepares its successor;
+   * ordinary Work admission still allocates tokens and an additional attempt. */
+  replaceOrca(id:string,profile:string,taskId:string,expected:{requestId:string;attemptId:string},seal:HelmOrcaReplacementSeal,assertActive:()=>void) {
+    const {goal,task,engine}=this.orcaReplacementTask(id,profile,taskId,expected);assertActive();
+    if(seal.requestId!==engine.requestId||seal.root!==goal.root||seal.profile!==task.profile||seal.successorId===seal.requestId||!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(seal.successorId))throw new Error("Replacement seal does not belong to this Work worker");
+    return this.edit(id,g=>{
+      assertActive();this.orcaReplacementTask(id,profile,taskId,expected);
+      const t=g.tasks.find(t=>t.id===taskId)!;
+      (t.orcaReplacements??=[]).push({fromRequestId:expected.requestId,fromAttemptId:expected.attemptId,toRequestId:seal.successorId,at:this.now(),seal:structuredClone(seal)});
+      t.engine={...engine,requestId:seal.successorId,dispatchIntent:false};
+      t.status="queued";t.answer=undefined;t.error=undefined;t.evidence=undefined;t.orcaAcceptance=undefined;t.session=undefined;
+      // Attempts, old import references, rounds and held unknown usage are history.
+      // None is cleared or refunded when allocating a new request identity.
+      g.status="needs_review";g.evidence=undefined;g.error="Replacement ready. Resume Work with sufficient remaining host allocation and attempts to start it.";
+    },undefined,"task.orca_replaced",taskId);
+  }
+  /** A replacement claim changes metadata only. Retrying the same predecessor
+   * may fence a crashed claimant; apply/check/import claims are never reclaimed. */
+  withOrcaReplacement<T>(id:string,profile:string,taskId:string,expected:{requestId:string;attemptId:string},operation:(signal:AbortSignal,assertActive:()=>void)=>Promise<T>):Promise<T> {
+    const {goal}=this.orcaReplacementTask(id,profile,taskId,expected);
+    return this.withOperation(goal.root,profile,"orca-replace:"+expected.requestId,{goal:id,task:taskId},async(signal,assertActive)=>{
+      const guard=()=>{assertActive();this.orcaReplacementTask(id,profile,taskId,expected);};
+      guard();return operation(signal,guard);
+    },true);
+  }
   /** Coordinates host source edits with Work admission across desktop processes.
    * A crash leaves a visible reservation. It never expires into permission to edit. */
-  async withSourceOperation<T>(root:string,profile:string,kind:string,binding:{goal:string;task:string}|undefined,operation:(signal:AbortSignal,assertActive:()=>void)=>Promise<T>):Promise<T> {
+  withSourceOperation<T>(root:string,profile:string,kind:string,binding:{goal:string;task:string}|undefined,operation:(signal:AbortSignal,assertActive:()=>void)=>Promise<T>):Promise<T> {
+    return this.withOperation(root,profile,kind,binding,operation,false);
+  }
+  private async withOperation<T>(root:string,profile:string,kind:string,binding:{goal:string;task:string}|undefined,operation:(signal:AbortSignal,assertActive:()=>void)=>Promise<T>,recoverReplacement:boolean):Promise<T> {
     if(this.closed)throw new Error("Work service is closed");this.deps.profile(profile);root=realpathSync(this.deps.root(root));
     if(binding)this.orcaTask(binding.goal,profile,binding.task);
     const id=randomUUID(),controller=new AbortController();let revision:number|undefined;
     this.db.exec("BEGIN IMMEDIATE");
     try{
       if(binding){const row=this.row(binding.goal),goal=this.decode(row);if(goal.profile!==profile||goal.root!==root||goal.status==="running"||row.owner)throw new Error("Stop and inspect Work before reviewing Orca output");revision=row.revision;}
-      const claims=this.db.prepare("SELECT root FROM work_source_operations").all() as Array<{root:string}>;
-      if(claims.some(c=>workPlanWritesOverlap(root,undefined,c.root,undefined)))throw new Error("A source operation is active or unconfirmed for this project. Inspect its saved receipt before continuing.");
+      const claims=this.db.prepare("SELECT id,root,profile,goal,task,kind FROM work_source_operations").all() as Array<{id:string;root:string;profile:string;goal:string;task:string;kind:string}>;
+      const conflicts=claims.filter(c=>workPlanWritesOverlap(root,undefined,c.root,undefined));
+      const prior=conflicts.length===1?conflicts[0]:undefined;
+      const recoverable=recoverReplacement&&binding&&prior&&prior.root===root&&prior.profile===profile&&prior.goal===binding.goal&&prior.task===binding.task&&prior.kind===kind&&kind.startsWith("orca-replace:")&&!this.sourceOperations.has(prior.id);
+      if(conflicts.length&&!recoverable)throw new Error("A source operation is active or unconfirmed for this project. Inspect its saved receipt before continuing.");
       const goals=(this.db.prepare("SELECT payload FROM work_goals WHERE owner IS NOT NULL").all() as unknown as Row[]).map(row=>this.decode(row));
       if(goals.some(g=>g.tasks.some(t=>t.status==="running"&&workPlanWritesOverlap(root,undefined,g.root,t.writes))))throw new Error("Another Work task is editing this project. Stop it or wait before applying or checking source changes.");
+      // Replacing the claim ID fences every late callback of the previous owner.
+      // Its only allowed effect was the same permanent predecessor seal.
+      if(recoverable)this.db.prepare("DELETE FROM work_source_operations WHERE id=?").run(prior!.id);
       this.db.prepare("INSERT INTO work_source_operations(id,root,profile,goal,task,kind,owner,started) VALUES(?,?,?,?,?,?,?,?)").run(id,root,profile,binding?.goal??null,binding?.task??null,clean(kind,"source operation",150),this.owner,this.now());
       this.db.exec("COMMIT");
     }catch(error){this.db.exec("ROLLBACK");throw error;}
@@ -314,10 +370,13 @@ export class DurableWork {
     return this.run(id, profile);
   }
   stop(id: string, profile: string) {
-    const current = this.get(id, profile); if (current.status === "completed") return current;
+    const current = this.get(id, profile);
     const sourceClaims=this.db.prepare("SELECT id FROM work_source_operations WHERE goal=?").all(id) as Array<{id:string}>;
     this.db.prepare("UPDATE work_source_operations SET cancelled=1 WHERE goal=?").run(id);
     for(const claim of sourceClaims)this.sourceOperations.get(claim.id)?.abort(new Error("Work stopped during source review"));
+    // A completed objective can still have a newly requested verification or
+    // source check. Stop revokes that operation without undoing prior acceptance.
+    if(current.status==="completed")return current;
     this.active.get(id)?.controller.abort();
     const row = this.row(id);
     const g = this.edit(id, g => {

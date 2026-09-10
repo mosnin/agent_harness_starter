@@ -1,0 +1,41 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:65420) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/helm-orca-status-authority-review.test.ts (5 tests | 4 failed) 23ms
+   × does not release capacity from missing-worker workerShow identity 9ms
+   × does not release capacity from dispatch workerShow identity 3ms
+   × does not release capacity from runtime workerShow identity 3ms
+   × does not release capacity from base workerShow identity 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/helm-orca-status-authority-review.test.ts > does not release capacity from missing-worker workerShow identity
+ FAIL  src/desktop/__tests__/helm-orca-status-authority-review.test.ts > does not release capacity from dispatch workerShow identity
+ FAIL  src/desktop/__tests__/helm-orca-status-authority-review.test.ts > does not release capacity from runtime workerShow identity
+ FAIL  src/desktop/__tests__/helm-orca-status-authority-review.test.ts > does not release capacity from base workerShow identity
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/desktop/__tests__/helm-orca-status-authority-review.test.ts:22:28
+     20|    try{await service.status(scope,id);}catch{/* A fail-closed identity…
+     21|    const retained=service.get(scope,id);
+     22|    expect(retained.active).toBe(contradiction!=='valid');
+       |                            ^
+     23|    expect(service.hasActiveWork()).toBe(contradiction!=='valid');
+     24|    if(contradiction!=='valid')expect(retained.state).not.toBe('needs_r…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 1 passed (5)
+   Start at  07:55:05
+   Duration  149ms (transform 38ms, setup 0ms, import 48ms, tests 23ms, environment 0ms)
+

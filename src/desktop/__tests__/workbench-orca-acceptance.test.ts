@@ -107,3 +107,12 @@ it('keeps the assigned worker profile separate from the goal owner throughout im
   await expect(f.service.dispatch('work.orca.import',{id:f.goal.id,task:'fix',profile:f.workerProfile})).rejects.toThrow();
   const args=await applied(f);expect((await f.service.dispatch('work.orca.accept',args) as WorkGoal).tasks[0].orcaAcceptance?.runId).toBe(run.id);
 },20000);
+it('Stop cancels new review work on an already accepted objective without undoing accepted results',async()=>{
+  const f=await fixture(),args=await applied(f);await f.service.dispatch('work.orca.accept',args);
+  await f.service.dispatch('work.resume',{id:f.goal.id,maxTokens:20000});expect((await f.waitGoal()).status).toBe('completed');
+  const pending=f.service.dispatch('helm.verify',{id:f.imported.run.id,checks:[{command:process.execPath,args:['-e','setTimeout(()=>process.exit(0),10000)']}]}),rejected=expect(pending).rejects.toThrow();
+  for(let i=0;i<100;i++){if(f.host.helm.get(f.imported.run.id).status==='running')break;await new Promise(r=>setTimeout(r,5));}
+  const stopped:any=await f.service.dispatch('work.stop',{id:f.goal.id});expect(stopped.status).toBe('completed');await rejected;
+  expect(f.host.helm.get(f.imported.run.id).status).not.toBe('running');expect(await f.service.dispatch('work.source.status',{})).toEqual([]);
+  const goal:any=await f.service.dispatch('work.get',{id:f.goal.id});expect(goal.status).toBe('completed');expect(goal.tasks[0].orcaAcceptance).toBeTruthy();
+},20000);

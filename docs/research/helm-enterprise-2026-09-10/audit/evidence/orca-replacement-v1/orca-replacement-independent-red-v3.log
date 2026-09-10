@@ -1,0 +1,58 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:48074) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/workbench-orca-replacement-review.test.ts (3 tests | 2 failed) 824ms
+   × does not return fresh replacement eligibility after a source claim appears during inspection 365ms
+   × rejects unsupported OpenCode model before allocating a dispatch intent or unknown usage 169ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/workbench-orca-replacement-review.test.ts > does not return fresh replacement eligibility after a source claim appears during inspection
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/desktop/__tests__/workbench-orca-replacement-review.test.ts:63:27
+     61|   await tick(); f.claim('apply:newly-unconfirmed'); hold.resolve();
+     62|   const result:any=await pending;
+     63|   expect(result.eligible).toBe(false);
+       |                           ^
+     64|   expect(result.reason).toMatch(/operation|source/i);
+     65|   expect(f.starts()).toBe(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/desktop/__tests__/workbench-orca-replacement-review.test.ts > rejects unsupported OpenCode model before allocating a dispatch intent or unknown usage
+AssertionError: expected { status: 'failed', rounds: 1, …(2) } to deeply equal { status: 'needs_review', …(3) }
+
+- Expected
++ Received
+
+  {
+-   "dispatchIntent": false,
+-   "reservedTokens": 0,
+-   "rounds": 0,
+-   "status": "needs_review",
++   "dispatchIntent": true,
++   "reservedTokens": 10000,
++   "rounds": 1,
++   "status": "failed",
+  }
+
+ ❯ src/desktop/__tests__/workbench-orca-replacement-review.test.ts:78:160
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  07:40:27
+   Duration  1.45s (transform 453ms, setup 0ms, import 551ms, tests 824ms, environment 0ms)
+

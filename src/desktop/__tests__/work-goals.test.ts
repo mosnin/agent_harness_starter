@@ -64,7 +64,7 @@ describe("native work goal workflows", () => {
     await view.refresh(); click("open"); await settle();
     fill('[name="resumeTokens"]', "25000"); fill('[name="resumeMinutes"]', "20");
     click("resume"); await settle();
-    expect(rpc).toHaveBeenCalledWith("work.resume", { id: "g", profile: "owner", maxTokens: 25000, maxMinutes: 20, maxRounds: 8, maxConcurrent: 2 });
+    expect(rpc).toHaveBeenCalledWith("work.resume", { id: "g", profile: "owner", maxTokens: 25000, maxMinutes: 20 });
   });
   it("saves every output check, preserves per-check drafts, and does not transfer removed text", async () => {
     click("new"); fill('[name="objective"]', "Deliver two files");

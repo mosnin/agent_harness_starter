@@ -1,0 +1,63 @@
+{
+  "schema": "hades.orca-replacement-receipt-review.v1",
+  "reviewedAt": "2026-09-10T16:41:58.713228+00:00",
+  "reviewer": "provider_readiness",
+  "manifest": {
+    "path": "docs/research/helm-enterprise-2026-09-10/audit/orca-replacement-v1-receipt.json",
+    "sha256": "74e33582949ca0addccb4dcf337d18806b85d9c7da8fd10c744da84865d84f98"
+  },
+  "scope": "Independent local receipt/accounting and report consistency review only. Reviewer authored some service changes; this is not independent acceptance of those implementations or product-wide behavior. No test/build reruns, native apps, listeners, providers or network used.",
+  "result": "pass",
+  "checks": {
+    "listedFiles": 113,
+    "artifactFiles": 4,
+    "previousCheckpointFiles": 1,
+    "commandLogs": 5,
+    "allBytesAndHashesMatch": true,
+    "head": "23490e4c1a2a45fb35522b19dde5269337be7a6d",
+    "ownedChanges": 50,
+    "statusEntriesBeforeReview": 52,
+    "missingOwnedChanges": [],
+    "unexpectedStatusEntries": [],
+    "runnerSuites": {
+      "workSuites": {
+        "count": 37,
+        "duplicates": 0,
+        "matchesManifest": true
+      },
+      "pluginSuites": {
+        "count": 21,
+        "duplicates": 0,
+        "matchesManifest": true
+      }
+    },
+    "workLogSummary": {
+      "tests": 391,
+      "files": 37
+    },
+    "pluginsLogSummary": {
+      "tests": 303,
+      "files": 21
+    },
+    "sharedLogSummary": {
+      "tests": 11,
+      "files": 1
+    },
+    "intersection": [
+      "src/desktop/__tests__/desktop-request-routing.test.ts"
+    ],
+    "distinctTests": 683,
+    "distinctFiles": 57,
+    "reportConsistency": "Root report, STATUS.json and PROGRAM.md consistently retain active/partial status, historical checkpoint distinctions and native/runtime/provider/live gates.",
+    "statusDiscovery": "git diff HEAD --name-only (staged and unstaged tracked changes)",
+    "stagedWhitespaceCheckExitCode": 0,
+    "attributesFollowup": "Scoped evidence *.log -whitespace rule preserves raw evidence bytes; all retained hashes match."
+  },
+  "issues": [],
+  "limitations": [
+    "Retained passing summaries and hashes were inspected; commands were not re-executed in this review. Empty typecheck output alone does not independently establish exit status; exit 0 remains the root-observed command receipt.",
+    "Built artifact hashes establish current retained bytes, not reproducibility, execution or installed native acceptance.",
+    "Initial parallel failures and typecheck failures remain retained; later serialized successes do not retroactively pass those failed runs.",
+    "No blanket independent acceptance of reviewer-authored source, actual Orca/provider execution, OAuth journeys, native usability, or enterprise readiness."
+  ]
+}

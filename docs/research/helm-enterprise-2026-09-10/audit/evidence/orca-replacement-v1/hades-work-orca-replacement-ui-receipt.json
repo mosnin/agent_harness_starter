@@ -1,0 +1,60 @@
+{
+  "kind": "author-ui-source-fixture-receipt",
+  "version": 1,
+  "createdAt": "2026-09-10T12:00:34.761489+00:00",
+  "repository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+  "baseHead": "23490e4c1a2a45fb35522b19dde5269337be7a6d",
+  "sourceFrozen": true,
+  "acceptanceScope": "Native UI source and happy-dom/RPC fixture behavior only; no native visual or provider runtime acceptance.",
+  "ownedFiles": [
+    {
+      "path": "src/desktop/ui/work-goals.ts",
+      "sha256": "7f0e2ee85178673e0ee07fbe512aae325d575b555d4ddc03a9dfc3a449d3e090"
+    },
+    {
+      "path": "src/desktop/ui/helm-orca.ts",
+      "sha256": "fbacd8ff994de36b4efa782b1e009dc9fc099f5c2d74b316de18773fa5b49021"
+    },
+    {
+      "path": "src/desktop/__tests__/work-orca-replacement-ui.test.ts",
+      "sha256": "d507752058b273fc19b055a0f56a1262a54dd4f44d8a5df7032cc13c353535f0"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "/tmp/hades-work-orca-replacement-ui-budget-stop-red.log",
+      "sha256": "7d91ed384ad4d66572ac3c6445f0b65419dc6ee762496869fd773ba619171ec8",
+      "exitCode": 1,
+      "tests": {
+        "failed": 9,
+        "passed": 25
+      }
+    },
+    {
+      "path": "/tmp/hades-work-orca-replacement-ui-budget-stop-green.log",
+      "sha256": "33c32ed735fd3caab16d10d87ba0d0a743793177922be197a02c65be3711aa98",
+      "exitCode": 0,
+      "tests": {
+        "failed": 0,
+        "passed": 92
+      }
+    }
+  ],
+  "redBindingLimit": "The red log was retained before the repair; pre-repair source and test hashes were not separately captured. Final source and test bytes are bound above.",
+  "greenCommand": "./node_modules/.bin/vitest run src/desktop/__tests__/work-orca-replacement-ui.test.ts src/desktop/__tests__/work-goals.test.ts src/desktop/__tests__/helm-orca-ui.test.ts src/desktop/__tests__/orca-work-review-ui.test.ts --maxWorkers=1",
+  "behaviors": [
+    "Stored Resume totals remain exact; only explicitly edited changed limits are sent, with whole-number validity checks. Drafts survive refresh and clear on scope/goal change.",
+    "Reported provider usage, held unknown allocation, original attempt allocation, host time and Work attempts are labeled separately; no upstream provider cap is claimed.",
+    "Replacement starts with exact fresh eligibility; explicit confirmation sends bound request and attempt IDs. Preparing never starts or resumes a worker.",
+    "Pending replacement and retained source operations offer immediate work.stop despite mutation busy state. Stop and original operation lifetimes remain independently pending.",
+    "Stop replaces acknowledgement authority before dispatch; old mutation replies are ignored. Fresh saved reads determine prepared status; unknown outcomes remain explicit.",
+    "Exact saved replacement history can recover an unconfirmed matching metadata claim through idempotent work.orca.replace, never work.source.reconcile. Metadata is labeled separately from source application.",
+    "New OpenCode/Helm requests use the provider default and discard stale model selection; already retained request inputs remain exact during retry."
+  ],
+  "limits": [
+    "Independent review is pending at the time this author receipt is written.",
+    "Root owns combined TypeScript, source-build and integrated backend gates.",
+    "No native/browser controls, servers/listeners, network, installs, provider executions, deployments, or commits were performed in this UI lane.",
+    "UI permission, provider output limits, real worker termination and live visual quality require separate evidence."
+  ]
+}
