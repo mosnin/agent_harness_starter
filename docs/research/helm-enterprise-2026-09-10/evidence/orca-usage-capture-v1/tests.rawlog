@@ -1,0 +1,9 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/orca-usage-integration
+
+
+ Test Files  9 passed (9)
+      Tests  53 passed (53)
+   Start at  14:12:18
+   Duration  939ms (transform 235ms, setup 0ms, import 366ms, tests 65ms, environment 0ms)
+

@@ -1,0 +1,3 @@
+src/main/crash-reporting/durable-crash-breadcrumb.ts(6,44): error TS2307: Cannot find module '../observability/tracer' or its corresponding type declarations.
+src/main/windows-pty-root-identity.ts(1,47): error TS2307: Cannot find module './providers/windows-foreground-process-rows' or its corresponding type declarations.
+src/main/windows/windows-pty-job.ts(1,27): error TS2307: Cannot find module 'node-pty' or its corresponding type declarations.

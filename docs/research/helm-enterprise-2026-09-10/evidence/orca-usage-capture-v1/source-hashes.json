@@ -1,0 +1,19 @@
+{
+  "revision": "7d9a98ec352cc464b9fb695cb69f508c1a260f9c",
+  "files": {
+    "src/main/claude/claude-structured-dispatch.ts": "63497868636189557990912aa17004b928c8760565d767b8716bf6b340284e82",
+    "src/main/claude/claude-structured-session-acquisition.ts": "2663adaf361d58aa5c69e4bcd45584a8c59f7833213ff0197b84cafe0365427c",
+    "src/main/claude/claude-structured-session-adapter.ts": "18e1e39d93c7187a1802cfea6b1717f5caf28a1337007a2fe38e282013d7b2b7",
+    "src/main/claude/claude-structured-session-state.ts": "bbb7a5fddca1830aabae8a27070d9ef60f93bcfe0d73950ac853e86cd877c151",
+    "src/main/claude/claude-usage-capture.test.ts": "0c491fbd94addc56f70815d7de1cbe90839ebbdf5a2891845e3e7fd2f3f4aa99",
+    "src/main/claude/claude-usage-capture.ts": "9025349f96f690e9b769fca279f447fe237d482aabce649552258b692b9ef5b4",
+    "src/main/native-chat/agent-session-journal/journal-usage-retry-review.test.ts": "18d2ede7eaa362e5095fc02c6f199c8c0a0ff923977abe7131b81645862c978f",
+    "src/main/native-chat/agent-session-journal/journal-usage-store-review.test.ts": "d238ea060f71e868e62f6cacd0fc3db22ae06ec9ccb0b29201675360e9a26cb3",
+    "src/main/native-chat/agent-session-wire/structured-agent-session-host.ts": "fa6a7c424dd7531a5b619661a8bec6fe2ddbb8a6019190d39cda9cc01b15fbc5",
+    "src/main/native-chat/agent-session-wire/structured-agent-session-turns.ts": "998ebf7b4e0e101fd2030f893cabf9e9aab450a3687cc4c5ddd73dcb1d6a4b4e",
+    "src/main/runtime/rpc/methods/orchestration/worker/worker-control.ts": "236669b0599e00fbe46ee00a6b944ece248c5c290ac6544c188e1988a96b75d2",
+    "src/main/runtime/rpc/methods/orchestration/worker/worker-usage-observations.test.ts": "a41f0ca01d470c6b660125f14ba76976644d9a3a79b9804ffde7582da5527419",
+    "src/main/runtime/rpc/methods/orchestration/worker/worker-usage-observations.ts": "738cc8c98b8dc824b3ab957ff65cb17ebcf8004cfb15797a7a32fa80e1b41c35",
+    "src/shared/provider-usage-observation.ts": "3bf3f719cb846bdf2dd3334ebeb487a8599824a003fc4e8b08abafc1da268fdd"
+  }
+}

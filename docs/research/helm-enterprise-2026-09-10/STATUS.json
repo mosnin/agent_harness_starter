@@ -129,10 +129,10 @@
   "previousSourceReceipt": "docs/research/helm-enterprise-2026-09-10/audit/orca-replacement-v1-receipt.json",
   "orcaUsageIntegration": {
     "branch": "codex/helm-usage-receipts",
-    "revision": "ac0eec403184139707d0350df613e925e0c7f241",
+    "revision": "7d9a98ec352cc464b9fb695cb69f508c1a260f9c",
     "path": "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration",
-    "status": "durable journal storage and sink admission implemented; provider capture, projection and settlement remain unwired",
-    "tests": "38 focused source cases; targeted dependency-closure typecheck using installed Hades dependencies, not full pinned fork acceptance",
+    "status": "Claude exact-correlated capture, durable storage and local worker projection implemented; remote projection, billing settlement and full provider/native acceptance remain pending",
+    "tests": "53 focused source tests; targeted module typecheck passed; extended graph blocked by unavailable modules and node-pty",
     "report": "audit/orca-usage-integration-plan-v1.md"
   }
 }

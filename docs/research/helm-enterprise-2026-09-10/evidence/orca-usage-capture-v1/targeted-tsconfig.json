@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": [
+      "node"
+    ],
+    "typeRoots": [
+      "/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules/@types"
+    ],
+    "baseUrl": "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration",
+    "paths": {
+      "zod": [
+        "/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules/zod/index.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration/src/shared/provider-usage-observation.ts",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration/src/main/native-chat/agent-session-journal/journal-usage-observations.ts",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration/src/main/native-chat/agent-session-journal/journal-store.ts",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration/src/main/native-chat/agent-session-wire/structured-agent-session-event-sink.ts",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration/src/main/runtime/rpc/methods/orchestration/worker/worker-usage-observations.ts",
+    "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration/src/main/claude/claude-usage-capture.ts"
+  ]
+}
