@@ -1,0 +1,122 @@
+
+> hades-agent@0.1.0 test:mac:packaging
+> node --test scripts/mac-build-output.test.mjs scripts/mac-build-flow.test.mjs
+
+TAP version 13
+# Subtest: build-only completes in fresh candidate without app control
+ok 1 - build-only completes in fresh candidate without app control
+  ---
+  duration_ms: 1932.805334
+  type: 'test'
+  ...
+# Subtest: explicit candidate used throughout build
+ok 2 - explicit candidate used throughout build
+  ---
+  duration_ms: 2092.689583
+  type: 'test'
+  ...
+# Subtest: existing output refused before tool execution
+ok 3 - existing output refused before tool execution
+  ---
+  duration_ms: 12.563167
+  type: 'test'
+  ...
+# Subtest: mixed launch and build-only options refused before tool execution
+ok 4 - mixed launch and build-only options refused before tool execution
+  ---
+  duration_ms: 10.541167
+  type: 'test'
+  ...
+# Subtest: packaging archives exact fresh candidate
+ok 5 - packaging archives exact fresh candidate
+  ---
+  duration_ms: 2353.019667
+  type: 'test'
+  ...
+# Subtest: failed build preserves previous app and does not archive
+ok 6 - failed build preserves previous app and does not archive
+  ---
+  duration_ms: 818.746583
+  type: 'test'
+  ...
+# Subtest: release routes signing and archives to same candidate using inert credentials
+ok 7 - release routes signing and archives to same candidate using inert credentials
+  ---
+  duration_ms: 3017.959875
+  type: 'test'
+  ...
+# Subtest: two simultaneous reservations admit only one build
+ok 8 - two simultaneous reservations admit only one build
+  ---
+  duration_ms: 1751.414625
+  type: 'test'
+  ...
+# Subtest: default candidates are unique and leave old app untouched
+ok 9 - default candidates are unique and leave old app untouched
+  ---
+  duration_ms: 42.893875
+  type: 'test'
+  ...
+# Subtest: explicit fresh path with spaces is retained
+ok 10 - explicit fresh path with spaces is retained
+  ---
+  duration_ms: 6.032
+  type: 'test'
+  ...
+# Subtest: reject directory output
+ok 11 - reject directory output
+  ---
+  duration_ms: 2.759583
+  type: 'test'
+  ...
+# Subtest: reject file output
+ok 12 - reject file output
+  ---
+  duration_ms: 2.789
+  type: 'test'
+  ...
+# Subtest: reject dangling link output
+ok 13 - reject dangling link output
+  ---
+  duration_ms: 2.509458
+  type: 'test'
+  ...
+# Subtest: reject empty output
+ok 14 - reject empty output
+  ---
+  duration_ms: 2.039208
+  type: 'test'
+  ...
+# Subtest: reject newline output
+ok 15 - reject newline output
+  ---
+  duration_ms: 1.964791
+  type: 'test'
+  ...
+# Subtest: reject existing app ancestor, alias=false
+ok 16 - reject existing app ancestor, alias=false
+  ---
+  duration_ms: 6.063583
+  type: 'test'
+  ...
+# Subtest: reject existing app ancestor, alias=true
+ok 17 - reject existing app ancestor, alias=true
+  ---
+  duration_ms: 6.861917
+  type: 'test'
+  ...
+# Subtest: default path cannot create candidates inside an app through a symlink
+ok 18 - default path cannot create candidates inside an app through a symlink
+  ---
+  duration_ms: 7.075208
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12023.631833
