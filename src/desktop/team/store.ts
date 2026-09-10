@@ -54,26 +54,39 @@ export class TeamStore {
     if (!member) throw new TeamError(401, "Your team access has expired or was revoked.");
     return member;
   }
+  /** Member objects are identity hints; current membership and role come from this database. */
+  private currentMember(member: Member): Member {
+    const current = this.db.prepare("SELECT id,name,role,revoked FROM members WHERE id=? AND revoked=0").get(member.id) as Member | undefined;
+    if (!current) throw new TeamError(401, "Your team access has expired or was revoked.");
+    return current;
+  }
+  private authorized<T>(member: Member, action: (current: Member) => T): T {
+    return this.transaction(() => action(this.currentMember(member)));
+  }
   private owner(member: Member) { if (member.role !== "owner") throw new TeamError(403, "Only the team owner can manage membership."); }
   private channel(id: string) { if (!this.db.prepare("SELECT id FROM channels WHERE id=?").get(id)) throw new TeamError(404, "Channel not found."); }
   snapshot(member: Member) {
-    return {
-      id: (this.db.prepare("SELECT value FROM settings WHERE key='id'").get() as any).value,
-      name: (this.db.prepare("SELECT value FROM settings WHERE key='name'").get() as any)?.value,
-      member,
-      members: this.db.prepare("SELECT id,name,role FROM members WHERE revoked=0 ORDER BY name").all(),
-      channels: this.db.prepare(`SELECT c.id,c.name,COALESCE(r.seq,0) AS readSeq,
-        (SELECT COUNT(*) FROM messages m WHERE m.channel=c.id AND m.seq>COALESCE(r.seq,0) AND m.member<>?) AS unread
-        FROM channels c LEFT JOIN read_cursors r ON r.channel=c.id AND r.member=? ORDER BY c.name`).all(member.id, member.id),
-    };
+    return this.authorized(member, member => {
+      return {
+        id: (this.db.prepare("SELECT value FROM settings WHERE key='id'").get() as any).value,
+        name: (this.db.prepare("SELECT value FROM settings WHERE key='name'").get() as any)?.value,
+        member,
+        members: this.db.prepare("SELECT id,name,role FROM members WHERE revoked=0 ORDER BY name").all(),
+        channels: this.db.prepare(`SELECT c.id,c.name,COALESCE(r.seq,0) AS readSeq,
+          (SELECT COUNT(*) FROM messages m WHERE m.channel=c.id AND m.seq>COALESCE(r.seq,0) AND m.member<>?) AS unread
+          FROM channels c LEFT JOIN read_cursors r ON r.channel=c.id AND r.member=? ORDER BY c.name`).all(member.id, member.id),
+      };
+    });
   }
   invite(member: Member) {
-    this.owner(member);
-    const token = secret(), expires = Date.now() + 24 * 60 * 60 * 1000;
-    this.db.prepare("DELETE FROM invites WHERE expires<? OR used=1").run(Date.now());
-    this.db.prepare("INSERT INTO invites(hash,expires) VALUES(?,?)").run(digest(token), expires);
-    this.audit(member.id, "invite.create", digest(token));
-    return { invite: token, expires };
+    return this.authorized(member, member => {
+      this.owner(member);
+      const token = secret(), expires = Date.now() + 24 * 60 * 60 * 1000;
+      this.db.prepare("DELETE FROM invites WHERE expires<? OR used=1").run(Date.now());
+      this.db.prepare("INSERT INTO invites(hash,expires) VALUES(?,?)").run(digest(token), expires);
+      this.audit(member.id, "invite.create", digest(token));
+      return { invite: token, expires };
+    });
   }
   join(invite: string, name: string) {
     value(invite, "invitation", 100); value(name, "name", 80);
@@ -88,33 +101,39 @@ export class TeamStore {
     });
   }
   revoke(member: Member, id: string) {
-    this.owner(member);
-    if (id === member.id) throw new TeamError(400, "The owner cannot remove their own access.");
-    this.db.prepare("UPDATE members SET revoked=1 WHERE id=? AND role<>'owner'").run(id);
-    this.audit(member.id, "member.revoke", id);
-    return true;
+    return this.authorized(member, member => {
+      this.owner(member);
+      if (id === member.id) throw new TeamError(400, "The owner cannot remove their own access.");
+      this.db.prepare("UPDATE members SET revoked=1 WHERE id=? AND role<>'owner'").run(id);
+      this.audit(member.id, "member.revoke", id);
+      return true;
+    });
   }
   createChannel(member: Member, name: string) {
-    name = value(name, "channel name", 60);
-    if (!/^[a-z0-9][a-z0-9_-]*$/.test(name)) throw new TeamError(400, "Use lowercase letters, numbers, hyphens or underscores.");
-    if (this.db.prepare("SELECT id FROM channels WHERE name=?").get(name)) throw new TeamError(409, "That channel already exists.");
-    const id = randomUUID(); this.db.prepare("INSERT INTO channels VALUES(?,?,?)").run(id, name, member.id);
-    this.audit(member.id, "channel.create", id); return { id, name };
+    return this.authorized(member, member => {
+      name = value(name, "channel name", 60);
+      if (!/^[a-z0-9][a-z0-9_-]*$/.test(name)) throw new TeamError(400, "Use lowercase letters, numbers, hyphens or underscores.");
+      if (this.db.prepare("SELECT id FROM channels WHERE name=?").get(name)) throw new TeamError(409, "That channel already exists.");
+      const id = randomUUID(); this.db.prepare("INSERT INTO channels VALUES(?,?,?)").run(id, name, member.id);
+      this.audit(member.id, "channel.create", id); return { id, name };
+    });
   }
   messages(member: Member, channel: string, after = 0, before?: number) {
-    this.channel(channel);
-    if (!Number.isSafeInteger(after) || after < 0 || (before !== undefined && (!Number.isSafeInteger(before) || before < 1))) throw new TeamError(400, "Invalid history cursor");
-    const columns = "m.seq,m.id,m.channel,m.content,m.created_at AS at,m.reply_to AS replyTo,m.agent,u.id AS member,u.name AS sender";
-    if (before !== undefined) return this.db.prepare(`SELECT ${columns} FROM messages m JOIN members u ON u.id=m.member WHERE m.channel=? AND m.seq<? ORDER BY m.seq DESC LIMIT 100`).all(channel, before).reverse();
-    if (!after) return this.db.prepare(`SELECT ${columns} FROM messages m JOIN members u ON u.id=m.member WHERE m.channel=? ORDER BY m.seq DESC LIMIT 100`).all(channel).reverse();
-    return this.db.prepare(`SELECT ${columns} FROM messages m JOIN members u ON u.id=m.member WHERE m.channel=? AND m.seq>? ORDER BY m.seq LIMIT 100`).all(channel, after);
+    return this.authorized(member, member => {
+      this.channel(channel);
+      if (!Number.isSafeInteger(after) || after < 0 || (before !== undefined && (!Number.isSafeInteger(before) || before < 1))) throw new TeamError(400, "Invalid history cursor");
+      const columns = "m.seq,m.id,m.channel,m.content,m.created_at AS at,m.reply_to AS replyTo,m.agent,u.id AS member,u.name AS sender";
+      if (before !== undefined) return this.db.prepare(`SELECT ${columns} FROM messages m JOIN members u ON u.id=m.member WHERE m.channel=? AND m.seq<? ORDER BY m.seq DESC LIMIT 100`).all(channel, before).reverse();
+      if (!after) return this.db.prepare(`SELECT ${columns} FROM messages m JOIN members u ON u.id=m.member WHERE m.channel=? ORDER BY m.seq DESC LIMIT 100`).all(channel).reverse();
+      return this.db.prepare(`SELECT ${columns} FROM messages m JOIN members u ON u.id=m.member WHERE m.channel=? AND m.seq>? ORDER BY m.seq LIMIT 100`).all(channel, after);
+    });
   }
   send(member: Member, data: Record<string, unknown>) {
-    const channel = value(data.channel, "channel"), content = value(data.content, "message", 40_000), requestId = value(data.requestId, "message identifier");
-    const replyTo = data.replyTo ? value(data.replyTo, "reply") : null;
-    const agent = data.agent ? value(data.agent, "agent name", 80) : null;
-    this.channel(channel);
-    return this.transaction(() => {
+    return this.authorized(member, member => {
+      const channel = value(data.channel, "channel"), content = value(data.content, "message", 40_000), requestId = value(data.requestId, "message identifier");
+      const replyTo = data.replyTo ? value(data.replyTo, "reply") : null;
+      const agent = data.agent ? value(data.agent, "agent name", 80) : null;
+      this.channel(channel);
       const existing = this.db.prepare("SELECT id,channel,content,reply_to,agent FROM messages WHERE member=? AND request_id=?").get(member.id, requestId) as any;
       if (existing) {
         if (existing.channel !== channel || existing.content !== content || existing.reply_to !== replyTo || existing.agent !== agent) throw new TeamError(409, "Message identifier was already used for different content.");
@@ -127,11 +146,13 @@ export class TeamStore {
     });
   }
   markRead(member: Member, channel: string, seq: number) {
-    this.channel(channel);
-    const max = Number((this.db.prepare("SELECT MAX(seq) AS n FROM messages WHERE channel=?").get(channel) as any).n ?? 0);
-    if (!Number.isSafeInteger(seq) || seq < 0 || seq > max) throw new TeamError(400, "Invalid read position");
-    this.db.prepare("INSERT INTO read_cursors VALUES(?,?,?) ON CONFLICT(member,channel) DO UPDATE SET seq=MAX(seq,excluded.seq)").run(member.id, channel, seq);
-    return true;
+    return this.authorized(member, member => {
+      this.channel(channel);
+      const max = Number((this.db.prepare("SELECT MAX(seq) AS n FROM messages WHERE channel=?").get(channel) as any).n ?? 0);
+      if (!Number.isSafeInteger(seq) || seq < 0 || seq > max) throw new TeamError(400, "Invalid read position");
+      this.db.prepare("INSERT INTO read_cursors VALUES(?,?,?) ON CONFLICT(member,channel) DO UPDATE SET seq=MAX(seq,excluded.seq)").run(member.id, channel, seq);
+      return true;
+    });
   }
   close() { this.db.close(); }
 }
