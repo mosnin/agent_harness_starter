@@ -1,0 +1,5 @@
+# Sidecar build failure handling
+
+The build-sidecar CLI returned exit 0 when importing esbuild failed because the programmatic builder intentionally returns a skipped result. A retained older sidecar could therefore survive an apparently successful native build step. The CLI now maps skipped results to exit 1 while retaining the programmatic return contract. Entry-point detection now resolves symlinks so invoking the build script through an alias cannot silently skip execution.
+
+The isolated CLI fixture reproduced exit 0 on compiler import failure before the repair. Three tests now pass for compiler import failure, compiler build failure, and aliased CLI invocation. The compiler fixtures are inert local packages; no downloads are attempted. Existing sidecar bytes remain untouched on those pre-write failures. The expanded Mac packaging regression passes 21 tests. A real HADES_BUNDLE_PROVIDERS=1 source sidecar build also passed using installed dependencies. This is source bundle evidence, not native compilation, installation or live provider acceptance.

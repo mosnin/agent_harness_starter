@@ -24,6 +24,7 @@
  * would break the build. With no keys the sidecar never touches them.
  */
 import path from "node:path";
+import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { chmod, readFile } from "node:fs/promises";
 
@@ -116,9 +117,14 @@ export async function buildSidecar({ outfile = DEFAULT_OUTFILE, entryPoint = DEF
 // Only auto-run when this file is the process entry point (`node
 // scripts/build-sidecar.mjs`), never when imported by a test or another
 // build script.
-const invokedDirectly = process.argv[1] === __filename;
+const invokedDirectly = (() => {
+  try { return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === __filename; }
+  catch { return false; }
+})();
 if (invokedDirectly) {
-  buildSidecar().catch((err) => {
+  buildSidecar().then(result => {
+    if (result.skipped) process.exitCode = 1;
+  }).catch((err) => {
     console.error("[build-sidecar] build failed:", err);
     process.exitCode = 1;
   });

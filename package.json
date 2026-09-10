@@ -207,7 +207,7 @@
     "helm:orca:build": "node scripts/build-helm-orca.mjs --build",
     "test:plugins": "node scripts/check-plugins.mjs",
     "test:work:offline": "node scripts/check-work-offline.mjs",
-    "test:mac:packaging": "node --test scripts/mac-build-output.test.mjs scripts/mac-build-flow.test.mjs",
+    "test:mac:packaging": "node --test scripts/mac-build-output.test.mjs scripts/mac-build-flow.test.mjs scripts/build-sidecar-failure.test.mjs",
     "test:helm:orca:package": "node --import tsx --test scripts/package-helm-orca.test.mjs scripts/package-helm-orca-review.test.mjs"
   },
   "peerDependencies": {
