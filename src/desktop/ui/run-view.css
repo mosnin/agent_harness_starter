@@ -1,0 +1,346 @@
+/**
+ * Hades desktop — Run view styles.
+ *
+ * Consumes the design tokens flattened by `theme.ts` (`cssVars`) as CSS
+ * custom properties (`--color-*`, `--space-*`, `--radius-*`, `--type-*`,
+ * `--shadow-*`, `--motion-*`). No hard-coded colors or hex values live here
+ * so light/dark just falls out of which token set is mounted at `:root`.
+ *
+ * Cards read via elevation (shadow), never borders. Interactive surfaces
+ * lift gently on hover/focus rather than snapping.
+ */
+
+.run-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  padding: var(--space-2xl);
+  max-width: 1080px;
+  margin: 0 auto;
+  font-family: var(--type-family-sans);
+  color: var(--color-ink);
+}
+
+/* ------------------------------------------------------------------------
+ * Goal composer
+ * ---------------------------------------------------------------------- */
+
+.run-composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.run-composer-label {
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-semibold);
+  color: var(--color-ink-secondary);
+}
+
+.run-composer-input {
+  font-family: var(--type-family-sans);
+  font-size: var(--type-size-base);
+  color: var(--color-ink);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  resize: vertical;
+  min-height: 72px;
+  transition: box-shadow var(--motion-base) var(--motion-easeOut),
+    border-color var(--motion-base) var(--motion-easeOut);
+}
+
+.run-composer-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.run-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn {
+  font-family: var(--type-family-sans);
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-semibold);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: var(--space-sm) var(--space-xl);
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--motion-easeOut),
+    box-shadow var(--motion-fast) var(--motion-easeOut),
+    background var(--motion-fast) var(--motion-easeOut);
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: var(--color-ink-on-accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+  background: var(--color-accent-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  background: var(--color-accent-pressed);
+  transform: translateY(0);
+}
+
+/* ------------------------------------------------------------------------
+ * Section shell
+ * ---------------------------------------------------------------------- */
+
+.run-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.run-section-title {
+  font-size: var(--type-size-lg);
+  font-weight: var(--type-weight-semibold);
+  color: var(--color-ink);
+  margin: 0;
+}
+
+.empty-state {
+  color: var(--color-ink-tertiary);
+  font-size: var(--type-size-base);
+  padding: var(--space-2xl);
+  text-align: center;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-lg);
+}
+
+/* ------------------------------------------------------------------------
+ * Status pill (shared by task rows and worker cards)
+ * ---------------------------------------------------------------------- */
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-medium);
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  padding: var(--space-3xs) var(--space-sm);
+  border-radius: var(--radius-pill);
+  color: var(--status-color, var(--color-ink-tertiary));
+  background: color-mix(in srgb, var(--status-color, var(--color-ink-tertiary)) 16%, transparent);
+}
+
+/* ------------------------------------------------------------------------
+ * Task DAG
+ * ---------------------------------------------------------------------- */
+
+.run-dag {
+  display: flex;
+  gap: var(--space-xl);
+  overflow-x: auto;
+  padding-bottom: var(--space-2xs);
+}
+
+.run-dag--empty {
+  width: 100%;
+}
+
+.run-dag-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 220px;
+  flex: 1 0 220px;
+}
+
+.run-dag-column-title {
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-semibold);
+  color: var(--color-ink-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.run-dag-column-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.run-dag-node {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  cursor: default;
+  transition: transform var(--motion-base) var(--motion-easeOut),
+    box-shadow var(--motion-base) var(--motion-easeOut);
+}
+
+.run-dag-node:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.run-dag-node-status {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--status-color, var(--color-ink-tertiary));
+  flex-shrink: 0;
+}
+
+.run-dag-node-id {
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-2xs);
+  color: var(--color-ink-tertiary);
+  flex-shrink: 0;
+}
+
+.run-dag-node-desc {
+  font-size: var(--type-size-sm);
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------------
+ * Task list
+ * ---------------------------------------------------------------------- */
+
+.run-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.run-task-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--motion-base) var(--motion-easeOut),
+    transform var(--motion-base) var(--motion-easeOut);
+}
+
+.run-task-row:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.run-task-row-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.run-task-row-desc {
+  font-size: var(--type-size-base);
+  color: var(--color-ink);
+}
+
+.run-task-row-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-tertiary);
+}
+
+/* ------------------------------------------------------------------------
+ * Worker grid
+ * ---------------------------------------------------------------------- */
+
+.run-worker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-lg);
+}
+
+.run-worker-grid--empty {
+  display: block;
+}
+
+.run-worker-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--motion-base) var(--motion-easeOut),
+    transform var(--motion-base) var(--motion-easeOut);
+}
+
+.run-worker-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.run-worker-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.run-worker-card-id {
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-sm);
+  color: var(--color-ink);
+}
+
+.run-worker-card-caps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.run-worker-card-cap {
+  font-size: var(--type-size-2xs);
+  color: var(--color-ink-secondary);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3xs) var(--space-xs);
+}
+
+.run-worker-card-cap--empty {
+  color: var(--color-ink-tertiary);
+  font-style: italic;
+  background: transparent;
+  padding: 0;
+}
+
+.run-worker-card-kill-reason {
+  font-size: var(--type-size-xs);
+  color: var(--color-bad);
+  margin: 0;
+}

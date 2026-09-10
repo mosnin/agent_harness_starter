@@ -8,7 +8,7 @@
  * for the agent-harness tool model.
  *
  * @example
- *   import { createSafeExecutor } from "@agent-harness/core/tools";
+ *   import { createSafeExecutor } from "hades-agent/tools";
  *
  *   const exec = createSafeExecutor({
  *     allowlist: ["git", "npm", "node"],

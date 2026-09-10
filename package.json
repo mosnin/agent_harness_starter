@@ -1,97 +1,102 @@
 {
-  "name": "@agent-harness/core",
+  "name": "hades-agent",
   "version": "0.1.0",
   "private": false,
-  "description": "Drop-in agent infrastructure for Next.js SaaS — memory, guardrails, governance, capability tokens.",
+  "description": "Hades agent harness: CLI conversations, workspace tools, persistent sessions, swarm execution and evidence checks.",
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./security": {
+      "types": "./dist/security/index.d.ts",
       "import": "./dist/security/index.mjs",
-      "require": "./dist/security/index.js",
-      "types": "./dist/security/index.d.ts"
+      "require": "./dist/security/index.js"
     },
     "./governance": {
+      "types": "./dist/governance/index.d.ts",
       "import": "./dist/governance/index.mjs",
-      "require": "./dist/governance/index.js",
-      "types": "./dist/governance/index.d.ts"
+      "require": "./dist/governance/index.js"
     },
     "./workflow": {
+      "types": "./dist/workflow/index.d.ts",
       "import": "./dist/workflow/index.mjs",
-      "require": "./dist/workflow/index.js",
-      "types": "./dist/workflow/index.d.ts"
+      "require": "./dist/workflow/index.js"
     },
     "./memory": {
+      "types": "./dist/memory/index.d.ts",
       "import": "./dist/memory/index.mjs",
-      "require": "./dist/memory/index.js",
-      "types": "./dist/memory/index.d.ts"
+      "require": "./dist/memory/index.js"
     },
     "./errors": {
+      "types": "./dist/errors/index.d.ts",
       "import": "./dist/errors/index.mjs",
-      "require": "./dist/errors/index.js",
-      "types": "./dist/errors/index.d.ts"
+      "require": "./dist/errors/index.js"
     },
     "./runtime": {
+      "types": "./dist/runtime.d.ts",
       "import": "./dist/runtime.mjs",
-      "require": "./dist/runtime.js",
-      "types": "./dist/runtime.d.ts"
+      "require": "./dist/runtime.js"
     },
     "./guardrails": {
+      "types": "./dist/guardrails/index.d.ts",
       "import": "./dist/guardrails/index.mjs",
-      "require": "./dist/guardrails/index.js",
-      "types": "./dist/guardrails/index.d.ts"
+      "require": "./dist/guardrails/index.js"
     },
     "./tools": {
+      "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.mjs",
-      "require": "./dist/tools/index.js",
-      "types": "./dist/tools/index.d.ts"
+      "require": "./dist/tools/index.js"
     },
     "./cache": {
+      "types": "./dist/cache/index.d.ts",
       "import": "./dist/cache/index.mjs",
-      "require": "./dist/cache/index.js",
-      "types": "./dist/cache/index.d.ts"
+      "require": "./dist/cache/index.js"
     },
     "./providers": {
+      "types": "./dist/providers/index.d.ts",
       "import": "./dist/providers/index.mjs",
-      "require": "./dist/providers/index.js",
-      "types": "./dist/providers/index.d.ts"
+      "require": "./dist/providers/index.js"
     },
     "./guidance": {
+      "types": "./dist/guidance/index.d.ts",
       "import": "./dist/guidance/index.mjs",
-      "require": "./dist/guidance/index.js",
-      "types": "./dist/guidance/index.d.ts"
+      "require": "./dist/guidance/index.js"
     },
     "./swarm": {
+      "types": "./dist/swarm/index.d.ts",
       "import": "./dist/swarm/index.mjs",
-      "require": "./dist/swarm/index.js",
-      "types": "./dist/swarm/index.d.ts"
+      "require": "./dist/swarm/index.js"
     },
     "./claims": {
+      "types": "./dist/claims/index.d.ts",
       "import": "./dist/claims/index.mjs",
-      "require": "./dist/claims/index.js",
-      "types": "./dist/claims/index.d.ts"
+      "require": "./dist/claims/index.js"
     },
     "./embeddings": {
+      "types": "./dist/embeddings/index.d.ts",
       "import": "./dist/embeddings/index.mjs",
-      "require": "./dist/embeddings/index.js",
-      "types": "./dist/embeddings/index.d.ts"
+      "require": "./dist/embeddings/index.js"
     },
     "./federation": {
+      "types": "./dist/federation/index.d.ts",
       "import": "./dist/federation/index.mjs",
-      "require": "./dist/federation/index.js",
-      "types": "./dist/federation/index.d.ts"
+      "require": "./dist/federation/index.js"
     },
     "./codex": {
+      "types": "./dist/codex/index.d.ts",
       "import": "./dist/codex/index.mjs",
-      "require": "./dist/codex/index.js",
-      "types": "./dist/codex/index.d.ts"
+      "require": "./dist/codex/index.js"
+    },
+    "./swarm-runtime": {
+      "types": "./dist/swarm-runtime/index.d.ts",
+      "import": "./dist/swarm-runtime/index.mjs",
+      "require": "./dist/swarm-runtime/index.js"
     }
   },
   "files": [
@@ -101,7 +106,12 @@
     "scripts",
     "docs",
     "QUICKSTART.md",
-    ".env.example"
+    ".env.example",
+    "dist-swarm",
+    "dist-hades",
+    "docker",
+    "docker-compose.swarm.yml",
+    "ARCHITECTURE.md"
   ],
   "scripts": {
     "dev": "next dev --turbopack",
@@ -114,7 +124,83 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:swarm": "node scripts/build-swarm.mjs",
+    "swarm": "tsx src/swarm-runtime/cli.ts",
+    "swarm:dashboard": "tsx src/swarm-runtime/cli.ts serve",
+    "swarm:demo": "tsx examples/swarm/demo.ts",
+    "swarm:bench": "tsx examples/swarm/bench.ts",
+    "hades": "tsx src/hades/bin/hades.ts",
+    "tools": "tsx src/hades/bin/hades.ts tools",
+    "exec:bench": "tsx src/hades/bin/hades.ts exec bench",
+    "browser": "tsx src/hades/bin/hades.ts browser",
+    "browser:bench": "tsx src/hades/bin/hades.ts browser bench",
+    "tui": "tsx src/hades/bin/hades.ts tui",
+    "profile": "tsx src/hades/bin/hades.ts profile",
+    "profile:bench": "tsx src/hades/bin/hades.ts profile bench",
+    "backends": "tsx src/hades/bin/hades.ts backends",
+    "schedule": "tsx src/hades/bin/hades.ts schedule",
+    "state": "tsx src/hades/bin/hades.ts state",
+    "migrate": "tsx src/hades/bin/hades.ts migrate",
+    "migrate:selftest": "tsx src/hades/bin/hades.ts migrate selftest",
+    "install:plan": "tsx src/hades/bin/hades.ts install plan",
+    "install:doctor": "tsx src/hades/bin/hades.ts install doctor",
+    "trust": "tsx src/hades/bin/hades.ts trust",
+    "trust:status": "tsx src/hades/bin/hades.ts trust status",
+    "trust:doctor": "tsx src/hades/bin/hades.ts trust doctor",
+    "trust:riskeval": "tsx src/hades/bin/hades.ts trust riskeval",
+    "market": "tsx src/hades/bin/hades.ts market",
+    "market:status": "tsx src/hades/bin/hades.ts market status",
+    "market:doctor": "tsx src/hades/bin/hades.ts market doctor",
+    "market:simulate": "tsx src/hades/bin/hades.ts market simulate",
+    "route": "tsx src/hades/bin/hades.ts route",
+    "route:status": "tsx src/hades/bin/hades.ts route status",
+    "route:arms": "tsx src/hades/bin/hades.ts route arms",
+    "route:ledger": "tsx src/hades/bin/hades.ts route ledger",
+    "route:bench": "tsx src/hades/bin/hades.ts route bench",
+    "route:doctor": "tsx src/hades/bin/hades.ts route doctor",
+    "cluster": "tsx src/hades/bin/hades.ts cluster",
+    "cluster:status": "tsx src/hades/bin/hades.ts cluster status",
+    "cluster:nodes": "tsx src/hades/bin/hades.ts cluster nodes",
+    "cluster:run": "tsx src/hades/bin/hades.ts cluster run --nodes 3 --tasks 6",
+    "cluster:bench": "tsx src/hades/bin/hades.ts cluster bench",
+    "cluster:chaos": "tsx src/hades/bin/hades.ts cluster chaos",
+    "eval": "tsx src/hades/bin/hades.ts eval",
+    "eval:status": "tsx src/hades/bin/hades.ts eval status",
+    "eval:run": "tsx src/hades/bin/hades.ts eval run",
+    "eval:gate": "tsx src/hades/bin/hades.ts eval gate",
+    "eval:bisect": "tsx src/hades/bin/hades.ts eval bisect",
+    "eval:history": "tsx src/hades/bin/hades.ts eval history --verify",
+    "dataset": "tsx src/hades/bin/hades.ts dataset",
+    "dataset:export": "tsx src/hades/bin/hades.ts dataset export",
+    "dataset:import": "tsx src/hades/bin/hades.ts dataset import",
+    "dataset:stats": "tsx src/hades/bin/hades.ts dataset stats",
+    "dataset:verify": "tsx src/hades/bin/hades.ts dataset verify --with-corpus",
+    "dataset:finetune": "tsx src/hades/bin/hades.ts dataset finetune",
+    "gov": "tsx src/hades/bin/hades.ts gov",
+    "gov:doctor": "tsx src/hades/bin/hades.ts gov doctor",
+    "gov:identity": "tsx src/hades/bin/hades.ts gov identity show",
+    "gov:audit": "tsx src/hades/bin/hades.ts gov audit verify",
+    "gov:policy": "tsx src/hades/bin/hades.ts gov policy show",
+    "gov:airgap": "tsx src/hades/bin/hades.ts gov airgap probe",
+    "gov:airgap:run": "tsx src/hades/bin/hades.ts gov airgap run",
+    "skill": "tsx src/hades/bin/hades.ts skill",
+    "showdown": "tsx src/hades/bin/hades.ts showdown",
+    "gateway": "tsx src/hades/bin/hades.ts gateway",
+    "gateway:bench": "tsx src/hades/bin/hades.ts gateway bench",
+    "bench:parity": "tsx src/hades/bin/hades.ts bench parity",
+    "desktop:build:sidecar": "node scripts/build-sidecar.mjs",
+    "desktop:build:ui": "node scripts/build-desktop.mjs",
+    "desktop:build": "npm run desktop:build:sidecar && npm run desktop:build:ui",
+    "desktop:dev": "./script/build_and_run.sh",
+    "package:desktop": "node scripts/package-desktop.mjs",
+    "build:hades": "node scripts/build-hades.mjs",
+    "setup": "tsx src/hades/bin/hades.ts setup",
+    "doctor": "tsx src/hades/bin/hades.ts doctor",
+    "test:smoke": "node scripts/smoke-agent.mjs && node scripts/smoke-swarm.mjs",
+    "desktop:mac": "./script/build_and_run.sh --build-only",
+    "desktop:package:mac": "./script/package_mac.sh",
+    "helm:build": "node scripts/build-helm.mjs"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",
@@ -133,8 +219,24 @@
     }
   },
   "dependencies": {
+    "@codemirror/commands": "^6.11.0",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.12",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/lang-python": "^6.2.1",
+    "@codemirror/lang-rust": "^6.0.2",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/legacy-modes": "^6.5.4",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.4",
+    "@codemirror/view": "^6.43.11",
     "@noble/ed25519": "^3.1.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "ai": "^6.0.174",
+    "codemirror": "^6.0.2",
     "eventsource-parser": "^3.0.1",
     "jose": "^6.2.3"
   },
@@ -149,6 +251,7 @@
     "dotenv": "^17.4.2",
     "eslint": "^9.25.1",
     "eslint-config-next": "^15.3.1",
+    "happy-dom": "^20.14.0",
     "next": "15.3.1",
     "openai": "^4.100.0",
     "prisma": "^7.8.0",
@@ -156,6 +259,7 @@
     "react-dom": "19.1.0",
     "tailwindcss": "^4.1.4",
     "tsup": "^8.5.1",
+    "tsx": "^4.19.0",
     "typescript": "^5.8.3",
     "vitest": "^4.1.5",
     "zod": "^4.0.0"
@@ -165,6 +269,7 @@
     "@browserbasehq/sdk": "^2.10.0",
     "@clerk/nextjs": "^7.3.0",
     "@daytonaio/sdk": "^0.171.0",
+    "@openai/codex": "0.145.0",
     "@pinecone-database/pinecone": "^6.0.0",
     "@prisma/client": "^7.8.0",
     "@supabase/supabase-js": "^2.105.1",
@@ -175,5 +280,9 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "bin": {
+    "hades": "./dist-hades/hades.js",
+    "hermes-swarm": "./dist-swarm/cli.js"
   }
 }

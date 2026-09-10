@@ -1,300 +1,122 @@
-# Next.js Agentic Starter Kit
+# Hades
 
-Drop this into your existing Next.js SaaS and get 80% of your agentic infrastructure done correctly — streaming agents, tool registry, MCP server, multi-agent orchestration, and swappable DB/auth adapters, all pre-wired.
+Hades is an agent harness for the CLI, terminal UI and native desktop. The main
+working path is a model-backed conversation with workspace file tools and
+persistent sessions. Swarm workers share that agent loop. This repository also
+contains experimental verification, federation, migration and learning modules.
 
-**This is not a standalone app.** It's a set of modules you copy into your existing project, connect to your existing auth and database, and wire up with your domain-specific tools.
+## Run the agent
 
----
+Requires Node.js 22 and npm. From a checkout:
 
-## Why this over alternatives?
-
-- **Governance engine built-in** — policy enforcement, ethics checks, and compliance audit trails are first-class, not afterthoughts.
-- **Capability tokens per run (NHI)** — every agent run is scoped with non-human identity tokens, enabling fine-grained per-run tool authorization.
-- **MCP server out of the box** — every registered tool is instantly available to Claude Desktop, Cursor, or any MCP client at `/api/mcp` with no extra config.
-- **Copy-don't-inherit** — you own the source; no SDK lock-in, no hidden abstractions, no breaking upgrades forced on you.
-- **OpenAI Agents SDK native** — built on the official `@openai/agents` SDK, so handoffs, tracing, and model updates come from the source.
-
----
-
-## What you get
-
-```
-Agentic capability                    Already handled
-────────────────────────────────────────────────────────────
-Streaming agent runs (SSE)          ✓ routes/agent/route.ts
-Multi-agent handoffs                ✓ src/agents/orchestrator.ts
-Tool registry                       ✓ src/agents/tools/registry.ts
-MCP server + client                 ✓ src/agents/mcp/ + routes/mcp/
-Cancellation + retry                ✓ src/agents/harness.ts
-Web search (Tavily)                 ✓ src/agents/tools/web/tavily.ts
-Parallel browser sessions           ✓ src/agents/tools/web/browser.ts
-Sandboxed code execution            ✓ src/agents/tools/sandbox/
-Composio OAuth (100+ APIs)          ✓ src/agents/tools/composio/
-Thread + message persistence        ✓ src/agents/db/
-Auth adapter interface              ✓ src/agents/auth/
-Supabase / Convex / Prisma support  ✓ DB_PROVIDER env var
-Clerk / Auth0 support               ✓ AUTH_PROVIDER env var
-Chat UI component                   ✓ components/AgentChat/
+```sh
+npm ci --ignore-scripts
+npm run build:hades
+export HADES_PROVIDER=openai
+# Set OPENAI_API_KEY in your environment or secret manager.
+node dist-hades/hades.js chat --root /path/to/your/project
 ```
 
-You bring: your existing auth, your existing database, and your domain-specific tools.
+OpenAI defaults to `gpt-4o-mini`; use `--model` or `HADES_MODEL` to choose a model
+available to your account. For Anthropic, set `HADES_PROVIDER=anthropic`,
+`ANTHROPIC_API_KEY` and an explicit `HADES_MODEL`. For an OpenAI-compatible local
+server, set `HADES_PROVIDER=local`, `HADES_BASE_URL` (including its `/v1` prefix)
+and `HADES_MODEL`. A local server uses only the optional `HADES_API_KEY`; it does
+not receive credentials from your cloud provider environment.
 
----
+```sh
+# A single task with a bounded model/tool loop
+node dist-hades/hades.js chat --once "Read package.json and explain the test commands"
 
-## How to add it to your project
-
-### 1. Copy the modules
-
-```bash
-# Clone the starter
-git clone https://github.com/mosnin/agent_harness_starter /tmp/agent-starter
-
-# Copy into your existing project
-cp -r /tmp/agent-starter/src/agents    your-project/src/agents
-cp -r /tmp/agent-starter/routes        your-project/src/app/api    # merge into existing api/
-cp -r /tmp/agent-starter/components    your-project/src/components  # merge
+# The session ID is printed at startup. Resume it in a later process:
+node dist-hades/hades.js chat --session SESSION_ID
 ```
 
-> The entire agent infrastructure lives under `src/agents/`. It doesn't touch your existing code.
+`/remember`, `/recall`, `/history` and `/help` are available in a conversation.
+`/exit` ends it. Ctrl-C cancels the current model turn. The default limit is 20
+model steps; override with `--max-steps`. Sessions and memory live in `.hades/`
+under the launching directory, or `HADES_DATA_DIR` when set. Keep this directory
+private: it contains conversation content.
 
-### 2. Install dependencies
+File operations enforce workspace path checks. Shell execution is disabled by
+default. `--allow-shell git,rg` opts into selected host commands; this is **not an
+OS sandbox**. Allowed programs run with your user permissions. Cancellation
+cannot roll back an edit, and an active shell command may run until its timeout.
 
-```bash
-# Core (always required)
-npm install @openai/agents zod@^4 @modelcontextprotocol/sdk
+## Run a swarm
 
-# Tools you want to use
-npm install @tavily/core                        # web search
-npm install @browserbasehq/sdk playwright-core  # browser automation
-npm install composio-core                        # OAuth for 100+ APIs
-npm install @daytonaio/sdk                       # code sandboxes
+```sh
+npm run build:swarm
+# Uses the same provider configuration and actual tools as chat:
+npm run swarm -- run "Read package.json and summarize the dependencies"
 
-# Fix Zod version conflict between @openai/agents and composio-core
+# Explicit fixture mode, no credentials required:
+npm run swarm -- run "Demonstrate orchestration" --demo
+
+# Run workers as child processes:
+npm run swarm -- run "Read README.md and summarize it" --mode process
 ```
 
-Add to `package.json`:
-```json
-"overrides": {
-  "composio-core>zod": "^3.24.0"
-}
+Real runs default to one task to avoid parallel edits racing in a shared
+workspace. Programmatic callers can supply a planner and isolated workspaces.
+State is persisted in `HADES_DATA_DIR/swarm-state.json` (default `.hades/`) and
+restored for inspection on restart. Interrupted tasks are not automatically
+replayed. Process workers share host permissions; Docker requires a configured
+image, reachable control-plane address and network. Container workspaces are
+inside the container, not automatically mounted from your project.
+
+Build and open the native Mac app with `./script/build_and_run.sh`. It bundles
+its own backend and Node runtime into `dist-mac/Hades.app`. The chat-first
+interface includes projects, files, Git, terminals, memory, skills, profiles,
+routines and a new original Hades icon. `./script/package_mac.sh` creates a
+local-use ZIP and DMG. See [Mac setup and acceptance](docs/DESKTOP_APP.md)
+and the [Hermes feature comparison](docs/HERMES_DESKTOP_PARITY.md).
+
+Messaging uses an explicit `HADES_GATEWAY_ENGINE=swarm` opt-in and provider
+credentials. Its fallback labels itself as a mock.
+
+## What verification means
+
+The swarm gate checks that evidence quotes occur in successful tool outputs and
+that the delivered output is represented by a claim. Missing evidence, unrelated
+output and an available judge's failure or outage reject admission. This checks
+provenance and coverage; it does **not** establish that every claim follows from
+its evidence or that the user's whole task is correct.
+
+Normal chat does not claim correctness certification. Gateway certification
+requires an independent final-outcome checker and caller-supplied calibration;
+production defaults provide neither, so they abstain from certification. STYX
+also requires explicit calibration. Synthetic calibration is a test fixture.
+Its legacy `ConformalGate` implements an empirical threshold heuristic, not an
+established guarantee on conditional deployment error. Signed MCP and cluster
+receipts attest integrity, not correctness. A signature binds bytes to an issuer;
+it does not make an answer true or establish that the issuer is trusted.
+
+## Validation and competitive status
+
+```sh
+npm run type-check
+npm test -- --maxWorkers=4
+npm run build:hades
+npm run build:swarm
+npm run desktop:build
+npm run test:smoke
 ```
 
-### 3. Add environment variables
+Browser tests need a local browser installation:
+`node node_modules/playwright-core/cli.js install --with-deps chromium`.
+The packaged CLI smoke uses real HTTP, files and separate processes with scripted
+model replies. It does not exercise a paid provider or measure model quality.
+Cost estimates use available token usage and pricing; unknown or zero spend does
+not produce a meaningful per-dollar throughput score.
 
-```bash
-# Minimum to get started
-OPENAI_API_KEY=sk-...
+Showdown's local single-agent surrogate is not the Hermes implementation.
+Modeled results are labeled demos. No matched real harness evaluation currently
+establishes superiority over Hermes, Codex, Claude Code or other agents.
 
-# Match your existing setup
-DB_PROVIDER=supabase          # supabase | convex | prisma
-AUTH_PROVIDER=clerk           # clerk | auth0
-```
-
-Full reference: [`.env.example`](./.env.example)
-
-### 4. Wire to your existing auth and DB
-
-If you already use Clerk: set `AUTH_PROVIDER=clerk` — done.
-If you already use Supabase: set `DB_PROVIDER=supabase`, run the migration SQL — done.
-
-See **[docs/02-connecting-your-app.md](./docs/02-connecting-your-app.md)** for all providers including NextAuth, custom JWT, MongoDB, DynamoDB, etc.
-
-### 5. Add your first agent to a page
-
-```tsx
-import { AgentChat } from "@/components/AgentChat";
-
-export default function DashboardPage() {
-  return (
-    <div>
-      {/* ... your existing dashboard UI ... */}
-      <AgentChat agentName="research" placeholder="Ask me about your data..." />
-    </div>
-  );
-}
-```
-
----
-
-## How it works
-
-```
-User types in AgentChat
-        ↓
-POST /api/agent  (routes/agent/route.ts)
-        ↓
-auth.requireAuth()  →  your existing auth
-        ↓
-createHarness(agentConfig)  →  @openai/agents run()
-        ↓
-Agent calls tools  →  your registered tools
-        ↓
-SSE stream → AgentChat renders events in real time
-        ↓
-db.saveMessage()  →  your existing database
-```
-
----
-
-## Adding tools for your product
-
-Tools connect your domain data and actions to the agent. Register them once; they're available everywhere:
-
-```typescript
-// src/agents/tools/crm/contacts.ts
-import { z } from "zod";
-import { registerTool } from "@/agents/tools/registry";
-
-export const searchContactsTool = registerTool({
-  name: "crm_search_contacts",
-  description: "Search CRM contacts by name, email, or company.",
-  parameters: z.object({
-    query: z.string(),
-    limit: z.number().default(10),
-  }),
-  async execute({ query, limit }, ctx) {
-    // ctx.userId = authenticated user from your auth adapter
-    return YourContactService.search({ query, limit, userId: ctx.userId });
-  },
-});
-```
-
-Add to `src/agents/tools/index.ts`:
-```typescript
-export * from "./crm/contacts";
-```
-
-The tool is now available to agents AND the MCP server at `/api/mcp` — no extra config.
-
----
-
-## Multi-agent orchestration
-
-```typescript
-import { createOrchestrator } from "@/agents/orchestrator";
-
-const support = createOrchestrator({
-  routerAgent: {
-    name: "Router",
-    model: "gpt-4o-mini",        // cheap: just routing
-    instructions: "Route to Billing or Technical support.",
-  },
-  specialists: [
-    {
-      name: "BillingAgent",
-      model: "gpt-4o",
-      instructions: "Handle billing questions...",
-      tools: ["billing_get_invoice", "billing_create_refund"],
-    },
-    {
-      name: "TechnicalAgent",
-      model: "gpt-4o",
-      instructions: "Debug technical issues...",
-      tools: ["dev_get_logs", "search_docs", "web_search"],
-    },
-  ],
-});
-
-const result = await support.run({
-  messages: [{ role: "user", content: userMessage }],
-  context: { userId },
-});
-```
-
----
-
-## MCP server
-
-Your `/api/mcp` endpoint exposes every registered tool to any MCP client:
-
-```bash
-# Inspect
-npx @modelcontextprotocol/inspector http://localhost:3000/api/mcp
-
-# Claude Desktop
-{ "mcpServers": { "myapp": { "url": "https://yourapp.com/api/mcp" } } }
-```
-
-Consume external MCP servers by adding them to `MCP_SERVERS` in `.env.local`.
-
----
-
-## Documentation
-
-| Guide | What it covers |
-|---|---|
-| **[01 — Integration](./docs/01-integration.md)** | Step-by-step: copy files, install deps, fix imports, first run |
-| **[02 — Connecting Your App](./docs/02-connecting-your-app.md)** | Wire to your existing auth, DB, services, and user model |
-| **[03 — Building Tools](./docs/03-building-tools.md)** | Tool anatomy, patterns, authorization, testing |
-| **[04 — APIs and MCPs](./docs/04-apis-and-mcps.md)** | REST APIs, Composio OAuth, consuming/exposing MCP servers |
-| **[05 — Model Configuration](./docs/05-model-configuration.md)** | Model selection, prompts, temperature, context, cost |
-| **[06 — Harness and Orchestration](./docs/06-harness-orchestration.md)** | Streaming, cancellation, multi-agent patterns, observability |
-| **[07 — Deployment](./docs/07-deployment.md)** | Vercel, Docker, migrations, rate limiting, cost controls |
-
----
-
-## Domain examples
-
-Copy these as starting points for your SaaS type:
-
-| Directory | What's inside |
-|---|---|
-| [`examples/crm/`](./examples/crm/) | Contact search, deal updates, note-taking, outreach |
-| [`examples/ecommerce/`](./examples/ecommerce/) | Order lookup, refunds, shipment tracking, address updates |
-| [`examples/devtools/`](./examples/devtools/) | Repo status, issue management, CI monitoring, deployments |
-
----
-
-## File structure
-
-```
-agent_harness_starter/
-├── src/agents/                # Copy to: your-project/src/agents/
-│   ├── harness.ts             # Streaming run loop, retry, cancellation
-│   ├── orchestrator.ts        # Multi-agent handoffs and parallel runs
-│   ├── types.ts               # AgentConfig, AgentEvent, RunInput, RunResult
-│   ├── utils.ts               # Tool → OpenAI SDK adapter, JSON schema export
-│   ├── tools/
-│   │   ├── registry.ts        # registerTool, getAllTools, getTools
-│   │   ├── types.ts           # ToolDefinition, ToolContext
-│   │   ├── index.ts           # Import here to register your tools
-│   │   ├── web/               # Tavily search, parallel browser scraping
-│   │   ├── sandbox/           # Daytona and Modal code execution
-│   │   └── composio/          # Per-user OAuth for 100+ APIs
-│   ├── mcp/
-│   │   ├── server.ts          # MCP server (exposes all tools)
-│   │   └── client.ts          # MCP client (consume external servers)
-│   ├── db/                    # DB adapters: memory | supabase | convex | prisma
-│   ├── auth/                  # Auth adapters: none | clerk | auth0
-│   ├── lib/
-│   │   ├── config.ts          # Central env-var config
-│   │   └── utils.ts           # SSE stream, retry, sleep
-│   └── examples/              # Reference agent configs (research, code)
-│
-├── routes/                    # Copy to: your-project/src/app/api/
-│   ├── agent/route.ts         # POST /api/agent — streaming SSE endpoint
-│   ├── mcp/route.ts           # GET+POST /api/mcp — MCP server
-│   ├── threads/route.ts       # GET/POST /api/threads
-│   └── composio/connect/route.ts  # GET /api/composio/connect
-│
-├── components/                # Copy to: your-project/src/components/
-│   ├── AgentChat/             # Drop-in streaming chat UI
-│   └── AgentStatus/           # Running indicator with cancel button
-│
-├── examples/                  # Domain-specific starting points
-│   ├── crm/                   # CRM SaaS tools + agent configs
-│   ├── ecommerce/             # E-commerce tools + agent configs
-│   └── devtools/              # Dev platform tools + agent configs
-│
-├── docs/                      # Integration guides
-├── prisma/schema.prisma       # Add to your existing Prisma schema
-├── convex/                    # Add to your existing Convex project
-├── supabase/migrations/       # Run in your existing Supabase project
-└── .env.example               # All env vars with documentation
-```
-
----
-
-## License
-
-MIT
+See [the remediation record](docs/AUDIT_REMEDIATION.md) for the exact validation
+boundary, [architecture](ARCHITECTURE.md), and [desktop setup](docs/DESKTOP_APP.md).
+`src/app/` and the Next.js scripts are legacy starter scaffolding, not the Hades
+product surface. Historical architecture and roadmap documents describe both
+implemented components and unproven aspirations; use exercised runtime evidence
+when assessing readiness.

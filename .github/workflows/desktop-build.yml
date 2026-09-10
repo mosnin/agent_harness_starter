@@ -1,0 +1,78 @@
+name: Desktop Build
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [claude/hermes-swarm-framework-vbhrot]
+    paths:
+      - 'src/desktop/**'
+      - 'src-tauri/**'
+      - 'src/hades/**'
+      - 'script/build_and_run.sh'
+      - 'scripts/*desktop*'
+      - 'scripts/macos-*'
+      - 'scripts/build-team-server.mjs'
+      - 'scripts/package-codex-runtime.mjs'
+      - 'scripts/build-helm.mjs'
+      - 'scripts/stamp-helm-bundle.mjs'
+      - 'scripts/smoke-team-server.mjs'
+      - 'third_party/**'
+      - 'docs/integration/slack-app-manifest.json'
+      - 'package*.json'
+      - '.github/workflows/desktop-build.yml'
+concurrency:
+  group: desktop-build-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  mac:
+    name: Build Mac application
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            src-tauri/target
+          key: mac-desktop-${{ runner.arch }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+      - run: npm ci --ignore-scripts
+      - name: Read pinned Helm source
+        id: helm
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("third_party/helm-opencode.json")); for(const k of ["repository","revision","bun"]) fs.appendFileSync(process.env.GITHUB_OUTPUT,`${k}=${p[k]}\n`);'
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.helm.outputs.repository }}
+          ref: ${{ steps.helm.outputs.revision }}
+          path: vendor/opencode
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ steps.helm.outputs.bun }}
+      - name: Install actual Helm fork dependencies
+        working-directory: vendor/opencode
+        run: bun install --frozen-lockfile
+      - name: Build pinned Helm fork
+        run: npm run helm:build -- --source vendor/opencode
+        env:
+          HADES_HELM_REQUIRE_PIN: "1"
+      - run: npm run type-check
+      - run: npx vitest run src/desktop/__tests__/workbench-service.test.ts src/desktop/__tests__/desktop-additions.test.ts src/desktop/__tests__/mcp-stdio.test.ts src/hades/__tests__/model-stream.test.ts src/hades/__tests__/codex-provider.test.ts src/hades/__tests__/openrouter-provider.test.ts src/desktop/__tests__/team-chat.test.ts src/desktop/__tests__/slack-bot.test.ts src/desktop/__tests__/workspace-editor.test.ts src/desktop/__tests__/harness-catalog.test.ts
+      - run: ./script/build_and_run.sh --build-only
+      - run: node scripts/smoke-macos.mjs
+      - run: node scripts/smoke-macos.mjs --signal
+      - run: node scripts/smoke-team-server.mjs
+      - name: Archive local-use application
+        run: ditto -c -k --sequesterRsrc --keepParent dist-mac/Hades.app "dist-mac/Hades-mac-$(uname -m).zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Hades-mac-${{ runner.arch }}
+          path: dist-mac/Hades-mac-*.zip
+          if-no-files-found: error
+          retention-days: 14

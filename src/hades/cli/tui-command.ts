@@ -1,0 +1,938 @@
+/**
+ * `hades tui` — the interactive live terminal dashboard over the real swarm.
+ *
+ * This is the surface that runs headless today: no Tauri window, no
+ * `src/app/**` web scaffolding — just a keyboard-driven view of the swarm
+ * rendered straight to the terminal, the Hermes-style "a real terminal
+ * interface" counterpart to the desktop app's sidecar bridge.
+ *
+ * The actual state machine and renderer already exist and are fully
+ * unit-tested on their own (`src/swarm-runtime/tui/app.ts`'s `TuiApp` /
+ * `TuiController`, `src/swarm-runtime/tui/render.ts`'s `TuiState`). This file
+ * is the thin main-loop that:
+ *   - builds a real swarm via `realSwarmFactory()` (or an injected factory),
+ *   - adapts it to a `TuiController` (`dispatchGoal`/`scalePool`/`cancel`),
+ *   - polls `SwarmHandle.snapshot()` and maps it to `TuiState`,
+ *   - pipes raw-mode stdin keypresses into `TuiApp.handleKey`, and
+ *   - writes `TuiApp.frame()` to stdout whenever it changes.
+ *
+ * Like the rest of `hades`'s CLI surfaces, the non-interactive entry point
+ * (`runTuiCommand`) is terminal-free — `{ code, lines }`, no `console.log`,
+ * no `process.exit` — so `hades tui --help` unit-tests without a shell. The
+ * real interactive loop (`runTuiInteractive`) does touch stdin/stdout, but
+ * every dependency (streams, the swarm factory, the clock, the poll
+ * interval) is injectable, and `deps.once` renders exactly one frame from an
+ * initial snapshot and returns — deterministic, no timers, no raw mode —
+ * which is what makes it testable headless too.
+ *
+ * Not wired into `cli.ts`/`index.ts` (the main router owns that centrally),
+ * but fully self-contained: importing `runTuiCommand`/`runTuiInteractive`
+ * from this module is enough to run the command on its own.
+ */
+
+import { TuiApp } from "../../swarm-runtime/tui/app";
+import type { TuiController } from "../../swarm-runtime/tui/app";
+import type { TuiState } from "../../swarm-runtime/tui/render";
+import { normalizeSwarmEvent } from "../../swarm-runtime/tui/tool-stream";
+import type { VerifyEvent } from "../../swarm-runtime/tui/verify-lane";
+import { RecallStore } from "../../swarm-runtime/tui/recall";
+import type { RecallEntryKind } from "../../swarm-runtime/tui/recall";
+import { HistoryRecorder } from "../../swarm-runtime/tui/history";
+import type { Verdict } from "../../swarm-runtime/types";
+import type {
+  FleetPaneBackendRow,
+  FleetPaneBanditRow,
+  FleetPaneWorkerRow,
+} from "../../swarm-runtime/tui/fleet-pane";
+import type { ShowdownPaneResult } from "../../swarm-runtime/tui/showdown-pane";
+import { runShowdown, verifyAuditChain } from "../bench/showdown";
+import type { ShowdownResult } from "../bench/showdown";
+import type { BackendManager } from "../backends/manager";
+import type { BanditArm } from "../backends/route-bandit";
+import { realSwarmFactory } from "../../desktop/core/sidecar";
+import type { SwarmFactory, SwarmHandle } from "../../desktop/core/sidecar";
+
+export interface TuiCommandResult {
+  code: number;
+  lines: string[];
+}
+
+export interface TuiDeps {
+  stdin?: NodeJS.ReadStream;
+  stdout?: NodeJS.WriteStream;
+  /** Injectable swarm for tests; defaults to {@link realSwarmFactory}. */
+  factory?: SwarmFactory;
+  now?: () => number;
+  /** Render one frame and return (for tests/CI) — no timers, no raw mode. */
+  once?: boolean;
+  /** Swarm isolation mode passed to the factory. Default "inline". */
+  mode?: "inline" | "process" | "docker";
+  /** Initial worker pool size requested from the factory. Default 3. */
+  poolSize?: number;
+  /** Snapshot poll interval in ms. Default 500. */
+  pollIntervalMs?: number;
+  /** Task count for the SHOWDOWN pane's `r` (modeled) run. Default 24. */
+  showdownTasks?: number;
+  /** Showdown engine override for tests; defaults to the real `runShowdown`. */
+  runShowdownFn?: typeof runShowdown;
+}
+
+const HELP_LINES = [
+  "hades tui — interactive live terminal dashboard over the swarm",
+  "",
+  "Usage: hades tui",
+  "",
+  "Keybindings:",
+  "  g       start a new goal (compose mode)",
+  "  +/-     scale worker pool up/down",
+  "  c       cancel the active goal",
+  "  ↑/↓     navigate the task list",
+  "  f       toggle the FLEET pane (real BackendManager telemetry + route bandit)",
+  "  s       toggle the SHOWDOWN pane (r runs a real modeled showdown in-place)",
+  "  w       toggle the GATEWAY pane (real env connector probes + engine probe)",
+  "  d       toggle the SCHEDULE pane (real cron job store + run history + tally)",
+  "  ?       toggle the help overlay",
+  "  q       quit  (also Ctrl-C)",
+  "  (fleet pane) ↑/↓ or j/k select worker, r refresh, esc/q back",
+  "  (showdown pane) r run, esc/q back — every figure of a modeled run is",
+  "                  labeled (modeled); nothing live is simulated",
+  "  (gateway pane) ↑/↓ scroll traffic, r refresh, esc/q back — probes name env",
+  "                 VARIABLE NAMES only; live traffic belongs to `hades gateway start`",
+  "  (schedule pane) ↑/↓ or j/k select job, r refresh, esc/q back — reads the SAME",
+  "                  <dataDir>/schedule.json `hades schedule` writes; the runner",
+  "                  itself belongs to `hades gateway start --schedule`",
+  "  t       toggle the SKILLS/TRUST pane (real fail-closed SkillTrustReader rows)",
+  "  (trust pane) ↑/↓ or j/k select skill, s toggle sort, enter reasons, r refresh,",
+  "               esc/q back — reads the SAME <dataDir>/skill-trust.json +",
+  "               <dataDir>/skill-track.json `hades skill trust`/`track` write",
+  "  h       toggle the HISTORY pane (recorded goal runs + frame-by-frame replay)",
+  "  (history pane) ↑/↓ or j/k select run, ←/→ scrub frames, home/end jump, esc/q back",
+  "  v       toggle the VERIFY LANE pane (live STYX gate rulings: accept/abstain/",
+  "          reject per task, running tally, and a live V-TPH$ readout computed",
+  "          only from real run figures — honest n/a otherwise)",
+  "  (verify pane) ↑/↓ or j/k scroll, home/end jump, esc/q back",
+  "  o       toggle the STREAM pane (live tool-output tail over the real manager",
+  "          event feed, ring-buffered with an honest dropped counter)",
+  "  (stream pane) ↑/↓ scroll, pgup/pgdn/home/end jump, f cycle source filter,",
+  "                esc/q back",
+  "  esc     interrupt the running goal: resume, abort (with confirm), or type a",
+  "          redirect that supersedes it while preserving completed work",
+  "  (compose mode) multi-line editor — Enter submits, Alt-Enter/Ctrl-J newline,",
+  "                 trailing \\ continues the line, bracketed paste is literal,",
+  "                 /commands autocomplete (Tab/↑↓ cycle, Enter accepts),",
+  "                 ↑ recalls history on an empty buffer, Ctrl-R reverse-search",
+  "                 (recall persists across sessions in <dataDir>/tui-recall.jsonl)",
+];
+
+/**
+ * Non-interactive help/usage path (terminal-free, like the other hades
+ * commands) — returns `{ code, lines }`. With no recognized subcommand this
+ * hands off to the real interactive loop, so a central router can wire
+ * `case "tui": return runTuiCommand(rest)` and get both behaviors for free.
+ */
+export async function runTuiCommand(args: string[], deps: TuiDeps = {}): Promise<TuiCommandResult> {
+  const [sub] = args;
+  if (sub === "--help" || sub === "-h" || sub === "help") {
+    return { code: 0, lines: HELP_LINES };
+  }
+  if (sub !== undefined) {
+    return { code: 1, lines: [`Unknown tui argument: ${sub}`, "Run `hades tui --help` for usage."] };
+  }
+  const code = await runTuiInteractive(deps);
+  return { code, lines: [] };
+}
+
+// ---------------------------------------------------------------------------
+// Swarm snapshot -> TuiState mapping
+// ---------------------------------------------------------------------------
+
+type WorkerRow = NonNullable<TuiState["workers"]>[number];
+type TaskRow = NonNullable<TuiState["tasks"]>[number];
+type LogRow = NonNullable<TuiState["logs"]>[number];
+
+function pickString(...vals: unknown[]): string | undefined {
+  for (const v of vals) if (typeof v === "string" && v.length > 0) return v;
+  return undefined;
+}
+
+function toWorkerRow(raw: unknown): WorkerRow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const workerId = pickString(r.workerId, r.id);
+  const status = typeof r.status === "string" ? r.status : undefined;
+  if (!workerId || !status) return null;
+  const capabilities = Array.isArray(r.capabilities)
+    ? r.capabilities.filter((c): c is string => typeof c === "string")
+    : undefined;
+  return { workerId, status, capabilities };
+}
+
+function toTaskRow(raw: unknown): TaskRow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const description = typeof r.description === "string" ? r.description : undefined;
+  const status = typeof r.status === "string" ? r.status : undefined;
+  if (description === undefined || !status) return null;
+  return { description, status };
+}
+
+/**
+ * Map a raw {@link SwarmHandle} snapshot to the `TuiState` the render layer
+ * understands. Defensive like `sidecar.ts`'s view mappers: an entry missing
+ * required fields is dropped rather than rendered as garbage; a malformed
+ * `metrics` blob is simply omitted (the dashboard renders fine without it).
+ */
+export function snapshotToTuiState(
+  snapshot: ReturnType<SwarmHandle["snapshot"]>,
+  mode: string,
+  logs: LogRow[] = []
+): TuiState {
+  const workers = (Array.isArray(snapshot.workers) ? snapshot.workers : [])
+    .map(toWorkerRow)
+    .filter((w): w is WorkerRow => w !== null);
+  const tasks = (Array.isArray(snapshot.tasks) ? snapshot.tasks : [])
+    .map(toTaskRow)
+    .filter((t): t is TaskRow => t !== null);
+  const metrics =
+    snapshot.metrics && typeof snapshot.metrics === "object"
+      ? (snapshot.metrics as TuiState["metrics"])
+      : undefined;
+
+  return {
+    mode,
+    metrics,
+    workers,
+    tasks,
+    logs,
+    groundingRate: metrics?.verification.groundingRate,
+  };
+}
+
+/**
+ * `SwarmManager`'s `log` event fires as `(workerId, line)`; `realSwarmFactory`
+ * forwards that through `SwarmHandle.on` as `[workerId, line]`. Normalize
+ * whatever shape arrives (including a fake test handle emitting a plain
+ * string or `{ workerId, line }`) into the `TuiState.logs` row shape.
+ */
+function normalizeLogPayload(payload: unknown): LogRow {
+  if (Array.isArray(payload)) {
+    const [a, b] = payload;
+    if (typeof a === "string" && typeof b === "string") return { workerId: a, line: b };
+    if (typeof a === "string") return { workerId: "swarm", line: a };
+  }
+  if (typeof payload === "string") return { workerId: "swarm", line: payload };
+  if (payload && typeof payload === "object") {
+    const r = payload as Record<string, unknown>;
+    if (typeof r.line === "string") {
+      return { workerId: typeof r.workerId === "string" ? r.workerId : "swarm", line: r.line };
+    }
+  }
+  return { workerId: "swarm", line: "log" };
+}
+
+// ---------------------------------------------------------------------------
+// STREAM + VERIFY LANE wiring — the real manager event feed, no simulation
+// ---------------------------------------------------------------------------
+
+/**
+ * Every event name the STREAM pane's `normalizeSwarmEvent` understands —
+ * exactly the names `SwarmManager` really emits (see the emit-arity table in
+ * `src/swarm-runtime/tui/tool-stream.ts`). The interactive loop subscribes
+ * one `SwarmHandle.on` listener per name.
+ */
+export const SWARM_STREAM_EVENTS = [
+  "log",
+  "task:dispatched",
+  "task:verified",
+  "task:rejected",
+  "task:requeued",
+  "task:escalated",
+  "task:failed",
+  "worker:spawned",
+  "worker:killed",
+  "worker:dead",
+  "goal:planned",
+  "goal:completed",
+  "goal:failed",
+  "goal:aborted",
+] as const;
+
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v !== null && typeof v === "object" ? (v as Record<string, unknown>) : null;
+}
+
+/** Multi-argument manager emits arrive through `SwarmHandle.on` as `[a, b]`; single-argument as the bare payload. */
+function unwrapPair(payload: unknown): [unknown, unknown] {
+  return Array.isArray(payload) ? [payload[0], payload[1]] : [payload, undefined];
+}
+
+function isVerdict(v: unknown): v is Verdict {
+  return v === "accept" || v === "revise" || v === "reject";
+}
+
+/**
+ * Map one raw swarm event (as forwarded by `SwarmHandle.on`'s
+ * single-arg/tuple convention) to a VERIFY LANE `VerifyEvent`, or `null` for
+ * events the lane does not track or payloads too malformed to trust. The
+ * ruling mapping is the lane's locked moat mapping:
+ *
+ *   task:dispatched -> pending      task:verified -> accept (report verdict wins)
+ *   task:rejected   -> reject (report verdict wins — a "revise" report renders abstain)
+ *   task:escalated  -> abstain      task:failed   -> reject (terminal, no report)
+ *   goal:planned    -> run-start    goal:completed/failed/aborted -> run-end
+ *
+ * When a verified/rejected event carries a well-formed `VerificationReport`
+ * (`verdict` in the real `Verdict` union, numeric `score`), it is forwarded
+ * raw so `laneApply` applies the verdict override itself; a malformed report
+ * falls back to the event-name ruling with no score — never a fabricated one.
+ */
+export function verifyEventFromSwarm(eventName: string, payload: unknown, at: number): VerifyEvent | null {
+  const taskEvent = (
+    ruling: "pending" | "accept" | "abstain" | "reject",
+    taskRaw: unknown,
+    reportRaw?: unknown
+  ): VerifyEvent | null => {
+    const task = asRecord(taskRaw);
+    const taskId = typeof task?.id === "string" && task.id.length > 0 ? task.id : undefined;
+    if (!taskId) return null;
+    const description = typeof task?.description === "string" ? task.description : "";
+    const report = asRecord(reportRaw);
+    if (report && isVerdict(report.verdict)) {
+      const score = typeof report.score === "number" ? report.score : null;
+      return {
+        type: "task",
+        at,
+        taskId,
+        description,
+        ruling,
+        report: { verdict: report.verdict, score: score ?? Number.NaN },
+      };
+    }
+    return { type: "task", at, taskId, description, ruling };
+  };
+
+  switch (eventName) {
+    case "task:dispatched": {
+      const [task] = unwrapPair(payload);
+      return taskEvent("pending", task);
+    }
+    case "task:verified": {
+      const [task, report] = unwrapPair(payload);
+      return taskEvent("accept", task, report);
+    }
+    case "task:rejected": {
+      const [task, report] = unwrapPair(payload);
+      return taskEvent("reject", task, report);
+    }
+    case "task:escalated": {
+      const [task] = unwrapPair(payload);
+      return taskEvent("abstain", task);
+    }
+    case "task:failed": {
+      const [task] = unwrapPair(payload);
+      return taskEvent("reject", task);
+    }
+    case "goal:planned":
+      return { type: "run-start", at };
+    case "goal:completed":
+    case "goal:failed":
+    case "goal:aborted":
+      return { type: "run-end", at };
+    default:
+      return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// FLEET pane wiring — real BackendManager rows, no adapter fabrication
+// ---------------------------------------------------------------------------
+
+/**
+ * Map the REAL fleet substrate to the TUI FLEET pane's plain row shapes:
+ * BACKENDS from `manager.descriptors()` + `manager.telemetry(name)` (with
+ * `availability` from a real `manager.probeAll()` pass — `undefined` renders
+ * the honest "unprobed", never a guessed "ready"), WORKERS from
+ * `manager.list()` (the live registry, including crash-recovery-adopted
+ * handles), and ROUTING from a real `CostAwareRouteBandit.arms()` snapshot.
+ * Every figure is copied straight through; nothing is computed here.
+ */
+export function fleetPaneDataFromManager(
+  manager: BackendManager,
+  availability: Record<string, boolean>,
+  arms: Record<string, BanditArm>
+): { backends: FleetPaneBackendRow[]; workers: FleetPaneWorkerRow[]; bandit: FleetPaneBanditRow[] } {
+  const backends: FleetPaneBackendRow[] = manager.descriptors().map((d) => {
+    const t = manager.telemetry(d.name);
+    const probed = availability[d.name];
+    return {
+      name: d.name,
+      kind: d.kind,
+      state: probed === true ? "available" : probed === false ? "unavailable" : "unprobed",
+      provisions: t.provisions,
+      accruedUsd: t.accruedUsd,
+      provisionLatencyEmaMs: t.provisionLatencyEmaMs,
+    };
+  });
+
+  const workers: FleetPaneWorkerRow[] = manager
+    .list()
+    .map((w) => ({
+      workerId: w.handle.workerId,
+      backend: w.handle.backend,
+      lifecycle: w.handle.state,
+      idleMs: w.idleMs,
+    }))
+    .sort((a, b) => (a.workerId < b.workerId ? -1 : a.workerId > b.workerId ? 1 : 0));
+
+  const bandit: FleetPaneBanditRow[] = Object.keys(arms)
+    .sort()
+    .map((name) => ({
+      name,
+      pulls: arms[name].pulls,
+      verified: arms[name].verified,
+      meanReward: arms[name].meanReward,
+      ucb: arms[name].ucb,
+    }));
+
+  return { backends, workers, bandit };
+}
+
+// ---------------------------------------------------------------------------
+// SHOWDOWN pane wiring — a real modeled run through the real engine
+// ---------------------------------------------------------------------------
+
+/** Copy the REAL `ShowdownResult` figures into the pane's row shape, with
+ *  `auditOk` from a genuine `verifyAuditChain` re-check (never assumed). */
+export function showdownPaneResultFrom(result: ShowdownResult): ShowdownPaneResult {
+  return {
+    swarmVtph: result.swarmReport.vtphPerDollar,
+    baselineVtph: result.baselineReport.vtphPerDollar,
+    multiple: result.comparison.vtphPerDollarSpeedup,
+    swarmVerified: result.swarmReport.verifiedCorrect,
+    baselineVerified: result.baselineReport.verifiedCorrect,
+    swarmSilentWrong: result.swarmReport.silentWrong,
+    baselineSilentWrong: result.baselineReport.silentWrong,
+    auditOk: verifyAuditChain(result.audit).ok,
+  };
+}
+
+/**
+ * Build the SHOWDOWN pane's `r` handler: kicks off ONE real
+ * `runShowdown({ mode: "modeled" })` (deterministic, no keys, no network —
+ * and every rendered figure carries the pane's own `(modeled)` label) and
+ * streams its progress into `app.applyShowdownEvent`. The pane's `start`
+ * event is only emitted once the engine reports its own real task-run total
+ * via `onProgress` — the total is never precomputed here. A second `r` while
+ * a run is in flight is a no-op (the pane reducer also guards this).
+ */
+export function createTuiShowdownRunner(
+  app: TuiApp,
+  opts: { taskCount?: number; seed?: number; render?: () => void; runShowdownFn?: typeof runShowdown } = {}
+): () => void {
+  const runFn = opts.runShowdownFn ?? runShowdown;
+  const taskCount = opts.taskCount ?? 24;
+  const seed = opts.seed ?? 42;
+  const render = opts.render ?? ((): void => {});
+  let running = false;
+
+  return (): void => {
+    if (running) return;
+    running = true;
+    let started = false;
+    const ensureStarted = (total: number): void => {
+      if (started) return;
+      started = true;
+      app.applyShowdownEvent({ type: "start", mode: "modeled", total });
+    };
+
+    void runFn({
+      mode: "modeled",
+      seed,
+      taskCount,
+      onProgress: (done, total) => {
+        ensureStarted(total);
+        app.applyShowdownEvent({ type: "progress", done });
+        render();
+      },
+    })
+      .then((result) => {
+        ensureStarted(result.audit.length);
+        app.applyShowdownEvent({ type: "done", result: showdownPaneResultFrom(result) });
+      })
+      .catch((err: unknown) => {
+        ensureStarted(0);
+        app.applyShowdownEvent({ type: "fail", error: err instanceof Error ? err.message : String(err) });
+      })
+      .finally(() => {
+        running = false;
+        render();
+      });
+  };
+}
+
+// ---------------------------------------------------------------------------
+// TuiController wiring
+// ---------------------------------------------------------------------------
+
+/**
+ * Adapt a {@link SwarmHandle} to the `TuiController` surface `TuiApp` drives
+ * key presses through. Kept as a standalone factory (rather than inlined in
+ * `runTuiInteractive`) so it is directly unit-testable against a scripted
+ * fake handle with no terminal, timers, or raw-mode stdin involved.
+ *
+ * `scalePool` on the controller is relative (+/-1 per keypress); the swarm's
+ * `scalePool` is absolute, so this tracks the last-known pool size and turns
+ * deltas into an absolute size, clamped at 0. `cancel` targets whichever goal
+ * was most recently dispatched (the TUI only ever has one goal in flight at a
+ * time from the operator's perspective); it's a no-op until a goal exists.
+ *
+ * `abortGoal`/`redirectGoal` back the INTERRUPT overlay: abort is a plain
+ * `cancelGoal(goalId)`, and redirect applies the overlay's LOCKED sequence —
+ * `cancelGoal(goalId)` THEN `dispatchGoal(objective)`, awaited in that exact
+ * order so the superseded goal and its replacement never run concurrently.
+ *
+ * `opts.onGoalDispatched` fires with the real `goalId` the handle returned
+ * (never a guessed one) after every successful dispatch — including a
+ * redirect's replacement goal — so central wiring can keep
+ * `TuiApp.setActiveGoal` and the history recorder truthful.
+ */
+export function createSwarmController(
+  handle: SwarmHandle,
+  opts: { poolSize?: number; onGoalDispatched?: (goalId: string, objective: string) => void } = {}
+): TuiController {
+  let poolSize = Math.max(0, opts.poolSize ?? 0);
+  let activeGoalId: string | undefined;
+
+  const noteDispatched = (goalId: string | undefined, objective: string): void => {
+    activeGoalId = goalId;
+    if (goalId) opts.onGoalDispatched?.(goalId, objective);
+  };
+
+  return {
+    dispatchGoal(objective: string): void {
+      void Promise.resolve(handle.dispatchGoal(objective))
+        .then((res) => {
+          noteDispatched(res?.goalId, objective);
+        })
+        .catch(() => {
+          /* failures surface via the swarm's own log/event stream, if any */
+        });
+    },
+    scalePool(delta: number): void {
+      poolSize = Math.max(0, poolSize + delta);
+      void Promise.resolve(handle.scalePool?.(poolSize)).catch(() => {});
+    },
+    cancel(): void {
+      if (!activeGoalId) return;
+      void Promise.resolve(handle.cancelGoal?.(activeGoalId)).catch(() => {});
+    },
+    abortGoal(goalId: string): void {
+      void Promise.resolve(handle.cancelGoal?.(goalId)).catch(() => {});
+      if (goalId === activeGoalId) activeGoalId = undefined;
+    },
+    redirectGoal(goalId: string, objective: string): void {
+      void (async () => {
+        // LOCKED sequence: cancel the superseded goal BEFORE dispatching its
+        // replacement (see src/swarm-runtime/tui/interrupt.ts's contract).
+        await Promise.resolve(handle.cancelGoal?.(goalId)).catch(() => {});
+        const res = await Promise.resolve(handle.dispatchGoal(objective));
+        noteDispatched(res?.goalId, objective);
+      })().catch(() => {
+        /* failures surface via the swarm's own log/event stream, if any */
+      });
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The real interactive loop
+// ---------------------------------------------------------------------------
+
+type RawStdin = NodeJS.ReadStream & { setRawMode?: (mode: boolean) => unknown };
+
+/**
+ * The real interactive loop: raw-mode stdin keypresses -> `TuiApp.handleKey`;
+ * poll the swarm snapshot -> `TuiState` -> `app.setState`; render
+ * `app.frame()` to stdout on change; quit on q/Ctrl-C, restoring the
+ * terminal. Resolves with the process exit code.
+ *
+ * `deps.once` short-circuits all of that: build the handle, read exactly one
+ * snapshot, render exactly one frame, close the handle, and return 0 — no
+ * stdin is touched at all (so raw mode is never entered), no timers are
+ * started. That's the path tests drive.
+ */
+export async function runTuiInteractive(deps: TuiDeps = {}): Promise<number> {
+  const stdout = deps.stdout ?? process.stdout;
+  const now = deps.now ?? Date.now;
+  const mode = deps.mode ?? "inline";
+  const poolSize = deps.poolSize ?? 3;
+  const pollIntervalMs = deps.pollIntervalMs ?? 500;
+
+  const factory = deps.factory ?? realSwarmFactory();
+  const handle = await factory({ mode, poolSize });
+
+  const logs: LogRow[] = [];
+  handle.on?.("log", (payload: unknown) => {
+    logs.push(normalizeLogPayload(payload));
+    if (logs.length > 50) logs.splice(0, logs.length - 50);
+  });
+
+  // Pane hooks are late-bound: the fleet/gateway refreshes and showdown
+  // runner need the app (and the interactive loop's `render`) to exist first,
+  // so the controller closes over mutable slots that the loop fills in below.
+  // In `once` mode they stay honest no-ops — a single non-interactive frame
+  // never probes backends, probes gateway env, or starts a showdown.
+  let fleetRefresh: () => void = () => {};
+  let showdownRun: () => void = () => {};
+  let gatewayRefresh: () => void = () => {};
+  let scheduleRefresh: () => void = () => {};
+  let skillTrustRefresh: () => void = () => {};
+  let goalDispatched: (goalId: string, objective: string) => void = () => {};
+  let recallRecord: (text: string, kind: RecallEntryKind) => void = () => {};
+  const controller: TuiController = {
+    ...createSwarmController(handle, {
+      poolSize,
+      onGoalDispatched: (goalId, objective) => goalDispatched(goalId, objective),
+    }),
+    refreshFleet: () => fleetRefresh(),
+    runShowdown: () => showdownRun(),
+    refreshGateway: () => gatewayRefresh(),
+    refreshSchedule: () => scheduleRefresh(),
+    refreshSkillTrust: () => skillTrustRefresh(),
+    recordRecall: (text, kind) => recallRecord(text, kind),
+  };
+  const app = new TuiApp({ controller });
+
+  const readState = (): TuiState => snapshotToTuiState(handle.snapshot(), mode, logs.slice(-5));
+
+  if (deps.once) {
+    app.setState(readState());
+    stdout.write(app.frame());
+    await Promise.resolve(handle.close?.()).catch(() => {});
+    return 0;
+  }
+
+  const stdin = (deps.stdin ?? process.stdin) as RawStdin;
+
+  return new Promise<number>((resolveExit) => {
+    let lastFrame = "";
+    let finished = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    // HISTORY pane: a real HistoryRecorder over the live TuiState frames —
+    // begun on each real dispatch (with the goalId the handle returned),
+    // frames recorded on every render, ended by the goal's own lifecycle
+    // event. Nothing is recorded that didn't actually happen.
+    const recorder = new HistoryRecorder();
+    let historyActive = false;
+    /** Set once, at the session's first `goal:planned` — the V-TPH$ wall-clock base. */
+    let firstRunStartAt: number | null = null;
+
+    const render = (): void => {
+      let st: TuiState;
+      try {
+        st = readState();
+        app.setState(st);
+      } catch (err) {
+        stdout.write(`\n[tui] snapshot failed: ${err instanceof Error ? err.message : String(err)}\n`);
+        return;
+      }
+      // VERIFY LANE: real figures only — the live metrics snapshot and the
+      // wall-clock since the FIRST run-start of this session. The metrics
+      // (verified count, cost) are cumulative across the session, so the
+      // wall-clock base must be too — measuring cumulative counts against
+      // only the latest run's clock would overstate V-TPH$. Missing pieces
+      // feed NaN, which the readout renders as an honest n/a, never a
+      // fabricated value.
+      const m = st.metrics;
+      app.setVtphInput({
+        verifiedCount: m ? m.tasks.verified : Number.NaN,
+        wallMs: firstRunStartAt !== null ? now() - firstRunStartAt : Number.NaN,
+        costUsd: m ? m.usage.costUsd : Number.NaN,
+      });
+      if (historyActive) {
+        try {
+          recorder.recordFrame(st, now());
+        } catch {
+          /* run ended between checks — nothing to record into */
+        }
+      }
+      const frame = app.frame();
+      if (frame !== lastFrame) {
+        lastFrame = frame;
+        stdout.write(`\x1b[2J\x1b[H${frame}\n`);
+      }
+    };
+
+    const endHistoryRun = (status: "completed" | "failed" | "aborted", at: number): void => {
+      if (!historyActive) return;
+      historyActive = false;
+      try {
+        recorder.endRun(status, at);
+      } catch {
+        /* already ended (e.g. run evicted) — the list below stays truthful */
+      }
+      app.setHistoryRuns(recorder.list());
+    };
+
+    goalDispatched = (goalId, objective): void => {
+      app.setActiveGoal({ goalId, objective });
+      try {
+        recorder.beginRun(goalId, objective, now());
+        historyActive = true;
+      } catch {
+        /* duplicate goalId: keep the existing run rather than lie with a second */
+      }
+      app.setHistoryRuns(recorder.list());
+      render();
+    };
+
+    // Cross-session recall history: the durable RecallStore under the real
+    // dataDir. Loaded lazily (config import) — until it resolves, recall
+    // simply has no entries and recording is a no-op; corrupt lines are
+    // skipped with an honest count surfaced in the log tail.
+    let recallStore: RecallStore | undefined;
+    void (async () => {
+      const [{ loadConfig }, { join }] = await Promise.all([import("../config/config"), import("node:path")]);
+      const dataDir = loadConfig({ env: process.env }).dataDir;
+      recallStore = new RecallStore({ filePath: join(dataDir, "tui-recall.jsonl") });
+      const loaded = recallStore.load();
+      app.setRecallEntries(loaded.entries);
+      if (loaded.skippedCorrupt > 0) {
+        logs.push({ workerId: "recall", line: `skipped ${loaded.skippedCorrupt} corrupt recall line(s)` });
+      }
+    })().catch((err: unknown) => {
+      logs.push({
+        workerId: "recall",
+        line: `history load failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    });
+    recallRecord = (text, kind): void => {
+      if (!recallStore) return;
+      try {
+        recallStore.append({ text, at: now(), kind });
+        app.setRecallEntries(recallStore.load().entries);
+      } catch (err) {
+        logs.push({
+          workerId: "recall",
+          line: `history append failed: ${err instanceof Error ? err.message : String(err)}`,
+        });
+      }
+    };
+
+    // STREAM + VERIFY LANE + goal lifecycle: one listener per real manager
+    // event name (the dashboard's own "log" tail is subscribed separately
+    // above). Malformed payloads normalize to null and are dropped, never
+    // rendered as fabricated rows.
+    for (const name of SWARM_STREAM_EVENTS) {
+      handle.on?.(name, (payload: unknown) => {
+        const at = now();
+        const sev = normalizeSwarmEvent(name, payload, at);
+        if (sev) app.applyStreamEvent(sev);
+        const vev = verifyEventFromSwarm(name, payload, at);
+        if (vev) app.applyVerifyEvent(vev);
+        if (name === "goal:planned" && firstRunStartAt === null) {
+          firstRunStartAt = at;
+        }
+        if (name === "goal:completed" || name === "goal:failed" || name === "goal:aborted") {
+          app.setActiveGoal(null);
+          endHistoryRun(name.slice("goal:".length) as "completed" | "failed" | "aborted", at);
+        }
+        render();
+      });
+    }
+
+    // SHOWDOWN pane: `r` runs a real modeled showdown through the real
+    // engine, progress streaming straight into the pane reducer.
+    showdownRun = createTuiShowdownRunner(app, {
+      taskCount: deps.showdownTasks,
+      render,
+      runShowdownFn: deps.runShowdownFn,
+    });
+
+    // FLEET pane: the real fleet substrate (BackendManager + FleetSupervisor
+    // + the shared route-bandit history at <dataDir>/route-bandit.json — the
+    // SAME files `hades backends` and the desktop app use), built lazily on
+    // the first refresh so opening the TUI never probes docker unasked.
+    let fleetRigPromise:
+      | Promise<{ manager: BackendManager; arms: () => Promise<Record<string, BanditArm>> }>
+      | undefined;
+    const getFleetRig = (): NonNullable<typeof fleetRigPromise> => {
+      fleetRigPromise ??= (async () => {
+        const { createRealFleet } = await import("../../desktop/core/fleet-wiring");
+        const fleet = createRealFleet({});
+        await fleet.restore();
+        return { manager: fleet.manager, arms: () => fleet.routeBanditArms() };
+      })();
+      return fleetRigPromise;
+    };
+    fleetRefresh = (): void => {
+      void (async () => {
+        const rig = await getFleetRig();
+        const availability = await rig.manager.probeAll();
+        const arms = await rig.arms();
+        app.setFleetData(fleetPaneDataFromManager(rig.manager, availability, arms));
+        render();
+      })().catch((err: unknown) => {
+        logs.push({ workerId: "fleet", line: `refresh failed: ${err instanceof Error ? err.message : String(err)}` });
+        render();
+      });
+    };
+
+    // GATEWAY pane: real env probing through the SAME code paths `hades
+    // gateway` uses — buildConnectorsFromEnv's probe report (variable NAMES
+    // only, never values) via a real, never-started GatewayProcess, plus the
+    // PURE probeGatewayEngine decision (nothing heavy is ever constructed).
+    // The counters shown are this process's own gateway counters — a real
+    // zero tally from a real unstarted process, because the TUI does not run
+    // the gateway; live traffic/badges belong to `hades gateway start`.
+    let gatewayProcPromise: Promise<import("../gateway/process").GatewayProcess> | undefined;
+    gatewayRefresh = (): void => {
+      void (async () => {
+        gatewayProcPromise ??= (async () => {
+          const { GatewayProcess } = await import("../gateway/process");
+          // The handler is unreachable: this process is never start()ed.
+          return new GatewayProcess({
+            handler: async () => ({ text: "", accepted: false }),
+            env: process.env,
+          });
+        })();
+        const [proc, { probeGatewayEngine }] = await Promise.all([
+          gatewayProcPromise,
+          import("../gateway/engine-select"),
+        ]);
+        const s = proc.status();
+        const probe = probeGatewayEngine(process.env);
+        app.applyGatewayStatus({
+          probes: s.platforms,
+          counters: s.counters,
+          engine: { requested: probe.requested, mode: probe.mode, detail: probe.detail },
+        });
+        render();
+      })().catch((err: unknown) => {
+        logs.push({ workerId: "gateway", line: `refresh failed: ${err instanceof Error ? err.message : String(err)}` });
+        render();
+      });
+    };
+
+    // SCHEDULE pane: the real durable job store — the SAME
+    // <dataDir>/schedule.json file `hades schedule add/run` writes — read
+    // through the real cron engine via buildSchedulePaneSnapshot. Built
+    // lazily on the first refresh so opening the TUI never touches the
+    // schedule file unasked. `runnerRunning` is honestly `null`: this
+    // process never runs a SchedulerRunner (that belongs to
+    // `hades gateway start --schedule`), so nothing is attached here.
+    scheduleRefresh = (): void => {
+      void (async () => {
+        const [{ JsonFileJobStore }, { systemClock }, { buildSchedulePaneSnapshot }, { loadConfig }, { join }] =
+          await Promise.all([
+            import("../schedule/store"),
+            import("../schedule/clock"),
+            import("../schedule/pane-snapshot"),
+            import("../config/config"),
+            import("node:path"),
+          ]);
+        const dataDir = loadConfig({ env: process.env }).dataDir;
+        // A fresh store per refresh: JsonFileJobStore reads its file at
+        // construction, and `r` must reflect what `hades schedule` wrote
+        // from another terminal since the last look — never a stale cache.
+        const store = new JsonFileJobStore(join(dataDir, "schedule.json"), systemClock);
+        const snapshot = buildSchedulePaneSnapshot(store, systemClock);
+        app.setScheduleData({ ...snapshot, runnerRunning: null });
+        render();
+      })().catch((err: unknown) => {
+        logs.push({ workerId: "schedule", line: `refresh failed: ${err instanceof Error ? err.message : String(err)}` });
+        render();
+      });
+    };
+
+    // SKILLS/TRUST pane: the real fail-closed SkillTrustReader over the SAME
+    // <dataDir>/skill-trust.json + <dataDir>/skill-track.json files
+    // `hades skill trust` / `hades skill track` write. Names shown are the
+    // union of what the reader can enumerate (persisted trust states + track
+    // records) and the `*.md` skills visible in the skills dir, so a skill
+    // with no history still shows up honestly as "unscored". Built lazily on
+    // each refresh so `r` always reflects what another terminal just wrote.
+    skillTrustRefresh = (): void => {
+      void (async () => {
+        const [{ SkillTrustReader }, { loadConfig }, { join }, { readdirSync }] = await Promise.all([
+          import("../skills/trust-selection"),
+          import("../config/config"),
+          import("node:path"),
+          import("node:fs"),
+        ]);
+        const dataDir = loadConfig({ env: process.env }).dataDir;
+        const reader = new SkillTrustReader({ dataDir });
+        const skillsDir = process.env.HADES_SKILLS_DIR ?? join(dataDir, "skills");
+        let discovered: string[] = [];
+        try {
+          discovered = readdirSync(skillsDir)
+            .filter((f) => f.endsWith(".md"))
+            .map((f) => f.slice(0, -3));
+        } catch {
+          // No skills dir yet: the reader's own names are all there is.
+        }
+        const names = [...new Set([...reader.allKnown(), ...discovered])].sort();
+        app.setSkillTrustData(
+          reader.rows(names).map((r) => ({
+            skillName: r.skillName,
+            status: r.status,
+            wilsonLower: r.wilsonLower,
+            recentBrier: r.recentBrier,
+            n: r.n,
+            verifiedN: r.verifiedN,
+            reasons: r.reasons,
+          }))
+        );
+        render();
+      })().catch((err: unknown) => {
+        logs.push({ workerId: "trust", line: `refresh failed: ${err instanceof Error ? err.message : String(err)}` });
+        render();
+      });
+    };
+
+    const onData = (chunk: string | Buffer): void => {
+      const key = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+      const result = app.handleKey(key);
+      if (result.quit) {
+        void finish(0);
+        return;
+      }
+      render();
+    };
+
+    const finish = async (code: number): Promise<void> => {
+      if (finished) return;
+      finished = true;
+      if (timer) clearInterval(timer);
+      stdin.removeListener?.("data", onData);
+      if (stdin.isTTY && typeof stdin.setRawMode === "function") {
+        stdin.setRawMode(false);
+        // Disable bracketed paste again on the way out (enabled below).
+        stdout.write("\x1b[?2004l");
+      }
+      stdin.pause?.();
+      await Promise.resolve(handle.close?.()).catch(() => {});
+      resolveExit(code);
+    };
+
+    if (stdin.isTTY && typeof stdin.setRawMode === "function") {
+      stdin.setRawMode(true);
+      // Enable bracketed paste so the compose editor's paste path receives
+      // the \x1b[200~ … \x1b[201~ markers (pasted text stays literal — never
+      // interpreted as keystrokes). Disabled again in finish().
+      stdout.write("\x1b[?2004h");
+    }
+    stdin.setEncoding?.("utf8");
+    stdin.resume?.();
+    stdin.on?.("data", onData);
+
+    timer = setInterval(() => {
+      // STREAM pane spinner cadence rides the poll interval (the app itself
+      // never reads a clock).
+      app.tickStream();
+      render();
+    }, pollIntervalMs);
+    render();
+  });
+}

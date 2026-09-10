@@ -1,0 +1,434 @@
+/**
+ * Trust View styles — the Hades desktop app's signature surface.
+ *
+ * Consumes the design tokens flattened by `theme.ts` (`--color-*`,
+ * `--space-*`, `--radius-*`, `--type-*`, `--shadow-*`, `--motion-*`). Native
+ * Tauri webview surface, not a web page — no external fonts, no network
+ * assets.
+ */
+
+.trust-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  padding: var(--space-2xl);
+  color: var(--color-ink);
+  font-family: var(--type-family-sans);
+}
+
+.trust-mono {
+  font-family: var(--type-family-mono);
+}
+
+.trust-view__section-title {
+  margin: 0 0 var(--space-md) 0;
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-lg);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.trust-view__empty {
+  margin: 0;
+  padding: var(--space-xl);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-ink-tertiary);
+  font-size: var(--type-size-sm);
+  text-align: center;
+}
+
+.trust-view__empty--inline {
+  padding: var(--space-sm) 0;
+  border: none;
+  text-align: left;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Hero — the trust number                                                */
+/* ---------------------------------------------------------------------- */
+
+.trust-view__hero {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-lg);
+}
+
+.trust-view__hero-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-xl) var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.trust-view__hero-number {
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-4xl);
+  font-weight: var(--type-weight-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.trust-view__hero-label {
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-medium);
+  color: var(--color-ink-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.trust-view__hero-stat--grounded .trust-view__hero-number {
+  color: var(--color-accent);
+}
+
+.trust-view__hero-stat--verified .trust-view__hero-number {
+  color: var(--color-ok);
+}
+
+.trust-view__hero-stat--rejected .trust-view__hero-number {
+  color: var(--color-warn);
+}
+
+.trust-view__hero-stat--silent-wrong {
+  border-color: var(--color-border-strong);
+}
+
+.trust-view__hero-stat--silent-wrong.trust-view__hero-stat--good .trust-view__hero-number {
+  color: var(--color-ok);
+}
+
+.trust-view__hero-stat--silent-wrong.trust-view__hero-stat--bad {
+  border-color: var(--color-bad);
+  background: var(--color-bad-soft);
+}
+
+.trust-view__hero-stat--silent-wrong.trust-view__hero-stat--bad .trust-view__hero-number {
+  color: var(--color-bad);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Gate feed                                                              */
+/* ---------------------------------------------------------------------- */
+
+.trust-view__gate-feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.trust-verification {
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--motion-base) var(--motion-easeOut);
+}
+
+.trust-verification--ok {
+  border-left-color: var(--color-ok);
+}
+
+.trust-verification--bad {
+  border-left-color: var(--color-bad);
+}
+
+.trust-verification--warn {
+  border-left-color: var(--color-warn);
+}
+
+.trust-verification__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.trust-verification__verdict {
+  padding: var(--space-3xs) var(--space-sm);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-semibold);
+}
+
+.trust-verification__verdict--ok {
+  color: var(--color-ok);
+  background: var(--color-ok-soft);
+}
+
+.trust-verification__verdict--bad {
+  color: var(--color-bad);
+  background: var(--color-bad-soft);
+}
+
+.trust-verification__verdict--warn {
+  color: var(--color-warn);
+  background: var(--color-warn-soft);
+}
+
+.trust-verification__score {
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-medium);
+  color: var(--color-ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.trust-verification__meta {
+  margin: var(--space-2xs) 0 var(--space-md) 0;
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-tertiary);
+}
+
+.trust-verification__checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trust-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.trust-check__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  font-size: var(--type-size-2xs);
+  font-weight: var(--type-weight-bold);
+  line-height: 1;
+}
+
+.trust-check__icon--pass {
+  color: var(--color-ok);
+  background: var(--color-ok-soft);
+}
+
+.trust-check__icon--fail {
+  color: var(--color-bad);
+  background: var(--color-bad-soft);
+}
+
+.trust-check__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trust-check__name {
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-medium);
+}
+
+.trust-check__detail {
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-tertiary);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Certificate showcase — a seal, not a form                              */
+/* ---------------------------------------------------------------------- */
+
+.trust-view__cert-showcase {
+  display: flex;
+  flex-direction: column;
+}
+
+.trust-cert {
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-2xl);
+  background: linear-gradient(155deg, var(--color-bg-elevated), var(--color-surface));
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
+}
+
+.trust-cert::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--color-accent), transparent 45%, var(--color-accent) 100%);
+  opacity: 0.5;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* The "stamp": a soft radial pulse that seats the seal on mount. */
+.trust-cert__seal {
+  position: absolute;
+  top: var(--space-xl);
+  right: var(--space-xl);
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: radial-gradient(circle, var(--color-accent-soft) 0%, transparent 70%);
+  transform: scale(0.4);
+  opacity: 0;
+  animation: trust-cert-stamp var(--motion-slower) var(--motion-spring) forwards;
+}
+
+/* A single low-key shimmer sweep across the whole seal, once, on mount. */
+.trust-cert::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.16) 48%,
+    transparent 66%
+  );
+  transform: translateX(-120%);
+  animation: trust-cert-shimmer 1.4s var(--motion-easeInOut) 200ms 1;
+  pointer-events: none;
+}
+
+@keyframes trust-cert-stamp {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+}
+
+@keyframes trust-cert-shimmer {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trust-cert__seal {
+    animation: none;
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  .trust-cert::after {
+    animation: none;
+    content: none;
+  }
+}
+
+.trust-cert__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.trust-cert__eyebrow {
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-semibold);
+  color: var(--color-ink-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.trust-cert__tier {
+  padding: var(--space-3xs) var(--space-md);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-radius: var(--radius-pill);
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-semibold);
+}
+
+.trust-cert__task {
+  margin: var(--space-sm) 0 0 0;
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-tertiary);
+}
+
+.trust-cert__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+  margin: var(--space-xl) 0;
+}
+
+.trust-cert__stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.trust-cert__label {
+  font-size: var(--type-size-2xs);
+  font-weight: var(--type-weight-medium);
+  color: var(--color-ink-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.trust-cert__value {
+  margin: 0;
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-2xl);
+  font-weight: var(--type-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.trust-cert__value--pcorrect {
+  color: var(--color-ok);
+}
+
+.trust-cert__value--epsilon {
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-medium);
+  color: var(--color-ink-secondary);
+}
+
+.trust-cert__signature-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding-top: var(--space-lg);
+  border-top: 1px dashed var(--color-border-strong);
+}
+
+.trust-cert__signature {
+  font-size: var(--type-size-sm);
+  color: var(--color-ink);
+  letter-spacing: 0.02em;
+  word-break: break-all;
+}
+
+.trust-cert__footer {
+  margin-top: var(--space-lg);
+}
+
+.trust-cert__issued {
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-tertiary);
+}

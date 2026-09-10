@@ -9,7 +9,7 @@
  * high-traffic apps with repeated queries (FAQ bots, etc.).
  *
  * @example
- *   import { createResponseCache } from "@agent-harness/core/cache";
+ *   import { createResponseCache } from "hades-agent/cache";
  *
  *   const cache = createResponseCache({ maxSize: 500, ttlMs: 60_000 });
  *

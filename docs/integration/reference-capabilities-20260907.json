@@ -1,0 +1,1549 @@
+{
+  "status": "Static reference inventory, not implemented parity or runtime acceptance",
+  "observed": "2026-09-07",
+  "hermes": {
+    "repository": "NousResearch/hermes-agent",
+    "revision": "03f3b09222b8f03becb203a6ebb9bac1f927b8b6",
+    "source_sha256": "626bee5d9857394e8f5fb5103d8a5b057ea867df63faa293bf86d99c698660fd",
+    "families": [
+      {
+        "id": "profile-scope",
+        "title": "Profile-targeted management",
+        "controls": [
+          "One machine dashboard across profiles",
+          "Sidebar profile switcher scopes Config/Keys/Skills/MCP/Models/Chat",
+          "Managed-profile banner",
+          "URL/deep-link persistence",
+          "Profile change spawns fresh chat PTY",
+          "Isolated dashboard opt-out",
+          "Cron aggregate/filter distinct from profile gateway/session ownership"
+        ],
+        "line_start": 44,
+        "line_end": 79,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L44"
+      },
+      {
+        "id": "status",
+        "title": "Live installation overview",
+        "controls": [
+          "Version/release date",
+          "Gateway running/PID/platform connection states",
+          "Sessions active in last five minutes",
+          "Twenty recent sessions with model/messages/tokens/preview",
+          "Five-second refresh"
+        ],
+        "line_start": 97,
+        "line_end": 107,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L97"
+      },
+      {
+        "id": "resource-pressure",
+        "title": "Resource pressure and stale-state handling",
+        "controls": [
+          "Memory/disk/OOM warning",
+          "Most severe warning only",
+          "Dismissal scoped to gateway boot",
+          "Escalation/restart reopens warnings",
+          "Stale heartbeat shows no spurious warning"
+        ],
+        "line_start": 108,
+        "line_end": 126,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L108"
+      },
+      {
+        "id": "chat",
+        "title": "Actual agent chat and resume",
+        "controls": [
+          "Embedded full TUI: commands/model selection/tool cards/streaming/clarification/sudo/approval/theme",
+          "Session resume from Sessions",
+          "Right-rail model picker and conversation list",
+          "Resume row/new chat/refresh",
+          "Narrow-screen conversation drawer",
+          "Resize PTY with viewport"
+        ],
+        "line_start": 128,
+        "line_end": 152,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L128"
+      },
+      {
+        "id": "remote-backend",
+        "title": "Remote backend connection",
+        "controls": [
+          "Remote URL",
+          "Sign in",
+          "Save/reconnect",
+          "Advertised authentication provider",
+          "Readiness and real chat WebSocket checks",
+          "Actionable failure codes/log collection"
+        ],
+        "line_start": 154,
+        "line_end": 202,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L154"
+      },
+      {
+        "id": "config",
+        "title": "Configuration forms",
+        "controls": [
+          "Schema-discovered fields grouped by model/terminal/display/agent/delegation/memory/approvals and other config sections",
+          "Enumerated selects",
+          "Boolean toggles",
+          "Save",
+          "Reset draft to defaults",
+          "JSON export",
+          "JSON import"
+        ],
+        "line_start": 204,
+        "line_end": 231,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L204"
+      },
+      {
+        "id": "keys",
+        "title": "Provider/tool/channel credentials",
+        "controls": [
+          "Category grouping",
+          "Set/unset and masked preview",
+          "Description/provider setup link",
+          "Set/update/delete",
+          "Advanced-key disclosure"
+        ],
+        "line_start": 233,
+        "line_end": 249,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L233"
+      },
+      {
+        "id": "sessions",
+        "title": "Search and manage sessions",
+        "controls": [
+          "Chats/Automation/All scope",
+          "Exact source filter",
+          "FTS message-content search and highlighted snippet",
+          "Auto-scroll to first match",
+          "Session counts/source stats",
+          "Expand full history",
+          "Role/Markdown/code rendering",
+          "Collapsible tool arguments",
+          "Inline rename/clear title",
+          "JSON export",
+          "Prune ended sessions by age",
+          "Delete"
+        ],
+        "line_start": 251,
+        "line_end": 265,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L251"
+      },
+      {
+        "id": "logs",
+        "title": "Logs and live tail",
+        "controls": [
+          "Agent/errors/gateway file picker",
+          "Severity filter",
+          "Component filter",
+          "50/100/200/500 line count",
+          "Five-second live tail toggle"
+        ],
+        "line_start": 267,
+        "line_end": 276,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L267"
+      },
+      {
+        "id": "analytics",
+        "title": "Usage and cost analytics",
+        "controls": [
+          "7/30/90-day range",
+          "Input/output totals",
+          "Cache hit rate",
+          "Estimated versus actual cost",
+          "Session count/daily average",
+          "Daily chart/tooltips/table",
+          "Per-model breakdown"
+        ],
+        "line_start": 278,
+        "line_end": 285,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L278"
+      },
+      {
+        "id": "cron",
+        "title": "Scheduled work management",
+        "controls": [
+          "Create optional name/prompt/cron expression/delivery target",
+          "List enabled/paused/error, last/next run",
+          "Pause/resume",
+          "Edit prefilled configuration",
+          "Trigger now",
+          "Delete"
+        ],
+        "line_start": 287,
+        "line_end": 296,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L287"
+      },
+      {
+        "id": "profiles",
+        "title": "Profile lifecycle",
+        "controls": [
+          "Cards with model/provider/skills/gateway/description/status",
+          "Create and clone options",
+          "Profile Builder model/MCP/skills flow",
+          "Manage profile skills/tools",
+          "Set sticky CLI/gateway default",
+          "Edit model/description/SOUL",
+          "Rename/delete named profiles"
+        ],
+        "line_start": 298,
+        "line_end": 307,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L298"
+      },
+      {
+        "id": "skills",
+        "title": "Skills, toolsets and hub",
+        "controls": [
+          "Search name/description/category",
+          "Category filter",
+          "Enable/disable skill",
+          "Toolset health/setup/included-tool details",
+          "Search all hub sources",
+          "Install by identifier with live log",
+          "Update all"
+        ],
+        "line_start": 309,
+        "line_end": 319,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L309"
+      },
+      {
+        "id": "mcp",
+        "title": "MCP management",
+        "controls": [
+          "Add HTTP/SSE or stdio command/args/env",
+          "Enable/disable without delete",
+          "Connection test lists tools then disconnects",
+          "Remove",
+          "Masked secret env",
+          "Browse approved catalog",
+          "Install with inline required keys"
+        ],
+        "line_start": 321,
+        "line_end": 339,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L321"
+      },
+      {
+        "id": "webhooks",
+        "title": "Dynamic event subscriptions",
+        "controls": [
+          "Platform-disabled prerequisite hint",
+          "Create name/description/event filter/delivery/prompt/direct mode",
+          "Show one-time HMAC secret and route URL",
+          "List events/target/URL",
+          "Copy URL visible in photo",
+          "Enable/disable",
+          "Delete"
+        ],
+        "line_start": 341,
+        "line_end": 352,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L341"
+      },
+      {
+        "id": "pairing",
+        "title": "Messaging user authorization",
+        "controls": [
+          "Pending platform/code/user/age",
+          "Approve code",
+          "Approved platform/user",
+          "Revoke user",
+          "Clear all pending codes"
+        ],
+        "line_start": 354,
+        "line_end": 364,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L354"
+      },
+      {
+        "id": "channels",
+        "title": "Messaging platform setup",
+        "controls": [
+          "Live status per supported platform",
+          "Configure platform-specific fields",
+          "Required validation/setup guide",
+          "Password inputs and blank-keeps-existing credentials",
+          "Enable/disable preserving credentials",
+          "Test configured/enabled/live-connected state",
+          "Restart gateway to apply"
+        ],
+        "line_start": 366,
+        "line_end": 379,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L366"
+      },
+      {
+        "id": "system-host",
+        "title": "Host and updates",
+        "controls": [
+          "OS/kernel/architecture/hostname/runtime/app versions",
+          "CPU cores/utilization, memory, disk, uptime, load",
+          "Check updates/status badge",
+          "Confirm commits before git update",
+          "Out-of-band update instructions for immutable install methods"
+        ],
+        "line_start": 381,
+        "line_end": 385,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L381"
+      },
+      {
+        "id": "portal",
+        "title": "Inference/tool routing status",
+        "controls": [
+          "Signed-in state",
+          "Active inference provider",
+          "Tool Gateway local/Portal routing",
+          "Manage subscription link"
+        ],
+        "line_start": 386,
+        "line_end": 386,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L386"
+      },
+      {
+        "id": "curator",
+        "title": "Background skill maintenance",
+        "controls": [
+          "Active/paused",
+          "Interval/last run",
+          "Pause/resume",
+          "Run now"
+        ],
+        "line_start": 387,
+        "line_end": 387,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L387"
+      },
+      {
+        "id": "gateway",
+        "title": "Messaging gateway lifecycle",
+        "controls": [
+          "Start",
+          "Stop",
+          "Restart",
+          "Running/stopped/PID/state"
+        ],
+        "line_start": 388,
+        "line_end": 388,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L388"
+      },
+      {
+        "id": "memory",
+        "title": "Memory provider and resets",
+        "controls": [
+          "Select external provider or built-in only",
+          "Built-in memory/user file sizes",
+          "Reset memory",
+          "Reset user",
+          "Reset all"
+        ],
+        "line_start": 389,
+        "line_end": 389,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L389"
+      },
+      {
+        "id": "credential-pool",
+        "title": "Rotating credential pool",
+        "controls": [
+          "Provider, secret, optional label inputs",
+          "Add key",
+          "Masked grouped entries",
+          "Remove key"
+        ],
+        "line_start": 390,
+        "line_end": 390,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L390"
+      },
+      {
+        "id": "operations",
+        "title": "Diagnostics and maintenance",
+        "controls": [
+          "Doctor",
+          "Security audit",
+          "Create backup",
+          "Restore/import backup archive",
+          "Update skills",
+          "Prompt-size breakdown",
+          "Support dump",
+          "Migrate config",
+          "Stream background-action logs"
+        ],
+        "line_start": 391,
+        "line_end": 391,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L391"
+      },
+      {
+        "id": "checkpoints",
+        "title": "Rollback shadow-store maintenance",
+        "controls": [
+          "Session count/store bytes",
+          "Prune shadow-store checkpoints"
+        ],
+        "line_start": 392,
+        "line_end": 392,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L392"
+      },
+      {
+        "id": "hooks",
+        "title": "Shell hook lifecycle",
+        "controls": [
+          "List event/command and consent/executable state",
+          "Create event/absolute command path/optional matcher/timeout",
+          "Explicit consent choice",
+          "Delete hook"
+        ],
+        "line_start": 393,
+        "line_end": 402,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L393"
+      },
+      {
+        "id": "reload",
+        "title": "Reload credentials in an active session",
+        "controls": [
+          "Slash reload reads updated environment without restarting CLI"
+        ],
+        "line_start": 409,
+        "line_end": 418,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L409"
+      },
+      {
+        "id": "api",
+        "title": "Automation API and paged history",
+        "controls": [
+          "Profile-scoped management reads/writes",
+          "Unknown profile returns 404",
+          "Config schema/defaults",
+          "Bounded message pages: max500, offset, oldest/latest",
+          "Session rename/archive/export/prune",
+          "Job edit",
+          "MCP/catalog/platform/pairing/hook/system endpoints",
+          "Background action status/log polling"
+        ],
+        "line_start": 420,
+        "line_end": 600,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L420"
+      },
+      {
+        "id": "auth",
+        "title": "Authentication and sessions",
+        "controls": [
+          "Fail-closed non-loopback/public URL gate",
+          "Interactive setup or explicit startup failure",
+          "Nous OAuth registration",
+          "Username/password trusted-network login",
+          "Self-hosted OIDC/PKCE",
+          "Provider picker",
+          "Session identity/logout",
+          "Auth audit log with redaction",
+          "Rate limits",
+          "Bounded trusted proxies/public path prefix",
+          "Service bearer token on opted-in endpoints"
+        ],
+        "line_start": 602,
+        "line_end": 1085,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L602"
+      },
+      {
+        "id": "remote-ux",
+        "title": "Remote settings details",
+        "controls": [
+          "URL accepts proxy path prefix",
+          "Detected sign-in provider",
+          "Save/reconnect",
+          "Environment override badge/read-only URL",
+          "Missing URL, auth, restart-session and unreachable-host errors"
+        ],
+        "line_start": 1087,
+        "line_end": 1144,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L1087"
+      },
+      {
+        "id": "delivery-platform",
+        "title": "Local hosting and build lifecycle",
+        "controls": [
+          "Local dashboard launch",
+          "Custom host/port",
+          "Skip auto-open",
+          "Insecure flag is no-op"
+        ],
+        "line_start": 15,
+        "line_end": 42,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L15"
+      },
+      {
+        "id": "build-lifecycle",
+        "title": "CORS and frontend build",
+        "controls": [
+          "Local allowed origins/custom port",
+          "Build optional dependencies on launch",
+          "Automatic frontend rebuild after update"
+        ],
+        "line_start": 1146,
+        "line_end": 1176,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L1146"
+      },
+      {
+        "id": "appearance-extensions",
+        "title": "Persistent preferences and extensions",
+        "controls": [
+          "Live theme selection persists",
+          "Independent font override persists across themes",
+          "Theme default reset",
+          "User themes",
+          "Plugin tabs",
+          "Shell/page slots",
+          "Plugin backend routes",
+          "Discovery/rescan"
+        ],
+        "line_start": 1178,
+        "line_end": 1205,
+        "url": "https://github.com/NousResearch/hermes-agent/blob/03f3b09222b8f03becb203a6ebb9bac1f927b8b6/website/docs/user-guide/features/web-dashboard.md#L1178"
+      }
+    ]
+  },
+  "chat_on_steroids": {
+    "repository": "totec448-spec/chat-on-steroids",
+    "revision": "b6cdb61224c6673c29c53d68d7d76f33abbc123f",
+    "archive_sha256": "45328cda2ae7ed979f9822879ced98c2ef218792f7664b3024ebe96142112280",
+    "coverage": {
+      "tracked_files": 346,
+      "production_text_files": 140,
+      "full_static_reads": 79,
+      "partial_static_reads": 61,
+      "tests_indexed": 126,
+      "static_ui_controls": 125
+    },
+    "families": [
+      {
+        "id": "T01",
+        "feature": "read",
+        "portability": "Adapt",
+        "source": "src/main/mcp/tools-core.ts:249",
+        "test": "test/mcp.test.ts:1490",
+        "behavior": "Paths, one-level directory listing, bounded globs, line ranges, metadata and image handling; read/browse/metadata permissions separate.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S20. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "T02",
+        "feature": "view_image",
+        "portability": "Adapt",
+        "source": "src/main/mcp/tools-core.ts:440",
+        "test": "test/codex-view-image-parity.test.ts:1",
+        "behavior": "Dedicated Codex-compatible image tool, gated by read.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S20. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "T03",
+        "feature": "find",
+        "portability": "Adapt",
+        "source": "src/main/mcp/tools-core.ts:492",
+        "test": "test/mcp.test.ts:1531",
+        "behavior": "No-shell name/content search fallback, filters, regex and result cap. Initially command-off; retained after command enable.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S20. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "T04",
+        "feature": "apply_patch",
+        "portability": "Adapt",
+        "source": "src/main/mcp/tools-core.ts:1722",
+        "test": "test/mcp.test.ts:1509",
+        "behavior": "V4A create/edit/move/delete-file; path preflight, capability split, rollback snapshots and bounded output.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S19. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "T05",
+        "feature": "exec_command",
+        "portability": "Adapt",
+        "source": "src/main/mcp/tools-core.ts:216",
+        "test": "test/mcp.test.ts:3422",
+        "behavior": "Native shell, single command or sequential batch up to 20, optional PTY, workdir, output/yield bounds, process owner.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S15\u2013S18/S21. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "T06",
+        "feature": "write_stdin",
+        "portability": "Adapt",
+        "source": "src/main/mcp/tools-core.ts:921",
+        "test": "test/mcp.test.ts:2988",
+        "behavior": "Opaque process session continuation, input or output polling with wait budget and fixed10000 approximate-token output; retired max_output_tokens is accepted but ignored.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S15\u2013S18. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "T07",
+        "feature": "download_artifact",
+        "portability": "Provider adapter",
+        "source": "src/main/mcp/tools-core.ts:1005",
+        "test": "test/artifact-download.test.ts:1",
+        "behavior": "Opt-in ChatGPT injected file reference, approved destination; documented HTTPS oaiusercontent allowlist and no overwrite.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S13\u2013S14. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "T08",
+        "feature": "session search/read",
+        "portability": "Adapt",
+        "source": "src/main/mcp/session-tool.ts:20",
+        "test": "test/mcp.test.ts:1251",
+        "behavior": "Explicit recording ID, recent/session search, exact authored text, compact tool rows, expansion and delta/older cursors; approximate 3k search/5k read budgets.",
+        "limits": "Cursor/schema excerpts inspected; no full pagination proof. Cross-session access is intentional and needs Hades authorization design.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "T09",
+        "feature": "agents spawn/message/status/finish",
+        "portability": "Adapt",
+        "source": "src/main/mcp/tools-core.ts:1132",
+        "test": "test/agents.test.ts:2336",
+        "behavior": "One broker tool with four actions; exact conversation authority; shared context, worker models/reasoning; message batches; sleeping finish.",
+        "limits": "Detailed broker excerpts and selected failure assertions inspected; browser transport separate.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "T10",
+        "feature": "session_finish",
+        "portability": "Adapt with policy changes",
+        "source": "src/main/mcp/tools-core.ts:1054",
+        "test": "test/session-finish.test.ts:148",
+        "behavior": "Exact active session/turn finish hold, task handout, notifications or asynchronous Loop followup; 25s transport wait.",
+        "limits": "HELD is an instruction, not provider finalization lock. Astra/user-request restrictions are description text, not a model/authorization check in this handler.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "T11",
+        "feature": "observe",
+        "portability": "Native adapter",
+        "source": "src/main/mcp/tools-desktop.ts:175",
+        "test": "test/computer-stale-ref.test.ts:141",
+        "behavior": "Active/window/screen/UI/window-list observation, screenshots, filtering/waits and caps.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S22\u2013S27. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "T12",
+        "feature": "computer",
+        "portability": "Native adapter",
+        "source": "src/main/mcp/tools-desktop.ts:115",
+        "test": "test/computer-stale-ref.test.ts:153",
+        "behavior": "13 actions: click_ref, set_value, click, double_click, move, drag, scroll, type, keypress, focus, wait, read_clipboard, write_clipboard. Batching, verification and capture.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S22\u2013S27. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B01",
+        "feature": "Goal modes and objective",
+        "portability": "Adapt",
+        "source": "src/main/goal.ts:655",
+        "test": "test/goal-backends.test.ts:224",
+        "behavior": "Per-chat objective and enable/mode ledger; opening-message generation; goal continuation can stop, Loop rejects stop.",
+        "limits": "Mode/driver paths inspected. Prompt quality and completion truth not verified.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B02",
+        "feature": "Goal API backend",
+        "portability": "Adapt",
+        "source": "src/main/goal.ts:1367",
+        "test": "test/goal.test.ts:2456",
+        "behavior": "OpenRouter or custom OpenAI-compatible endpoint, model/reasoning/key config, bounded JSON/SSE, redirect refusal, transient versus settled errors.",
+        "limits": "Transport excerpts inspected; test titles indexed, no live API requests.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B03",
+        "feature": "Goal browser helper",
+        "portability": "Browser-specific transport",
+        "source": "src/main/goal.ts:1369",
+        "test": "test/goal-backends.test.ts:149",
+        "behavior": "One durable helper per source session; reuse proven incremental transcript using prefix/instruction hashes, otherwise replace context.",
+        "limits": "Detailed path inspected; browser helper still relies on ChatGPT send/response markers.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B04",
+        "feature": "Offline template Goal",
+        "portability": "Adapt with acceptance caveat",
+        "source": "src/shared/goal-templates.ts:205",
+        "test": "test/goal-backends.test.ts:270",
+        "behavior": "Exact last-line COMPLETE/CONTINUE protocol, missing marker pauses; 200 continuation variants and no provider call.",
+        "limits": "Marker parser and test assertions inspected; marker is model assertion, not evidence goal achieved.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B05",
+        "feature": "Plans",
+        "portability": "Adapt",
+        "source": "src/main/goal.ts:1658",
+        "test": "test/goal-backends.test.ts:338",
+        "behavior": "Generate 2\u201312 stages, bound entire plan to 12k serialized chars; validate before queueing; same conversation advances sequentially.",
+        "limits": "Generator and invalid-stage assertion inspected; renderer plan editor unread.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B06",
+        "feature": "Input queue and steering",
+        "portability": "Adapt",
+        "source": "src/main/session/input.ts:281",
+        "test": "test/session-finish.test.ts:166",
+        "behavior": "Auto injection, after-turn and finish delivery; due times; queue edit/reorder/cancel; user inputs preempt generated followups; bounded payload.",
+        "limits": "Queue/receipt paths inspected. Tool-result receipt inferred from later exact call; cancellation can leave already-sent delivery unknown.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B07",
+        "feature": "Native attachments",
+        "portability": "Browser-specific transport",
+        "source": "src/main/session/input.ts:294",
+        "test": "test/input-delivery-integration.test.ts:1",
+        "behavior": "Files travel in native browser messages rather than tool injection; preserved send authorization/receipt slots.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S10\u2013S12. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B08",
+        "feature": "Finish decision dedup and notification",
+        "portability": "Adapt",
+        "source": "src/main/session/finish.ts:61",
+        "test": "test/session-finish.test.ts:306",
+        "behavior": "Persist notification/decision facts scoped by session and turn; context hash and work sequence prevent repeated requests on empty waits; late user/settings/turn changes discard generated reply.",
+        "limits": "Finish module read fully; selected fake-provider/fake-timer assertions inspected.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B09",
+        "feature": "Stop versus release",
+        "portability": "Adapt",
+        "source": "src/main/session/finish.ts:177",
+        "test": "test/session-finish.test.ts:187",
+        "behavior": "End releases hold; Stop records request without claiming provider stopped; actions fenced to expected turn.",
+        "limits": "Source and assertions inspected. Must use Hades provider cancellation receipt for actual stopped state.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B10",
+        "feature": "Context estimate and auto-compaction",
+        "portability": "Adapt thresholds",
+        "source": "src/main/session/store.ts:904",
+        "test": "test/goal-resume-handoff.test.ts:68",
+        "behavior": "Recorded context threshold triggers eligible compaction; selected Pro model exempt; workers never compact and cease revival at 400k estimated tokens.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S08/S41. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B11",
+        "feature": "Compaction handoff quality floor",
+        "portability": "Adapt with stronger validation",
+        "source": "src/main/session/handoff.ts:89",
+        "test": "test/continuation.test.ts:995",
+        "behavior": "Self-written structured brief, exact user constraints and state; reject empty/<200 chars, or <1000 chars for >=20k source tokens.",
+        "limits": "Length floor is not semantic completeness; prompt target 10k\u201330k tokens is not enforced by this floor.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B12",
+        "feature": "Compaction durable send fences",
+        "portability": "Adapt principle",
+        "source": "src/main/session/continuation.ts:775",
+        "test": "test/continuation.test.ts:391",
+        "behavior": "Source and destination each not-attempted \u2192 attempted-unresolved \u2192 dispatched-unresolved \u2192 sent; exclusive dispatch intent persisted before send; exact marked message resolves uncertainty.",
+        "limits": "Critical paths inspected. No replay after ambiguous dispatch except explicit proof-of-no-send release; browser proof path not exhaustively reviewed.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B13",
+        "feature": "Session rebind and recovery",
+        "portability": "Adapt",
+        "source": "src/main/session/continuation.ts:1162",
+        "test": "test/continuation.test.ts:364",
+        "behavior": "Commit old\u2192new conversation with handoff provenance, workspace, Goal and prime projection; recorder gate avoids shadow session race; rejected write leaves source attachment.",
+        "limits": "Recovery excerpts/assertions inspected; not exhaustive crash model or power-loss proof.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B14",
+        "feature": "Compaction admission fence",
+        "portability": "Adapt",
+        "source": "src/main/mcp/kernel.ts:625",
+        "test": "test/continuation.test.ts:851",
+        "behavior": "Refuse tools for proven compacting/superseded source; distinguish running mutations from settling attribution; automatic in-progress handover TTL six hours.",
+        "limits": "Identity-loss policies can permit unproven calls; verify Hades principal before every effect.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B15",
+        "feature": "Durable worker topology",
+        "portability": "Adapt",
+        "source": "src/main/agents.ts:1183",
+        "test": "test/agents.test.ts:2336",
+        "behavior": "Stage spawn, persist exact topology, publish browser requests only after barrier; full UUID run incarnation prevents friendly-ID reuse.",
+        "limits": "Injected disk failure assertions inspected; no real crash test run.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B16",
+        "feature": "Worker routing and bounded inbox",
+        "portability": "Adapt",
+        "source": "src/main/agents.ts:1467",
+        "test": "test/agents.test.ts:2662",
+        "behavior": "Prime\u2194worker only, no worker nesting or peer messaging; up to16 message batch, 4k chars/message,200 unacked queue,32k offered slice; staged publication.",
+        "limits": "Source/refusal assertions inspected; worker-to-worker functionality would be a deliberate Hades extension.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B17",
+        "feature": "Sleeping workers and capacity",
+        "portability": "Adapt",
+        "source": "src/main/agents.ts:1958",
+        "test": "test/agents.test.ts:1509",
+        "behavior": "Finish reports result and sleeps/releases slot; same conversation revived by prime message, nonrevivable after context ceiling at stop; dormant prime histories retained.",
+        "limits": "Source excerpts inspected; finish says work reported, not accepted; ceiling changes later revival eligibility.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B18",
+        "feature": "Detached/wake failure recovery",
+        "portability": "Adapt with provider state",
+        "source": "src/main/agents.ts:2735",
+        "test": "test/agents.test.ts:1595",
+        "behavior": "Detached silence may sleep worker; exact later call proves liveness; two consecutive failed wakes report failed/revivable; restart forgets single strike.",
+        "limits": "Do not infer provider completion from quiet tab. Hades should retain measured execution state.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B19",
+        "feature": "Disable, clear and retired identities",
+        "portability": "Adapt",
+        "source": "src/main/agents.ts:3656",
+        "test": "test/agents.test.ts:1053",
+        "behavior": "Disable parks histories/cancels staged work; clear differs from pause; dormant/retired conversations remain authority fences and old commands scoped to run.",
+        "limits": "Selected source/tests inspected; all cross-file disable transactions not fully traced.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B20",
+        "feature": "Request identity and epochs",
+        "portability": "Replace transport",
+        "source": "src/main/session/correlation.ts:144",
+        "test": "test/swarm.test.ts:96",
+        "behavior": "First exact request\u2192conversation/session proof owns correlation; conflicting owner refused; AsyncLocalStorage per-call state; no model agent key or join.",
+        "limits": "ChatGPT x-request-id/Fiber evidence dependency. Hades should use authenticated provider/run/session IDs.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B21",
+        "feature": "Capability revocation and read-only",
+        "portability": "Adapt, verify in-flight",
+        "source": "src/main/mcp/server.ts:278",
+        "test": "test/mcp.test.ts:1509",
+        "behavior": "Monotonic advertised schema with live handler denial; per-surface secret paths; read-only masks writes/exec/control.",
+        "limits": "Next-request revocation proven statically by test; cancellation of already running OS effects not established. find and exec may coexist after enable.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B22",
+        "feature": "Block chat",
+        "portability": "Adapt with stronger durability",
+        "source": "src/main/session/blocked-chats.ts:128",
+        "test": "test/bridge.test.ts:5644",
+        "behavior": "User block all tools for proven conversation; restore before serving; bounded200 records, no silent eviction.",
+        "limits": "Unknown callers intentionally unblocked; block uses debounced write, not immediate barrier. No provider stop guarantee.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B23",
+        "feature": "Durable JSON state",
+        "portability": "Adapt or replace store",
+        "source": "src/main/durable.ts:94",
+        "test": "test/durable.test.ts:1",
+        "behavior": "Serialize writes, generation tracking, 300ms coalescing, retry to5s, immediate exact-generation path and shutdown flush.",
+        "limits": "Source fully read; no fsync, process-local lock, corrupt/unreadable file\u2192null, uninitialized store writes return. Test body unread.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B24",
+        "feature": "Transcript, chronology and overflow assets",
+        "portability": "Adapt",
+        "source": "src/main/session/store.ts:925",
+        "test": "test/session.test.ts:1",
+        "behavior": "Event sequence ordering, canonical message updates, metadata reconstruction, overflow assets/retention, session titles/project/ownership.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S05/S41. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B25",
+        "feature": "Tool activity presentation",
+        "portability": "Adapt",
+        "source": "src/main/session/summarize.ts:184",
+        "test": "test/renderer-timeline.test.ts:1",
+        "behavior": "Evidence-based headlines, file deltas, exit states, explicit failed/refused verbs; process nonzero differs from tool failure.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S05. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B26",
+        "feature": "Browser bridge and journals",
+        "portability": "Browser-specific",
+        "source": "src/main/bridge.ts:1250",
+        "test": "test/bridge.test.ts:5241",
+        "behavior": "Loopback protocol pairing, routes for events/identity/input/Goal/commands; durable command receipts and extension ACK outbox.",
+        "limits": "Any same-user local process can provision token per source; session-storage observation backlog can be lost on browser close. Not hardened remote identity.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B27",
+        "feature": "Browser recovery, tab ownership and model catalog",
+        "portability": "Browser-specific",
+        "source": "src/main/bridge.ts:4856",
+        "test": "test/bridge.test.ts:6137",
+        "behavior": "Cooldown/backoff, stale-turn reload, model-aware Pro silence, Goal watch, browser-only preference, reuse existing chats/tabs and receipt-driven startup.",
+        "limits": "Bridge symbols and selected limit test inspected; opener, model picker and DOM implementation unread.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B28",
+        "feature": "Provider completion/stream observation",
+        "portability": "Browser-specific",
+        "source": "extension/content.js:8740",
+        "test": "test/content-script.test.ts:1",
+        "behavior": "Goal document epoch checks, no replay after spent token, live setting cancellation, transcript observation and turn settlement.",
+        "limits": "Selected Goal send path only. Fiber/DOM implementation and large content-script test suite unread.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B29",
+        "feature": "Desktop frame and semantic identity",
+        "portability": "Native adapter",
+        "source": "src/main/computer/index.ts:833",
+        "test": "test/computer-stale-ref.test.ts:153",
+        "behavior": "Bound UI refs to helper generation and snapshot; no reuse after helper death; bounded ref cache, screenshot frames and action/capture lock.",
+        "limits": "Source and mocked native assertions inspected; actual OS permissions/coordinate correctness unverified.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B30",
+        "feature": "Approved roots and process security",
+        "portability": "Adapt",
+        "source": "src/main/sandbox.ts:330",
+        "test": "test/sandbox.test.ts:1",
+        "behavior": "Canonical containment rejects traversal and symlink escapes; relative base must exist; shell permission explicitly operates as host user beyond roots.",
+        "limits": "Path resolver inspected; filesystem race defenses, child env implementation and tests unread.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B31",
+        "feature": "Secure credentials",
+        "portability": "Adapt native service",
+        "source": "src/main/secrets.ts:86",
+        "test": "test/secrets.test.ts:1",
+        "behavior": "Electron async safeStorage, reject Linux insecure fallback, restrictive temp file and publish cache after rename; provider-specific keys.",
+        "limits": "Security-sensitive excerpts inspected; full migration/rotation tests and dependencies unread.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B32",
+        "feature": "Goal context packing",
+        "portability": "Adapt",
+        "source": "src/main/goal.ts:2135",
+        "test": "test/goal.test.ts:491",
+        "behavior": "120-message/120k-character context, 12k per message with head/tail clip; reserve original user request and exact committed resume brief plus recent tail; optional tool details.",
+        "limits": "Actual packing and anchor assertion inspected. Source history may be incomplete; compacted brief still receives the per-message clip.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B33",
+        "feature": "Generated prose transformation",
+        "portability": "Explicit product decision",
+        "source": "src/main/goal.ts:2395",
+        "test": "test/goal.test.ts:1",
+        "behavior": "Ordinary Goal/opening replies undergo deterministic dash replacement and up to three intentional typos; template protocol suffix preserved; fast finish and plans bypass this transform.",
+        "limits": "Call sites and function inspected. Preserve exact technical text in Hades; do not silently copy this stylistic behavior.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "B34",
+        "feature": "Inactive periodic impulse setting",
+        "portability": "Do not claim supported",
+        "source": "src/main/config.ts:369",
+        "test": "test/goal-backends.test.ts:235",
+        "behavior": "Config retains impulseMinutes 0\u201360 but no active periodic producer/scheduler was found; current finish-input predicate rejects periodic entries.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S38. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "P01",
+        "feature": "Renderer workspace and composer",
+        "portability": "Family mapped; adapt",
+        "source": "src/renderer/chat.ts:1",
+        "test": "test/renderer-state.test.ts:1",
+        "behavior": "Chat workspace, composer, editable queues, agent panel, timeline, model picker, context/usage displays and settings.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S01\u2013S09/S40. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "P02",
+        "feature": "Workspace/projects and local skills",
+        "portability": "Family mapped; adapt",
+        "source": "src/main/workspace.ts:1",
+        "test": "test/workspace.test.ts:1",
+        "behavior": "Workspace/project identity, approved folders, skills path, per-chat project continuity.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S28. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "P03",
+        "feature": "Tunnel, connection and health",
+        "portability": "Family mapped; adapt",
+        "source": "src/main/tunnel/index.ts:1",
+        "test": "test/tunnel-lifecycle.test.ts:1",
+        "behavior": "Secure MCP tunnel client location/lifecycle/health, connection setup and diagnostics.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S32\u2013S33. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "P04",
+        "feature": "Plugin refresh/version compatibility",
+        "portability": "Family mapped; adapt",
+        "source": "src/main/plugin-refresh.ts:1",
+        "test": "test/plugin-refresh-workflow.test.ts:1",
+        "behavior": "Connector schema refresh, browser catalog and app/extension version pairing.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S31. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "P05",
+        "feature": "Desktop lifecycle/platform/update",
+        "portability": "Family mapped; adapt",
+        "source": "src/main/index.ts:1",
+        "test": "test/shutdown.test.ts:1",
+        "behavior": "Electron app/tray/window startup, preload/IPC, shutdown, updates, browser selection, logging/diagnostics, platform packaging.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S34\u2013S36. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "P06",
+        "feature": "Native helper and release supply chain",
+        "portability": "Family mapped; adapt",
+        "source": "native/macos-desktop-helper/main.swift:1",
+        "test": "test/packaging.test.ts:1",
+        "behavior": "macOS Swift/addon and Windows helper, binary fetch/build/seal/sign/package/smoke workflows, CI/release/privacy scripts.",
+        "limits": "Second-pass coverage and limits supersede the earlier unread note; see S22\u2013S27/S37/S42. Still no runtime or Hades acceptance.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S01",
+        "feature": "Fixed renderer/preload API",
+        "portability": "Adapt",
+        "source": "src/preload/index.ts:1",
+        "test": "test/ipc.test.ts:1",
+        "behavior": "Fixed contextBridge API for state, settings, roots/projects, secrets, connections, diagnostics, clipboard/allowlisted links, sessions, queues, plans, models, browser controls, worker views and events. No raw ipcRenderer exposed.",
+        "limits": "Preload fully read; main IPC validation and mutations partially read. See complete channel/control inventory; not an IPC security certification.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S02",
+        "feature": "Settings and permission groups",
+        "portability": "Adapt",
+        "source": "src/renderer/main.ts:218",
+        "test": "test/renderer-state.test.ts:1",
+        "behavior": "Capability toggles, grouped tri-state switches, read-only, recording and sub-agent exposure, searchable settings, theme/zoom, browser and tunnel choices. Serialized desired-state saves send a base snapshot and preserve newer queued edits.",
+        "limits": "Renderer main is partially read; disabled unsupported controls preserve stored preferences. Cached tool refresh may require new provider conversation.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S03",
+        "feature": "Chat composer and session sidebar",
+        "portability": "Adapt",
+        "source": "src/renderer/chat.ts:2998",
+        "test": "test/renderer-timeline.test.ts:1",
+        "behavior": "New chats/projects, session pagination and grouping, worker history, block/delete/open, per-chat drafts, file/paste/drop attachments, send/after-turn/finish queues, model/effort picker, editable objective/mode, plan generation/preview/send, stop/finish release, compaction/cancel, helper retry.",
+        "limits": "Large file read by control/event map and selected bodies; full control inventory retained. No rendered or exercised UI claim.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S04",
+        "feature": "Read-only worker side pane",
+        "portability": "Adapt",
+        "source": "src/renderer/agent-panel.ts:5",
+        "test": "test/renderer-agent-panel.test.ts:1",
+        "behavior": "Active/history worker list, read-only transcript beside prime, generation-fenced asynchronous selection, preserved scroll and Open full chat, Escape close.",
+        "limits": "Full module read. Opening pane does not change main composer; tests indexed, not run.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S05",
+        "feature": "Safe transcript presentation and scroll",
+        "portability": "Adapt",
+        "source": "src/renderer/chat.ts:1091",
+        "test": "test/renderer-html.test.ts:1",
+        "behavior": "Markdown rendering through restricted semantic tags/attributes, executable/embed/form/SVG/Math content removed, bounded HTML, text fallback; timeline caps, tools folded, compaction markers, delta merging and stable-row viewport anchoring.",
+        "limits": "Sanitizer body and timeline symbols inspected; whole renderer security not certified. Global navigation remains separately denied by Electron.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S06",
+        "feature": "Usage and cost comparison",
+        "portability": "Adapt with explicit estimates",
+        "source": "src/main/session/usage.ts:48",
+        "test": "test/session-usage.test.ts:1",
+        "behavior": "Daily/model local-call estimates, context divided by two per unique call, per-model/effort attribution, labeled legacy assumption, revision/timezone cache, configurable divisor/multiplier/rates; fresh account limit observations. Renderer offers a 364-day heatmap, day/model breakdown, keyboard-accessible tooltips and locally saved comparison formulas.",
+        "limits": "This is not billed token measurement. Upstream default model names/prices are source claims, not independently verified current facts; unknown prices remain unpriced.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S07",
+        "feature": "Passive browser usage observer",
+        "portability": "Browser-specific",
+        "source": "extension/usage.js:1",
+        "test": "test/usage-observer.test.ts:1",
+        "behavior": "Wraps existing fetch response observation for selected same-origin usage/models/conversation routes; bounded JSON, latest request-order fence, model/feature/shared limits; does not initiate usage requests or inspect request credentials.",
+        "limits": "Full module read; same-origin page messages are not authenticated account identity. Latest snapshot replaces rather than merges; main expires after ten minutes.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S08",
+        "feature": "Account model and reasoning discovery",
+        "portability": "Provider adapter",
+        "source": "src/main/chat-models.ts:39",
+        "test": "test/renderer-chat-models.test.ts:1",
+        "behavior": "Nonce-scoped two-minute discovery, unknown/pending/ready/unavailable, explicit refresh may open browser, passive window show cannot; exact observed model/effort catalog and per-session composer choice.",
+        "limits": "Main discovery/shared classification fully read; private picker/React inspection and restoration remain browser-dependent and partially reviewed.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S09",
+        "feature": "Browser preference confirmation",
+        "portability": "Browser-specific",
+        "source": "src/main/browser-preferences.ts:1",
+        "test": "test/browser-preferences.test.ts:1",
+        "behavior": "App asks extension to change tool-stream replacement and durations; nonce and expiry; UI values change only on extension acknowledgement.",
+        "limits": "Small main/renderer/shared modules fully read. Preferences are browser-owned, not app config truth.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S10",
+        "feature": "Attachment staging",
+        "portability": "Adapt",
+        "source": "src/main/session/input-attachments.ts:9",
+        "test": "test/session-input-attachments.test.ts:1",
+        "behavior": "Explicit picked/dropped/pasted bytes staged under UUID outside durable queue; 512 MB per file/message, twenty files, 2 GB store, 512 KB chunks, source-size/mtime checks, metadata validation and bounded optional thumbnails; unretained older drafts pruned.",
+        "limits": "Full module read. Browser reconstructs each file in memory; chunked transport is not bounded-total browser memory. No live upload proof.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S11",
+        "feature": "Attachment delivery and exact receipt",
+        "portability": "Provider adapter",
+        "source": "extension/content.js:9878",
+        "test": "test/session-input-attachments-audit.test.ts:1",
+        "behavior": "Exact document/route and claim, idle composer, model confirmation, draft protection, exact new filename tiles/upload readiness, late authorization, send, exact new user-message receipt, durable ACK; only proven own draft cleared.",
+        "limits": "Selected full delivery function and uploader read. Cancellation can race the final click; lost ACK remains inert, not authorization to resend.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S12",
+        "feature": "Attachment history and image access",
+        "portability": "Adapt",
+        "source": "src/main/session/input-history.ts:6",
+        "test": "test/preload-images.test.ts:1",
+        "behavior": "History records offered tool handout or confirmed native delivery, never enqueue intent. Exact native key deduplicates echo; only assets referenced by this session's user messages can be loaded into renderer.",
+        "limits": "Full history/image validation modules read; a handout is still distinct from native send/model receipt.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S13",
+        "feature": "Artifact download source policy",
+        "portability": "Provider adapter",
+        "source": "src/main/mcp/artifact-fetch.ts:46",
+        "test": "test/artifact-download.test.ts:1",
+        "behavior": "Strict injected-file shape, exact files.oaiusercontent.com HTTPS host, no credentials/fragment, at most three revalidated redirects, thirty-second shared timeout, bounded size/metadata agreement and streamed SHA-256.",
+        "limits": "All three artifact modules fully read. Shape/host does not prove who authored the reference; provider injection not exercised.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S14",
+        "feature": "Artifact publication",
+        "portability": "Adapt",
+        "source": "src/main/mcp/artifact-target.ts:34",
+        "test": "test/artifact-download.test.ts:1",
+        "behavior": "Existing approved parent, exclusive private partial, inode/device and canonical-parent rechecks, sequential bounded writes, file fsync, no-overwrite hardlink publication, owned-only cleanup.",
+        "limits": "Source explicitly acknowledges portable path I/O cannot pin directory across final link syscall. No claim of openat/linkat or race-free transaction.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S15",
+        "feature": "Terminal session ownership",
+        "portability": "Adapt with strict principals",
+        "source": "src/main/codex/ownership.ts:185",
+        "test": "test/mcp.test.ts:2988",
+        "behavior": "Retained process ID belongs to durable local session across frontend compaction. Proven sessions cannot touch each other; anonymous bucket only anonymous; unknown registry ID refused.",
+        "limits": "Full ownership module read; registry is process-local, not durable process resurrection. Anonymous-to-anonymous isolation is intentionally absent.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S16",
+        "feature": "Terminal output obligations",
+        "portability": "Adapt",
+        "source": "src/main/codex/ownership.ts:121",
+        "test": "test/exec-output-budget-mcp.test.ts:1",
+        "behavior": "Completed unread output stays retained and reminders repeat until drain; four unread completed results bound admission. Live unpolled sessions get a one-time two-minute reminder; up to three notices of each kind per result.",
+        "limits": "Running servers do not consume unread-completed budget. Reminders occur on subsequent caller tool results, not a standalone scheduled wake.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S17",
+        "feature": "PTY, pipe and concurrency",
+        "portability": "Adapt",
+        "source": "src/main/codex/unified-exec.ts:641",
+        "test": "test/unified-exec-mutex.test.ts:1",
+        "behavior": "Process reservations cap at64 without evicting owed output; store before initial yield; per-process interaction mutex; PTY input, pipes reject normal stdin but accept interrupt; polling drains new bytes, exited row retires, shutdown settles all kills.",
+        "limits": "Manager body read; spawn/PTY internals partially inspected. Same-process state does not survive app restart, and effective shell has host-user authority.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S18",
+        "feature": "Output budgets and command batching",
+        "portability": "Adapt",
+        "source": "src/main/codex/head-tail-buffer.ts:10",
+        "test": "test/exec-output-budget-mcp.test.ts:1",
+        "behavior": "One MiB stable-head/rolling-tail collection and omission counts. Public exec/write_stdin accept but ignore retired max_output_tokens and use fixed10000 approximate tokens; internal helpers retain configurable budgets. Sequential same-shell batches preserve variables/cwd, continue ordinary nonzero, return first failure; random banners classify complete sections.",
+        "limits": "Small modules fully read. Token estimate is four bytes/token; shell exit/parse failures may prevent later commands. Banners are framing, not adversarial command isolation.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S19",
+        "feature": "Patch and text semantics",
+        "portability": "Adapt selectively",
+        "source": "src/main/codex/apply-patch/parser.ts:64",
+        "test": "test/codex-apply-patch-parity.test.ts:1",
+        "behavior": "V4A parser/streaming hunks, add/delete/update/move, optional environment ID, lenient heredoc wrapper, structured errors, context seek exact\u2192whitespace\u2192Unicode normalization, line-ending mode and source-order replacements.",
+        "limits": "Eight small parser/model/invocation/update files fully read; large apply/streaming internals selectively read. Default LF normalization; fuzzy match is not semantic edit validation. Failed sequential writes can leave partial changes; batch wrapper attempts guarded rollback but is not a cross-file transaction.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S20",
+        "feature": "File and search engines",
+        "portability": "Adapt",
+        "source": "src/main/codex/read-backend.ts:240",
+        "test": "test/read-backend.test.ts:1",
+        "behavior": "Bounded streaming text with encoding/binary detection, metadata/directory/walk, symlink-aware root resolution; ripgrep-backed or fallback search with excludes/globs/regex and budgets; structural image validation, binary/text writes, batch edit and diffs behind tool adapters. Oversized first line fails rather than returning a stuck cursor; bounded walkers report truncation. Batch writes stage/fsync then compare/rename with owned-byte rollback guards.",
+        "limits": "Engine exports/limits inventoried and selected paths read; not all backend bodies. Internal exports are not additional public tool names; do not expose without capability routing.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S21",
+        "feature": "Shell normalization and recovery hints",
+        "portability": "Platform adapter",
+        "source": "src/main/exec-hints.ts:825",
+        "test": "test/exec-hints.test.ts:1",
+        "behavior": "Conservative PowerShell quoting repair, supported operators/globs/brace expansion, bundled-rg binding, classify no-match search exits, helpful platform errors; shell/env selection and Java/Go toolchain discovery.",
+        "limits": "Large heuristic module read by sections/exports, not every branch. Unknown syntax/arity should stay unchanged; advisory classifications are not command authorization.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S22",
+        "feature": "Native state and screenshot frame",
+        "portability": "Native adapter",
+        "source": "src/main/computer/index.ts:106",
+        "test": "test/computer-stale-ref.test.ts:141",
+        "behavior": "Window list and UI queries, screenshot pixels with scale/region/window/capture mode, retained frame IDs and generation-qualified UI refs, point bounds, privacy capture, verification waits/capture under one action lock.",
+        "limits": "TS/native selected bodies read. Direct window pixels vs screen fallback distinguished; fallback may be occluded. No silent global-last-frame for coordinates.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S23",
+        "feature": "macOS target and stale AX guards",
+        "portability": "Native adapter",
+        "source": "native/macos-desktop-helper/main.swift:440",
+        "test": "test/macos-desktop-hardening.test.ts:1",
+        "behavior": "TCC access, exact snapshot/window/PID/owning AX window, enabled/settable checks; AXPress or geometry-checked physical fallback; input target requires foreground PID+WindowServer+AX focused window+focused element agreement; recheck during click/drag/type/chord.",
+        "limits": "Native file partially read. Frameless keyboard actions are global; system shortcuts intentionally global. Hardening suite checks source strings, not operating-system behavior.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S24",
+        "feature": "Windows UIA stale reference guards",
+        "portability": "Native adapter",
+        "source": "src/main/computer/helper.ts:494",
+        "test": "test/computer-stale-ref.test.ts:1",
+        "behavior": "Cached snapshot and exact requested window, root runtime ID, original element liveness and runtime ID checks; never rescan/rebind by runtime ID; enabled/writable/InvokePattern then focused geometry fallback.",
+        "limits": "Embedded C#/PowerShell partially read. Windows and macOS guards differ; no claim of full OS parity.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S25",
+        "feature": "Desktop permissions and partial effects",
+        "portability": "Adapt with stronger revocation",
+        "source": "src/main/mcp/tools-desktop.ts:462",
+        "test": "test/tools-desktop-permissions.test.ts:1",
+        "behavior": "Separate control, clipboard-read/write and screen checks; batch preflight, browser chord restrictions, verification/capture needs screen. Report completed action count/routes and failed original index; generation pin across split clipboard/native segments.",
+        "limits": "Checks read at request admission before queued work; live checkbox revocation during the same native batch not established. Native TCC is separate permission authority.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S26",
+        "feature": "Native helper lifecycle",
+        "portability": "Adapt with caveat",
+        "source": "src/main/computer/index.ts:279",
+        "test": "test/tools-desktop-runtime.test.ts:1",
+        "behavior": "Serialized helper protocol, request budgets, generation retirement, macOS synchronous Swift ABI in Node Worker, startup prewarm, timeouts, process/Worker cleanup before continuation.",
+        "limits": "Windows taskkill fallback can leave grandchildren; close-or-deadline is not proof all effects ceased. macOS addon/build loader full read, main native body partial.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S27",
+        "feature": "Native keyboard correctness",
+        "portability": "Native adapter",
+        "source": "native/macos-desktop-helper/main.swift:877",
+        "test": "test/macos-computer-live.test.ts:1",
+        "behavior": "Current keyboard-layout lookup, modifier flags, targeted PID for window-bound ordinary keys, global system shortcuts, surrogate-pair-safe Unicode chunks; release held mouse/modifier state on guarded failures.",
+        "limits": "Selected full functions inspected. Live suite is opt-in COS_LIVE_MACOS_DESKTOP with optional explicit text field; it was read but not run and can skip.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S28",
+        "feature": "Local projects and workspace inheritance",
+        "portability": "Adapt",
+        "source": "src/main/projects.ts:27",
+        "test": "test/projects.test.ts:1",
+        "behavior": "Approved-root-only project registry, UUID/path dedup, cap200, serialized additions, session assignment and exact prime inheritance. Explicit unavailable project fails; implicit workspace cache learns marker-bearing folders, transfers/parks/rebinds and responds to root rename/removal.",
+        "limits": "Projects fully read; workspace lifecycle symbols/selected source. Projects never grant new filesystem authority by themselves.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S29",
+        "feature": "Preferred browser startup and placement",
+        "portability": "Browser-specific",
+        "source": "src/main/browser.ts:168",
+        "test": "test/browser-startup.test.ts:1",
+        "behavior": "Saved Chrome/Edge family with platform/channel/Flatpak candidates; shell-free URL launch, same-family fallback, Windows minimized helper startup/background-throttling flags; shared one-open per proven absence episode.",
+        "limits": "Browser/startup fully read. Process-presence probe returns unknown on macOS/Linux; OS handoff cannot choose exact profile/window. Existing browser tabs own source-relative placement.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S30",
+        "feature": "Wake socket and maintenance scheduling",
+        "portability": "Adapt transport",
+        "source": "src/main/browser-wake.ts:1",
+        "test": "test/browser-wake.test.ts:1",
+        "behavior": "Bounded authenticated wake-only WebSocket, connection epochs, ping/pong and stale/backpressure cleanup; extension alarms/polls drain journals, queues, commands, managed tabs, models and refresh maintenance.",
+        "limits": "Wake is a hint, durable HTTP work owns authority. It is neither model heartbeat nor scheduled Goal impulse. Browser alarm cadence depends on browser lifecycle.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S31",
+        "feature": "Connector schema refresh",
+        "portability": "Provider adapter",
+        "source": "src/main/plugin-refresh.ts:55",
+        "test": "test/plugin-refresh-workflow.test.ts:1",
+        "behavior": "Canonical visible tool declaration hash, twenty-second settle, per-surface durable mapping to stable app ID, claim persisted before click, exact installed tools prove completed; already-current enrollment avoids click; manual-recreation state distinct.",
+        "limits": "Main module fully read, browser workflow symbols/selected paths. Version/instructions excluded from refresh hash; ambiguous attempted refresh not automatically rearmed after crash.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S32",
+        "feature": "Tunnels and transport supervision",
+        "portability": "Provider adapter",
+        "source": "src/main/tunnel/index.ts:129",
+        "test": "test/tunnel-lifecycle.test.ts:1",
+        "behavior": "OpenAI managed tunnel, Cloudflare quick public URL, or manual loopback mode. Core/Desktop surfaces independent; OpenAI desktop failure contained. Generation-scoped connect/apply/disconnect, health polling, local readiness vs remote poll freshness/unknown, auth failure terminal, restart backoff.",
+        "limits": "Selected tunnel/connection bodies read. Initial local readiness plus readable zero can show connected before first remote handshake; not end-to-end tool success. Cloudflare route changes on restart.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S33",
+        "feature": "Transport discovery and diagnostics",
+        "portability": "Adapt",
+        "source": "src/main/tunnel/health.ts:80",
+        "test": "test/tunnel.test.ts:1",
+        "behavior": "Explicit binary path, bundled version then PATH/common fallback; parse bounded local status/metrics and report unknown; diagnostics MCP initialize/tools-list, tunnel/remote reach, developer-mode evidence, macOS permission status, redacted logs.",
+        "limits": "Health/locator fully read; diagnostics only named checks/selected source. Diagnostic success does not execute a real remote mutation.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S34",
+        "feature": "App lifecycle and shutdown",
+        "portability": "Adapt",
+        "source": "src/main/index.ts:468",
+        "test": "test/shutdown.test.ts:1",
+        "behavior": "Single-instance owner, gated bootstrap/window activation, close-to-tray/macOS Dock behavior, Windows packaged login startup, autoconnect, tray, finish notifications, periodic retention; shutdown ordered admission/drain\u2192process\u2192recorder\u2192durable\u2192update then exit.",
+        "limits": "Small lifecycle/shutdown modules fully read; entrypoint partial. Phase deadlines abandon tasks rather than abort them; exit may precede successful durable flush after timeout.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S35",
+        "feature": "App updates",
+        "portability": "Replace with Hades updater",
+        "source": "src/main/update.ts:135",
+        "test": "test/update.test.ts:1",
+        "behavior": "Startup/six-hour GitHub release check, version/platform/arch selection, coalesced download, release SHA256SUMS verification, partial-file rename and rehash before launch; Windows installer/Linux AppImage stage and apply on ordinary quit, Install requests relaunch.",
+        "limits": "Updater body mostly read, not run. macOS/deb/dev builds manual. Published checksum is same-origin release integrity, not separate trust-bearing signature; no Hades auto-update authorization inferred.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S36",
+        "feature": "Companion folder materialization",
+        "portability": "Browser-specific",
+        "source": "src/main/extension-path.ts:103",
+        "test": "test/window-lifecycle.test.ts:1",
+        "behavior": "Copy packaged extension to stable per-user folder for unpacked load, source fingerprint, stage/backup renames, interruption recovery, preserve prior valid copy when update source broken.",
+        "limits": "Full module read. Fingerprint marker records package origin; it does not continuously rehash materialized bytes on reuse.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S37",
+        "feature": "Packaging and distribution",
+        "portability": "Replace packaging",
+        "source": "electron-builder.yml:1",
+        "test": "test/macos-adhoc-seal.test.ts:1",
+        "behavior": "Windows NSIS per-user/ACL read access and retained app data; macOS dmg/zip minimum13 ad-hoc sealed but publisher-unsigned/unnotarized; Linux AppImage/deb; x64/arm64 target native resources; pinned rg/tunnel archives with hashes.",
+        "limits": "Config/target/version/ACL full read; build/release scripts scanned, not executed. No current release artifact, signing, notarization, dependency license or install proof.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S38",
+        "feature": "Periodic impulse setting is inactive residue",
+        "portability": "Do not claim supported",
+        "source": "src/main/session/input.ts:273",
+        "test": "test/session-finish.test.ts:1",
+        "behavior": "impulseMinutes remains in settings/default/migration and periodic finish-input cancellation. Full production-text search finds only finishOwner producer periodic:false and predicate rejects periodic entries as current; no producer scheduler found.",
+        "limits": "Static absence finding at this pin, not runtime experiment. Maintenance/wake/retention/update timers do exist and must not be mislabeled Goal impulses.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S39",
+        "feature": "Task-request retries and cancellation",
+        "portability": "Adapt",
+        "source": "src/main/task-request.ts:48",
+        "test": "test/ipc.test.ts:1",
+        "behavior": "Request UUID plus fingerprint deduplicates same explicit request; conflicting reuse rejected; AbortController cancellation; three classified pre-delivery attempts within180s, Retry-After handling, retained capacity64, streamed progress phases.",
+        "limits": "Full module read. Generic retry helper defaults unbounded; bounded runTaskRequest wrapper is the specific native UI path, not universal retry policy.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S40",
+        "feature": "Browser overlay and recorder presentation",
+        "portability": "Browser-specific",
+        "source": "extension/content.js:5307",
+        "test": "test/renderer-timeline.test.ts:1",
+        "behavior": "Native ChatGPT tool activity replacement, chronological streams, folded labels/details, context meter, compact/Goal stage panels, objective editor/mode switch, scroll preservation, repair notices, page-theme sync and popup pipeline diagnostics/retry/disconnect.",
+        "limits": "All large extension function families indexed; selected bodies only. DOM/Fiber contracts are private and not stable provider APIs; no hidden chain-of-thought entitlement inferred.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S41",
+        "feature": "Settings and event contracts",
+        "portability": "Adapt contracts",
+        "source": "src/shared/types.ts:1",
+        "test": "test/ipc.test.ts:1",
+        "behavior": "Shared config, capabilities, tunnel/permission/update state; session event and chronology identity, model selection, token pressure, usage, project, input, finish, plugin refresh and task progress types join main/preload/renderer/extension protocols.",
+        "limits": "All shared modules mapped; chronology and smaller contracts fully read, larger contracts read in selected passages. Immutable sequence order, turn-local timestamp reconciliation and committed handoff anchors are distinct. Types express intent, not runtime enforcement.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      },
+      {
+        "id": "S42",
+        "feature": "Release and developer utilities",
+        "portability": "Inventory only",
+        "source": "scripts/package.mjs:1",
+        "test": "test/macos-adhoc-seal.test.ts:1",
+        "behavior": "Target packaging, native staging, helper compilation, asset generation, pinned downloads, release absence/history checks, local hook installation and smoke/verification utilities exist outside runtime modules.",
+        "limits": "All script/workflow paths and symbols inventoried. Not agent tools; hook installer and developer verification scripts were never executed or adopted as local authority.",
+        "verification": "not_executed",
+        "status": "static_partial"
+      }
+    ]
+  }
+}

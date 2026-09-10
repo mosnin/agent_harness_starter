@@ -1,0 +1,59 @@
+#
+# docker-compose.swarm.yml — run a Hermes-Swarm locally.
+#
+#   1. Build the worker image the manager will spawn:
+#        docker build -f docker/swarm/worker.Dockerfile -t hermes-swarm-worker:latest .
+#   2. Bring up the manager + dashboard:
+#        docker compose -f docker-compose.swarm.yml up --build
+#   3. Open the dashboard at http://127.0.0.1:8080 and dispatch a goal.
+#
+# Topology:
+#   - `manager` runs the manager agent + web dashboard. It spawns each worker as
+#     a *sibling* container on the host Docker daemon (via the mounted socket),
+#     so every worker is fully isolated: own namespaces, own cgroup limits,
+#     --cap-drop ALL, --no-new-privileges, --read-only rootfs, bounded PIDs.
+#   - Workers call home to the manager's control plane over the `swarm` network.
+#
+# Security note: the manager mounts the Docker socket, which is equivalent to
+# root on the host. Run this only on machines you control. The dashboard binds
+# to localhost by design — do not expose it publicly without adding auth.
+#
+services:
+  manager:
+    build:
+      context: .
+      dockerfile: docker/swarm/manager.Dockerfile
+    image: hermes-swarm-manager:latest
+    container_name: hermes-swarm-manager
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"   # dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SWARM_POOL_SIZE=${SWARM_POOL_SIZE:-3}
+    hostname: hermes-swarm-manager
+    command:
+      - "serve"
+      - "--mode"
+      - "docker"
+      - "--host"
+      - "0.0.0.0"
+      - "--workers"
+      - "${SWARM_POOL_SIZE:-3}"
+      - "--image"
+      - "hermes-swarm-worker:latest"
+      - "--control-port"
+      - "8787"
+      # Workers reach the manager by its container hostname on the shared network.
+      - "--manager-url"
+      - "http://hermes-swarm-manager:8787"
+      - "--docker-network"
+      - "hermes-swarm-net"
+    networks:
+      - swarm
+
+networks:
+  swarm:
+    name: hermes-swarm-net
+    driver: bridge

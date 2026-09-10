@@ -1,0 +1,221 @@
+/*
+ * Hades desktop skills view — styles for src/desktop/ui/skills-view.ts.
+ *
+ * Consumes the design tokens flattened onto :root by theme.ts (cssVars):
+ * --color-*, --space-*, --radius-*, --type-*, --shadow-*, --motion-*.
+ * Class names are space separated design tokens (e.g. "skill card name"),
+ * not hyphenated BEM strings, so selectors below compound them with `.`.
+ */
+
+.skills.view {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  height: 100%;
+  min-height: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--type-family-sans);
+  font-size: var(--type-size-base);
+}
+
+.skills.view.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-sidebar);
+  overflow-y: auto;
+}
+
+.skills.view.sidebar.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.skills.view.title {
+  font-size: var(--type-size-lg);
+  font-weight: var(--type-weight-semibold);
+  color: var(--color-ink);
+}
+
+.skills.view.new.button {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2xs) var(--space-md);
+  background: var(--color-accent);
+  color: var(--color-ink-on-accent);
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-medium);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--motion-easeOut);
+}
+
+.skills.view.new.button:hover {
+  background: var(--color-accent-hover);
+}
+
+.skills.view.new.button:active {
+  background: var(--color-accent-pressed);
+}
+
+.skills.view.main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--space-xl);
+  overflow-y: auto;
+}
+
+/* Skill list + cards */
+
+.skill.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+}
+
+.skill.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--motion-easeOut),
+    border-color var(--motion-fast) var(--motion-easeOut),
+    box-shadow var(--motion-fast) var(--motion-easeOut);
+}
+
+.skill.card:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.skill.card:active {
+  background: var(--color-surface-pressed);
+}
+
+.skill.card.header {
+  display: flex;
+  align-items: center;
+}
+
+.skill.card.name {
+  font-size: var(--type-size-base);
+  font-weight: var(--type-weight-semibold);
+  color: var(--color-ink);
+}
+
+.skill.card.description {
+  font-size: var(--type-size-sm);
+  color: var(--color-ink-secondary);
+  line-height: 1.5;
+}
+
+.skills.view.empty {
+  padding: var(--space-xl);
+  text-align: center;
+}
+
+.skills.view.empty.text {
+  font-size: var(--type-size-sm);
+  color: var(--color-ink-tertiary);
+}
+
+/* Editor pane */
+
+.skill.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  height: 100%;
+  min-height: 0;
+}
+
+.skill.editor.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.skill.editor.label {
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-medium);
+  color: var(--color-ink-secondary);
+}
+
+.skill.editor.save {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2xs) var(--space-lg);
+  background: var(--color-accent);
+  color: var(--color-ink-on-accent);
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-medium);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--motion-easeOut);
+}
+
+.skill.editor.save:hover {
+  background: var(--color-accent-hover);
+}
+
+.skill.editor.textarea {
+  flex: 1;
+  min-height: 320px;
+  resize: vertical;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-sm);
+  line-height: 1.6;
+  padding: var(--space-md);
+  outline: none;
+  transition: border-color var(--motion-fast) var(--motion-easeOut),
+    box-shadow var(--motion-fast) var(--motion-easeOut);
+}
+
+.skill.editor.textarea:focus {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.skill.editor.status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-medium);
+  width: fit-content;
+}
+
+.skill.editor.status.ok {
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}
+
+.skill.editor.status.bad {
+  background: var(--color-bad-soft);
+  color: var(--color-bad);
+}
+
+.skill.editor.status.icon {
+  font-size: var(--type-size-xs);
+}

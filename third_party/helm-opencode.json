@@ -1,0 +1,9 @@
+{
+  "repository": "mosnin/opencode",
+  "revision": "a96be40a1dcb7e05a7acd38de99c6ec0376ecc74",
+  "upstream": "anomalyco/opencode",
+  "upstreamRevision": "826d9ad46a22bef0294998e08daa3c4904fea28f",
+  "version": "1.18.21",
+  "bun": "1.3.14",
+  "license": "MIT"
+}

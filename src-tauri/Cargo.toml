@@ -1,0 +1,56 @@
+# Native macOS shell. Default builds keep the stdio supervisor dependency-free;
+# `--features gui` builds the Tauri/WKWebView application used by the Mac script.
+[package]
+name = "hades-desktop"
+version = "0.1.0"
+edition = "2021"
+description = "Hades desktop native shell: process supervisor for the Node sidecar."
+publish = false
+
+[[bin]]
+name = "hades-desktop"
+path = "src/main.rs"
+
+[features]
+# Default is EMPTY on purpose: the feature-off build is the std-only supervisor
+# and pulls no `tauri`/webview code whatsoever.
+default = []
+# Turning `gui` on activates the optional deps below (via `dep:`) so no implicit
+# per-dependency features leak out — `gui` is the single switch for the real
+# window shell.
+gui = ["dep:tauri", "dep:serde_json", "dep:tauri-build", "dep:security-framework", "dep:tauri-plugin-global-shortcut", "dep:tauri-plugin-dialog", "dep:objc2-foundation"]
+
+[dependencies]
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-global-shortcut = { version = "2", optional = true }
+# Both are OPTIONAL and only compiled under `--features gui`. Because the default
+# feature set is empty, a plain `cargo check` / `cargo test` pulls neither and
+# the crate stays std-only + offline. `serde_json` is used by `src/gui.rs` to
+# frame Command lines to the sidecar's stdin and to parse AppEvent lines from its
+# stdout before emitting them to the webview.
+tauri = { version = "2", optional = true }
+serde_json = { version = "1", optional = true }
+
+[build-dependencies]
+# Optional + gui-gated as well (see `build.rs`). `tauri-build` generates the
+# Tauri context / capability scaffolding that `tauri::generate_context!()` in
+# `src/gui.rs` consumes at compile time. It is only pulled in and only runs when
+# `gui` is enabled; the default build's `build.rs` is a no-op with no build deps.
+tauri-build = { version = "2", features = [], optional = true }
+
+[profile.dev]
+opt-level = 0
+debug = 0
+incremental = false
+
+[profile.release]
+opt-level = "s"
+debug = 0
+strip = true
+incremental = false
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = { version = "3", optional = true }
+
+# Already in Tauri's graph; direct use for process-local native input defaults.
+objc2-foundation = { version = "0.3.2", optional = true, default-features = false, features = ["std", "NSDictionary", "NSString", "NSObject", "NSUserDefaults", "NSValue"] }

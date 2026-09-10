@@ -1,5 +1,5 @@
 # deps
-node_modules/
+node_modules
 .pnp
 .pnp.js
 
@@ -8,6 +8,7 @@ node_modules/
 out/
 build/
 dist/
+dist-swarm/
 
 # env — NEVER commit real secrets
 .env
@@ -38,3 +39,24 @@ coverage/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+dist/desktop/
+
+# hades default data dir (workspace store, journals, actor identities) —
+# created by `hades …` runs with no HADES_DATA_DIR set; never source
+.hades/
+
+# hades CLI bundle (built by scripts/build-hades.mjs)
+dist-hades/
+
+# Native Mac build products
+dist-mac/
+dist/runtime/
+src-tauri/target/
+src-tauri/gen/
+
+# Retained upstream research snapshots and evidence archives (local only).
+.research/
+
+# Built OpenCode fork UI and optional local source checkout.
+dist/helm-ui/
+vendor/opencode/

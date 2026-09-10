@@ -23,6 +23,7 @@ export default defineConfig({
     "federation/index":    "src/agents/federation/index.ts",
     "codex/index":         "src/agents/codex/index.ts",
     "runtime":             "src/agents/runtime.ts",
+    "swarm-runtime/index": "src/swarm-runtime/index.ts",
   },
   format: ["esm", "cjs"],
   dts: { resolve: true },

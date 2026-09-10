@@ -1,0 +1,339 @@
+/**
+ * Hades desktop — Fleet PROVISION view styles.
+ *
+ * Sibling of `fleet-view.css`, same rule: every color/space/type value comes
+ * from a `tokens.css` custom property, nothing hardcoded, so light/dark both
+ * fall out of which token set is mounted at `:root`. Native Tauri webview
+ * surface, not a web page.
+ */
+
+.fleet-provision-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding: var(--space-2xl);
+  color: var(--color-ink);
+  font-family: var(--type-family-sans);
+}
+
+.fleet-provision-view__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.fleet-provision-view__title {
+  margin: 0;
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-lg);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.fleet-provision-view__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.fleet-provision-view__section-title {
+  margin: 0;
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-md);
+  font-weight: var(--type-weight-semibold);
+}
+
+.fleet-provision-empty {
+  margin: 0;
+  padding: var(--space-xl);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-ink-tertiary);
+  font-size: var(--type-size-sm);
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------------
+ * Form
+ * ---------------------------------------------------------------------- */
+
+.fleet-provision-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.fleet-provision-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.fleet-provision-field--toggle {
+  flex-direction: row;
+  align-items: center;
+}
+
+.fleet-provision-field__label {
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-medium);
+  color: var(--color-ink-secondary);
+}
+
+.fleet-provision-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--type-size-sm);
+  color: var(--color-ink);
+  cursor: default;
+}
+
+.fleet-provision-toggle__input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent);
+}
+
+.fleet-provision-validation {
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bad-soft);
+  border: 1px solid var(--color-bad);
+  border-radius: var(--radius-md);
+  color: var(--color-bad);
+  font-size: var(--type-size-xs);
+}
+
+.fleet-provision-validation[hidden] {
+  display: none;
+}
+
+.fleet-provision-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.fleet-provision-kbd {
+  font-size: var(--type-size-2xs);
+  color: var(--color-ink-tertiary);
+}
+
+/* ------------------------------------------------------------------------
+ * Chips
+ * ---------------------------------------------------------------------- */
+
+.fleet-provision-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.fleet-provision-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  height: 24px;
+  padding: 0 var(--space-xs) 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-medium);
+}
+
+.fleet-provision-chip__text {
+  white-space: nowrap;
+}
+
+.fleet-provision-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: inherit;
+  font-size: var(--type-size-sm);
+  line-height: 1;
+  cursor: default;
+}
+
+.fleet-provision-chip__remove:hover {
+  background: var(--color-accent-soft-hover);
+}
+
+/* ------------------------------------------------------------------------
+ * Pending lane
+ * ---------------------------------------------------------------------- */
+
+.fleet-provision-pending {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.fleet-provision-pending__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  font-size: var(--type-size-sm);
+}
+
+.fleet-provision-pending__row--pending {
+  border-color: var(--color-accent);
+}
+
+.fleet-provision-pending__row--success {
+  border-color: var(--color-ok);
+}
+
+.fleet-provision-pending__row--error {
+  border-color: var(--color-bad);
+  background: var(--color-bad-soft);
+}
+
+.fleet-provision-pending__label code,
+.fleet-provision-pending__id {
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-secondary);
+}
+
+.fleet-provision-pending__backend {
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-xs);
+}
+
+.fleet-provision-pending__error {
+  color: var(--color-bad);
+  font-weight: var(--type-weight-medium);
+}
+
+.fleet-provision-spinner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-accent-soft);
+  border-top-color: var(--color-accent);
+  animation: fleet-provision-spin 0.8s linear infinite;
+}
+
+@keyframes fleet-provision-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fleet-provision-spinner {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------------
+ * Restored lane — visually distinct from the pending lane (dashed border,
+ * elevated tone) so an operator never mistakes a restored worker for one
+ * they just provisioned.
+ * ---------------------------------------------------------------------- */
+
+.fleet-provision-restored {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  background: var(--color-surface-2);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.fleet-provision-restored__list,
+.fleet-provision-restored__dropped {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.fleet-provision-restored__row,
+.fleet-provision-restored__dropped-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--type-size-sm);
+}
+
+.fleet-provision-restored__dropped-row {
+  border-color: var(--color-warn);
+  background: var(--color-warn-soft);
+}
+
+.fleet-provision-restored__id {
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-secondary);
+}
+
+.fleet-provision-restored__backend {
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-xs);
+}
+
+.fleet-provision-restored__dropped-reason {
+  color: var(--color-warn);
+  font-size: var(--type-size-xs);
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------------------------
+ * Shared badges
+ * ---------------------------------------------------------------------- */
+
+.fleet-provision-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-size-2xs);
+  font-weight: var(--type-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+}
+
+.fleet-provision-badge--adopted {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.fleet-provision-badge--state {
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}

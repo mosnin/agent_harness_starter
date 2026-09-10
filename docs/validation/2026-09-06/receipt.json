@@ -1,0 +1,65 @@
+{
+  "repository": "mosnin/agent_harness_starter",
+  "branch": "claude/hermes-swarm-framework-vbhrot",
+  "baseline": "83e63c1f667b7c061def6a67ebed3ddeebcf4210",
+  "date": "2026-09-06",
+  "environment": {
+    "platform": "macOS",
+    "node": "22.22.2",
+    "npm": "10.9.7",
+    "dependencies": "Locked audit installation reused through a local node_modules symlink; clean npm ci is delegated to CI"
+  },
+  "tests": {
+    "files_passed": 507,
+    "tests_passed": 11862,
+    "tests_failed": 0,
+    "tests_skipped": 1
+  },
+  "checks": [
+    {
+      "command": "npm run type-check",
+      "status": "passed",
+      "log_sha256": "d93b4d50c92941b836a91cf3d65444618e28cdeb5dd47cb51436c3e1dc175996"
+    },
+    {
+      "command": "npm test -- --maxWorkers=4",
+      "status": "passed",
+      "log_sha256": "b093a7deacaac484b80b47e0bba276f114d243f09bab70eea92ef009234dc527"
+    },
+    {
+      "command": "npm run build:hades",
+      "status": "passed",
+      "log_sha256": "f9d9097849756b80660dac7d892b613e77e7aa9098e9f6b66284a06957c72428"
+    },
+    {
+      "command": "npm run build:swarm",
+      "status": "passed",
+      "log_sha256": "ef57228c618a0af7da7ae8bd6a8e0fa5be58b1342758fe4cdb962fd0826602cc"
+    },
+    {
+      "command": "npm run desktop:build",
+      "status": "passed",
+      "log_sha256": "c1e46c9911b4de7f81965983aa161ccc43edb6f969665b762acaee3323035d2f"
+    },
+    {
+      "command": "npm run test:smoke",
+      "status": "passed",
+      "log_sha256": "31dc63b356ac5ebd4150dac2e8c19492a8abe1b06471d9aed08f8b6604d85a08"
+    }
+  ],
+  "provider_calls": "No live provider; deterministic in-memory and localhost HTTP fixtures",
+  "native_installers": "not built or launched",
+  "competitor_evaluation": "not performed",
+  "tested_revision": "d70bdc4ff52c4049d022ddf9e376e64438fbdc40",
+  "followup": {
+    "scope": "Federation shutdown and late reconnect cleanup",
+    "targeted_tests": {
+      "files_passed": 8,
+      "tests_passed": 233,
+      "tests_failed": 0
+    },
+    "typecheck": "passed",
+    "test_log_sha256": "ce8561de434801b91d797d79b6d5ae611e73856fe1d0480ef6ce1134161938fa",
+    "full_platform_validation": "See Agent CI for the commit containing this receipt"
+  }
+}

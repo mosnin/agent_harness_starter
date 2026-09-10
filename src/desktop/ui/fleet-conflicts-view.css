@@ -1,0 +1,204 @@
+/**
+ * Hades desktop — Fleet conflicts lane styles.
+ *
+ * Consumes the same design tokens as `fleet-view.css` / `fleet-provision-view.css`
+ * (`--color-*`, `--space-*`, `--radius-*`, `--type-*`, `--shadow-*`,
+ * `--motion-*`) — native Tauri webview surface, not a web page. No
+ * hardcoded hex values; light/dark just falls out of which token set is
+ * mounted at `:root`. Class names are scoped under the `.fleet-conflicts`
+ * prefix so this file can never collide with `fleet-view.css` /
+ * `fleet-provision-view.css` selectors.
+ */
+
+.fleet-conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-2xl);
+  color: var(--color-ink);
+  font-family: var(--type-family-sans);
+}
+
+/* ------------------------------------------------------------------------
+ * Credential placeholder banner
+ * ---------------------------------------------------------------------- */
+
+.fleet-conflicts-banner {
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-warn-soft);
+  border: 1px solid var(--color-warn);
+  border-radius: var(--radius-lg);
+  color: var(--color-warn);
+  font-size: var(--type-size-sm);
+  font-weight: var(--type-weight-medium);
+}
+
+/* ------------------------------------------------------------------------
+ * Header
+ * ---------------------------------------------------------------------- */
+
+.fleet-conflicts__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.fleet-conflicts__title {
+  margin: 0;
+  font-family: var(--type-family-display);
+  font-size: var(--type-size-md);
+  font-weight: var(--type-weight-semibold);
+}
+
+.fleet-conflicts__counts {
+  display: flex;
+  gap: var(--space-sm);
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.fleet-conflicts-count {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-medium);
+  background: var(--color-surface-2);
+  color: var(--color-ink-secondary);
+}
+
+.fleet-conflicts-count--conflict {
+  background: var(--color-bad-soft);
+  color: var(--color-bad);
+}
+
+.fleet-conflicts-count--dropped {
+  background: var(--color-surface-2);
+  color: var(--color-ink-tertiary);
+}
+
+.fleet-conflicts-count--corrected {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+/* ------------------------------------------------------------------------
+ * Body / empty state
+ * ---------------------------------------------------------------------- */
+
+.fleet-conflicts__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.fleet-conflicts-empty {
+  margin: 0;
+  padding: var(--space-xl);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-ink-tertiary);
+  font-size: var(--type-size-sm);
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------------
+ * Rows
+ * ---------------------------------------------------------------------- */
+
+.fleet-conflicts-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.fleet-conflicts-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  font-size: var(--type-size-sm);
+}
+
+.fleet-conflicts-row--conflict {
+  border-color: var(--color-bad);
+}
+
+.fleet-conflicts-row__id {
+  font-family: var(--type-family-mono);
+  font-size: var(--type-size-xs);
+  color: var(--color-ink-secondary);
+}
+
+.fleet-conflicts-row__reason {
+  flex: 1 1 auto;
+  color: var(--color-ink-secondary);
+  font-size: var(--type-size-xs);
+}
+
+.fleet-conflicts-row__action {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------------------------
+ * Severity badges — one selector per ConflictSeverity, kept in lockstep
+ * with severityLabel() in fleet-conflicts-view.ts.
+ * ---------------------------------------------------------------------- */
+
+.fleet-conflicts-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-size-xs);
+  font-weight: var(--type-weight-medium);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.fleet-conflicts-badge--conflict {
+  background: var(--color-bad-soft);
+  color: var(--color-bad);
+}
+
+.fleet-conflicts-badge--dropped {
+  background: var(--color-surface-2);
+  color: var(--color-ink-tertiary);
+}
+
+.fleet-conflicts-badge--corrected {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+/* ------------------------------------------------------------------------
+ * Derivation notices
+ * ---------------------------------------------------------------------- */
+
+.fleet-conflicts-notices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-sm) var(--space-md);
+  margin: 0;
+  list-style: none;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+}
+
+.fleet-conflicts-notices__item {
+  color: var(--color-ink-tertiary);
+  font-size: var(--type-size-2xs);
+}

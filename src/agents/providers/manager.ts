@@ -11,7 +11,7 @@
  *   "primary"       — always use first, failover to rest on error
  *
  * @example
- *   import { createProviderManager } from "@agent-harness/core/providers";
+ *   import { createProviderManager } from "hades-agent/providers";
  *
  *   const providers = createProviderManager({
  *     providers: [

@@ -1,0 +1,40 @@
+import { captureFocus, restoreFocus } from "./focus";
+type Row = Record<string, any>;
+type Context = { profile: string; root: string; profiles: Array<{ id: string; name: string }>; projects: string[] };
+const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+const button = (label: string, action: string, id = "") => `<button type="button" data-channel="${action}" data-id="${esc(id)}">${label}</button>`;
+export class ChannelsView {
+  private host?: HTMLElement; private context?: Context; private state: Row = {}; private access: Row[] = []; private draft?: Row; private error = ""; private notice = ""; private busy = false; private generation = 0;
+  constructor(private rpc: (method: string, args?: Row) => Promise<any>, private openTeam: () => void, private keychain?: (account: string, value: string) => Promise<unknown>) {}
+  mount(host: HTMLElement) { this.host = host; this.render(); }
+  async open(context: Context) { if (this.context?.profile !== context.profile) { this.draft = undefined; this.access = []; this.error = ""; this.notice = ""; } this.context = context; await this.refresh(); }
+  async refresh() { if (!this.context) return; const generation = ++this.generation; try { const [state, access] = await Promise.all([this.rpc("slack.status"), this.rpc("channel.access.list", { profile: this.context.profile })]); if (generation === this.generation) { this.state = state; this.access = access; this.render(); } } catch (e) { if (generation === this.generation) this.fail(e); } }
+  private fail(e: unknown) { this.error = e instanceof Error ? e.message : String(e); this.render(); }
+  private render() {
+    if (!this.host || !this.context) return; const focus = captureFocus(this.host), d = this.draft;
+    this.host.innerHTML = `<div class="page"><div class="page-heading"><h1>Channels</h1><p>Connect people and agents through Slack or Hades team chat.</p></div>${this.error ? `<p role="alert" class="inline-notice">${esc(this.error)}</p>` : ""}${this.notice ? `<p role="status">${esc(this.notice)}</p>` : ""}<section class="record"><div><h2>Slack</h2><p class="help">${esc(this.state.connection || "Disconnected")}${this.state.team ? " · " + esc(this.state.team) : ""}</p><p>Socket Mode listens for mentions in your selected channels. File changes and commands use normal desktop approvals.</p></div><div class="row-actions">${button("Configure", "configure")}${button("Test credentials", "test")}${button(this.state.enabled ? "Disconnect" : "Connect", this.state.enabled ? "disconnect" : "connect")}</div></section>${d ? `<form><h2>Slack configuration</h2><p class="help">Disconnect before changing these settings. Tokens remain in the Mac credential store.</p><label class="field">Agent<select name="profile">${this.context.profiles.map(p => `<option value="${esc(p.id)}" ${p.id === d.profile ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label><label class="field">Project<select name="root">${this.context.projects.map(root => `<option value="${esc(root)}" ${root === d.root ? "selected" : ""}>${esc(root)}</option>`).join("")}</select></label><label class="field">Allowed channel IDs · one per line<textarea name="channels" required rows="2" placeholder="C0123456789">${esc(d.channels)}</textarea></label><label class="field">Initially allowed member IDs · one per line<textarea name="users" required rows="2" placeholder="U0123456789">${esc(d.users)}</textarea></label><p class="help">Other members can request access by mentioning the bot in an allowed channel. Approval is scoped to their authenticated Slack workspace, channel, and this agent.</p><label class="field">Bot token<input name="botToken" type="password" autocomplete="off" placeholder="${this.state.hasBotToken ? "Saved · leave empty to keep" : "xoxb-…"}"></label><label class="field">Socket Mode app token<input name="appToken" type="password" autocomplete="off" placeholder="${this.state.hasAppToken ? "Saved · leave empty to keep" : "xapp-…"}"></label><div class="page-actions"><button type="submit" class="primary-button">Save configuration</button>${button("Cancel", "cancel")}</div></form>` : ""}<section class="record"><div><h2>Hades team chat</h2><p>Shared rooms, agent collaboration, invitations, and member access.</p></div>${button("Open team chat", "team")}</section><section><h2>Channel access</h2><p class="help">Requests expire after 24 hours. Approving access does not run a previous message; the member must send a fresh request.</p>${button("Refresh requests", "refresh")}${this.access.map(row => `<div class="record"><div><h3>${esc(row.user)}</h3><p class="help">Slack · ${esc(row.account)} · ${esc(row.channel)} · ${row.status === "pending" ? row.expiresAt <= Date.now() ? "Expired request" : "Pending request" : row.status === "blocked" ? "Blocked" : row.grant === "configuration" ? "Allowed by configuration" : "Approved"}</p></div><div class="row-actions">${row.status === "pending" && row.expiresAt > Date.now() ? button("Approve", "approve", row.id) : ""}${row.status !== "blocked" ? button("Revoke", "revoke", row.id) : button("Allow a new request", "reset", row.id)}</div></div>`).join("") || '<p class="help">No channel access requests for this agent.</p>'}</section></div>`;
+    this.host.querySelectorAll<HTMLButtonElement>("button").forEach(el => { el.id = "channel-action-" + (el.dataset.channel || "save") + (el.dataset.id || ""); if (this.busy) el.disabled = true; });
+    this.host.querySelectorAll<HTMLElement>("[data-channel]").forEach(el => el.onclick = () => { void this.action(el.dataset.channel!, el.dataset.id).catch(e => this.fail(e)); });
+    this.host.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("form input, form select, form textarea").forEach(el => { el.id = "channel-field-" + el.name; const update = () => { if (this.draft) this.draft[el.name] = el.value; }; el.oninput = update; el.onchange = update; });
+    this.host.querySelector("form")?.addEventListener("submit", e => { e.preventDefault(); void this.action("save").catch(error => this.fail(error)); }); restoreFocus(this.host, focus);
+  }
+  private async action(action: string, id?: string) {
+    if (this.busy || !this.context) return; const scope = this.context.profile; this.error = ""; this.notice = "";
+    if (action === "configure") { const c = this.state.config; this.draft = { profile: c?.profile || scope, root: c?.root || this.context.root, channels: c?.channels.join("\n") || "", users: c?.users.join("\n") || "", botToken: "", appToken: "" }; }
+    else if (action === "cancel") this.draft = undefined;
+    else if (action === "team") this.openTeam();
+    else {
+      this.busy = true;
+      try {
+        if (action === "save") { const d = this.draft!; await this.rpc("slack.configure", { profile: d.profile, root: d.root, channels: d.channels.split(/\s+/).filter(Boolean), users: d.users.split(/\s+/).filter(Boolean) });
+          for (const [account, key] of [["slack-bot", d.botToken], ["slack-app", d.appToken]]) if (key) { if (!this.keychain) throw new Error("Native Keychain is unavailable."); await this.keychain(account, key); }
+          if (this.context.profile === scope) { this.draft = undefined; this.notice = "Slack configuration saved."; }
+        } else if (action === "test") { const result = await this.rpc("slack.test"); if (this.context.profile === scope) this.notice = `Credentials verified for workspace ${result.account}. Connect to start listening.`; }
+        else if (action === "connect" || action === "disconnect") await this.rpc(`slack.${action}`);
+        else if (["approve", "revoke", "reset"].includes(action)) { await this.rpc(`channel.access.${action}`, { id, profile: scope }); if (this.context.profile === scope && action === "approve") this.notice = "Access approved. Ask the member to send a fresh message."; }
+        if (this.context.profile === scope) await this.refresh();
+      } finally { this.busy = false; }
+    }
+    this.render();
+  }
+}

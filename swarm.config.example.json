@@ -1,0 +1,12 @@
+{
+  "$comment": "Hermes-Swarm config. Copy to swarm.config.json. Precedence: defaults < this file < SWARM_* env vars < CLI flags.",
+  "mode": "docker",
+  "capabilities": ["research", "code", "analysis"],
+  "poolSize": 3,
+  "controlPort": 8787,
+  "dashboardPort": 8080,
+  "workerImage": "hermes-swarm-worker:latest",
+  "dockerNetwork": "hermes-swarm-net",
+  "autoscale": { "min": 1, "max": 8 },
+  "maxInFlight": 6
+}
