@@ -23,3 +23,11 @@ Verified SHA256 values:
 - src/shared/provider-usage-observation-review.test.ts: 553c7aaefe9ca2c7d33ef1ab31cdafb0a4f16a55834b3920911b799d29f3cb97
 
 Retained test log: ../evidence/orca-usage-parser-v1/tests.rawlog. Next required implementation is fenced durable capture, then owning-host worker projection and idempotent settlement against the original Work attempt. The parser is currently not called by the runtime.
+
+## Durable storage checkpoint
+
+Commit ac0eec403184139707d0350df613e925e0c7f241 adds schema-v3 usage storage, serialized journal writes and deferred sink admission. Duplicate observations are idempotent; contradictory payloads are retained. Usage cannot create authority: a durable published journal fence is required, including for fence zero. Independent read-only review found and then verified the correction to the empty-journal edge. No new rendered item or wire opcode is introduced.
+
+38 focused tests across six files pass, including real disposable SQLite migration/reopen and actual journal/sink integration. Targeted strict typechecking passes. Tests use Node 24 and existing Hades tooling with installed Zod 4.4.2; Orca's pinned Zod 4.5.4 and full dependency suite remain unavailable. This is source evidence, not native or provider acceptance. Test log and isolated configurations are retained under evidence/orca-usage-storage-v1.
+
+Provider adapter capture, owning-host worker projection, original-attempt settlement and long-run performance remain pending. The Hades shipping pin remains unchanged.

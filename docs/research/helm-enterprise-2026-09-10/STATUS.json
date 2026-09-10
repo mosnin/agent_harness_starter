@@ -129,10 +129,10 @@
   "previousSourceReceipt": "docs/research/helm-enterprise-2026-09-10/audit/orca-replacement-v1-receipt.json",
   "orcaUsageIntegration": {
     "branch": "codex/helm-usage-receipts",
-    "revision": "32c15c732acd98d76a83511748f5227c7640a02a",
+    "revision": "ac0eec403184139707d0350df613e925e0c7f241",
     "path": "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration",
-    "status": "parser-only; runtime capture and persistence not wired",
-    "tests": "18 isolated cases; strict standalone module typecheck",
+    "status": "durable journal storage and sink admission implemented; provider capture, projection and settlement remain unwired",
+    "tests": "38 focused source cases; targeted dependency-closure typecheck using installed Hades dependencies, not full pinned fork acceptance",
     "report": "audit/orca-usage-integration-plan-v1.md"
   }
 }
