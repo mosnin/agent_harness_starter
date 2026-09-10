@@ -1,0 +1,18 @@
+
+> hades-agent@0.1.0 desktop:build
+> npm run desktop:build:sidecar && npm run desktop:build:ui
+
+
+> hades-agent@0.1.0 desktop:build:sidecar
+> node scripts/build-sidecar.mjs
+
+
+  dist/desktop/sidecar-entry.js  2.4mb ⚠️
+
+⚡ Done in 59ms
+✓ sidecar bundle → dist/desktop/sidecar-entry.js
+
+> hades-agent@0.1.0 desktop:build:ui
+> node scripts/build-desktop.mjs
+
+✓ desktop bundle → dist/desktop/{main.js, main.css, index.html}

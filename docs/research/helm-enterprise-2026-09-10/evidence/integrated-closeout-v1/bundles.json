@@ -1,0 +1,31 @@
+{
+  "sourceRevision": "4f718d440a5e6876fe283b70b22387bf6d9ed4f5",
+  "scope": "Source bundles only; not installed native app acceptance",
+  "bundles": [
+    {
+      "path": "dist/desktop/sidecar-entry.js",
+      "bytes": 2504638,
+      "sha256": "fb4c9b66fdfc5d4a5567121c598f440a269ae52058c6e82cd1b3198dc9a692c6"
+    },
+    {
+      "path": "dist/desktop/main.js",
+      "bytes": 2150329,
+      "sha256": "d9f0d6fef6f60a374b8f6efe3585a7c65ba72ef00a667d36b3a3401764d034e8"
+    },
+    {
+      "path": "dist/desktop/main.css",
+      "bytes": 82163,
+      "sha256": "9369e8cbc7fd7e35e257b7d1d6b49eb845514aba5522ffb5f20806a673f6cd5c"
+    },
+    {
+      "path": "dist/desktop/index.html",
+      "bytes": 334,
+      "sha256": "6c7d5136d4698b1709214ef6047e158eb61d5b3f5edd7a02ece0d983df85b11b"
+    },
+    {
+      "path": "dist/desktop/team-server.js",
+      "bytes": 19241,
+      "sha256": "f8157813419cc4149beb9d4198df27ae90cc9ba2e625987506762fd3c293175d"
+    }
+  ]
+}

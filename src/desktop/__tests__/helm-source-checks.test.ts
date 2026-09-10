@@ -36,19 +36,19 @@ it('rejects duplicate simultaneous checks on one source',async()=>{const first=s
 it('bounds output and uses literal argument arrays without shell expansion',async()=>{const receipt=await finish((await service.start(review.id,scope(),[{command:process.execPath,args:['-e',"console.log('x'.repeat(210000));console.log(process.argv[1])",'$(touch should-not-exist)']}])).id);expect(receipt.status).toBe('passed');expect(receipt.results[0].truncated).toBe(true);expect(receipt.results[0].output.length).toBeLessThanOrEqual(200000);expect(receipt.results[0].output).toContain('$(touch should-not-exist)');expect(existsSync(join(root,'should-not-exist'))).toBe(false);});
 it('recovers a retained running receipt as interrupted without replay',async()=>{const started=await service.start(review.id,scope(),[check('')]);await finish(started.id);const path=join(dir,'helm','source-checks',started.id+'.json');const raw=JSON.parse(readFileSync(path,'utf8'));writeFileSync(path,JSON.stringify({...raw,status:'running'}));service=new HelmSourceChecks(dir,host);expect((await service.get(started.id,scope())).status).toBe('interrupted');});
 it('close kills active checks and retains interrupted state',async()=>{const started=await service.start(review.id,scope(),[check('setTimeout(()=>{},10000)')]);service.close();expect((await finish(started.id)).status).toBe('interrupted');await service.cancel(started.id,scope());expect((await service.get(started.id,scope())).status).toBe('interrupted');});
-it.skipIf(process.platform==='win32')('cancellation terminates ordinary child process groups',async()=>{
+it.skipIf(process.platform==='win32'||process.env.HADES_TEST_NO_PROCESS_INSPECTION==='1')('cancellation terminates ordinary child process groups',async()=>{
  const marker=join(dir,'child-pid');const started=await service.start(review.id,scope(),[check(`const c=require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});require('fs').writeFileSync(${JSON.stringify(marker)},String(c.pid));setInterval(()=>{},1000)`)]);
  for(let i=0;i<100&&!existsSync(marker);i++)await new Promise(r=>setTimeout(r,10));expect(existsSync(marker)).toBe(true);const pid=readFileSync(marker,'utf8');
- await service.cancel(started.id,scope());let alive=false;try{alive=!execFileSync('ps',['-o','stat=','-p',pid],{stdio:['ignore','pipe','ignore']}).toString().trim().startsWith('Z');}catch{}expect(alive).toBe(false);
+ await service.cancel(started.id,scope());let alive=false;try{alive=!execFileSync('ps',['-o','stat=','-p',pid],{stdio:['ignore','pipe','pipe']}).toString().trim().startsWith('Z');}catch(error){if((error as any).status!==1||String((error as any).stderr??'').trim())throw error;}expect(alive).toBe(false);
 });
-it.skipIf(process.platform==='win32')('watchdog terminates owned check descendants after host SIGKILL',async()=>{
+it.skipIf(process.platform==='win32'||process.env.HADES_TEST_NO_PROCESS_INSPECTION==='1')('watchdog terminates owned check descendants after host SIGKILL',async()=>{
  const marker=join(dir,'crash-child-pid'),script=join(dir,'host.mts');
  const command=`const child=require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});require('fs').writeFileSync(${JSON.stringify(marker)},String(child.pid));setInterval(()=>{},1000)`;
  writeFileSync(script,`import {HelmSourceChecks} from ${JSON.stringify(resolve('src/desktop/core/helm-source-checks.ts'))};const scope=${JSON.stringify(scope())};const review=${JSON.stringify(review)};const service=new HelmSourceChecks(${JSON.stringify(join(dir,'crash-data'))},{review:()=>review,fingerprint:async()=>"source"});await service.start(review.id,scope,[{command:process.execPath,args:['-e',${JSON.stringify(command)}]}]);setInterval(()=>{},1000);`);
  const child=spawn(process.execPath,['--import',resolve('node_modules/tsx/dist/loader.mjs'),script],{stdio:'ignore'});
  try{
   for(let i=0;i<300&&!existsSync(marker);i++)await new Promise(r=>setTimeout(r,10));expect(existsSync(marker)).toBe(true);const pid=readFileSync(marker,'utf8');child.kill('SIGKILL');
-  const alive=()=>{try{return !execFileSync('ps',['-o','stat=','-p',pid],{stdio:['ignore','pipe','ignore']}).toString().trim().startsWith('Z');}catch{return false;}};
+  const alive=()=>{try{return !execFileSync('ps',['-o','stat=','-p',pid],{stdio:['ignore','pipe','pipe']}).toString().trim().startsWith('Z');}catch(error){if((error as any).status===1&&!String((error as any).stderr??'').trim())return false;throw error;}};
   for(let i=0;i<100&&alive();i++)await new Promise(r=>setTimeout(r,20));expect(alive()).toBe(false);
  }finally{child.kill('SIGKILL');}
 });

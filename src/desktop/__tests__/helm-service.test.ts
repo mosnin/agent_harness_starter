@@ -31,7 +31,7 @@ describe('Helm lifecycle',()=>{
  it('does not execute inherited checkout hooks',async()=>{const marker=join(dir,'hook-ran');writeFileSync(join(root,'.git/hooks/post-checkout'),`#!/bin/sh\ntouch '${marker}'`,{mode:0o700});setup("console.log('done')");await settled((await service.start({root,agent:'codex',prompt:'fix'})).id);expect(existsSync(marker)).toBe(false);});
  it('shares one time allocation across agent and automatic checks',async()=>{setup("setTimeout(()=>console.log('done'),350)");const r=await settled((await service.start({root,agent:'codex',prompt:'fix',maxMinutes:0.01,checks:[{command:process.execPath,args:['-e','setTimeout(()=>{},500)']}]})).id);expect(r.status).toBe('failed');expect(r.error).toContain('time limit');});
  it('preserves cancellation during final verification snapshot',async()=>{setup("console.log('done')");const r=await settled((await service.start({root,agent:'codex',prompt:'fix'})).id);const original=(service as any).snapshot.bind(service);let snapshots=0;let cancellation:Promise<unknown>|undefined;(service as any).snapshot=async(...args:unknown[])=>{const result=await original(...args);if(++snapshots===2)cancellation=service.cancel(r.id);return result;};const result=await service.verify(r.id,[{command:process.execPath,args:['-e','process.exit(0)']}]);await cancellation;expect(result.status).toBe('cancelled');});
- it.skipIf(process.platform==='win32')('kills process descendants after a hard host crash',async()=>{
+ it.skipIf(process.platform==='win32'||process.env.HADES_TEST_NO_PROCESS_INSPECTION==='1')('kills process descendants after a hard host crash',async()=>{
   const childPid=join(dir,'child.pid');const descendantPid=join(dir,'descendant.pid');
   const binary=fake(`const fs=require('fs');fs.writeFileSync(${JSON.stringify(childPid)},String(process.pid));const c=require('child_process').spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'ignore'});fs.writeFileSync(${JSON.stringify(descendantPid)},String(c.pid));setInterval(()=>{},1000)`);
   const host=join(dir,'host.mts');writeFileSync(host,`import {HelmService} from ${JSON.stringify(resolve('src/desktop/core/helm-service.ts'))};const s=new HelmService(${JSON.stringify(join(dir,'crash-data'))},()=>{},{env:{...process.env,HADES_HELM_CODEX_BIN:${JSON.stringify(binary)}}});await s.start({root:${JSON.stringify(root)},agent:'codex',prompt:'wait'});setInterval(()=>{},1000);`);
@@ -40,7 +40,7 @@ describe('Helm lifecycle',()=>{
    for(let n=0;n<300&&!existsSync(descendantPid);n++)await new Promise(r=>setTimeout(r,10));expect(existsSync(descendantPid)).toBe(true);
    const pids=[Number(readFileSync(childPid,'utf8')),Number(readFileSync(descendantPid,'utf8'))];
    processHost.kill('SIGKILL');await new Promise<void>(r=>processHost.once('close',()=>r()));
-   const alive=(pid:number)=>{try{return !execFileSync('ps',['-o','stat=','-p',String(pid)],{stdio:['ignore','pipe','ignore']}).toString().trim().startsWith('Z');}catch{return false;}};
+   const alive=(pid:number)=>{try{return !execFileSync('ps',['-o','stat=','-p',String(pid)],{stdio:['ignore','pipe','pipe']}).toString().trim().startsWith('Z');}catch(error){if((error as any).status===1&&!String((error as any).stderr??'').trim())return false;throw error;}};
    for(let n=0;n<200&&pids.some(alive);n++)await new Promise(r=>setTimeout(r,10));expect(pids.some(alive)).toBe(false);
   }finally{processHost.kill('SIGKILL');}
  });

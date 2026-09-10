@@ -86,13 +86,13 @@ it.skipIf(process.platform==='win32')('kills the owned backend on watchdog pipe 
  expect(service.status(root,'p').state).toBe('failed');expect(()=>process.kill(process.pid,0)).not.toThrow();await expect(fetch(c.origin+'/')).rejects.toThrow();
 });
 
-it.skipIf(process.platform==='win32')('kills a resistant same-group descendant when the backend exits itself',async()=>{
+it.skipIf(process.platform==='win32'||process.env.HADES_TEST_NO_PROCESS_INSPECTION==='1')('kills a resistant same-group descendant when the backend exits itself',async()=>{
  await service.close();const original=readFileSync(binary,'utf8');const pidFile=join(dir,'resistant.pid');
  const injection=`const resistant=require('child_process').spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'ignore'});fs.writeFileSync(${JSON.stringify(pidFile)},String(resistant.pid));`;
  writeFileSync(binary,original.replace("const expected=",injection+"\nconst expected=").replace("if(req.url.startsWith('/global/health'))", "if(req.url==='/session/exit'){res.end('bye');setTimeout(()=>process.exit(0),10);return;}if(req.url.startsWith('/global/health'))"),{mode:0o700});
  service=new HelmCodeService(join(dir,'exit-runtime'),{assetsDirectory:assets,binary,env:{...process.env,XDG_DATA_HOME:join(dir,'existing'),HADES_CODE_TEST_COUNT:join(dir,'count')}});
  const c=connection((await service.open(root,'p')).url);const pid=Number(readFileSync(pidFile,'utf8'));await fetch(c.origin+'/session/exit',{headers:c.headers});
- const alive=()=>{try{return !execFileSync('ps',['-o','stat=','-p',String(pid)],{stdio:['ignore','pipe','ignore']}).toString().trim().startsWith('Z');}catch{return false;}};
+ const alive=()=>{try{return !execFileSync('ps',['-o','stat=','-p',String(pid)],{stdio:['ignore','pipe','pipe']}).toString().trim().startsWith('Z');}catch(error){if((error as any).status===1&&!String((error as any).stderr??'').trim())return false;throw error;}};
  try{for(let n=0;n<100&&alive();n++)await new Promise(r=>setTimeout(r,10));expect(alive()).toBe(false);expect(service.status(root,'p').state).toBe('failed');}finally{try{process.kill(pid,'SIGKILL');}catch{}}
 });
 

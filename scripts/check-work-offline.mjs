@@ -11,6 +11,7 @@ await import("node:sqlite");
 const vitest = resolve(root, "node_modules/vitest/vitest.mjs");
 if (!existsSync(vitest)) throw new Error("Repository dependencies are required; this gate never installs them.");
 const suites = [
+  "browser-usage-settlement", "browser-task", "team-store-authority",
   "durable-work", "durable-work-review", "work-goals", "work-orca", "work-orca-review",
   "workbench-work-orca", "workbench-durable-work-offline", "helm-orca-service",
   "helm-orca-ownership", "helm-orca-runtime", "helm-orca-tools", "helm-orca-transport",
@@ -24,10 +25,11 @@ const suites = [
   "workbench-orca-replacement", "workbench-orca-replacement-review", "work-orca-replacement-ui",
   "helm-orca-status-authority-review", "work-orca-replacement-ui-review",
 ].map(name => `src/desktop/__tests__/${name}.test.ts`);
+// Process-inspection cases are explicitly skipped in this restricted offline gate.
 // The suites themselves exercise concurrent tasks/processes. Serialize files to
 // avoid competing Git fixture trees exhausting short per-test setup deadlines.
 const result = spawnSync(process.execPath, [vitest, "run", ...suites, "--maxWorkers=1"], {
-  cwd: root, stdio: "inherit", env: process.env,
+  cwd: root, stdio: "inherit", env: { ...process.env, HADES_TEST_NO_PROCESS_INSPECTION: "1" },
 });
 if (result.error) throw result.error;
 process.exitCode = result.status ?? 1;
