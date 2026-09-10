@@ -140,5 +140,18 @@
       "tests": "72tests6files; full Hades tsc; provider-bundled sidecar build; 2 crossrepo in-process tests covering106observations",
       "report": "audit/orca-usage-integration-plan-v1.md"
     }
+  },
+  "nativeDeliveryPreflight": {
+    "sourceRevision": "38c4a30",
+    "state": "blocked_on_build_inputs",
+    "nativeBuild": "offline cargo exited101: required dist/helm-orca absent",
+    "toolchain": "Xcode installed; Swift6.2.1 arm64",
+    "missing": [
+      "Bun1.3.14",
+      "locked Orca build/native dependencies and staged runtime",
+      "current pinned Helm UI/runtime provenance"
+    ],
+    "report": "audit/native-delivery-preflight-v1.md",
+    "installed": false
   }
 }
