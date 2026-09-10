@@ -1,0 +1,92 @@
+{
+  "scope": "Actual parser/SQLite/worker projection and Hades decoder in-process; not live runtime or wire transport",
+  "orcaCommit": "54ad550724b2ac05c5884934a2a583aff745b8e5",
+  "tests": {
+    "producer": 1,
+    "consumer": 1,
+    "passed": 2
+  },
+  "pages": {
+    "first": 100,
+    "second": 5,
+    "caughtUp": 0,
+    "late": 1,
+    "legacyV1": 100
+  },
+  "distinctV2Observations": 106,
+  "producerSources": [
+    {
+      "path": "src/shared/provider-usage-observation.ts",
+      "sha256": "3bf3f719cb846bdf2dd3334ebeb487a8599824a003fc4e8b08abafc1da268fdd",
+      "bytes": 4299,
+      "matchesCommittedBlob": true
+    },
+    {
+      "path": "src/main/native-chat/agent-session-journal/journal-usage-observations.ts",
+      "sha256": "7f4acb2227991e496260780b6b7fb36adea2b1d3188f006145a40c0268931b0d",
+      "bytes": 9266,
+      "matchesCommittedBlob": true
+    },
+    {
+      "path": "src/main/native-chat/agent-session-journal/journal-usage-pagination.ts",
+      "sha256": "208cf7253618a4ae2775f3861e7650132dcdd99f2d9937fda5adcbc98273bf24",
+      "bytes": 4603,
+      "matchesCommittedBlob": true
+    },
+    {
+      "path": "src/main/native-chat/agent-session-journal/journal-database-schema.ts",
+      "sha256": "abe0bac88422c60ac335626d652fd25e9b4995689d07132ae177c21d124ef377",
+      "bytes": 2886,
+      "matchesCommittedBlob": true
+    },
+    {
+      "path": "src/main/sqlite/sync-database.ts",
+      "sha256": "ce365e92cb1ffea0146ef0d592ba7488b33a0e7973f57f0119c9ab3db73efd49",
+      "bytes": 3418,
+      "matchesCommittedBlob": true
+    },
+    {
+      "path": "src/main/runtime/rpc/methods/orchestration/worker/worker-usage-observations.ts",
+      "sha256": "8958efc133633bd0a1b58f19c7706de880c2f365aa581bfc018ef985e34d1165",
+      "bytes": 1995,
+      "matchesCommittedBlob": true
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/tmp/orca-pagination-cross-producer.log",
+      "sha256": "23b710d4182258f8997d7ae1eea32fd7682bfbcc4136f630f288c4fd019737c7",
+      "bytes": 185
+    },
+    {
+      "path": "/tmp/orca-pagination-cross-consumer.log",
+      "sha256": "9caabbaf9d328af433d2f739f7b41ea65efdfb6fc9421bd2bee44a51245556fb",
+      "bytes": 183
+    },
+    {
+      "path": "/tmp/orca-pagination-cross-fixture.json",
+      "sha256": "b6e5f88e120496a1633c7a81dcc2ac459406250a696308363d78aeddb0718263",
+      "bytes": 213086
+    },
+    {
+      "path": "/tmp/orca-pagination-cross-producer.test.ts",
+      "sha256": "d8485fb3bce9592d9d6a4afdfe84de1630a6e69d459c77b64e11d63d99912f86",
+      "bytes": 3374
+    },
+    {
+      "path": "/tmp/orca-pagination-cross-consumer.test.ts",
+      "sha256": "4b2b6fc8421a479158ea8ede9fcfae5075ebdc90a72adbaca7972003fc7b4abe",
+      "bytes": 1233
+    },
+    {
+      "path": "/tmp/orca-pagination-cross.config.mjs",
+      "sha256": "1066e47d192b8725d7b2e3af7309fe68adbdc7049c98a78bb9f93041aa674372",
+      "bytes": 249
+    },
+    {
+      "path": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/src/desktop/core/helm-orca-usage.ts",
+      "sha256": "234fac11728b0eb8982a730af3134da020aa44e74ce0a0d57708dc7ecdbe5327",
+      "bytes": 9069
+    }
+  ]
+}

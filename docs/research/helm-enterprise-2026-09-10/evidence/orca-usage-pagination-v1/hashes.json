@@ -1,0 +1,23 @@
+{
+  "hadesRevision": "74a872507d7273d1871a28fa858fc0f0b6979185",
+  "orcaRevision": "54ad550724b2ac05c5884934a2a583aff745b8e5",
+  "hades": {
+    "src/desktop/__tests__/helm-orca-usage-retention.test.ts": "2bafe210b294cb6170d2e6a52ecc064d3afceeca27f6d8cadd0f6c4f9fbc9b8a",
+    "src/desktop/__tests__/helm-orca-usage.test.ts": "752d02e1ebc48f025f3685aa160025e688521a25b41b806fde9767aa9e73b0b6",
+    "src/desktop/core/helm-orca-service.ts": "6d43e41b594536705741afa189c74cb8849ef1ddf2fec420f2c62c5b9a70789c",
+    "src/desktop/core/helm-orca-usage.ts": "234fac11728b0eb8982a730af3134da020aa44e74ce0a0d57708dc7ecdbe5327"
+  },
+  "orca": {
+    "src/main/native-chat/agent-session-journal/journal-database-schema.ts": "abe0bac88422c60ac335626d652fd25e9b4995689d07132ae177c21d124ef377",
+    "src/main/native-chat/agent-session-journal/journal-store.ts": "3eb67b6d67707d307a2dd683276c105437ddd9c0614954d032eba2806b4ce024",
+    "src/main/native-chat/agent-session-journal/journal-usage-migration.test.ts": "acd6965a1bb1035f7fa774d8aa801bc3a37fe2315789cadae3bd42df560708e9",
+    "src/main/native-chat/agent-session-journal/journal-usage-observations.ts": "7f4acb2227991e496260780b6b7fb36adea2b1d3188f006145a40c0268931b0d",
+    "src/main/native-chat/agent-session-journal/journal-usage-pagination.test.ts": "c129133c6017873945001532cfbb4f1df90616ae7562031e0378fd29a9bb7b27",
+    "src/main/native-chat/agent-session-journal/journal-usage-pagination.ts": "208cf7253618a4ae2775f3861e7650132dcdd99f2d9937fda5adcbc98273bf24",
+    "src/main/native-chat/agent-session-wire/structured-agent-session-host.ts": "53d507c351723e53f4222614fed4d91abf8fa3b32801b342e3e6efe9a6d178a8",
+    "src/main/runtime/rpc/methods/orchestration/worker/worker-control.ts": "3ae38b72fa697b1b27f635b7d0888569866a9f9e236ca06b4bbc972001f7c93e",
+    "src/main/runtime/rpc/methods/orchestration/worker/worker-usage-observations.test.ts": "f3909f654f1bb08b7778e883f4d6a2c569d004f3c14b583db547aea3eae10823",
+    "src/main/runtime/rpc/methods/orchestration/worker/worker-usage-observations.ts": "8958efc133633bd0a1b58f19c7706de880c2f365aa581bfc018ef985e34d1165"
+  },
+  "sidecarSha256": "60c5903dfd5b708c9f5ae1161dcdc9588744e3566ba21f9fd3141d02823ffbae"
+}

@@ -129,15 +129,15 @@
   "previousSourceReceipt": "docs/research/helm-enterprise-2026-09-10/audit/orca-replacement-v1-receipt.json",
   "orcaUsageIntegration": {
     "branch": "codex/helm-usage-receipts",
-    "revision": "7d9a98ec352cc464b9fb695cb69f508c1a260f9c",
+    "revision": "54ad550724b2ac05c5884934a2a583aff745b8e5",
     "path": "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration",
-    "status": "Claude exact-correlated capture, durable storage and local worker projection implemented; remote projection, billing settlement and full provider/native acceptance remain pending",
-    "tests": "53 focused source tests; targeted module typecheck passed; extended graph blocked by unavailable modules and node-pty",
+    "status": "Claude exact-correlated capture, durable cursor pagination and local worker projection implemented; remote projection, billing settlement and native/provider acceptance pending",
+    "tests": "66 focused source cases across10files; targeted module typecheck",
     "report": "audit/orca-usage-integration-plan-v1.md",
     "receivingSide": {
-      "revision": "7c9025408fc2ddebc7be5ddd4bec31d5688bb2f0",
-      "state": "validated evidence retention only; no billing settlement",
-      "tests": "67 tests across six files; full Hades tsc; sidecar/team source builds; 2 actual cross-repo producer/consumer checks",
+      "revision": "74a872507d7273d1871a28fa858fc0f0b6979185",
+      "state": "bounded cursor collection and validated evidence retention; no billing settlement",
+      "tests": "72tests6files; full Hades tsc; provider-bundled sidecar build; 2 crossrepo in-process tests covering106observations",
       "report": "audit/orca-usage-integration-plan-v1.md"
     }
   }
