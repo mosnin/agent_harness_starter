@@ -1,0 +1,9 @@
+
+ RUN  v4.1.5 /var/folders/zp/3_gt4g9d0q5_jmxnw_spqp900000gn/T/orca-usage-pure-tl7R8b
+
+
+ Test Files  2 passed (2)
+      Tests  18 passed (18)
+   Start at  13:45:40
+   Duration  171ms (transform 29ms, setup 0ms, import 39ms, tests 6ms, environment 0ms)
+

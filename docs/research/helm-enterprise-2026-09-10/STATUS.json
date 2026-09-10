@@ -1,6 +1,6 @@
 {
   "schema": "hades.enterprise-program-status.v1",
-  "updatedAt": "2026-09-10T17:35:43.805Z",
+  "updatedAt": "2026-09-10T17:46:49.104Z",
   "goal": "active",
   "productAccepted": false,
   "hadesBaseline": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
@@ -126,5 +126,13 @@
     "audit/browser-usage-settlement-v1.md",
     "audit/attempt-usage-settlement-v1.md"
   ],
-  "previousSourceReceipt": "docs/research/helm-enterprise-2026-09-10/audit/orca-replacement-v1-receipt.json"
+  "previousSourceReceipt": "docs/research/helm-enterprise-2026-09-10/audit/orca-replacement-v1-receipt.json",
+  "orcaUsageIntegration": {
+    "branch": "codex/helm-usage-receipts",
+    "revision": "32c15c732acd98d76a83511748f5227c7640a02a",
+    "path": "/Users/preston/Documents/Codex/2026-09-06/orca-usage-integration",
+    "status": "parser-only; runtime capture and persistence not wired",
+    "tests": "18 isolated cases; strict standalone module typecheck",
+    "report": "audit/orca-usage-integration-plan-v1.md"
+  }
 }
