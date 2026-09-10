@@ -2,7 +2,7 @@
 
 This inventory covers the complete **local documented catalog at the stated boundary**: all top-level English OpenCode documentation topics, all Orca README feature entries and all retained public skill guides. Subheadings and exact line locators are retained in CAPABILITIES.json. It does not claim every upstream internal behavior, hosted tier or future feature has been inspected. A topic being present in the fork is not proof of Hades support.
 
-Hades changes remain **uncommitted source**. The Helm product rename is locally committed at `89bac15fcea8f7fb90d50c6d4cf457b25673a7b5`; no fork application rebuild or installation has occurred. Current-candidate built/live/provider status is **unverified for every row**. Source tests, previous app receipts and upstream claims must not be promoted to current binary acceptance. The OpenWork v2 extraction passed bounded independent source review. Its runtime, governed admission and proprietary parity gaps remain explicit; see `review/openwork-architecture-v2-review.md`.
+Hades foundation changes are committed locally at `ab74827cbe01181acfa1ec83ae54775b827f184e`. The Helm product rename is locally committed at `89bac15fcea8f7fb90d50c6d4cf457b25673a7b5`; no fork application rebuild or installation has occurred. Current-candidate built/live/provider status is **unverified for every row**. Source tests, previous app receipts and upstream claims must not be promoted to current binary acceptance. The OpenWork v2 extraction passed bounded independent source review. Its runtime, governed admission and proprietary parity gaps remain explicit; see `review/openwork-architecture-v2-review.md`.
 
 ## Immediate acceptance priorities
 
@@ -104,7 +104,7 @@ Each test pointer is relevant evidence, not proof of the whole upstream topic. T
   "hades": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
   "opencode": "89bac15fcea8f7fb90d50c6d4cf457b25673a7b5",
   "orca": "bf4e2705046cf9ef9c915929a9646da85717af07",
-  "changes": "Hades source changes uncommitted; Helm rename committed locally; no current native/provider acceptance."
+  "changes": "Hades foundation and Helm branding committed locally; no current native/provider acceptance."
 }
 
 Upstream research snapshots differ from integration pins: research inspected OpenCode859106e and Orca34790ce; current integration uses the pinned local fork and bf4e270. Do not transfer newer experimental features automatically. Full English heading inventory and retained source hashes are in the JSON. Actual standalone Orca/OpenCode features are not automatically available through Hades. No network, app or provider operations were used for this artifact.

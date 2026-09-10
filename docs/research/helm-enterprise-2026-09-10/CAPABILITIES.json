@@ -6,7 +6,8 @@
     "hades": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
     "opencode": "89bac15fcea8f7fb90d50c6d4cf457b25673a7b5",
     "orca": "bf4e2705046cf9ef9c915929a9646da85717af07",
-    "changes": "Hades source changes uncommitted; Helm rename committed locally; no current native/provider acceptance."
+    "changes": "Hades foundation and Helm branding committed locally; no current native/provider acceptance.",
+    "hadesSourceCandidate": "ab74827cbe01181acfa1ec83ae54775b827f184e"
   },
   "definitions": {
     "implemented-source": "Hades behavior implemented with cited deterministic tests; not rebuilt/live proof",

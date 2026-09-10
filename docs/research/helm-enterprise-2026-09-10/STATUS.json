@@ -1,6 +1,6 @@
 {
   "schema": "hades.enterprise-program-status.v1",
-  "updatedAt": "2026-09-10T07:30:58.633108+00:00",
+  "updatedAt": "2026-09-10T07:32:51.805583+00:00",
   "goal": "active",
   "productAccepted": false,
   "hadesBaseline": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
@@ -114,5 +114,7 @@
     "Enforce negotiated cross-engine budget and recovery contracts before autonomous team expansion",
     "Deliver and benchmark real general-work and enterprise policy workflows",
     "Run native usability and 24-case three-trial matched comparison, then independent product acceptance"
-  ]
+  ],
+  "sourceCandidate": "ab74827cbe01181acfa1ec83ae54775b827f184e",
+  "sourceState": "committed locally; not pushed or installed"
 }
