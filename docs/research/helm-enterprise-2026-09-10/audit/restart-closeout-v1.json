@@ -1,0 +1,91 @@
+{
+  "schema": "hades.restart-closeout.v1",
+  "recordedAt": "2026-09-10T16:49:57.415750+00:00",
+  "sourceCandidate": "1a429bf75918c4379961c21906b8472064ec7c30",
+  "branch": "claude/hermes-swarm-framework-vbhrot",
+  "cleanBeforeThisReport": true,
+  "sourceEvidenceFilesVerified": 113,
+  "previousReceiptVerified": true,
+  "retainedArtifactsVerified": [
+    "dist/desktop/sidecar-entry.js",
+    "dist/desktop/main.js",
+    "dist/desktop/main.css",
+    "dist/desktop/index.html"
+  ],
+  "providerFilesVerified": 109,
+  "providers": [
+    {
+      "provider": "govern",
+      "root": "/Users/preston/govern-remediation-integration",
+      "head": "4405bb13a387b37dd0ef1748cb89c6ca777e7c43",
+      "branch": "codex/hades-plugins-oauth",
+      "retainedFilesVerified": 9,
+      "changedPaths": 0,
+      "delivery": "local source; live acceptance open"
+    },
+    {
+      "provider": "cadre",
+      "root": "/Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo",
+      "head": "81188b66656053de979010218044445f7856bc07",
+      "branch": "codex/hades-plugins-messages",
+      "retainedFilesVerified": 25,
+      "changedPaths": 0,
+      "delivery": "local source; live acceptance open"
+    },
+    {
+      "provider": "glove",
+      "root": "/Users/preston/Documents/Codex/2026-09-06/glove-audit/source",
+      "head": "89e49e4fb4e13ec77699ac043e50087ad567df05",
+      "branch": "codex/persistent-demo-computers",
+      "retainedFilesVerified": 15,
+      "changedPaths": 97,
+      "delivery": "local source; live acceptance open"
+    },
+    {
+      "provider": "companyos",
+      "root": "/Users/preston/company-os-web",
+      "head": "3992fe67c0b7fafeffeb14642c68fd374f0fd7cb",
+      "branch": "codex/hades-plugins-oauth",
+      "retainedFilesVerified": 22,
+      "changedPaths": 4,
+      "delivery": "local source; live acceptance open"
+    },
+    {
+      "provider": "operate",
+      "root": "/Users/preston/operate-companyos-connect",
+      "head": "db0344050e4058f8956446748a4e075debd38b7d",
+      "branch": "codex/hades-plugins-oauth",
+      "retainedFilesVerified": 21,
+      "changedPaths": 0,
+      "delivery": "local source; live acceptance open"
+    },
+    {
+      "provider": "scalar",
+      "root": "/Users/preston/Documents/Codex/2026-09-06/sicarii-ui-reference",
+      "head": "542aea19d5bfbca44b998a6342fc69a0359e6b7b",
+      "branch": "codex/hades-plugins-crm-v2",
+      "retainedFilesVerified": 15,
+      "changedPaths": 0,
+      "delivery": "local source; live acceptance open"
+    },
+    {
+      "provider": "stored",
+      "root": "/Users/preston/Documents/Codex/2026-09-10/stored-oauth-source-patch",
+      "head": null,
+      "branch": null,
+      "retainedFilesVerified": 2,
+      "changedPaths": null,
+      "delivery": "retained patch"
+    }
+  ],
+  "lastVerifiedDistinctTests": 683,
+  "testsRerunAfterShutdown": false,
+  "freeBytes": 1549520896,
+  "goal": "active",
+  "productAccepted": false,
+  "latestCandidatePushed": false,
+  "latestCandidateInstalled": false,
+  "liveAccountJourneysAccepted": 0,
+  "liveAccountJourneysRequired": 7,
+  "scope": "Read-only local recovery verification of recorded source/artifact bytes. No claim about unrelated user files, application health, hosted deployment, credentials or live provider state."
+}
