@@ -1,6 +1,7 @@
+import { validateSpatialImage } from "./spatial-context";
 import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync, lstatSync, readlinkSync, realpathSync, openSync, closeSync, fsyncSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync, lstatSync, readlinkSync, realpathSync, openSync, closeSync, fsyncSync, unlinkSync, rmdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { HELM_AGENTS, helmArgs, helmBinary, helmEnv, helmProviderError, helmAgentEnv } from './helm-adapters.js';
 import { probeHelmAgent } from './helm-provider-readiness.js';
@@ -85,6 +86,7 @@ export class HelmService {
     if(this.runs.size>=500)throw new Error('Helm has reached its 500 retained run limit');
     if (this.live.size >= 4) throw new Error('Helm can run four jobs at a time');
     if (!HELM_AGENTS.includes(input.agent) || !input.prompt?.trim() || input.prompt.includes('\0') || input.prompt.length > 100000 || (input.context?.length ?? 0) > 100000) throw new Error('Choose an agent and provide a bounded task prompt');
+    if(input.images!==undefined){if(!Array.isArray(input.images)||input.images.length>5)throw new Error("Choose at most five reviewed images");input.images.forEach(validateSpatialImage);}
     const minutes = input.maxMinutes ?? 15;
     if (!Number.isFinite(minutes) || minutes < 0.01 || minutes > 240) throw new Error('Duration must be between 0.01 and 240 minutes');
     if (input.model && (input.model.startsWith('-') || input.model.length > 200 || input.model.includes('\0'))) throw new Error('Invalid model');
@@ -96,7 +98,7 @@ export class HelmService {
   async start(input: HelmStart): Promise<HelmRun> {
     const {minutes,requestedChecks,root}=this.prepareStart(input);
     const id = randomUUID();
-    const run: HelmRun = {id,root,handoffId:input.handoffId,workspace:join(this.directory,'workspaces',id),branch:'detached',baseSha:'',agent:input.agent,title:(input.title?.trim() || input.prompt.trim().slice(0,80)).slice(0,200),prompt:input.prompt,status:'starting',createdAt:Date.now(),updatedAt:Date.now(),output:'',maxMinutes:minutes,sourceDirty:false,exclusions:[],requestedChecks,contextSnapshot:input.context,parentSession:input.parentSession,owner:input.owner,model:input.model};
+    const run: HelmRun = {id,root,handoffId:input.handoffId,workspace:join(this.directory,'workspaces',id),branch:'detached',baseSha:'',agent:input.agent,title:(input.title?.trim() || input.prompt.trim().slice(0,80)).slice(0,200),prompt:input.prompt,status:'starting',createdAt:Date.now(),updatedAt:Date.now(),output:'',maxMinutes:minutes,sourceDirty:false,exclusions:[],requestedChecks,contextSnapshot:input.context,images:input.images,parentSession:input.parentSession,owner:input.owner,model:input.model};
     const live: Live = {controller:new AbortController()};
     this.live.set(id, live); this.runs.set(id,run); try{this.changed(run);}catch(error){this.live.delete(id);this.runs.delete(id);throw error;}
     live.timer=setTimeout(()=>{run.error='Task time limit reached';live.controller.abort();},minutes*60000);
@@ -130,24 +132,44 @@ export class HelmService {
       run.workspaceIdentity=this.workspaceIdentity(run.workspace);
       if (signal.aborted) return;
       run.status='running'; this.changed(run);
-      const prompt = `${run.prompt}\n\n${run.contextSnapshot ? `Explicit task context:\n${run.contextSnapshot}\n\n` : ''}Work only in this isolated workspace. Do not commit, push, merge, or remove worktrees. Report changes and verification honestly.`;
+      let prompt = `${run.prompt}\n\n${run.contextSnapshot ? `Explicit task context:\n${run.contextSnapshot}\n\n` : ''}Work only in this isolated workspace. Do not commit, push, merge, or remove worktrees. Report changes and verification honestly.`;
       if (run.agent === 'hades') {
         if (!this.options.runBuiltin) throw new Error('Hades executor is unavailable');
         const timer = setTimeout(() => { run.error='Task time limit reached'; live.controller.abort(); }, run.maxMinutes*60000);
         try {
-          const result = await this.options.runBuiltin({root:run.workspace,prompt,context:run.contextSnapshot,model:run.model,maxMinutes:run.maxMinutes,parentSession:run.parentSession,owner:run.owner},signal,update=>{if(update.sessionId)run.sessionId=update.sessionId;if(update.output){run.output=(run.output+update.output).slice(-LIMIT);run.outputTruncated ||= run.output.length>=LIMIT;}this.changed(run);});
+          const result = await this.options.runBuiltin({root:run.workspace,prompt,context:run.contextSnapshot,images:run.images,model:run.model,maxMinutes:run.maxMinutes,parentSession:run.parentSession,owner:run.owner},signal,update=>{if(update.sessionId)run.sessionId=update.sessionId;if(update.output){run.output=(run.output+update.output).slice(-LIMIT);run.outputTruncated ||= run.output.length>=LIMIT;}this.changed(run);});
           run.output=result.output.slice(-LIMIT); run.outputTruncated=result.output.length>LIMIT; if(result.sessionId)run.sessionId=result.sessionId;
           if (result.error) throw new Error(result.error);
         } finally { clearTimeout(timer); }
         run.exitCode=0;
       } else {
         const binary=helmBinary(run.agent,this.env); if(!binary) throw new Error(`${run.agent} is not installed`);
-        const result=await this.process(binary,helmArgs(run.agent,prompt,run.model,!!this.env.HADES_CODEX_HOME,run.workspace),run.workspace,signal,run.maxMinutes*60000,LIMIT,chunk => {
+        const imagePaths: string[]=[];
+        let imageDirectoryIdentity: {dev:number;ino:number}|undefined;
+        const imageDirectory=join(run.workspace,`.hades-spatial-${run.id}`);
+        try {
+          if(run.images?.length){
+            mkdirSync(imageDirectory,{mode:0o700});
+            const original=lstatSync(imageDirectory);imageDirectoryIdentity={dev:original.dev,ino:original.ino};
+            for(const [index,image] of run.images.entries()){
+              const mime=/^data:image\/(png|jpeg|gif|webp);base64,/.exec(image)![1];
+              const file=join(imageDirectory,`${index+1}.${mime==='jpeg'?'jpg':mime}`);
+              writeFileSync(file,Buffer.from(image.slice(image.indexOf(',')+1),'base64'),{flag:'wx',mode:0o600});imagePaths.push(file);
+            }
+            prompt+='\n\nReviewed spatial image files (read these as images; do not modify):\n'+imagePaths.join('\n');
+          }
+        const result=await this.process(binary,helmArgs(run.agent,prompt,run.model,!!this.env.HADES_CODEX_HOME,run.workspace,imagePaths),run.workspace,signal,run.maxMinutes*60000,LIMIT,chunk => {
           run.output=(run.output+chunk).slice(-LIMIT); run.outputTruncated=(run.outputTruncated || run.output.length >= LIMIT); if(Date.now()-(this.outputTicks.get(run.id)??0)>250){this.outputTicks.set(run.id,Date.now());this.changed(run);}
         },helmAgentEnv(run.agent,this.env));
         run.output=result.output; run.outputTruncated=result.truncated; run.exitCode=result.code;
         const error=result.error ?? helmProviderError(result.output);
         if (error || result.code !== 0) throw new Error(error ?? `Agent exited with code ${result.code}`);
+        } finally {
+          // Remove only the input files this task created, never other agent output.
+          const owned=()=>{try{const current=lstatSync(imageDirectory);return !current.isSymbolicLink() && current.isDirectory() && current.dev===imageDirectoryIdentity?.dev && current.ino===imageDirectoryIdentity?.ino && realpathSync(imageDirectory)===imageDirectory;}catch{return false;}};
+          for(const path of imagePaths)if(owned())try{unlinkSync(path);}catch{}
+          if(imagePaths.length && owned())try{rmdirSync(imageDirectory);}catch{}
+        }
       }
       if (signal.aborted) throw new Error(run.error ?? 'Task cancelled');
       run.status='needs_review'; this.changed(run);

@@ -1,3 +1,5 @@
+import { SpatialView } from "./spatial";
+import "./spatial.css";
 import { ManagementView, managementViews } from "./management";
 import { HelmView } from "./helm";
 import { WorkGoalsView } from "./work-goals";
@@ -143,6 +145,7 @@ export function mountWorkbench(root: HTMLElement) {
     await refresh(); await selectSession(result.session);
   });
   const management = new ManagementView(rpc, id => { void selectSession(id).catch(toast); }, next => { void navigate(next).catch(toast); }, (name, value) => download(name, JSON.stringify(value, null, 2)));
+  const spatial = new SpatialView(rpc, () => { render(); root.querySelector<HTMLElement>('[data-action="spatial-open"]')?.focus(); });
   const helm = new HelmView(rpc, {
     chooseProject: () => { modal = "project"; view = "helm"; render(); },
     selectProject: async next => {setProject(next);view="helm";await refresh();},
@@ -287,26 +290,32 @@ export function mountWorkbench(root: HTMLElement) {
       if (!session) return;
     }
     if (running()) {
-      if (draftImages.length)
+      if (draftImages.length || spatial.attachments.length)
         throw new Error(
-          "Wait for this turn to finish before sending image attachments.",
+          "Wait for this turn to finish before sending image or spatial attachments.",
         );
       (queued[current()] ??= []).push(input);
       draft = "";
       render();
       return;
     }
+    const sendScope = {sessionId: current(), profile: profile.id, root: project};
+    const spatialIds = spatial.attachments;
     if (profile.provider !== "codex") await tauri().core.invoke("hades_key", {
       account: profile.id + ":" + profile.provider,
       value: null,
     });
+    if (current() !== sendScope.sessionId || profile.id !== sendScope.profile || project !== sendScope.root) throw new Error("Conversation changed. Review your draft before sending.");
     await rpc("chat.send", {
       id: current(),
       profile: profile.id,
       root: project,
       input,
       images: draftImages,
+      spatialIds,
     });
+    spatial.sent(spatialIds, sendScope);
+    if (current() !== sendScope.sessionId || profile.id !== sendScope.profile || project !== sendScope.root) return;
     promptHistory.push(input);
     historyIndex = promptHistory.length;
     draft = "";
@@ -448,6 +457,9 @@ export function mountWorkbench(root: HTMLElement) {
     if (credentialHost) credentials.mount(credentialHost);
     const webhookHost = root.querySelector<HTMLElement>("#webhooks-host");
     if (webhookHost) webhooks.mount(webhookHost);
+    spatial.setScope(view === "chat" && session ? {sessionId:current(), profile:profile.id, root:project} : undefined);
+    const spatialHost = root.querySelector<HTMLElement>("#spatial-host");
+    if (spatialHost) spatial.mount(spatialHost);
     const helmHost = root.querySelector<HTMLElement>("#helm-host");
     if(helmHost)helm.mount(helmHost);
     const workHost = root.querySelector<HTMLElement>("#work-goals-host");
@@ -491,7 +503,7 @@ export function mountWorkbench(root: HTMLElement) {
   ${hookReceipts.length ? `<details class="activity hook-activity"><summary>${icon("hooks")}${hookReceipts.length} hook ${hookReceipts.length === 1 ? "receipt" : "receipts"}</summary>${hookReceipts.map(h => `<div class="hook-receipt"><span>${esc(h.name)} · ${h.phase === "pre_tool" ? "Before" : "After"} ${esc(h.tool)} · ${esc(h.status)}</span>${h.output ? `<pre>${esc(h.output)}</pre>` : ""}${h.message ? `<p class="help">${esc(h.message)}</p>` : ""}</div>`).join("")}</details>` : ""}
   ${pendingApproval ? `<div class="approval" role="alert"><strong>Hades needs your approval</strong><p>${esc(pendingApproval.tool)}</p><pre>${esc(pendingApproval.input)}</pre>${button("Allow once", "approve", 'class="primary-button"')}${button("Deny", "deny")}</div>` : ""}</div>
   <div class="composer-area">${(queued[current()] ?? []).length ? `<div class="queue"><span class="eyebrow">${paused.has(current()) ? "PAUSED" : "QUEUED"} · ${queued[current()].length}</span>${queued[current()].map((q, i) => `<div><span>${esc(q.slice(0, 120))}</span>${button("Edit", "queue-edit", `data-index="${i}"`)}${button(icon("close"), "queue-delete", `data-index="${i}" aria-label="Delete queued message"`)}</div>`).join("")}${paused.has(current()) ? button("Resume queue", "queue-resume") : ""}</div>` : ""}
-  <div class="attachment-tray">${draftImages.map((src, i) => `<div><img src="${esc(src)}" alt="Image attachment ${i + 1}">${button(icon("close"), "image-remove", `data-index="${i}" aria-label="Remove image"`)}</div>`).join("")}</div><form id="composer-form" class="composer"><textarea id="composer" aria-label="Message Hades" placeholder="${project ? "Describe a task…" : "Open a project to start…"}" rows="2">${esc(draft)}</textarea><div class="composer-bottom"><div>${button(icon("+"), "attach", 'class="icon-button" aria-label="Attach files or images"')}<input id="attachments" type="file" multiple hidden accept="image/png,image/jpeg,image/gif,image/webp,text/*,.md,.json,.ts,.tsx,.py,.js,.csv,.html,.css,.yaml,.yml">${button(icon("files") + `<span class="truncate">${project ? esc(labelProject(project)) : "Choose project"}</span>`, "project", 'class="composer-project"')}</div><div>${button(`<span class="truncate">${esc(session?.model || profile?.model || "Choose model")}</span>` + icon("chevron"), "model", 'class="model-picker"')}${button(icon(recording ? "stop" : "microphone"), "voice-record", `class="icon-button ${recording ? "recording" : ""}" aria-label="${recording ? "Finish voice message" : "Record voice message"}" ${!["local", "openai"].includes(profile?.provider) ? 'disabled title="Choose an OpenAI API or compatible speech provider to record voice"' : ""}`)}${running() ? button(icon("stop"), "stop", 'class="send" aria-label="Stop generation"') : `<button type="submit" class="send" aria-label="Send message">${icon("up")}</button>`}</div></div></form><div class="composer-hint"><span>Return to send <span class="muted">·</span> ⇧ Return for a new line</span></div></div>`;
+  <div id="spatial-host"></div><div class="attachment-tray">${draftImages.map((src, i) => `<div><img src="${esc(src)}" alt="Image attachment ${i + 1}">${button(icon("close"), "image-remove", `data-index="${i}" aria-label="Remove image"`)}</div>`).join("")}</div><form id="composer-form" class="composer"><textarea id="composer" aria-label="Message Hades" placeholder="${project ? "Describe a task…" : "Open a project to start…"}" rows="2">${esc(draft)}</textarea><div class="composer-bottom"><div>${button("Point at something", "spatial-open", 'class="composer-spatial"')}${button(icon("+"), "attach", 'class="icon-button" aria-label="Attach files or images"')}<input id="attachments" type="file" multiple hidden accept="image/png,image/jpeg,image/gif,image/webp,text/*,.md,.json,.ts,.tsx,.py,.js,.csv,.html,.css,.yaml,.yml">${button(icon("files") + `<span class="truncate">${project ? esc(labelProject(project)) : "Choose project"}</span>`, "project", 'class="composer-project"')}</div><div>${button(`<span class="truncate">${esc(session?.model || profile?.model || "Choose model")}</span>` + icon("chevron"), "model", 'class="model-picker"')}${button(icon(recording ? "stop" : "microphone"), "voice-record", `class="icon-button ${recording ? "recording" : ""}" aria-label="${recording ? "Finish voice message" : "Record voice message"}" ${!["local", "openai"].includes(profile?.provider) ? 'disabled title="Choose an OpenAI API or compatible speech provider to record voice"' : ""}`)}${running() ? button(icon("stop"), "stop", 'class="send" aria-label="Stop generation"') : `<button type="submit" class="send" aria-label="Send message">${icon("up")}</button>`}</div></div></form><div class="composer-hint"><span>Return to send <span class="muted">·</span> ⇧ Return for a new line</span></div></div>`;
   }
   function formatText(content: string) {
     return esc(content)
@@ -784,6 +796,13 @@ export function mountWorkbench(root: HTMLElement) {
   async function action(name: string, el?: HTMLElement) {
     if (name.startsWith("nav-")) return navigate(name.slice(4));
     switch (name) {
+      case "spatial-open": {
+        if (!session) await newChat();
+        if (!session) return;
+        spatial.setScope({sessionId:current(),profile:profile.id,root:project});
+        await spatial.open();
+        return;
+      }
       case "harness-choose": modal = "harness-command"; modalData = { command: el!.dataset.command }; break;
       case "harness-launch": {
         if (profile.provider !== "codex") await tauri().core.invoke("hades_key", { account: profile.id + ":" + profile.provider, value: null });

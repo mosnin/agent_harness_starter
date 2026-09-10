@@ -55,7 +55,7 @@ export class ComputerControl {
         if (epoch !== this.epoch || !this.enabled || signal.aborted) throw new Error("Computer control stopped during observation");
         const {image,elements,window,focused,...rest} = data;
         snapshot = {id:randomUUID(),at:this.now(),epoch,data};
-        const output = {...rest,snapshot:snapshot.id,coordinateSpace:"Global screen points; display includes origin and dimensions. Image may be scaled; use global bounds for clicks.",
+        const output = {...rest,window,snapshot:snapshot.id,coordinateSpace:"Global screen points; display includes origin and dimensions. Image may be scaled; use global bounds for clicks.",
           elements:elements.map(({path,fingerprint,...element}:Row) => element)};
         return {ok:true,output:JSON.stringify(output),images:[image]} as ToolResult;
       } },

@@ -2,6 +2,8 @@ import { BrowserRuntimeServer } from './browser-runtime-server';
 import { BrowserEvidence, parseBrowserTask, READ_ONLY_BROWSER_TOOLS, BROWSER_RESEARCH_OUTPUT_GUIDANCE, type BrowserTask } from './browser-task';
 import { HadesBrowserClient, BROWSER_PROTOCOL, BROWSER_TOOL_NAMES, BROWSER_TOOL_SPECS, validateBrowserEndpoint, type BrowserAuthority, type BrowserChat, type BrowserCapture, type BrowserControl, type BrowserToolName } from './hades-browser-client';
 import { ComputerControl, computerBridge } from "./computer-control";
+import { SpatialContextStore, type SpatialScope, type SpatialRef } from "./spatial-context";
+import { MausCompanion } from "./maus-companion";
 import { SlackBot, type SlackJob } from "./slack-bot";
 import { ChannelAccessStore } from "./channel-access";
 import { HookService, type HookPhase } from "./shell-hooks";
@@ -199,6 +201,10 @@ export class WorkbenchService {
   private wakes: WakeStore;
   private activityStore: ActivityStore;
   private computer: ComputerControl;
+  private spatial: SpatialContextStore;
+  private maus: MausCompanion;
+  private spatialPending = new Map<string, AbortController>();
+  private spatialWorkflowRuns = new Map<string,{runId:string;tabId:string;phase:"pending"|"active"|"unknown"}>();
   private credentials: CredentialPool;
   private maintenance: MaintenanceService;
   private maintenanceBusy = false;
@@ -261,6 +267,8 @@ export class WorkbenchService {
     this.activityStore = new ActivityStore(join(dataDir, "activity.sqlite"));
     this.journal = new ExecutionJournal(join(dataDir, "execution-journal.sqlite"));
     this.computer = new ComputerControl(computerBridge(env.HADES_COMPUTER ?? join(dirname(process.execPath), "hades-computer")));
+    this.maus = new MausCompanion(env);
+    this.spatial = new SpatialContextStore(dataDir, (operation, images, masks) => computerBridge(env.HADES_COMPUTER ?? join(dirname(process.execPath), "hades-computer"))({op:"spatial.image",operation,images,masks}));
     this.teamDeliveries = new TeamDeliveries(join(dataDir, "team"));
     this.team = new TeamClient(join(dataDir, "team"));
     this.channelAccess = new ChannelAccessStore(join(dataDir, "channel-access.sqlite"), () => this.emit({ kind: "desktop.channel.access" }));
@@ -310,6 +318,10 @@ export class WorkbenchService {
         if(check.runId!==run.id || check.root!==run.root || check.status!=="passed" || !check.after) throw new Error("Run fresh passing source checks before opening this preview.");
         if(!run.handoffId) throw new Error("This task has no originating Browser notebook. Open its local preview directly in your chosen Browser space.");
         const handoff=this.helmHandoffs.get(run.handoffId);
+        if(handoff.spatial){
+          const packet=this.spatial.get(handoff.spatial.id,{sessionId:handoff.spatial.sessionId,profile:run.owner!,root:run.root});
+          if(packet.source!=="browser"||!packet.context.workspaceId)throw new Error("This capture has no originating Browser space. Reopen your native app and use Maus to capture the result for comparison.");
+        }
         if(handoff.runId!==run.id || handoff.owner!==run.owner || handoff.root!==run.root) throw new Error("Browser handoff ownership does not match this task.");
         return {workspaceId:handoff.notebook.workspaceId,profile:run.owner!,sourceRevision:check.after};
       },
@@ -402,7 +414,7 @@ export class WorkbenchService {
     signal.addEventListener("abort", abort, { once: true });
     try {
       signal.throwIfAborted();
-      await this.dispatch("chat.send", { id: session.id, profile: profile.id, input: `${input.context ? input.context + "\n\n" : ""}Helm coding task in an isolated worktree. Keep changes within this project. Do not push, merge, or claim tests passed without observed results.\n\n${input.prompt}`, toolAllowlist, maxTokens: 300000, maxRuntimeMs: input.maxMinutes * 60000 });
+      await this.dispatch("chat.send", { id: session.id, profile: profile.id, images: input.images, input: `${input.context ? input.context + "\n\n" : ""}Helm coding task in an isolated worktree. Keep changes within this project. Do not push, merge, or claim tests passed without observed results.\n\n${input.prompt}`, toolAllowlist, maxTokens: 300000, maxRuntimeMs: input.maxMinutes * 60000 });
       if (signal.aborted) abort();
       await this.turns.get(session.id);
       signal.throwIfAborted();
@@ -414,6 +426,7 @@ export class WorkbenchService {
   private disconnectBrowser() {
     const client = this.browser, hadConnection = !!client || this.browserRuns.size > 0; this.browser = undefined;
     client?.close("Browser access disconnected");
+    this.spatialWorkflowRuns.clear();
     for (const [session, run] of this.browserRuns) {
       run.state = "cancelled"; this.active.get(session)?.abort();
       if (!this.turns.has(session)) this.browserRuns.delete(session);
@@ -544,6 +557,7 @@ export class WorkbenchService {
     // Scoped delegation and MCP need explicit child/discovery propagation. Refuse
     // them until that contract exists; do not start unselected MCP processes.
     const available = new Set(workspaceTools(root, profile.shell).names());
+    if(this.maus.status().available || this.spatialMcp(profile.id))available.add("maus");
     if (this.settings.computerEnabled) for (const tool of this.computer.tools(new AbortController().signal)) available.add(tool.name);
     const browser = this.settings.browser;
     if (this.browser?.status().connected && browser?.enabled && browser.profile === profile.id && browser.root === root) available.add("hades_browser");
@@ -865,8 +879,144 @@ export class WorkbenchService {
     if (method === "maintenance.create") return this.dispatchCommand(method, a);
     return this.withMaintenanceAdmission(() => this.dispatchCommand(method, a));
   }
+  private spatialScope(a: Record<string, unknown>): SpatialScope {
+    const sessionId=ident(a.sessionId),profile=this.profile(a.profile).id;
+    const meta=this.settings.sessionMeta[sessionId];
+    if(!meta || meta.profile!==profile || !this.sessions(profile).get(sessionId)) throw new Error("Conversation profile mismatch");
+    const root=this.root(meta.root);
+    if(a.root!==undefined && a.root!==root)throw new Error("Capture project does not match this conversation");
+    return {sessionId,profile,root};
+  }
+  private spatialBrowser(scope: SpatialScope) {
+    const browser=this.browser,config=this.settings.browser;
+    if(!browser?.status().connected || !config?.enabled || config.profile!==scope.profile || config.root!==scope.root)
+      throw new Error("Connect Hades Browser to this profile and project in Settings first");
+    return browser;
+  }
+  private spatialMcp(profile: string) {
+    return this.profile(profile).mcp?.find(server=>server.enabled && /(?:^|[/\\])hadesmaus-mcp-bridge$/.test(server.command));
+  }
+  private async spatialCapture(a: Record<string, unknown>) {
+    const scope=this.spatialScope(a);
+    if(this.spatialPending.has(scope.sessionId))throw new Error("A capture is already pending. Finish or cancel it first");
+    if(this.active.has(scope.sessionId))throw new Error("Wait for the conversation to finish before capturing context");
+    const controller=new AbortController();this.spatialPending.set(scope.sessionId,controller);
+    const timer=setTimeout(()=>controller.abort(),150000);
+    try {
+      let context: Record<string,unknown>,images: string[]=[],title="Screen context";
+      const source=a.source??"desktop",intent=text(a.intent??"",4000);
+      if(source==="maus") {
+        if(a.mode!==undefined && !["latest","point"].includes(String(a.mode)))throw new Error("Invalid Maus capture mode");
+        const result=await this.maus.capture(scope.root,controller.signal,this.spatialMcp(scope.profile),String(a.mode??"point"),intent);
+        context=result.context;images=result.images;title="Pointed-at context";
+      } else if(source==="browser") {
+        const browser=this.spatialBrowser(scope);
+        const tabId=text(a.tabId,128),ref=text(a.ref,128),snapshotId=Number(a.snapshotId);
+        if(typeof a.snapshotId!=="number" || !Number.isSafeInteger(snapshotId) || snapshotId<1)throw new Error("Inspect the current page before selecting an element");
+        const result=await browser.call(scope.profile,"page.spatialContext",{tabId,ref,snapshotId,screenshot:true},{signal:controller.signal});
+        if(!result.ok)throw new Error(result.error?.message??"Browser capture failed");
+        const data=result.value as Record<string,any>;
+        if(!data || typeof data!=="object" || data.tabId!==tabId || data.snapshotId!==snapshotId || data.ref!==ref)throw new Error("Browser context changed during capture");
+        if(typeof data.workspaceId!=="string" || !/^[A-Za-z0-9_.:-]{1,128}$/.test(data.workspaceId))throw new Error("Browser workspace identity is missing");
+        const box=data.boxCss,viewport=data.viewport,shot=data.screenshot;
+        if(!box || ![box.x,box.y,box.width,box.height].every(Number.isFinite)||box.width<=0||box.height<=0||box.width>100000||box.height>100000 || !viewport || ![viewport.width,viewport.height,viewport.scrollX,viewport.scrollY,viewport.deviceScale].every(Number.isFinite) || viewport.width<=0||viewport.height<=0||viewport.width>32768||viewport.height>32768||viewport.deviceScale<=0 || !Number.isFinite(data.zoomFactor)||data.zoomFactor<=0 || !Number.isFinite(data.capturedAt)||Math.abs(Date.now()-data.capturedAt)>60000)throw new Error("Browser spatial geometry is missing, stale or invalid");
+        if(!shot || shot.scope!=="viewport"||shot.coordinateSpace!=="top-viewport-css"|| !Number.isSafeInteger(shot.width)||!Number.isSafeInteger(shot.height)||shot.width<1||shot.height<1||shot.width*shot.height>16000000||typeof shot.dataUrl!=="string")throw new Error("Browser screenshot geometry is missing or invalid");
+        const {screenshot,...metadata}=data;context={...metadata,...(screenshot?{imageGeometry:{width:screenshot.width,height:screenshot.height,scope:screenshot.scope,coordinateSpace:screenshot.coordinateSpace}}:{})};
+        if(screenshot?.dataUrl)images=[screenshot.dataUrl];title=String(data.semantics?.name||"Browser element").slice(0,200);
+        // A developer attribute is only a hint. Verify the file exists inside
+        // this selected project, without accepting it as component authority.
+        const hint=data.source?.file;
+        if(typeof hint==="string" && !isAbsolute(hint) && /\.(?:tsx?|jsx?|vue|svelte|html|css|swift|rs)$/.test(hint)) {
+          try {
+            const file=this.path(scope.root,hint),actual=realpathSync(file),rel=relative(scope.root,actual);
+            if(rel && !rel.startsWith("..") && !isAbsolute(rel) && statSync(actual).isFile()) context.sourceEvidence={file:rel,line:data.source.line,provenance:"existing-project-file",componentMatch:"unverified"};
+          } catch { /* Retain the developer hint without asserting a file match. */ }
+        }
+      } else if(source==="desktop") {
+        await new Promise<void>((resolve,reject)=>{
+          const cancel=()=>{clearTimeout(delay);reject(new Error("Capture cancelled"));};
+          const delay=setTimeout(()=>{controller.signal.removeEventListener("abort",cancel);resolve();},3000);
+          controller.signal.addEventListener("abort",cancel,{once:true});
+        });
+        const tool=this.computer.tools(controller.signal).find(tool=>tool.name==="computer_observe")!;
+        const result=await tool.run("{}");if(!result.ok)throw new Error(result.output);
+        context=JSON.parse(result.output);images=result.images??[];title=String(context.app??"Screen context").slice(0,200);
+      } else throw new Error("Choose a valid capture source");
+      controller.signal.throwIfAborted();this.spatialScope(a);
+      return this.spatial.create(scope,{source,title,intent,context,images});
+    } finally { clearTimeout(timer);if(this.spatialPending.get(scope.sessionId)===controller)this.spatialPending.delete(scope.sessionId); }
+  }
   private async dispatchCommand(method: string, a: Record<string, unknown>): Promise<unknown> {
     switch (method) {
+      case "spatial.status": {
+        const scope=this.spatialScope(a);let browser=false;try{this.spatialBrowser(scope);browser=true;}catch{}
+        const companion=this.maus.status(),configured=!!this.spatialMcp(scope.profile);
+        return {desktop:{available:this.settings.computerEnabled,reason:this.settings.computerEnabled?undefined:"Enable computer access in Settings"},browser:{available:browser,reason:browser?undefined:"Connect Browser to this profile and project"},maus:{...companion,available:companion.available||configured,reason:configured?undefined:companion.reason}};
+      }
+      case "spatial.capture": return this.spatialCapture(a);
+      case "spatial.cancel": { const scope=this.spatialScope(a);this.spatialPending.get(scope.sessionId)?.abort();return {cancelled:true}; }
+      case "spatial.list": return this.spatial.list(this.spatialScope(a)).slice(0,25).map(({image,images,...packet})=>packet);
+      case "spatial.get": return this.spatial.get(ident(a.id),this.spatialScope(a));
+      case "spatial.remove": return this.spatial.remove({id:ident(a.id),revision:Number(a.revision)},this.spatialScope(a));
+      case "spatial.review": return this.spatial.review({id:ident(a.id),revision:Number(a.revision)},this.spatialScope(a),{intent:a.intent,excludeImage:a.excludeImage,excludeText:a.excludeText,redactions:a.redactions});
+      case "spatial.compare": {
+        const scope=this.spatialScope(a),before=this.spatial.get(ident(a.beforeId),scope),after=this.spatial.get(ident(a.afterId),scope);
+        if(before.source==='maus'&&after.source==='maus'&&!before.review?.excludeText&&!after.review?.excludeText){
+          if(before.id===after.id || after.createdAt<before.createdAt)throw new Error("Choose a different, newer capture for the comparison");
+          const native=await this.maus.diff(scope.root,new AbortController().signal,this.spatialMcp(scope.profile),text(before.context.captureId,64),text(after.context.captureId,64));
+          const pixels=native.comparable?await this.spatial.compareImages(before.id,after.id,scope):undefined;
+          return {beforeId:before.id,afterId:after.id,comparable:native.comparable,reasons:native.comparable?(pixels?.comparable===false?[pixels.reason]:[]):["Maus could not match the captured windows"],imageChanged:typeof pixels?.changedPixels==='number'?pixels.changedPixels>0:null,pixels,contextChanged:native.summary?native.summary.unchanged===false:null,changes:[{path:"native comparison",after:native.report}],conclusion:"Native layout differences require review; a changed image is not proof of correct behavior."};
+        }
+        return this.spatial.compare(before.id,after.id,scope);
+      }
+      case "spatial.targets": {
+        const scope=this.spatialScope(a),browser=this.spatialBrowser(scope);
+        const result=await browser.call(scope.profile,"browser.listTabs",{});if(!result.ok)throw new Error(result.error?.message??"Cannot list Browser tabs");
+        const value=result.value as any,tabs=Array.isArray(value)?value:value?.tabs??[];
+        if(a.tabId===undefined)return {tabs};
+        const snapshot=await browser.call(scope.profile,"page.snapshot",{tabId:text(a.tabId,128)});
+        if(!snapshot.ok)throw new Error(snapshot.error?.message??"Cannot inspect this tab");return {tabs,snapshot:snapshot.value};
+      }
+      case "spatial.workflow": {
+        const scope=this.spatialScope(a),browser=this.spatialBrowser(scope);
+        const operation=text(a.operation,20),tabId=text(a.tabId,128);
+        if(!["start","stop","cancel","list","status","replay"].includes(operation))throw new Error("Invalid workflow operation");
+        const existing=this.spatialWorkflowRuns.get(scope.sessionId);
+        if(existing && existing.tabId!==tabId)throw new Error("Stop the workflow in its original tab before switching tabs");
+        if(["start","replay"].includes(operation) && existing)throw new Error("A workflow is already pending or active. Stop or cancel it first");
+        const state=existing??{runId:randomUUID(),tabId,phase:"pending" as const};
+        const args={tabId,operation,...(a.workflowId?{workflowId:ident(a.workflowId)}:{}),...(a.mode?{mode:text(a.mode,20)}:{})};
+        if(!existing)browser.emit(scope.profile,"task.started",{runId:state.runId,title:"Review UI workflow"});
+        // Reserve ownership before the first await, so cancellation and a second
+        // Start address the original in-flight request rather than a new run.
+        const lifetime=["start","replay"].includes(operation)||!!existing;
+        if(lifetime)this.spatialWorkflowRuns.set(scope.sessionId,state);
+        let end=!lifetime,ok=false;
+        try {
+          const result=await browser.call(scope.profile,"workflow.control",args,{runId:state.runId});
+          if(!result.ok)throw new Error(result.error?.message??"Workflow operation failed");
+          if(lifetime && this.spatialWorkflowRuns.get(scope.sessionId)!==state)throw new Error("Workflow was cancelled while the request was pending");
+          state.phase="active";
+          end=["stop","cancel","replay"].includes(operation)||!lifetime;ok=true;return result.value;
+        } catch(error) { state.phase="unknown";end=["stop","cancel"].includes(operation)||!lifetime;throw error; }
+        finally {
+          if(end) {
+            if(this.spatialWorkflowRuns.get(scope.sessionId)===state)this.spatialWorkflowRuns.delete(scope.sessionId);
+            try{browser.emit(scope.profile,"task.finished",{runId:state.runId,status:ok?"done":"failed",summary:"Inspect the retained workflow status before retrying.",artifacts:[]});}catch{}
+          }
+        }
+      }
+      case "spatial.handoff": {
+        const scope=this.spatialScope(a),ref={id:ident(a.id),revision:Number(a.revision)},packet=this.spatial.prepare([ref],scope).packets[0];
+        const prompt=text(a.prompt,20000);if(!prompt.trim())throw new Error("Describe the coding change");
+        // One immutable coding draft per reviewed packet. Reconcile lost replies.
+        if(packet.handoffId) { const previous=this.helmHandoffs.get(packet.handoffId);if(previous.prompt!==prompt)throw new Error("This capture already has a coding draft with a different prompt");return {id:previous.id,status:previous.status,prompt:previous.prompt}; }
+        const requestId=packet.id;
+        const body=JSON.stringify({spatialId:packet.id,revision:packet.revision,digest:packet.digest,intent:packet.intent,context:packet.context,imageCount:packet.images?.length??0});
+        const draft=this.helmHandoffs.receiveSpatial({requestId,prompt,notebook:{id:packet.id,workspaceId:typeof packet.context.workspaceId==="string"?packet.context.workspaceId:"native",title:packet.title,body,sources:[]}},scope,ref);
+        this.spatial.bindHandoff(ref,scope,draft.id);this.emit({kind:"desktop.helm"});
+        return {id:draft.id,status:draft.status,prompt:draft.prompt};
+      }
       case "helm.code.open": return this.helmCode.open(this.root(a.root), this.profile(a.profile).id);
       case "helm.code.status": return this.helmCode.status(this.root(a.root), this.profile(a.profile).id);
       case "helm.code.close": return this.helmCode.closeWorkspace(this.root(a.root), this.profile(a.profile).id);
@@ -881,13 +1031,14 @@ export class WorkbenchService {
         const snapshot = this.helmContext.snapshot(root, a.contextIds);
         const handoffId = a.handoffId === undefined ? undefined : ident(a.handoffId);
         const handoff = handoffId ? this.helmHandoffs.get(handoffId) : undefined;
+        const spatial=handoff?.spatial ? this.spatial.prepare([{id:handoff.spatial.id,revision:handoff.spatial.revision}],{sessionId:handoff.spatial.sessionId,profile:owner,root}) : undefined;
         const context = [snapshot.text, handoff ? helmHandoffContext(handoff) : ""].filter(Boolean).join("\n\n");
         if(context.length>100000) throw new Error("Selected project context and Browser evidence exceed the task context limit. Reduce the selected context before starting.");
         const input = { root, owner, agent: text(a.agent, 40) as any, prompt: text(a.prompt, 20000),
           ...(a.title === undefined ? {} : { title: text(a.title, 160) }),
           ...(a.model === undefined ? {} : { model: text(a.model, 200) }),
           ...(a.maxMinutes === undefined ? {} : { maxMinutes: Number(a.maxMinutes) }),
-          ...(a.checks === undefined ? {} : { checks: a.checks as any }), context, ...(handoffId ? {handoffId} : {}) };
+          ...(a.checks === undefined ? {} : { checks: a.checks as any }), context, ...(spatial ? {images:spatial.images,parentSession:handoff!.spatial!.sessionId}:{}), ...(handoffId ? {handoffId} : {}) };
         this.helm.validateStart(input);
         if(handoffId) this.helmHandoffs.claim(handoffId,{root,owner});
         const run = await this.helm.start(input);
@@ -1566,9 +1717,14 @@ export class WorkbenchService {
           throw new Error("Conversation profile mismatch");
         p.model = m.model || p.model;
         if (!m.model) { m.model = p.model; this.save(); }
-        const input = text(a.input);
+        let input = text(a.input);
         if (!input.trim()) throw new Error("Write a message first");
-        const images = a.images ?? [];
+        const spatialScope={sessionId:id,profile:p.id,root:this.root(m.root)};
+        const spatialRefs=(a.spatialIds??[]) as SpatialRef[];
+        const spatial=this.spatial.prepare(spatialRefs,spatialScope,Array.isArray(a.images)?a.images.length:0);
+        input+=spatial.context;if(input.length>100000)throw new Error("Message and spatial context exceed 100,000 characters");
+        if(a.images!==undefined && !Array.isArray(a.images))throw new Error("Invalid image attachments");
+        const images = [...(a.images as string[]??[]),...spatial.images];
         if (
           !Array.isArray(images) ||
           images.length > 5 ||
@@ -1607,6 +1763,7 @@ export class WorkbenchService {
           m.browserTaskUsage = {...(m.browserTaskUsage ?? {tokens:0,runtimeMs:0}),inFlight:true}; this.save();
         }
         const deadline = maxRuntimeMs === undefined ? undefined : setTimeout(() => { const progress = this.progress.get(id); if (progress) progress.error = "Task time budget reached. Review the result before continuing."; controller.abort(); }, maxRuntimeMs);
+        this.spatial.attach(spatialRefs,spatialScope);
         this.active.set(id, controller);
         const task = this.turn(
           id,
@@ -2149,6 +2306,7 @@ export class WorkbenchService {
         ...this.browserTools(id, p.id, root, controller.signal),
         ...workspaceTools(root, p.shell, controller.signal).list(),
         ...(this.settings.computerEnabled ? this.computer.tools(controller.signal) : []),
+        ...((this.maus.status().available || this.spatialMcp(p.id)) ? [this.maus.tool(root,controller.signal,this.spatialMcp(p.id))] : []),
         ...connected.flatMap((c) => c.tools),
       ].filter(tool => !toolAllowlist || toolAllowlist.includes(tool.name)))
         tools.register({
@@ -2172,7 +2330,7 @@ export class WorkbenchService {
             if (this.journalFailure) return { ok: false, output: this.journalFailure };
             if (
               ["delegate_work", "delegation_message", "delegation_stop", "helm_delegate"].includes(tool.name) ||
-              tool.name === "computer_action" ||
+              tool.name === "computer_action" || tool.name === "maus" ||
               (tool.name === "hades_browser" && BROWSER_TOOL_SPECS.some(spec => spec.name === JSON.parse(value).name && spec.mutating) && !(this.browserRuns.get(id)?.task?.readOnly && READ_ONLY_BROWSER_TOOLS.has(JSON.parse(value).name))) ||
               tool.name.startsWith("mcp_") ||
               tool.name === "shell" ||
@@ -2592,6 +2750,8 @@ export class WorkbenchService {
     this.activityStore.close();
     this.journal.close();
     this.computer.stop();
+    for(const controller of this.spatialPending.values())controller.abort();
+    this.maus.close();
     clearInterval(this.timer);
     this.localModels.close();
     this.codex.close();

@@ -46,6 +46,12 @@ node scripts/package-codex-runtime.mjs "$APP/Contents/Resources"
 cp dist/runtime/node "$APP/Contents/Resources/node"
 cp dist/runtime/hades-pty "$APP/Contents/Resources/hades-pty"
 cp dist/runtime/hades-computer "$APP/Contents/Resources/hades-computer"
+MAUS_SOURCE="${HADES_MAUS_SOURCE_APP:-$ROOT/dist/runtime/HadesMaus.app}"
+if [[ -d "$MAUS_SOURCE" ]]; then
+  node scripts/bundle-maus.mjs "$MAUS_SOURCE" "$APP/Contents/Resources"
+else
+  echo "Native Maus is not bundled; configured external Maus MCP remains available. Set HADES_MAUS_SOURCE_APP to include a staged app."
+fi
 cp -c dist/runtime/helm-opencode "$APP/Contents/Resources/helm-opencode"
 rm -rf "$APP/Contents/Resources/helm-ui"
 cp -R dist/helm-ui "$APP/Contents/Resources/helm-ui"

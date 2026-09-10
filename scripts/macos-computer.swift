@@ -2,6 +2,8 @@
 import AppKit
 import ApplicationServices
 import ScreenCaptureKit
+import ImageIO
+import UniformTypeIdentifiers
 
 struct BridgeError: Error { let message: String }
 func fail(_ message: String) throws -> Never { throw BridgeError(message: message) }
@@ -70,11 +72,62 @@ func emitKey(_ code: CGKeyCode, flags: CGEventFlags = []) {
     let up = CGEvent(keyboardEventSource:nil, virtualKey:code, keyDown:false)
     down?.flags = flags; up?.flags = flags; down?.post(tap:.cghidEventTap); up?.post(tap:.cghidEventTap)
 }
+// Pixel-only operations never inspect the desktop or require OS capture access.
+// Masks use normalized top-left image coordinates, independent of AppKit points.
+func spatialPixels(_ value: Any?) throws -> (CGImage, CGContext) {
+    guard let url = value as? String, url.utf8.count <= 8_000_000,
+          let comma = url.firstIndex(of: ","), url.hasPrefix("data:image/"),
+          let data = Data(base64Encoded:String(url[url.index(after:comma)...])),
+          let source = CGImageSourceCreateWithData(data as CFData,nil),
+          let properties = CGImageSourceCopyPropertiesAtIndex(source,0,nil) as? [CFString:Any],
+          let width = properties[kCGImagePropertyPixelWidth] as? Int,
+          let height = properties[kCGImagePropertyPixelHeight] as? Int,
+          width > 0, height > 0, width <= 8192, height <= 8192, width * height <= 16_000_000,
+          let image = CGImageSourceCreateImageAtIndex(source,0,nil),
+          let context = CGContext(data:nil,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,
+            space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else { try fail("Invalid or oversized spatial image") }
+    context.draw(image,in:CGRect(x:0,y:0,width:width,height:height))
+    return (image,context)
+}
+func spatialImageOperation(_ request: [String:Any]) throws -> [String:Any] {
+    guard let images = request["images"] as? [String], images.count >= 1, images.count <= 2 else { try fail("Invalid image operation") }
+    let (image,context) = try spatialPixels(images[0])
+    if request["operation"] as? String == "redact" {
+        guard images.count == 1, let masks = request["masks"] as? [[String:Double]], masks.count <= 32 else { try fail("Invalid image masks") }
+        context.setFillColor(CGColor(gray:0,alpha:1))
+        for mask in masks {
+            guard let x=mask["x"],let y=mask["y"],let w=mask["width"],let h=mask["height"],
+                  [x,y,w,h].allSatisfy({$0.isFinite}), x>=0,y>=0,w>0,h>0,x+w<=1,y+h<=1 else { try fail("Mask is outside image bounds") }
+            let left=floor(x*Double(image.width)), top=floor(y*Double(image.height))
+            let right=ceil((x+w)*Double(image.width)), bottom=ceil((y+h)*Double(image.height))
+            context.fill(CGRect(x:left,y:Double(image.height)-bottom,width:right-left,height:bottom-top))
+        }
+        guard let result=context.makeImage() else { try fail("Image redaction failed") }
+        let data=NSMutableData()
+        guard let destination=CGImageDestinationCreateWithData(data,UTType.png.identifier as CFString,1,nil) else { try fail("Image encoding failed") }
+        CGImageDestinationAddImage(destination,result,nil)
+        guard CGImageDestinationFinalize(destination), data.length<=6_000_000 else { try fail("Redacted image exceeds attachment limit") }
+        return ["image":"data:image/png;base64,"+(data as Data).base64EncodedString(),"width":image.width,"height":image.height]
+    }
+    guard request["operation"] as? String == "diff", images.count == 2 else { try fail("Unknown image operation") }
+    let (other,otherContext) = try spatialPixels(images[1])
+    guard image.width==other.width,image.height==other.height else { return ["comparable":false,"reason":"Image dimensions differ"] }
+    guard let a=context.data?.assumingMemoryBound(to:UInt8.self),let b=otherContext.data?.assumingMemoryBound(to:UInt8.self) else { try fail("Image decode failed") }
+    var changed=0, maxDelta=0
+    for pixel in 0..<(image.width*image.height) {
+        var delta=0
+        for channel in 0..<4 { delta=max(delta,abs(Int(a[pixel*4+channel])-Int(b[pixel*4+channel]))) }
+        if delta>0 { changed+=1 };maxDelta=max(maxDelta,delta)
+    }
+    return ["comparable":true,"width":image.width,"height":image.height,"changedPixels":changed,
+      "changedFraction":Double(changed)/Double(image.width*image.height),"maxChannelDelta":maxDelta]
+}
 @main struct HadesComputer {
     @MainActor static func main() async {
         do {
             let input = FileHandle.standardInput.readDataToEndOfFile()
-            guard input.count <= 1_000_000, let request = try JSONSerialization.jsonObject(with:input) as? [String:Any], let op = request["op"] as? String else { try fail("Invalid computer request") }
+            guard input.count <= 16_100_000, let request = try JSONSerialization.jsonObject(with:input) as? [String:Any], let op = request["op"] as? String else { try fail("Invalid computer request") }
+            if op != "spatial.image" && input.count > 1_000_000 { try fail("Invalid computer request") }
             let result = try await run(op,request)
             let data = try JSONSerialization.data(withJSONObject:["ok":true,"result":result],options:[.sortedKeys])
             FileHandle.standardOutput.write(data)
@@ -85,6 +138,7 @@ func emitKey(_ code: CGKeyCode, flags: CGEventFlags = []) {
         }
     }
     @MainActor static func run(_ op: String, _ request: [String:Any]) async throws -> [String:Any] {
+        if op == "spatial.image" { return try spatialImageOperation(request) }
         if op == "permissions" {
             let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String:true] as CFDictionary
             _ = AXIsProcessTrustedWithOptions(options); _ = CGRequestScreenCaptureAccess()

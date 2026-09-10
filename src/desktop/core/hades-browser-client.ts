@@ -8,11 +8,11 @@ export const BROWSER_TOOL_NAMES = [
   'browser.listWorkspaces', 'browser.listTabs', 'browser.openTab', 'browser.closeTab', 'browser.focusTab',
   'browser.navigate', 'browser.readPage', 'browser.capture', 'browser.findInPage',
   'collections.list', 'collections.read', 'collections.search', 'collections.addPage', 'collections.create',
-  'activity.digest', 'page.snapshot', 'page.extract', 'page.waitFor', 'page.click', 'page.hover', 'page.type',
+  'workflow.control', 'activity.digest', 'page.spatialContext', 'page.snapshot', 'page.extract', 'page.waitFor', 'page.click', 'page.hover', 'page.type',
   'page.press', 'page.select', 'page.scroll', 'page.screenshot', 'context.write', 'context.search', 'context.list',
 ] as const;
 export type BrowserToolName = typeof BROWSER_TOOL_NAMES[number];
-const MUTATING = new Set<string>(['browser.openTab', 'browser.closeTab', 'browser.focusTab', 'browser.navigate',
+const MUTATING = new Set<string>(['workflow.control','browser.openTab', 'browser.closeTab', 'browser.focusTab', 'browser.navigate',
   'collections.addPage', 'collections.create', 'page.click', 'page.hover', 'page.type', 'page.press', 'page.select', 'page.scroll', 'context.write']);
 export const BROWSER_TOOL_SPECS = BROWSER_TOOL_NAMES.map(name => ({ name, mutating: MUTATING.has(name), description:
   name === 'page.snapshot' ? 'Inspect page elements and fresh refs before acting. Old refs are refused.' :

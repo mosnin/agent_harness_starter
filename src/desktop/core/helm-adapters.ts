@@ -19,13 +19,13 @@ export function helmBinary(id: HelmAgentId, env: NodeJS.ProcessEnv): string | un
 export function helmCodexConfig(managed: boolean): string[] {
   return managed ? ['-c', 'model_provider="openai"', '-c', 'forced_login_method="chatgpt"', '-c', 'cli_auth_credentials_store="keyring"'] : [];
 }
-export function helmArgs(id: HelmAgentId, prompt: string, model?: string, managedCodex=false, workspace?: string): string[] {
+export function helmArgs(id: HelmAgentId, prompt: string, model?: string, managedCodex=false, workspace?: string, imagePaths: string[] = []): string[] {
   const m = model ? ['--model', model] : [];
   switch (id) {
-    case 'codex': return ['exec', '--sandbox', 'workspace-write', '--json', ...helmCodexConfig(managedCodex), ...m, '--', prompt];
+    case 'codex': return ['exec', '--sandbox', 'workspace-write', '--json', ...helmCodexConfig(managedCodex), ...m, ...imagePaths.flatMap(path=>['--image',path]), '--', prompt];
     case 'claude': return ['--print', '--output-format', 'json', '--permission-mode', 'acceptEdits', ...m, '--', prompt];
     case 'gemini': return ['--prompt', prompt, '--output-format', 'json', '--approval-mode', 'auto_edit', ...m];
-    case 'opencode': return ['run', '--format', 'json', ...(workspace ? ['--dir',workspace] : []), ...m, '--', prompt];
+    case 'opencode': return ['run', '--format', 'json', ...(workspace ? ['--dir',workspace] : []), ...m, ...imagePaths.flatMap(path=>['--file',path]), '--', prompt];
     case 'grok': return ['--sandbox', 'workspace', '--single', prompt, '--output-format', 'json', '--permission-mode', 'acceptEdits', ...m];
     default: throw new Error('Hades uses the built-in executor');
   }
