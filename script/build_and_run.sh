@@ -8,6 +8,7 @@ for argument in "$@"; do
   case "$argument" in --build-only) MODE="build";; --verify) MODE="verify";; --debug|--logs|--telemetry) MODE="logs";; *) echo "Unknown option: $argument" >&2; exit 2;; esac
 done
 if [[ "$(uname -s)" != Darwin ]]; then echo "This script builds the macOS application." >&2; exit 1; fi
+node scripts/package-helm-orca.mjs --check
 node scripts/check-helm-provenance.mjs
 if [[ ! -f dist/helm-ui/index.html || ! -f dist/runtime/helm-opencode ]]; then
   echo "Helm's OpenCode fork is not built. Run npm run helm:build -- --source /path/to/the/helm-integration/fork first." >&2
@@ -47,6 +48,7 @@ cp dist-hades/hades.js "$APP/Contents/Resources/hades.js"
 cp dist/desktop/team-server.js "$APP/Contents/Resources/team-server.js"
 node scripts/package-codex-runtime.mjs "$APP/Contents/Resources"
 cp dist/runtime/node "$APP/Contents/Resources/node"
+node scripts/package-helm-orca.mjs --stage dist/helm-orca "$APP/Contents/Resources/helm-orca"
 cp dist/runtime/hades-pty "$APP/Contents/Resources/hades-pty"
 cp dist/runtime/hades-computer "$APP/Contents/Resources/hades-computer"
 MAUS_SOURCE="${HADES_MAUS_SOURCE_APP:-$ROOT/dist/runtime/HadesMaus.app}"
@@ -100,6 +102,7 @@ codesign --force --sign - "$APP/Contents/Resources/helm-opencode"
 node scripts/stamp-helm-bundle.mjs "$APP/Contents/Resources"
 codesign --force --sign - "$APP"
 fi
+node scripts/package-helm-orca.mjs --check "$APP/Contents/Resources/helm-orca"
 codesign --verify --deep --strict "$APP"
 echo "Built: $APP"
 if [[ "$MODE" == build ]]; then exit 0; fi

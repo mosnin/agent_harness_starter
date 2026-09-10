@@ -1,0 +1,9 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+
+ Test Files  21 passed (21)
+      Tests  303 passed (303)
+   Start at  13:05:48
+   Duration  5.94s (transform 630ms, setup 0ms, import 1.15s, tests 9.05s, environment 356ms)
+

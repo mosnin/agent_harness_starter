@@ -206,7 +206,8 @@
     "helm:orca:check": "node scripts/build-helm-orca.mjs --check",
     "helm:orca:build": "node scripts/build-helm-orca.mjs --build",
     "test:plugins": "node scripts/check-plugins.mjs",
-    "test:work:offline": "node scripts/check-work-offline.mjs"
+    "test:work:offline": "node scripts/check-work-offline.mjs",
+    "test:helm:orca:package": "node --import tsx --test scripts/package-helm-orca.test.mjs scripts/package-helm-orca-review.test.mjs"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",

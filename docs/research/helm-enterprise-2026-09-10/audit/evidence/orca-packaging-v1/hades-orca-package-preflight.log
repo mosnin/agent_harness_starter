@@ -1,0 +1,11 @@
+file:///Users/preston/Documents/Codex/2026-09-06/hades-repair/scripts/build-helm-orca.mjs:13
+for(const path of ['node_modules/esbuild/package.json','node_modules/node-pty/package.json','node_modules/@parcel/watcher/package.json'])if(!existsSync(join(root,path)))throw new Error('Missing upstream locked build/native dependency: '+path+'; no automatic install attempted');
+                                                                                                                                                                               ^
+
+Error: Missing upstream locked build/native dependency: node_modules/esbuild/package.json; no automatic install attempted
+    at file:///Users/preston/Documents/Codex/2026-09-06/hades-repair/scripts/build-helm-orca.mjs:13:176
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.22.2

@@ -1,0 +1,88 @@
+TAP version 13
+# Subtest: staged Resources/helm-orca is consumed by the actual Hades artifact validator without a checkout override
+ok 1 - staged Resources/helm-orca is consumed by the actual Hades artifact validator without a checkout override
+  ---
+  duration_ms: 4.95125
+  type: 'test'
+  ...
+# Subtest: native bytes changed after staging are rejected by the real consumer, without rewriting provenance
+ok 2 - native bytes changed after staging are rejected by the real consumer, without rewriting provenance
+  ---
+  duration_ms: 3.490709
+  type: 'test'
+  ...
+# Subtest: an interior directory symlink cannot package external native code or destroy a prior tree
+ok 3 - an interior directory symlink cannot package external native code or destroy a prior tree
+  ---
+  duration_ms: 1.75075
+  type: 'test'
+  ...
+# Subtest: stages exact tree beside node and removes stale prior files
+ok 4 - stages exact tree beside node and removes stale prior files
+  ---
+  duration_ms: 5.381292
+  type: 'test'
+  ...
+# Subtest: rejects hash preserving prior output
+ok 5 - rejects hash preserving prior output
+  ---
+  duration_ms: 1.491125
+  type: 'test'
+  ...
+# Subtest: rejects pin preserving prior output
+ok 6 - rejects pin preserving prior output
+  ---
+  duration_ms: 1.233542
+  type: 'test'
+  ...
+# Subtest: rejects platform preserving prior output
+ok 7 - rejects platform preserving prior output
+  ---
+  duration_ms: 1.186541
+  type: 'test'
+  ...
+# Subtest: rejects arch preserving prior output
+ok 8 - rejects arch preserving prior output
+  ---
+  duration_ms: 1.256833
+  type: 'test'
+  ...
+# Subtest: rejects traversal preserving prior output
+ok 9 - rejects traversal preserving prior output
+  ---
+  duration_ms: 1.183542
+  type: 'test'
+  ...
+# Subtest: rejects symlink preserving prior output
+ok 10 - rejects symlink preserving prior output
+  ---
+  duration_ms: 1.280791
+  type: 'test'
+  ...
+# Subtest: rejects extra preserving prior output
+ok 11 - rejects extra preserving prior output
+  ---
+  duration_ms: 1.332292
+  type: 'test'
+  ...
+# Subtest: rejects missing preserving prior output
+ok 12 - rejects missing preserving prior output
+  ---
+  duration_ms: 1.236209
+  type: 'test'
+  ...
+# Subtest: both production packaging paths include preflight and installed resource path
+ok 13 - both production packaging paths include preflight and installed resource path
+  ---
+  duration_ms: 0.420709
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 246.539291

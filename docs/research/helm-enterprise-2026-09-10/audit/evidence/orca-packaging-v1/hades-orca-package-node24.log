@@ -1,0 +1,21 @@
+✔ staged Resources/helm-orca is consumed by the actual Hades artifact validator without a checkout override (6.27225ms)
+✔ native bytes changed after staging are rejected by the real consumer, without rewriting provenance (4.24325ms)
+✔ an interior directory symlink cannot package external native code or destroy a prior tree (2.34725ms)
+✔ stages exact tree beside node and removes stale prior files (5.191042ms)
+✔ rejects hash preserving prior output (5.773416ms)
+✔ rejects pin preserving prior output (1.655416ms)
+✔ rejects platform preserving prior output (1.522792ms)
+✔ rejects arch preserving prior output (1.142208ms)
+✔ rejects traversal preserving prior output (1.217791ms)
+✔ rejects symlink preserving prior output (1.604417ms)
+✔ rejects extra preserving prior output (1.438667ms)
+✔ rejects missing preserving prior output (1.391208ms)
+✔ both production packaging paths include preflight and installed resource path (0.326334ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 141.324584

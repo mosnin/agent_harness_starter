@@ -3,3 +3,4 @@ docs/plugins/evidence/*.log -whitespace
 docs/plugins/*-receipt.json -whitespace
 docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-output-v1/*.log -whitespace
 docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-replacement-v1/*.log -whitespace
+docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/*.log -whitespace

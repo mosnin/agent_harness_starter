@@ -184,3 +184,13 @@ On macOS, Hades still needs OS access to protected project folders. A native
 Git preparation timeout now points to folder access instead of reporting it as
 an agent failure. A successful CLI test launched from another application does
 not establish Hades' own OS permission state.
+
+### Orca installed runtime packaging
+
+Both native packaging paths now require a verified `dist/helm-orca` tree and place it at `Contents/Resources/helm-orca`, beside the bundled Node executable. This matches the default runtime resolver; no development checkout path or environment override is needed. Missing artifacts fail before native compilation instead of silently producing an Orca-less application.
+
+Build prerequisites remain separate: `HELM_ORCA_SOURCE=/path/to/pinned/orca node scripts/build-helm-orca.mjs --check` currently refuses this checkout because its locked `node_modules/esbuild/package.json` is absent. That check does not install dependencies or establish runtime readiness. After provisioning the exact pinned build dependencies, explicitly build with `--build`, then run `node scripts/package-helm-orca.mjs --check`. The supported source revision remains `bf4e2705046cf9ef9c915929a9646da85717af07`.
+
+`package-helm-orca.mjs` checks pin, platform/architecture, entrypoints, complete file inventory, SHA-256 and path/symlink confinement. Local app staging copies into a new sibling, revalidates source and staged tree, then replaces the prior tree; validation failures preserve the prior output and stale files are not merged. A process crash between directory renames may leave the `.helm-orca-prior-*` backup for manual inspection; this is not a crash-atomic app updater.
+
+Do not re-sign native files after generating the trusted build manifest or silently regenerate hashes to bless changed bytes. Native dependencies for a signed release must have their final signatures before manifest creation. The local packager verifies the installed Orca tree again after signing the outer application. Tauri mapping supplies the same tree; signed Tauri distribution still requires final resource-integrity verification and actual native dependency loading acceptance. No native build, signing, provider, or daemon execution was performed for this packaging source change.

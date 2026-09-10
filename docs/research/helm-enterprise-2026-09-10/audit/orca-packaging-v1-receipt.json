@@ -1,0 +1,248 @@
+{
+  "schema": "hades.orca-packaging-source.v1",
+  "recordedAt": "2026-09-10T17:08:41.447351+00:00",
+  "repository": "mosnin/agent_harness_starter",
+  "branch": "claude/hermes-swarm-framework-vbhrot",
+  "precommitHead": "d8ebd3033d5202c4e413944a4aa13754286847fa",
+  "goal": "active",
+  "productAccepted": false,
+  "delivery": "Local source only; not pushed, built as native app, installed or deployed",
+  "ownedChanges": [
+    ".gitattributes",
+    "docs/HELM.md",
+    "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-closeout-node24-plugins.log",
+    "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-closeout-node24-work.log",
+    "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-command.log",
+    "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-node24.log",
+    "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-preflight.log",
+    "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-review.log",
+    "docs/research/helm-enterprise-2026-09-10/audit/orca-packaging-review-v1.md",
+    "docs/research/helm-enterprise-2026-09-10/audit/orca-packaging-v1.md",
+    "package.json",
+    "script/build_and_run.sh",
+    "scripts/package-helm-orca-review.test.mjs",
+    "scripts/package-helm-orca.mjs",
+    "scripts/package-helm-orca.test.mjs",
+    "src-tauri/tauri.conf.json"
+  ],
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 436,
+      "sha256": "9af4d2b9ec364453d6b2c5acc95387d20fdbb097ea1c551d1bc940e515e8cfa7"
+    },
+    {
+      "path": "docs/HELM.md",
+      "bytes": 13012,
+      "sha256": "ead0b3ba59568767613fa908f63b10559034a47c8901305cedda33b359841af0"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-closeout-node24-plugins.log",
+      "bytes": 246,
+      "sha256": "d9a8a1a30a3ba5b8bb34659079f7489c645094a8726741de2a2ea8172d72946c"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-closeout-node24-work.log",
+      "bytes": 250,
+      "sha256": "5b6ed7dff4b372fb254d717d4b66f8d0ff5499c831ffa9207183ed21f9c5c484"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-command.log",
+      "bytes": 2656,
+      "sha256": "f2de487b18de905ee0aa26f8dd68326ca976e652cc0f92a0562b00696bfce22b"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-node24.log",
+      "bytes": 1079,
+      "sha256": "d729cbf5922572a17d3f2066b44757d4d92fa82fb66adfece4d1da4d17468fd8"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-preflight.log",
+      "bytes": 1032,
+      "sha256": "7b0f68d3cc766a2855ad9de9e59d9e2df5170671b7473bbf6f66c3eea475b938"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-review.log",
+      "bytes": 2509,
+      "sha256": "e02642c21da09681a0f56b5e637404490d3b485a54eef6500759cc15d0d09218"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/orca-packaging-review-v1.md",
+      "bytes": 3071,
+      "sha256": "07792209d003036480daaa7cd8e75984b1478af9806141886f77a77fd4bbb6c4"
+    },
+    {
+      "path": "docs/research/helm-enterprise-2026-09-10/audit/orca-packaging-v1.md",
+      "bytes": 3556,
+      "sha256": "d36c865cc67f1e8742858495868ed6af7b246f19f748258022063aa2a4a1766d"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 580191,
+      "sha256": "ce16640b9178d78f16948593f0ff6df3b15514772dc1be336cabff28296b3b9f"
+    },
+    {
+      "path": "package.json",
+      "bytes": 11077,
+      "sha256": "d3a635b99cd5fe7da461edbc162d2ff1192cdec4d5260020d0d5f3108732c21c"
+    },
+    {
+      "path": "script/build_and_run.sh",
+      "bytes": 7014,
+      "sha256": "1fd474dad6bfbf7361143edc199882e0420eadded8cc3de305748aa6455117df"
+    },
+    {
+      "path": "scripts/build-helm-orca.mjs",
+      "bytes": 3798,
+      "sha256": "2aa3bd8fa4c26058bb7233750256cab13f35df90e7eb31744892ba2e0ba2ef45"
+    },
+    {
+      "path": "scripts/check-plugins.mjs",
+      "bytes": 1536,
+      "sha256": "ba960d0e9a4f98706fd6b3a0e623b471b2624616b40599c37c119c4308c64e79"
+    },
+    {
+      "path": "scripts/check-work-offline.mjs",
+      "bytes": 1997,
+      "sha256": "bb828f4c33811af7c89295960fe5b3e7d08dcad6b131614860cf82f1f55019cf"
+    },
+    {
+      "path": "scripts/package-helm-orca-review.test.mjs",
+      "bytes": 3486,
+      "sha256": "15680079c50d015b6b86bcb5700135cc1bec9f3b92d63956385b219af6add846"
+    },
+    {
+      "path": "scripts/package-helm-orca.mjs",
+      "bytes": 4479,
+      "sha256": "3007cff437e8ff5193acb2e285444f32b1d6af7324c7bd80fec10575c57a8813"
+    },
+    {
+      "path": "scripts/package-helm-orca.test.mjs",
+      "bytes": 2932,
+      "sha256": "6a3b838627e325b411a789cc778a0b5e1fd0a87d6db54f00bb473e7d0b982244"
+    },
+    {
+      "path": "src-tauri/tauri.conf.json",
+      "bytes": 1857,
+      "sha256": "fd81f1ef5e82815e47501328d22c60c98ab17ffeae16c6bc2d7a6c319dc15440"
+    },
+    {
+      "path": "src/desktop/core/helm-orca-errors.ts",
+      "bytes": 186,
+      "sha256": "49863ced7aaff946b73dd3d607a40bb00591da3a5bdae12f859670838bdee811"
+    },
+    {
+      "path": "src/desktop/core/helm-orca-runtime.ts",
+      "bytes": 9015,
+      "sha256": "e3a57050aa39e8ce82893eb55bfa66a7db8bfa684b3f0b2b450e88cd2aee6812"
+    },
+    {
+      "path": "src/desktop/core/helm-orca-transport.ts",
+      "bytes": 2488,
+      "sha256": "fbaeafaafc9e502d4fad3c31809ba0dc1ae0f04c6edc9e9b856a2896dbbc56f9"
+    },
+    {
+      "path": "third_party/helm-opencode.json",
+      "bytes": 261,
+      "sha256": "629b8457c451fc8e293e4d5a3cbc61bf02ad28440f43dd50d087b03a261a5538"
+    },
+    {
+      "path": "third_party/helm-orca.json",
+      "bytes": 562,
+      "sha256": "2241ee126943d01a90be3783991295b1e3f1efc038de7da312ccd1c112da7eec"
+    }
+  ],
+  "commands": [
+    {
+      "command": "node --import ./node_modules/tsx/dist/loader.mjs --test scripts/package-helm-orca.test.mjs scripts/package-helm-orca-review.test.mjs",
+      "node": "22.22.2",
+      "exitCode": 0,
+      "tests": 13,
+      "log": {
+        "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-review.log",
+        "bytes": 2509,
+        "sha256": "e02642c21da09681a0f56b5e637404490d3b485a54eef6500759cc15d0d09218"
+      }
+    },
+    {
+      "command": "/Users/preston/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node --import ./node_modules/tsx/dist/loader.mjs --test scripts/package-helm-orca.test.mjs scripts/package-helm-orca-review.test.mjs",
+      "node": "24.19.0",
+      "exitCode": 0,
+      "tests": 13,
+      "log": {
+        "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-node24.log",
+        "bytes": 1079,
+        "sha256": "d729cbf5922572a17d3f2066b44757d4d92fa82fb66adfece4d1da4d17468fd8"
+      }
+    },
+    {
+      "command": "npm run test:helm:orca:package",
+      "node": "22.22.2",
+      "exitCode": 0,
+      "tests": 13,
+      "log": {
+        "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-command.log",
+        "bytes": 2656,
+        "sha256": "f2de487b18de905ee0aa26f8dd68326ca976e652cc0f92a0562b00696bfce22b"
+      }
+    },
+    {
+      "command": "/Users/preston/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/check-work-offline.mjs",
+      "node": "24.19.0",
+      "exitCode": 0,
+      "tests": 391,
+      "log": {
+        "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-closeout-node24-work.log",
+        "bytes": 250,
+        "sha256": "5b6ed7dff4b372fb254d717d4b66f8d0ff5499c831ffa9207183ed21f9c5c484"
+      }
+    },
+    {
+      "command": "/Users/preston/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/check-plugins.mjs",
+      "node": "24.19.0",
+      "exitCode": 0,
+      "tests": 303,
+      "log": {
+        "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-closeout-node24-plugins.log",
+        "bytes": 246,
+        "sha256": "d9a8a1a30a3ba5b8bb34659079f7489c645094a8726741de2a2ea8172d72946c"
+      }
+    },
+    {
+      "command": "HELM_ORCA_SOURCE=/Users/preston/Documents/Codex/2026-09-06/orca-reference node scripts/build-helm-orca.mjs --check",
+      "exitCode": 1,
+      "reason": "Pinned Orca dependencies absent; stopped at esbuild manifest",
+      "log": {
+        "path": "docs/research/helm-enterprise-2026-09-10/audit/evidence/orca-packaging-v1/hades-orca-package-preflight.log",
+        "bytes": 1032,
+        "sha256": "7b0f68d3cc766a2855ad9de9e59d9e2df5170671b7473bbf6f66c3eea475b938"
+      }
+    },
+    {
+      "command": "bash -n script/build_and_run.sh && bash -n script/package_mac.sh",
+      "exitCode": 0
+    }
+  ],
+  "distinctSourceCases": 696,
+  "counting": "391 Work + 303 Plugins - 11 shared routing + 13 packaging. Repeated runtime/entrypoint runs are not extra coverage.",
+  "priorRuntimeReceipt": {
+    "path": "docs/research/helm-enterprise-2026-09-10/audit/orca-replacement-v1-receipt.json",
+    "bytes": 38313,
+    "sha256": "74e33582949ca0addccb4dcf337d18806b85d9c7da8fd10c744da84865d84f98"
+  },
+  "priorReceiptScope": "Historical source checkpoint; current changed files are bound above.",
+  "review": {
+    "path": "docs/research/helm-enterprise-2026-09-10/audit/orca-packaging-review-v1.md",
+    "bytes": 3071,
+    "sha256": "07792209d003036480daaa7cd8e75984b1478af9806141886f77a77fd4bbb6c4"
+  },
+  "limitations": [
+    "Actual Orca dependencies and Bun1.3.14 remain absent; existing Helm artifacts have old/incomplete provenance.",
+    "Bundled Node24.19.0 is available and passes these source gates; native ABI/load/provider execution remains unverified.",
+    "Inert native fixtures validate inventory and layout only.",
+    "Staging replacement is not crash-atomic; interrupted backups require inspection.",
+    "Final signed Tauri resource verification is still required.",
+    "No native control, listener, deployment, account OAuth journey or real long-running provider comparison was performed.",
+    "No user files or installed apps were deleted."
+  ]
+}
