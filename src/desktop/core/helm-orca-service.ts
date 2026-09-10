@@ -84,6 +84,7 @@ export interface HelmOrcaRecord extends HelmOrcaScope {
   error?: string;
   receipt?: unknown;
   usageSessionId?: string;
+  usageCursor?: string;
   usageConflict?: boolean;
   usageStatus?: {
     state:
@@ -94,6 +95,7 @@ export interface HelmOrcaRecord extends HelmOrcaScope {
       | "available";
     reason?: string;
     truncated?: boolean;
+    pagination?: "cursor" | "unsupported";
   };
 }
 const coordinatorQueues = new Map<string, Promise<void>>();
@@ -529,7 +531,20 @@ export class HelmOrcaService {
     });
   }
   status(s: HelmOrcaScope, id: string) {
-    return this.operation(() => this.statusOwned(s, id));
+    return this.operation(async () => {
+      let priorCursor = this.get(s, id).usageCursor;
+      for (let page = 0; ; page++) {
+        const record = await this.statusOwned(s, id);
+        if (
+          page >= 4 ||
+          record.usageStatus?.pagination !== "cursor" ||
+          record.usageStatus.truncated !== true ||
+          record.usageCursor === priorCursor
+        )
+          return record;
+        priorCursor = record.usageCursor;
+      }
+    });
   }
   private async statusOwned(s: HelmOrcaScope, id: string) {
     const r = this.get(s, id);
@@ -537,6 +552,7 @@ export class HelmOrcaService {
     const c = await this.connection(r, new AbortController().signal),
       result = await c.call("orchestration.workerShow", {
         dispatch: r.dispatchId,
+        usageCursor: r.usageCursor ?? null,
       });
     if (this.get(s, id).replacementSeal) return this.get(s, id);
     if (result?.dispatch?.id !== r.dispatchId)
@@ -584,15 +600,22 @@ export class HelmOrcaService {
       usage = { state: "mismatch", reason: "worker_authority_unproven" };
     r.usageStatus =
       usage.state === "available"
-        ? { state: usage.state, truncated: usage.truncated }
+        ? {
+            state: usage.state,
+            truncated: usage.truncated,
+            pagination: usage.version === 2 ? "cursor" : "unsupported",
+          }
         : {
             state: usage.state,
             ...("reason" in usage ? { reason: usage.reason } : {}),
           };
     if (usage.state === "available") {
       r.usageSessionId = sessionId;
+      if (usage.version === 2) r.usageCursor = usage.nextCursor;
       r.usageConflict = r.usageConflict === true || usage.conflict;
     }
+    if (usage.state === "unavailable" && usage.reason === "cursor_invalidated")
+      r.usageCursor = undefined;
     if (
       matchingWorker &&
       result.observation?.exactWorker === true &&

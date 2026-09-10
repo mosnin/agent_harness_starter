@@ -72,7 +72,7 @@ async function fixture(agent: "claude" | "codex" = "claude") {
   const scope = { root, profile: "profile" },
     directory = join(root, "state");
   const call = vi.fn(
-    async (method: string): Promise<any> =>
+    async (method: string, _params: unknown): Promise<any> =>
       method === "orchestration.runCreate"
         ? { run: { id: "run" } }
         : { state: "ready", dispatchId: "dispatch" },
@@ -214,9 +214,20 @@ it("rolls back evidence when a concurrent status wins the intent revision", asyn
   );
   const stale = f.service.status(f.scope, f.record.id);
   await waiting;
-  await f.poll(f.response(page(2, "accepted")));
-  reply(f.response(page(5, "stale")));
+  await f.poll(
+    f.response({
+      ...page(2, "accepted"),
+      version: 2,
+      nextCursor: "accepted_cursor",
+    }),
+  );
+  reply(
+    f.response({ ...page(5, "stale"), version: 2, nextCursor: "stale_cursor" }),
+  );
   await expect(stale).rejects.toThrow("revision changed");
+  expect(f.service.get(f.scope, f.record.id).usageCursor).toBe(
+    "accepted_cursor",
+  );
   const retained = f.service.usage(f.scope, f.record.id) as any;
   expect(retained.observations.map((r: any) => r.observation.eventId)).toEqual([
     "accepted",
@@ -263,4 +274,79 @@ it("rejects evidence for a different provider or execution host", async () => {
   expect(local.service.usage(local.scope, local.record.id)).toMatchObject({
     state: "mismatch",
   });
+});
+
+it("drains bounded cursor pages and resumes from the committed watermark after reopen", async () => {
+  const f = await fixture();
+  const requested: unknown[] = [];
+  f.call.mockImplementation(async (_method, params: any) => {
+    requested.push(params.usageCursor);
+    const n =
+      params.usageCursor === null ? 0 : Number(params.usageCursor.slice(1));
+    return f.response({
+      ...page(2, `page-${n}`),
+      version: 2,
+      nextCursor: `c${n + 1}`,
+      truncated: n < 5,
+    });
+  });
+  const partial = await f.service.status(f.scope, f.record.id);
+  expect(requested).toEqual([null, "c1", "c2", "c3", "c4"]);
+  expect(partial.usageCursor).toBe("c5");
+  expect(partial.usageStatus).toMatchObject({
+    truncated: true,
+    pagination: "cursor",
+  });
+  await f.service.close();
+  const next = new HelmOrcaService(f.directory, f.options);
+  services.push(next);
+  const caughtUp = await next.status(f.scope, f.record.id);
+  expect(requested.at(-1)).toBe("c5");
+  expect(caughtUp.usageCursor).toBe("c6");
+  expect((next.usage(f.scope, f.record.id) as any).observations).toHaveLength(
+    6,
+  );
+});
+it("stops on repeated cursors and never invents pagination for legacy reports", async () => {
+  const f = await fixture();
+  await f.poll(
+    f.response({ ...page(), version: 2, nextCursor: "same", truncated: true }),
+  );
+  expect(
+    f.call.mock.calls.filter(([m]) => m === "orchestration.workerShow"),
+  ).toHaveLength(2);
+  await f.poll(f.response({ ...page(), truncated: true }));
+  expect(
+    f.call.mock.calls.filter(([m]) => m === "orchestration.workerShow"),
+  ).toHaveLength(3);
+  expect(f.service.get(f.scope, f.record.id).usageStatus?.pagination).toBe(
+    "unsupported",
+  );
+});
+it("retains cursor on transport uncertainty but resets it on proven stream replacement", async () => {
+  const f = await fixture();
+  await f.poll(f.response({ ...page(), version: 2, nextCursor: "old" }));
+  await f.poll(
+    f.response({
+      version: 2,
+      dispatchId: "dispatch",
+      aggregation: "unknown",
+      state: "unavailable",
+      reason: "journal_unavailable",
+    }),
+  );
+  expect(f.service.get(f.scope, f.record.id).usageCursor).toBe("old");
+  await f.poll(
+    f.response({
+      version: 2,
+      dispatchId: "dispatch",
+      aggregation: "unknown",
+      state: "unavailable",
+      reason: "cursor_invalidated",
+    }),
+  );
+  expect(f.service.get(f.scope, f.record.id).usageCursor).toBeUndefined();
+  expect(
+    (f.service.usage(f.scope, f.record.id) as any).observations,
+  ).toHaveLength(1);
 });
