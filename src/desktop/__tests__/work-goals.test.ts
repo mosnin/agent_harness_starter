@@ -204,3 +204,14 @@ it("ignores a late create failure after switching project", async () => {
   expect(host.textContent).not.toContain("Old private error");
   click("new"); expect(host.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false);
 });
+
+it("saves explicit Orca selection without starting a provider and discloses review limits", async () => {
+  click("new"); fill('[name="objective"]', "Build a fixture");
+  fill('[name="title"][data-task="task1"]', "Build"); fill('[name="prompt"][data-task="task1"]', "Build output");
+  expect((host.querySelector('[name="engineChoice"]') as HTMLSelectElement).value).toBe("hades");
+  fill('[name="engineChoice"]', "codex");
+  expect(host.textContent).toContain("Provider token usage is unmeasured");
+  host.querySelector("form")!.dispatchEvent(new Event("submit", {cancelable:true})); await settle();
+  expect(rpc.mock.calls.find(c=>c[0]==="work.create")![1].tasks[0].engine).toEqual({kind:"orca",agent:"codex"});
+  expect(rpc.mock.calls.some(c=>c[0]==="work.run"||c[0]==="helm.orca.start")).toBe(false);
+});

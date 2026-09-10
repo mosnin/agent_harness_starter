@@ -1,0 +1,23 @@
+Review dependency: vitest@4.1.5
+Review dependency: @electric-sql/pglite@0.4.1
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo
+
+ ❯ packages/core/src/node/hades-messages-independent.review.mjs (8 tests | 1 failed) 4067ms
+   × independent oversized peer source intent cannot inflate the SQL source projection 458ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/core/src/node/hades-messages-independent.review.mjs > independent oversized peer source intent cannot inflate the SQL source projection
+AssertionError: expected 300434 to be less than 262144
+ ❯ packages/core/src/node/hades-messages-independent.review.mjs:81:52
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  05:50:55
+   Duration  4.17s (transform 31ms, setup 0ms, import 46ms, tests 4.07s, environment 0ms)
+

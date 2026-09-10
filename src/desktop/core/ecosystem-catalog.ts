@@ -4,6 +4,7 @@ import type {
   PluginCapabilities,
   PluginRecord,
   PluginRequest,
+  PluginWrite,
 } from "./ecosystem-types";
 
 function object(value: unknown): Record<string, any> {
@@ -15,6 +16,56 @@ function value(v: unknown, max = 512): string {
   if (typeof v !== "string" || !v || v.length > max)
     throw new Error("Incomplete connected-service response");
   return v;
+}
+/** A successful HTTP response alone is not acknowledgement of this mutation. */
+function recordWriteReceipt(
+  input: unknown,
+  write: PluginWrite,
+  options: { key?: boolean; digestRevision?: boolean } = {},
+) {
+  const result = object(input),
+    record = object(result.record);
+  if (
+    result.status !== "applied" ||
+    Object.hasOwn(result, "error") ||
+    record.id !== write.id ||
+    record.collection !== write.collection ||
+    (options.key && result.key !== write.key)
+  )
+    throw new Error("The service did not acknowledge this exact record update");
+  value(record.title, 500);
+  value(record.revision, 512);
+  object(record.data);
+  if (
+    !(options.digestRevision ? /^[a-f0-9]{64}$/ : /^[1-9][0-9]*$/).test(
+      record.revision,
+    ) ||
+    (record.updatedAt !== undefined && !Number.isFinite(record.updatedAt))
+  )
+    throw new Error("The service returned an invalid updated record");
+  return result;
+}
+function projectionWriteReceipt(
+  input: unknown,
+  write: PluginWrite,
+  document = false,
+) {
+  const result = object(input);
+  if (
+    Object.hasOwn(result, "error") ||
+    Object.hasOwn(result, "status") ||
+    result.id !== write.id ||
+    typeof result.version !== "string" ||
+    typeof result.replayed !== "boolean" ||
+    !(document ? /^[1-9][0-9]*$/ : /^[a-f0-9]{64}$/).test(result.version) ||
+    (document &&
+      (typeof result.contentHash !== "string" ||
+        !/^[a-f0-9]{64}$/.test(result.contentHash)))
+  )
+    throw new Error(
+      "The service did not acknowledge this exact versioned update",
+    );
+  return result;
 }
 /** Endpoint identities and response shapes are source-reviewed; availability is not a production assertion. */
 function projection(input: unknown): PluginRecord {
@@ -129,11 +180,15 @@ function nativeAdapter(
         (input.operation === "rename" && typeof input.data.name !== "string")
       )
         throw new Error("Choose a supported operation and its allowed fields");
-      return request(new URL("/api/hades/records", origin).href, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
+      return recordWriteReceipt(
+        await request(new URL("/api/hades/records", origin).href, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        }),
+        input,
+        { key: true },
+      );
     },
     ...(capabilities.detail === "service"
       ? {
@@ -175,9 +230,60 @@ function nativeOAuth(
     allowedOrigins: [origin],
   };
 }
+const SCALAR_COLLECTIONS = [
+  "contacts",
+  "companies",
+  "activities",
+  "pipelines",
+  "pipelineEntries",
+] as const;
+const SCALAR_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SCALAR_CAPABILITIES: PluginCapabilities = {
+  reads: [...SCALAR_COLLECTIONS],
+  detail: "service",
+  writes: [
+    {
+      collection: "contacts",
+      operation: "update",
+      fields: ["name", "company", "title", "location", "notes", "tags"],
+      requiredScopes: ["crm:read", "crm:write"],
+      keyFormat: "uuid",
+      description:
+        "Edit contact descriptions, notes and tags with a revision check.",
+    },
+    {
+      collection: "companies",
+      operation: "update",
+      fields: [
+        "name",
+        "industry",
+        "location",
+        "description",
+        "size",
+        "notes",
+        "tags",
+      ],
+      requiredScopes: ["crm:read", "crm:write"],
+      keyFormat: "uuid",
+      description:
+        "Edit company descriptions, notes and tags with a revision check.",
+    },
+    {
+      collection: "pipelineEntries",
+      operation: "update",
+      fields: ["stage", "dealScore", "conversationStatus"],
+      requiredScopes: ["crm:read", "crm:write"],
+      keyFormat: "uuid",
+      description:
+        "Update a pipeline entry’s stage, deal score or conversation state. Also updates its last activity time.",
+    },
+  ],
+};
 const CADRE_CAPABILITIES: PluginCapabilities = {
-  reads: ["bots", "tasks", "spaces"],
-  detail: "snapshot",
+  reads: ["bots", "tasks", "spaces", "messages"],
+  readScopes: { messages: ["messages:read"] },
+  detail: "service",
   writes: [
     {
       collection: "bots",
@@ -360,17 +466,21 @@ export const ECOSYSTEM_PLUGINS: readonly PluginDefinition[] = [
           throw new Error(
             "Use the supported memory update operation with content",
           );
-        return request("https://stored.to/api/v1/oauth/memories", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            key: input.key,
-            id: input.id,
-            operation: "update",
-            expectedRevision: input.expectedRevision,
-            data: input.data,
+        return recordWriteReceipt(
+          await request("https://stored.to/api/v1/oauth/memories", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              key: input.key,
+              id: input.id,
+              operation: "update",
+              expectedRevision: input.expectedRevision,
+              data: input.data,
+            }),
           }),
-        });
+          input,
+          { digestRevision: true },
+        );
       },
     },
   },
@@ -453,17 +563,20 @@ export const ECOSYSTEM_PLUGINS: readonly PluginDefinition[] = [
           throw new Error(
             "Use the supported task.update operation with title and description",
           );
-        return request("https://www.operate.to/api/companyos/v1/write", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...input.data,
-            operation: "task.update",
-            id: input.id,
-            expectedVersion: input.expectedRevision,
-            idempotencyKey: input.key,
+        return projectionWriteReceipt(
+          await request("https://www.operate.to/api/companyos/v1/write", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...input.data,
+              operation: "task.update",
+              id: input.id,
+              expectedVersion: input.expectedRevision,
+              idempotencyKey: input.key,
+            }),
           }),
-        });
+          input,
+        );
       },
     },
   },
@@ -472,20 +585,7 @@ export const ECOSYSTEM_PLUGINS: readonly PluginDefinition[] = [
     name: "Scalar",
     origin: "https://tryscalar.xyz",
     description: "Contacts, relationships and revenue workflows.",
-    capabilities: {
-      reads: ["contacts"],
-      detail: "snapshot",
-      writes: [
-        {
-          collection: "contacts",
-          operation: "update",
-          fields: ["name", "notes"],
-          description:
-            "Update contact name or notes. Other contact fields are not exposed by this connector.",
-          keyFormat: "uuid",
-        },
-      ],
-    },
+    capabilities: SCALAR_CAPABILITIES,
     oauth: {
       issuer: "https://tryscalar.xyz",
       authorizationEndpoint: "https://tryscalar.xyz/oauth/authorize",
@@ -509,37 +609,88 @@ export const ECOSYSTEM_PLUGINS: readonly PluginDefinition[] = [
         };
       },
       async snapshot(request, _account, page) {
-        const url = new URL("https://tryscalar.xyz/api/oauth/contacts");
-        if (page) url.searchParams.set("page", page);
+        // This is our collection iterator, not a provider change checkpoint.
+        // Every refresh reads all five collections before replacing the cache.
+        let index = 0,
+          after: string | undefined;
+        if (page !== undefined) {
+          const match = /^scalar-crm-v2:([0-4]):(.*)$/.exec(page);
+          if (!match || (match[2] && !SCALAR_UUID.test(match[2])))
+            throw new Error("Invalid Scalar collection continuation");
+          index = Number(match[1]);
+          after = match[2] || undefined;
+        }
+        const collection = SCALAR_COLLECTIONS[index];
+        const url = new URL("https://tryscalar.xyz/api/oauth/records");
+        url.searchParams.set("collection", collection);
+        if (after) url.searchParams.set("page", after);
         const v = object(await request(url.href));
-        if (!Array.isArray(v.records))
-          throw new Error("Invalid Scalar contact response");
-        return {
-          records: v.records as PluginRecord[],
-          ...(typeof v.nextPage === "string" ? { nextPage: v.nextPage } : {}),
-        };
-      },
-      async write(request, _account, input) {
-        if (input.collection !== "contacts" || input.operation !== "update")
-          throw new Error("Choose the supported contacts update operation");
         if (
-          !/^[a-f0-9-]{36}$/.test(input.key) ||
-          Object.keys(input.data).some(
-            (key) => !["name", "notes"].includes(key),
+          !Array.isArray(v.records) ||
+          v.records.some(
+            (row: unknown) => object(row).collection !== collection,
           )
         )
-          throw new Error("Use a UUID key and supported contact fields");
-        return request("https://tryscalar.xyz/api/oauth/contacts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            key: input.key,
-            id: input.id,
-            expectedRevision: input.expectedRevision,
-            operation: "update",
-            data: input.data,
+          throw new Error("Invalid Scalar collection response");
+        if (v.nextPage !== undefined && !SCALAR_UUID.test(value(v.nextPage)))
+          throw new Error("Invalid Scalar page continuation");
+        const nextPage =
+          v.nextPage !== undefined
+            ? `scalar-crm-v2:${index}:${v.nextPage}`
+            : index + 1 < SCALAR_COLLECTIONS.length
+              ? `scalar-crm-v2:${index + 1}:`
+              : undefined;
+        return {
+          records: v.records as PluginRecord[],
+          ...(nextPage ? { nextPage } : {}),
+        };
+      },
+      async record(request, _account, collection, id) {
+        if (
+          !SCALAR_CAPABILITIES.reads.includes(collection) ||
+          !SCALAR_UUID.test(id)
+        )
+          throw new Error(
+            "Choose a supported Scalar collection and record UUID",
+          );
+        const url = new URL("https://tryscalar.xyz/api/oauth/records");
+        url.searchParams.set("collection", collection);
+        url.searchParams.set("id", id);
+        return object(await request(url.href)).record as PluginRecord;
+      },
+      async write(request, _account, input) {
+        const supported = SCALAR_CAPABILITIES.writes.find(
+          (write) =>
+            write.collection === input.collection &&
+            write.operation === input.operation,
+        );
+        if (
+          !supported ||
+          !SCALAR_UUID.test(input.key) ||
+          !SCALAR_UUID.test(input.id) ||
+          !/^[a-f0-9]{64}$/.test(input.expectedRevision) ||
+          !Object.keys(input.data).length ||
+          Object.keys(input.data).some((key) => !supported.fields.includes(key))
+        )
+          throw new Error(
+            "Use UUID identities, the current revision and supported Scalar fields",
+          );
+        return recordWriteReceipt(
+          await request("https://tryscalar.xyz/api/oauth/records", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              key: input.key,
+              collection: input.collection,
+              id: input.id,
+              expectedRevision: input.expectedRevision,
+              operation: "update",
+              data: input.data,
+            }),
           }),
-        });
+          input,
+          { digestRevision: true },
+        );
       },
     },
   },
@@ -627,17 +778,21 @@ export const ECOSYSTEM_PLUGINS: readonly PluginDefinition[] = [
           )
         )
           throw new Error("Unsupported document update field");
-        return request("https://www.companyos.sh/api/plugins/v1/write", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...input.data,
-            operation: "document.update",
-            id: input.id,
-            expectedVersion: input.expectedRevision,
-            idempotencyKey: input.key,
+        return projectionWriteReceipt(
+          await request("https://www.companyos.sh/api/plugins/v1/write", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...input.data,
+              operation: "document.update",
+              id: input.id,
+              expectedVersion: input.expectedRevision,
+              idempotencyKey: input.key,
+            }),
           }),
-        });
+          input,
+          true,
+        );
       },
     },
   },
@@ -656,6 +811,7 @@ export const ECOSYSTEM_PLUGINS: readonly PluginDefinition[] = [
         "bots:write",
         "bots:content:write",
         "bots:instructions:read",
+        "messages:read",
       ],
       ["bots:write", "bots:content:write"],
       ["bots:read", "tasks:read", "spaces:read"],

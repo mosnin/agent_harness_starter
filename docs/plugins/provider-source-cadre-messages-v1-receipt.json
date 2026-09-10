@@ -1,0 +1,531 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-10T10:03:43.775663+00:00",
+  "provider": "cadre",
+  "slice": "messages-read-v1",
+  "integrationPhase": "v3",
+  "status": "local_source_candidate_frozen",
+  "author": "reference_review",
+  "implementationFrozen": true,
+  "root": "/Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo",
+  "branchAtReceipt": "codex/hades-plugins-messages",
+  "baselineHead": "b3cdf808e8c975f2b81627eb78a1866e8198bf58",
+  "currentHeadAtReceipt": "81188b66656053de979010218044445f7856bc07",
+  "authoredChangesCommittedAtReceipt": true,
+  "implementation": [
+    {
+      "path": "packages/core/src/node/hades-messages.ts",
+      "sha256": "da91a1d32a255de9674eba3a446af96f5a8e709992cbd25ac3c7e1b59c213b74",
+      "bytes": 7983,
+      "role": "messages_v1_implementation"
+    },
+    {
+      "path": "packages/db/prisma/migrations/20260910010000_hades_messages/migration.sql",
+      "sha256": "0a84aa0cec8343250dfbcbbb58874b3eda14ee706b27a6dd0528c5e2ad5dbcb7",
+      "bytes": 13637,
+      "role": "messages_v1_implementation"
+    },
+    {
+      "path": "packages/core/src/node/hades-oauth.ts",
+      "sha256": "5b22d3137104189838c14477db33881cd9550c63a1c34eed52e1d83d1c0c7096",
+      "bytes": 16529,
+      "role": "messages_v1_implementation"
+    },
+    {
+      "path": "apps/api/src/hades-oauth.ts",
+      "sha256": "caace5ba22341e8813f744410d90190f0c766d2587ed439414795ead795aad78",
+      "bytes": 3952,
+      "role": "messages_v1_implementation"
+    }
+  ],
+  "implementationDigestAlgorithm": "SHA256 of sorted relative path + NUL + file SHA256 + LF",
+  "implementationDigest": "657c63d6fe1ff893456651cd2867e6607f4856509623d55e69ee8870a8bb8d11",
+  "unchangedPriorMigration": {
+    "path": "packages/db/prisma/migrations/20260910000000_hades_oauth/migration.sql",
+    "sha256": "148f07dbb2bd776fbb46b110d47e429fa10e58801614f44fe9689cb1c3d4e587",
+    "bytes": 15424,
+    "role": "retained_v2_migration_unmodified_by_messages_lane"
+  },
+  "sourceContext": [
+    {
+      "path": "packages/core/src/message-visibility.ts",
+      "sha256": "774d8ebcab5b39aeaa895fcb839ef4d640b7596c68fc53188aa42cd3bca67aa5",
+      "bytes": 3167,
+      "role": "read_context_not_owned_business_edits"
+    },
+    {
+      "path": "packages/db/prisma/schema.prisma",
+      "sha256": "1c92b95a6ef9d66cf2cdf5ff65ea07a9dfc2479d1fcf01b2f8ba3926f82262ca",
+      "bytes": 42668,
+      "role": "read_context_not_owned_business_edits"
+    },
+    {
+      "path": "packages/contracts/src/events.ts",
+      "sha256": "e8236b7db6f73aff1426ecee86b0977cc6455666432f5a4911606cab0338fdd8",
+      "bytes": 8380,
+      "role": "read_context_not_owned_business_edits"
+    },
+    {
+      "path": "apps/api/src/thread-message-pages.ts",
+      "sha256": "0ad958108652577926f990b4e4b966b7a81dc9536332040fd32c02fe95d5f894",
+      "bytes": 5724,
+      "role": "read_context_not_owned_business_edits"
+    },
+    {
+      "path": "apps/api/src/thread-target.ts",
+      "sha256": "e087b4d468c83fc5fe13c08f05c259b0aff9e350518868bab40e05aecb4b53a0",
+      "bytes": 32449,
+      "role": "read_context_not_owned_business_edits"
+    },
+    {
+      "path": "packages/db/src/repos.ts",
+      "sha256": "94c254f4f1dd5aafe6035a5b5636897f5f8ae558082675c1222a082fcffc555f",
+      "bytes": 16398,
+      "role": "read_context_not_owned_business_edits"
+    },
+    {
+      "path": "packages/db/src/groups.ts",
+      "sha256": "fa8515e1939417f91aa8f4cf7322c813ba95a627aebf037bd7915474730ac137",
+      "bytes": 16268,
+      "role": "read_context_not_owned_business_edits"
+    },
+    {
+      "path": "apps/api/src/app.ts",
+      "sha256": "d7579a340728675edfea1a117ba202ca48232e8b056a5a0ca2bc14429db1c2b4",
+      "bytes": 22036,
+      "role": "read_context_not_owned_business_edits"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "79de1c8cd6f27d85fa1ac9b79c1a65bf316d8b2e69629401ff56439a97635640",
+      "bytes": 4958,
+      "role": "read_context_not_owned_business_edits"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
+      "bytes": 11,
+      "role": "read_context_not_owned_business_edits"
+    }
+  ],
+  "testsAndRunners": [
+    {
+      "path": "packages/core/src/node/hades-messages.review.mjs",
+      "sha256": "e6a06189eab4a1be0a848bf1fee44d45e625f2883250da8b8ef85a569138d06a",
+      "bytes": 18236,
+      "role": "author_16_cases"
+    },
+    {
+      "path": "scripts/run-hades-messages-review.mjs",
+      "sha256": "8762eace1f68a23d08d431b63cf44ea89612a8ca5fad1101f563e1bcb0ef5420",
+      "bytes": 3041,
+      "role": "author_explicit_runner_56_cases"
+    },
+    {
+      "path": "packages/core/src/node/hades-messages-independent.review.mjs",
+      "sha256": "ee83c8c631672ed2a5c81ebac0b985d6c5ed414b7608a1f66508b3aea737ea42",
+      "bytes": 11025,
+      "role": "independent_9_cases_not_edited_by_author"
+    },
+    {
+      "path": "scripts/run-hades-messages-independent-review.mjs",
+      "sha256": "4b12f890abe56c7c433a1da786081047ef6615f20e24ac97fd77698f0347ed0e",
+      "bytes": 2853,
+      "role": "independent_explicit_runner_not_edited_by_author"
+    },
+    {
+      "path": "packages/core/src/message-visibility.test.ts",
+      "sha256": "637570e3b11e22ad445041459ce52e2300b470b179254381184947ef622145ab",
+      "bytes": 4806,
+      "role": "retained_11_shared_visibility_cases"
+    },
+    {
+      "path": "packages/core/src/node/hades-oauth-v2-independent.review.mjs",
+      "sha256": "9c79e9daaa9f56ccff2749742fa504b7d140d357a573c51110fe98b75734dc58",
+      "bytes": 5872,
+      "role": "retained_provider_cases"
+    },
+    {
+      "path": "packages/core/src/node/hades-oauth-independent.review.mjs",
+      "sha256": "9249e38655673a71ee9cc34427ab0da3884f00b4ea2777a526d6196232d65c72",
+      "bytes": 14442,
+      "role": "retained_provider_cases"
+    },
+    {
+      "path": "apps/api/src/hades-oauth.test.ts",
+      "sha256": "1275359ed4c503c92cdcec4552e1651d2eac8e22ce2c4196a1dfedfd1469b2b0",
+      "bytes": 4527,
+      "role": "retained_provider_http_cases"
+    }
+  ],
+  "authorContract": {
+    "path": "scripts/HADES_MESSAGES.md",
+    "sha256": "a7880e91931a918c56cb0f62f86d0432a42c34f15018c60a111bcd23e9b2f086",
+    "bytes": 9245,
+    "role": "author_contract_and_receipt"
+  },
+  "independentReview": {
+    "path": "docs/reports/HADES_MESSAGES_INDEPENDENT_REVIEW.md",
+    "sha256": "5b67747cc9ef0027ec500df4a594ae6a4bc3ecd21e7e4c739bdcf4c8ffb9f0c0",
+    "bytes": 5531,
+    "role": "independent_final_acceptance_report_not_edited_by_author"
+  },
+  "retainedEvidence": [
+    {
+      "path": "docs/plugins/evidence/cadre-messages-page-red.log",
+      "sha256": "40044cf2de25b12712878473fbbe0c8ac5aecc7f8204cd50a7fa6216dc942df1",
+      "bytes": 2818,
+      "role": "author_red_2_failed_52_passed",
+      "originalPath": "/tmp/cadre-hades-messages-page-red.log"
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-page-green.log",
+      "sha256": "e109a1a0b5e3a77a2da9fbf48ebd295e137a62e2530cdba2bec9cac5c3988113",
+      "bytes": 326,
+      "role": "author_intermediate_green_54_passed",
+      "originalPath": "/tmp/cadre-hades-messages-page-green.log"
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-source-red.log",
+      "sha256": "f05527c6422d2a7f10964d67569dde74eb227f7d7171327f67ceb2db85abecc9",
+      "bytes": 1907,
+      "role": "author_red_2_failed_54_passed",
+      "originalPath": "/tmp/cadre-hades-messages-source-red.log"
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-independent-initial-red.log",
+      "sha256": "580ac13b8333f2737a4593fab9b1db124dd880f7545491c2cd039ffe3c470de9",
+      "bytes": 944,
+      "role": "independent_red_1_failed_7_passed",
+      "originalPath": "/tmp/cadre-messages-independent.log"
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-independent-expanded-red.log",
+      "sha256": "ded37c248b53542f2c298557d407e1d798af95f53b88ac46265c28fb9c88e7b2",
+      "bytes": 1922,
+      "role": "independent_red_2_failed_7_passed",
+      "originalPath": "/tmp/cadre-messages-independent-nine.log"
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-independent-final-green.log",
+      "sha256": "d051f53b36d56f43d5889b4a769a3dfc1ed4639bba07f4c7fdb8661db5ea704a",
+      "bytes": 321,
+      "role": "independent_final_green_9_passed",
+      "originalPath": "/tmp/cadre-messages-independent-green.log"
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-author-final.log",
+      "sha256": "4bb911598bcecbc8a6cef21d637a2c40c883a013b92854481e5a8b01267af4ec",
+      "bytes": 326,
+      "role": "author_final_green_56_passed",
+      "originalPath": "/tmp/cadre-hades-messages-final.log"
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-independent-author-rerun.log",
+      "sha256": "7ddc8f15979d3b93e2825668650bc0b51a4629dd4b6c6818a0f6f8a2144a0d80",
+      "bytes": 321,
+      "role": "author_rerun_of_independent_cases_9_passed",
+      "originalPath": "/tmp/cadre-hades-messages-independent-author-rerun.log"
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-core-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "role": "author_core_tsc_exit_0",
+      "originalPath": "/tmp/cadre-hades-messages-core-types-final.log"
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-api-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "role": "author_api_tsc_exit_0",
+      "originalPath": "/tmp/cadre-hades-messages-api-types-final.log"
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-independent-review.md",
+      "sha256": "5b67747cc9ef0027ec500df4a594ae6a4bc3ecd21e7e4c739bdcf4c8ffb9f0c0",
+      "bytes": 5531,
+      "role": "independent_report_copy",
+      "originalPath": "/Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo/docs/reports/HADES_MESSAGES_INDEPENDENT_REVIEW.md"
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-author-contract.md",
+      "sha256": "a7880e91931a918c56cb0f62f86d0432a42c34f15018c60a111bcd23e9b2f086",
+      "bytes": 9245,
+      "role": "author_contract_copy",
+      "originalPath": "/Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo/scripts/HADES_MESSAGES.md"
+    }
+  ],
+  "verification": [
+    {
+      "owner": "author",
+      "command": "HADES_REVIEW_NODE_MODULES=/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules node scripts/run-hades-messages-review.mjs",
+      "exitCode": 0,
+      "filesPassed": 5,
+      "testsPassed": 56,
+      "breakdown": {
+        "newMessageCases": 16,
+        "retainedProviderCases": 29,
+        "sharedVisibilityCases": 11
+      },
+      "durationSeconds": 21.3,
+      "log": "docs/plugins/evidence/cadre-messages-author-final.log"
+    },
+    {
+      "owner": "integration_independent_reviewer",
+      "command": "HADES_REVIEW_NODE_MODULES=/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules node scripts/run-hades-messages-independent-review.mjs",
+      "exitCode": 0,
+      "filesPassed": 1,
+      "testsPassed": 9,
+      "durationSeconds": 4.66,
+      "log": "docs/plugins/evidence/cadre-messages-independent-final-green.log",
+      "acceptanceScope": "bounded source/actual SQL repair and current-authority/visibility/pagination cases; not live/native/full-schema acceptance"
+    },
+    {
+      "owner": "author_rerun_of_unchanged_independent_cases",
+      "command": "HADES_REVIEW_NODE_MODULES=/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules node scripts/run-hades-messages-independent-review.mjs",
+      "exitCode": 0,
+      "filesPassed": 1,
+      "testsPassed": 9,
+      "durationSeconds": 6.38,
+      "log": "docs/plugins/evidence/cadre-messages-independent-author-rerun.log"
+    },
+    {
+      "owner": "author",
+      "command": "./node_modules/.bin/tsc -p packages/core/tsconfig.json --noEmit --incremental false --pretty false",
+      "exitCode": 0,
+      "diagnostics": 0,
+      "log": "docs/plugins/evidence/cadre-messages-core-types-final.log"
+    },
+    {
+      "owner": "author",
+      "command": "./node_modules/.bin/tsc -p apps/api/tsconfig.json --noEmit --incremental false --pretty false",
+      "exitCode": 0,
+      "diagnostics": 0,
+      "log": "docs/plugins/evidence/cadre-messages-api-types-final.log"
+    },
+    {
+      "owner": "author",
+      "command": "git diff --check",
+      "exitCode": 0,
+      "diagnostics": 0
+    }
+  ],
+  "contract": {
+    "newReadScope": "messages:read",
+    "consentLabel": "Read your conversations and task outputs",
+    "newConsentRequired": true,
+    "refreshWidensScopes": false,
+    "clientId": "hades-desktop-cadre",
+    "nativeCallback": "ai.hades.desktop:/oauth/cadre",
+    "configuredIssuer": "https://cadre.to",
+    "collection": "messages",
+    "records": "GET /api/hades/records?collection=messages",
+    "detail": "GET /api/hades/records?collection=messages&id=...",
+    "changes": "GET /api/hades/changes?collection=messages&cursor=...",
+    "recordFilters": [
+      "threadId",
+      "taskId",
+      "runId"
+    ],
+    "filterCombination": "AND; only collection=messages",
+    "idPlusPage": "rejected",
+    "recordOrdering": "collection/id; message seq available for thread chronology",
+    "recordDataRequired": [
+      "threadId",
+      "seq",
+      "role",
+      "text"
+    ],
+    "recordDataOptional": [
+      "botId",
+      "groupId",
+      "runId",
+      "taskId",
+      "runStatus",
+      "runStartedAt",
+      "runCompletedAt",
+      "conversationName"
+    ],
+    "updatedAtMeaning": "actual Message.createdAt in epoch milliseconds, not an edit timestamp",
+    "revisionMeaning": "durable projection revision, including relevant parent changes",
+    "historySemantics": "metadata-only history rehydrates current authorized content or emits safe deletion; not immutable content history",
+    "limits": {
+      "maxConsumedCandidates": 100,
+      "lookaheadCandidates": 101,
+      "maxSerializedPageBytes": 2097152,
+      "pageEnvelopeReserveBytes": 8192,
+      "maxSerializedValueBytes": 524288,
+      "maxTextUtf8Bytes": 64000,
+      "maxSqlSanitizedOwnBlocksBytes": 262144,
+      "maxDistinctSourceCallbackMarkers": 2,
+      "maxDistinctRowReceiptKinds": 2
+    },
+    "pageProgress": "consume hidden rows; preserve the first byte-overflow visible row for next page; empty pages may continue",
+    "singleOversizeBehavior": "explicit record_capacity_exceeded; hidden rows classified first",
+    "newWriteOperations": [],
+    "liveSubscriptionImplemented": false
+  },
+  "repairs": [
+    {
+      "finding": "80 permitted medium messages produced 4,441,127 response bytes; detail accepted continuation page",
+      "resolution": "serialized 2 MiB page budget with consumed-scan cursor; reject id+page",
+      "red": "docs/plugins/evidence/cadre-messages-page-red.log",
+      "green": "docs/plugins/evidence/cadre-messages-page-green.log"
+    },
+    {
+      "finding": "arbitrary source receipt intent caused unbounded SQL sourceBlocks representation",
+      "resolution": "at most two distinct recognized result/status source markers and two row receipt kinds; no raw source content",
+      "independentRed": "docs/plugins/evidence/cadre-messages-independent-initial-red.log",
+      "independentGreen": "docs/plugins/evidence/cadre-messages-independent-final-green.log"
+    },
+    {
+      "finding": "oversized hidden internal peer prose blocked an unrelated permitted public answer",
+      "resolution": "system/internal/receipt visibility before capacity errors",
+      "independentRed": "docs/plugins/evidence/cadre-messages-independent-expanded-red.log",
+      "independentGreen": "docs/plugins/evidence/cadre-messages-independent-final-green.log"
+    }
+  ],
+  "dependencyProvenance": [
+    {
+      "name": "typescript",
+      "version": "5.9.3",
+      "licenseField": "Apache-2.0",
+      "root": "/Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo/node_modules/typescript",
+      "artifacts": [
+        {
+          "path": "package.json",
+          "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+          "bytes": 3620,
+          "role": "existing_dependency_manifest"
+        },
+        {
+          "path": "LICENSE.txt",
+          "sha256": "a7d00bfd54525bc694b6e32f64c7ebcf5e6b7ae3657be5cc12767bce74654a47",
+          "bytes": 9197,
+          "role": "existing_dependency_license"
+        }
+      ],
+      "installedByThisLane": false
+    },
+    {
+      "name": "vitest",
+      "version": "4.1.5",
+      "licenseField": "MIT",
+      "root": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules/vitest",
+      "artifacts": [
+        {
+          "path": "package.json",
+          "sha256": "2003da5a6f67c6b1001c6a5ac04d0f8107ba2b525ff502bb9abd6a9562a02049",
+          "bytes": 5918,
+          "role": "existing_dependency_manifest"
+        },
+        {
+          "path": "LICENSE.md",
+          "sha256": "881d660c26831481b697e39724d4a35c9f86e07b67156d4aeb693a0b39910435",
+          "bytes": 37726,
+          "role": "existing_dependency_license"
+        }
+      ],
+      "installedByThisLane": false
+    },
+    {
+      "name": "@electric-sql/pglite",
+      "version": "0.4.1",
+      "licenseField": "Apache-2.0",
+      "root": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules/@electric-sql/pglite",
+      "artifacts": [
+        {
+          "path": "package.json",
+          "sha256": "8b552f1c106eb608499b8aa76062d1909caa04a59deabeee277c5c3c880d3075",
+          "bytes": 7152,
+          "role": "existing_dependency_manifest"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+          "bytes": 10173,
+          "role": "existing_dependency_license"
+        }
+      ],
+      "installedByThisLane": false
+    }
+  ],
+  "projectProvenance": [
+    {
+      "path": "LICENSE",
+      "sha256": "b9738182c46747cb7cd36cad62d55c8922ca8d0029df280d3d73bb3c95d34935",
+      "bytes": 9717,
+      "role": "project_license_or_manifest"
+    },
+    {
+      "path": "package.json",
+      "sha256": "a42958a0f26992e10c5a59b03f7ff8adce5fced44778fba0e3afa2437bd07ba2",
+      "bytes": 2508,
+      "role": "project_license_or_manifest"
+    },
+    {
+      "path": "packages/core/package.json",
+      "sha256": "3c9853cc8609a11a3247ddd9ec0dea05a62190475ef1c0266872ccb292ad8a11",
+      "bytes": 1558,
+      "role": "project_license_or_manifest"
+    },
+    {
+      "path": "apps/api/package.json",
+      "sha256": "a452480406408870cab12a87bafd620fe057dd88425038d1fd46116237be2947",
+      "bytes": 799,
+      "role": "project_license_or_manifest"
+    }
+  ],
+  "dependencyBoundary": "Existing explicit fixture runtime Vitest 4.1.5 differs from project declared ^4.1.10. PGlite is 0.4.1; type checks use existing project TypeScript 5.9.3. No installs or dependency manifest edits in this lane.",
+  "limitations": [
+    "Actual SQL functions and triggers execute on an adapted minimal compatible PGlite fixture schema, not the complete production schema or generated Prisma client.",
+    "The additive message migration has not been applied to a hosted/product database.",
+    "Production backfill/trigger load, locking, multi-connection contention and total database allocation are unverified.",
+    "Native human consent, callback handling, hosted delivery, and real account access remain open.",
+    "No raw blocks, attachments, secret/action cards, internal peer prose, task execution/cancel controls or message writes are included.",
+    "Historical events rehydrate current authorized content; immutable historical content and complete raw business exports are not provided.",
+    "Independent bounded acceptance does not accept the overall product."
+  ],
+  "executionBoundary": {
+    "network": false,
+    "listeners": false,
+    "nativeLaunches": false,
+    "providerCalls": false,
+    "hostedMigration": false,
+    "installs": false,
+    "remoteWrites": false,
+    "commitsByThisLane": false,
+    "deployments": false
+  },
+  "ownership": {
+    "productionAndAuthorFiles": [
+      "packages/core/src/node/hades-messages.ts",
+      "packages/db/prisma/migrations/20260910010000_hades_messages/migration.sql",
+      "packages/core/src/node/hades-oauth.ts",
+      "apps/api/src/hades-oauth.ts",
+      "packages/core/src/node/hades-messages.review.mjs",
+      "scripts/run-hades-messages-review.mjs",
+      "scripts/HADES_MESSAGES.md"
+    ],
+    "independentFilesPreserved": [
+      "packages/core/src/node/hades-messages-independent.review.mjs",
+      "scripts/run-hades-messages-independent-review.mjs",
+      "docs/reports/HADES_MESSAGES_INDEPENDENT_REVIEW.md"
+    ],
+    "preexistingDirtyFilesNotEditedThisLane": [
+      "apps/api/src/app.ts",
+      "packages/core/package.json",
+      "packages/db/prisma/schema.prisma"
+    ],
+    "rootAggregateDocsNotEdited": true
+  },
+  "rootDelivery": {
+    "branch": "codex/hades-plugins-messages",
+    "commit": "81188b66656053de979010218044445f7856bc07",
+    "createdBy": "root",
+    "authority": "parent reported its exact reviewed 21-file allowlist; current branch and HEAD independently read during receipt generation",
+    "remoteOperation": false,
+    "remoteOperationEvidence": "parent report; this author lane made no remote operation"
+  }
+}

@@ -1,0 +1,1354 @@
+{
+  "schema": "hades.plugin-program-source.v3",
+  "recordedAt": "2026-09-10T10:10:14.157978+00:00",
+  "scope": "Frozen local source and in-process gates; no installed app, provider release or live account accepted.",
+  "priorReceipt": {
+    "path": "docs/plugins/source-v2-receipt.json",
+    "sha256": "ff699b1a99bfabd05a6d4bce86942e0beda1a1e6afd6f504a6eddb8dfe33960e",
+    "bytes": 29355
+  },
+  "hades": {
+    "root": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+    "repository": "mosnin/agent_harness_starter",
+    "branch": "claude/hermes-swarm-framework-vbhrot",
+    "precommitHead": "b6ec8b860252b34eefc80e0914bc1d1393eefb6a",
+    "files": [
+      {
+        "path": ".gitattributes",
+        "sha256": "e9e3990645234447ecead94a26786ce8f01075dcad272cdae632695bffa87c3c",
+        "bytes": 161
+      },
+      {
+        "path": ".gitignore",
+        "sha256": "78b076cc23a685f862093432b2bbf8f0a38fe3d7f3283822e2525c53c6e2ec1e",
+        "bytes": 1009
+      },
+      {
+        "path": "docs/plugins/ACCEPTANCE_V3.md",
+        "sha256": "2805bdc216280309263f53c213b642eb9f9f610425a509906db303531e23bca2",
+        "bytes": 7928
+      },
+      {
+        "path": "docs/plugins/FRESH_READ_REVIEW.md",
+        "sha256": "2b523ca6511dd023e0bd3a7723b52635aa0d2fdd6cfe29f0e1e868805b45992b",
+        "bytes": 3338
+      },
+      {
+        "path": "docs/plugins/PROGRAM.md",
+        "sha256": "9a42d2a23d4353d48d64d5eeaf486fd7fec54d2e64ecc34640a04271299f8fc1",
+        "bytes": 5015
+      },
+      {
+        "path": "docs/plugins/SCALAR_CLIENT_V2_REVIEW.md",
+        "sha256": "bab758a475de61e4d630bf5c2672210d1da8e87d3613c2a3f2cbc64a772f84b4",
+        "bytes": 7291
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-api-types-final.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-author-contract.md",
+        "sha256": "a7880e91931a918c56cb0f62f86d0432a42c34f15018c60a111bcd23e9b2f086",
+        "bytes": 9245
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-author-final.log",
+        "sha256": "4bb911598bcecbc8a6cef21d637a2c40c883a013b92854481e5a8b01267af4ec",
+        "bytes": 326
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-core-types-final.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-independent-author-rerun.log",
+        "sha256": "7ddc8f15979d3b93e2825668650bc0b51a4629dd4b6c6818a0f6f8a2144a0d80",
+        "bytes": 321
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-independent-expanded-red.log",
+        "sha256": "ded37c248b53542f2c298557d407e1d798af95f53b88ac46265c28fb9c88e7b2",
+        "bytes": 1922
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-independent-final-green.log",
+        "sha256": "d051f53b36d56f43d5889b4a769a3dfc1ed4639bba07f4c7fdb8661db5ea704a",
+        "bytes": 321
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-independent-initial-red.log",
+        "sha256": "580ac13b8333f2737a4593fab9b1db124dd880f7545491c2cd039ffe3c470de9",
+        "bytes": 944
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-independent-review.md",
+        "sha256": "5b67747cc9ef0027ec500df4a594ae6a4bc3ecd21e7e4c739bdcf4c8ffb9f0c0",
+        "bytes": 5531
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-page-green.log",
+        "sha256": "e109a1a0b5e3a77a2da9fbf48ebd295e137a62e2530cdba2bec9cac5c3988113",
+        "bytes": 326
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-page-red.log",
+        "sha256": "40044cf2de25b12712878473fbbe0c8ac5aecc7f8204cd50a7fa6216dc942df1",
+        "bytes": 2818
+      },
+      {
+        "path": "docs/plugins/evidence/cadre-messages-source-red.log",
+        "sha256": "f05527c6422d2a7f10964d67569dde74eb227f7d7171327f67ceb2db85abecc9",
+        "bytes": 1907
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-brand-build.log",
+        "sha256": "e2047894a6b7f184db9fe2493a2348a4c0e460975f6420b35120ccf3a5de55b7",
+        "bytes": 431
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-brand-types.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-build.log",
+        "sha256": "a88eb7de7339ffaf129ddcd24eb8566211d4ca429eca006d16b61825717a4a71",
+        "bytes": 431
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-default-work.log",
+        "sha256": "f402100bcd65508e2729207bf824d72672328fe3ad6e1d47f8734626dc2cb917",
+        "bytes": 407
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-fresh-read-independent.log",
+        "sha256": "563da084c9f727ebada9867b903f253f746b57f9f46b6daff91116fff6cc5473",
+        "bytes": 405
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-plugins-tests.log",
+        "sha256": "89b9752d36e4fb3ba298c6feba7b0139608931b321d08482f68e1d60bc1bca40",
+        "bytes": 2342
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-scalar-client-red.log",
+        "sha256": "7a6b36183c5ac02d1b0b8faabec72a572aaaa5c74ad3098fef549714ce571c7e",
+        "bytes": 1464
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-types.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-work-brand-tests.log",
+        "sha256": "1ccc75bb76a3ecd4f3c07e155d5dbfb3acd31ab138a42c3f2353a14cd0ff2e75",
+        "bytes": 2183
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-work-independent-green.log",
+        "sha256": "12cbf031ccef3c3216c82fcd0059431bbb33c2b1d107b429c33809aaf2a3c237",
+        "bytes": 404
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-work-independent-red.log",
+        "sha256": "402e4c7c5c21d912f0a936ce211e7ac6986dd7efc59121dd028039ac398eace1",
+        "bytes": 1010
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-work-tests.log",
+        "sha256": "55854beb55c2e42fed1a775b2cde2f2dffc187d71364fec6d0d17a237086ab1e",
+        "bytes": 2183
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-write-ack-independent.log",
+        "sha256": "46297df8ac39c743736bd3f572765a567f584618af8c2c830d89dc56a0e43342",
+        "bytes": 576
+      },
+      {
+        "path": "docs/plugins/evidence/hades-v3-write-ack-red.log",
+        "sha256": "09af6c4bbfab83ead2a21c13a0f0f98d6678b91858f3cb63a813711769df2119",
+        "bytes": 1969
+      },
+      {
+        "path": "docs/plugins/evidence/scalar-v3-author-contract.md",
+        "sha256": "67419d9e19e297c276d8d9a2ac91a3825487b4996b318eaff95606311fe21560",
+        "bytes": 9966
+      },
+      {
+        "path": "docs/plugins/evidence/scalar-v3-author-final.log",
+        "sha256": "ae6833cafdc7e9ab1f277a2811621b85026182e5e659171542ad8c237f8cc23c",
+        "bytes": 622
+      },
+      {
+        "path": "docs/plugins/evidence/scalar-v3-focused-types.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "docs/plugins/evidence/scalar-v3-independent-green.log",
+        "sha256": "068d9fe226672c443a1c889de715a02d4118c1a4f289fcb157bd54069ae74a37",
+        "bytes": 474
+      },
+      {
+        "path": "docs/plugins/evidence/scalar-v3-independent-red.log",
+        "sha256": "cdae7ba4f9dbf15223a59f2cbd203d86bba108274f0d05b1677e028eb091e027",
+        "bytes": 2215
+      },
+      {
+        "path": "docs/plugins/evidence/scalar-v3-independent-review.md",
+        "sha256": "8e3c93d00548c88c8d48f725128b4fc6f467eed06bff7958fb59a3238d37cc47",
+        "bytes": 4131
+      },
+      {
+        "path": "docs/plugins/provider-source-cadre-messages-v1-receipt.json",
+        "sha256": "88a91ce032bb964458c386a7e6c82c7c69f5035ce34ad976130e8e01406a5bf2",
+        "bytes": 21359
+      },
+      {
+        "path": "docs/research/helm-enterprise-2026-09-10/PROGRAM.md",
+        "sha256": "68e35165be7f1744011551dbe2a20dea2c7c4710e79e55c2463d8d7687adf4ae",
+        "bytes": 13579
+      },
+      {
+        "path": "docs/research/helm-enterprise-2026-09-10/STATUS.json",
+        "sha256": "23a8c992778fbf84c470d76e6ec01eb37c3d35317e0c1e2d08f9675943c40191",
+        "bytes": 6168
+      },
+      {
+        "path": "docs/research/helm-enterprise-2026-09-10/audit/work-default-engine-regression.md",
+        "sha256": "cafb36ed05c4918b220e900c20e88be67921874d415c617d67ec23c141e7b167",
+        "bytes": 3266
+      },
+      {
+        "path": "docs/research/helm-enterprise-2026-09-10/audit/work-orca-boundary.md",
+        "sha256": "f499848ef6e3d3cfc48bc71e2c6b01267f91de5f64cb5fca615af48b47a38c44",
+        "bytes": 6688
+      },
+      {
+        "path": "docs/research/helm-enterprise-2026-09-10/audit/work-orca-independent-review.md",
+        "sha256": "61b015cf12bf1fc9e5ac79c0201d21ecbe81ff4ce9aa91504aca7f1134265789",
+        "bytes": 3846
+      },
+      {
+        "path": "package.json",
+        "sha256": "0a38e3c746a55b6c66a11b7cced18ce935306503dc6e990f1b4df203bb9d555d",
+        "bytes": 10942
+      },
+      {
+        "path": "script/build_and_run.sh",
+        "sha256": "8d23e33013bf9eaa9dd0dabc286a51ca40e7a587070845380f2b2e53aaa05c46",
+        "bytes": 6798
+      },
+      {
+        "path": "scripts/check-plugins.mjs",
+        "sha256": "1623aad9ce1aae6e1ec95d814953a2e759f880dccd4f8014c867b47dd8c166d6",
+        "bytes": 1443
+      },
+      {
+        "path": "scripts/check-work-offline.mjs",
+        "sha256": "7a9c5e9c7f632fce99241d9611f0fab95f2d216e69812869cfe30f7aedd4ea90",
+        "bytes": 1185
+      },
+      {
+        "path": "scripts/vendor-company-os.mjs",
+        "sha256": "e12cf8ece2a545e007d90a5ed21aff5c7bc8de33c4292eee2798897865e7792f",
+        "bytes": 2963
+      },
+      {
+        "path": "src-tauri/Info.plist",
+        "sha256": "b3cc5f09086fcc8088a609f4ba3e7430ca620ad9e8f3e35e1cef10db25cae7e4",
+        "bytes": 456
+      },
+      {
+        "path": "src-tauri/src/gui.rs",
+        "sha256": "a0d7ca9498f36c0ca8b92298e87e9d40bd5729f7fe37dfa79311369204809856",
+        "bytes": 32643
+      },
+      {
+        "path": "src-tauri/src/request_capacity.rs",
+        "sha256": "934ef027157dab2e996b75559d0c63152d94fd69b83f1fdd1aa91be0d5e5b805",
+        "bytes": 11719
+      },
+      {
+        "path": "src-tauri/tauri.conf.json",
+        "sha256": "c46b30919249bf67db3c5419382f87549ced649263a8ae1d81daae00c3619fbb",
+        "bytes": 1769
+      },
+      {
+        "path": "src/desktop/__tests__/company-os-resilience.test.ts",
+        "sha256": "24796bd78c0530bfc9222e782da7ef9cd164a6c43686f86531ce7eb5746aa1b4",
+        "bytes": 9760
+      },
+      {
+        "path": "src/desktop/__tests__/company-os.test.ts",
+        "sha256": "baa3d1bbd336023b45b76443ddaf1f220c33ca306d211d82e542e9ad264a1ff7",
+        "bytes": 6877
+      },
+      {
+        "path": "src/desktop/__tests__/ecosystem-catalog.test.ts",
+        "sha256": "43e5853d3e75eb1a328e1429fa73d494c196bf7c9f6f78e5baae39968e322dc8",
+        "bytes": 31248
+      },
+      {
+        "path": "src/desktop/__tests__/ecosystem-detail-ui.test.ts",
+        "sha256": "69e75785051a0a149075791f98a36e5a54d186a30cbd0085c49c2c6586caf8c5",
+        "bytes": 12382
+      },
+      {
+        "path": "src/desktop/__tests__/ecosystem-events.test.ts",
+        "sha256": "90c3af5576cda4e1ffe60ef1d039b99373d17bda2e434b976b343030ae0422a3",
+        "bytes": 2871
+      },
+      {
+        "path": "src/desktop/__tests__/ecosystem-plugins-ui.test.ts",
+        "sha256": "7a004d2608792e1b01b06f44de7525b91a7d93177926fbfe05ea5c5a772b3d3f",
+        "bytes": 15865
+      },
+      {
+        "path": "src/desktop/__tests__/ecosystem-read-review.test.ts",
+        "sha256": "9097f3cb3294917d6cde014af1394d2c40394e5b8060cb8e8a9141e0ab0f3189",
+        "bytes": 8557
+      },
+      {
+        "path": "src/desktop/__tests__/ecosystem-recovery.test.ts",
+        "sha256": "0e52182c99c8c11bdb83cc961801c0cdf50966766797c01934ddf110efdc19ec",
+        "bytes": 8417
+      },
+      {
+        "path": "src/desktop/__tests__/ecosystem-scalar-review.test.ts",
+        "sha256": "c0c59d7748234192f9512b41478cf22dcdd0c43fc377b34dd1e8f6be99404fa6",
+        "bytes": 7665
+      },
+      {
+        "path": "src/desktop/__tests__/ecosystem-scopes-review.test.ts",
+        "sha256": "e665d66b1ba3e19eaf0a49ceb6f60fbc6467166c353f7baafe758a7e75923590",
+        "bytes": 13040
+      },
+      {
+        "path": "src/desktop/__tests__/ecosystem-service.test.ts",
+        "sha256": "292c0c24a3ded6952c2759850680e724a87044665e09af2d078cfb208c2b8355",
+        "bytes": 26913
+      },
+      {
+        "path": "src/desktop/__tests__/ecosystem-tools.test.ts",
+        "sha256": "d7d241c00628ad203676c018390ccb8aa3c98d084d7b32156a9d3d4731946b83",
+        "bytes": 4632
+      },
+      {
+        "path": "src/desktop/__tests__/ecosystem-write-ack-review.test.ts",
+        "sha256": "976e54d510e4530b5a2f9e93c98811c58dbde7ae4fe55d4f67c3f4d1d6003323",
+        "bytes": 7205
+      },
+      {
+        "path": "src/desktop/__tests__/work-goals.test.ts",
+        "sha256": "4567a148c032aeadd82a2d4a1511a6b95e32c5dc12d11f11fb7f9ffac8893d7c",
+        "bytes": 16723
+      },
+      {
+        "path": "src/desktop/__tests__/work-orca-review.test.ts",
+        "sha256": "da6ef98d6555d5bff49c23d900042366e694b1fa348e39c8eb190e073e863394",
+        "bytes": 7233
+      },
+      {
+        "path": "src/desktop/__tests__/work-orca.test.ts",
+        "sha256": "43fcedf9e04dcc281f9ec8c0a366e9def028bd92144fe518f021761ecfc971ef",
+        "bytes": 8772
+      },
+      {
+        "path": "src/desktop/__tests__/workbench-durable-work-offline.test.ts",
+        "sha256": "bd4061ed975feb0258be49876b0fb19ed56a6577b1c6d4e3566f2a6ed4740870",
+        "bytes": 7146
+      },
+      {
+        "path": "src/desktop/__tests__/workbench-ecosystem-ui.test.ts",
+        "sha256": "d2323824b637e1a03cd91701bee93bb5a06c5b178a9c9ae9ad661a9ceb4f3ddb",
+        "bytes": 6390
+      },
+      {
+        "path": "src/desktop/__tests__/workbench-ecosystem.test.ts",
+        "sha256": "82cfa04db51b1bc31a105d9ccef98e1cfa77bd34864a79d79e0331dd312f1604",
+        "bytes": 6865
+      },
+      {
+        "path": "src/desktop/__tests__/workbench-work-orca.test.ts",
+        "sha256": "23dc91cdbea0dd1b9c81426a478a324db766857882cfdfe6f74f5daf603be60f",
+        "bytes": 1590
+      },
+      {
+        "path": "src/desktop/core/company-os-paths.ts",
+        "sha256": "bc9108f516c0634c78dd1d1205681c52c81c00414298fae1b5a95bac948b7bd6",
+        "bytes": 574
+      },
+      {
+        "path": "src/desktop/core/company-os-tools.ts",
+        "sha256": "f69ad8e35f289bde9d74d4b4790156053ab07ab5e7a56119e44297b27790fdbf",
+        "bytes": 1753
+      },
+      {
+        "path": "src/desktop/core/company-os-updates.ts",
+        "sha256": "2ca4379511b9f717c774996c30adc85c9b48ddf10a7f822754f4f7ea51a87965",
+        "bytes": 7258
+      },
+      {
+        "path": "src/desktop/core/company-os.ts",
+        "sha256": "87f9a993c6df8ea88675cb17b6d1cd11abf547f208a85a15dfca86ebf18ea782",
+        "bytes": 18468
+      },
+      {
+        "path": "src/desktop/core/desktop-request-routing.ts",
+        "sha256": "8d5db5fef8c3aff61645dc1bf2f21813f394c55ae887bff7812e9433cde2e2b4",
+        "bytes": 4734
+      },
+      {
+        "path": "src/desktop/core/durable-work.ts",
+        "sha256": "9f9411cde4bb2d7fc2a196c5689da3010cec64d4ff4427e031ef26d976fd58ac",
+        "bytes": 34667
+      },
+      {
+        "path": "src/desktop/core/ecosystem-capabilities.ts",
+        "sha256": "1aa0b9e1405633c316559593905ebcf3099e58e453795102a847e631d416decb",
+        "bytes": 2515
+      },
+      {
+        "path": "src/desktop/core/ecosystem-catalog.ts",
+        "sha256": "b58da8942877c716a46dd4836820a72b6a7740388524e1b00d81ff3adbd29755",
+        "bytes": 29057
+      },
+      {
+        "path": "src/desktop/core/ecosystem-events.ts",
+        "sha256": "aa022eec8fba569e3c64da97595bf859102198e90cc16a543235f2dc0d9bec88",
+        "bytes": 2988
+      },
+      {
+        "path": "src/desktop/core/ecosystem-http.ts",
+        "sha256": "a1cb6b550e8799266ef367069d1174568730d5cad84ecb57d49da37067e3e815",
+        "bytes": 2484
+      },
+      {
+        "path": "src/desktop/core/ecosystem-service.ts",
+        "sha256": "3c2dbba28f781566096b9818d68de5d6e209126437ee35e09bc23dbb22566a91",
+        "bytes": 45253
+      },
+      {
+        "path": "src/desktop/core/ecosystem-store.ts",
+        "sha256": "fba2c6a22b5323b5b737ce67a6617961467f59bacc0b591ad32a76521506807c",
+        "bytes": 10550
+      },
+      {
+        "path": "src/desktop/core/ecosystem-tools.ts",
+        "sha256": "d1a876ca6826c1e45a052d8c3799df788ae45931e66339232fe11dfcaa07275f",
+        "bytes": 7712
+      },
+      {
+        "path": "src/desktop/core/ecosystem-types.ts",
+        "sha256": "33421faa856b1171c03c70a7fa60898325046ab683604bc750ca020876bb664d",
+        "bytes": 4946
+      },
+      {
+        "path": "src/desktop/core/maintenance-service.ts",
+        "sha256": "8e4a87a2c675dc5cf94eba02ecc90e80aebe7d67138f00d1112b7ae2baaad233",
+        "bytes": 22658
+      },
+      {
+        "path": "src/desktop/core/work-orca.ts",
+        "sha256": "587343d34a1c24ed5027de49d72d1d1b8e72be78f1625e4c659ed5d94fcdeb3c",
+        "bytes": 3775
+      },
+      {
+        "path": "src/desktop/core/workbench-service.ts",
+        "sha256": "e505712167c4b2f562580e6465a58c3faa46c051ba7d8b5da7bf62c7c48cc5fe",
+        "bytes": 177898
+      },
+      {
+        "path": "src/desktop/ui/ecosystem-plugins.css",
+        "sha256": "5e648061965c034fa0812be0ea40e049205a112589e405f6b447e4ed6859083d",
+        "bytes": 10532
+      },
+      {
+        "path": "src/desktop/ui/ecosystem-plugins.ts",
+        "sha256": "153e55b3de77f7c266c5705d603802c8105697e7330dd18f0227ca57f786b383",
+        "bytes": 40727
+      },
+      {
+        "path": "src/desktop/ui/work-goals.ts",
+        "sha256": "abcfe8e82920cb6c29d25fad723bc57fdd3232e0c29d0d7faaad2499d3f8655e",
+        "bytes": 27498
+      },
+      {
+        "path": "src/desktop/ui/workbench.ts",
+        "sha256": "90b38242d5821c9052d5cb5c86e89facf48ef98c2db9b751632ab91faad399ab",
+        "bytes": 122593
+      },
+      {
+        "path": "third_party/company-os/README.md",
+        "sha256": "85e7031e6e23a114e36773ca4c11ddca921c28dd4a29f7ad836ec2762bde34eb",
+        "bytes": 933
+      },
+      {
+        "path": "third_party/company-os/bundle.json",
+        "sha256": "bab686685a36437967e3445934c4af983085a82962c84d63ae17adcf0244d59d",
+        "bytes": 9167400
+      },
+      {
+        "path": "third_party/company-os/manifest.json",
+        "sha256": "b0231803a9b61fc4be2d65d61c59ee606214a9fd729a48bc35f97c226b6b9790",
+        "bytes": 552
+      }
+    ]
+  },
+  "providers": [
+    {
+      "provider": "govern",
+      "root": "/Users/preston/govern-remediation-integration",
+      "baseline": "0a64d0e87b357630cf956a1af6cebf857ae04d9e",
+      "head": "0a64d0e87b357630cf956a1af6cebf857ae04d9e",
+      "branch": "remediation/integration",
+      "committedThisPhase": false,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "src/app/api/hades/authorize/route.ts",
+          "sha256": "451b642c8ce51d1138739dd8d36c194d56267a8c48632917e046a0a77d4bf18d",
+          "bytes": 444
+        },
+        {
+          "path": "src/app/api/hades/changes/route.ts",
+          "sha256": "840aef2794760c5ed6197b7c0c7725573ad4408d46bfb1b7b256caef4126b41a",
+          "bytes": 169
+        },
+        {
+          "path": "src/app/api/hades/records/route.ts",
+          "sha256": "b0db18873c87f6b6efbe13c695ee508bcabf48cc25d63fd20f7a29678b83b083",
+          "bytes": 277
+        },
+        {
+          "path": "src/app/api/hades/revoke/route.ts",
+          "sha256": "17e5e4155a55bce7d4ad72de90d1710f974c55497065acdf3131b28878ca2a99",
+          "bytes": 159
+        },
+        {
+          "path": "src/app/api/hades/token/route.ts",
+          "sha256": "90ddb3c0ca1e5e0df6e4c90060619e80d018d83c7eaaafe7e3e7082e432fbd74",
+          "bytes": 163
+        },
+        {
+          "path": "src/app/api/hades/userinfo/route.ts",
+          "sha256": "9c80cbbec7c851fedaa74ec8c8cb1d9fb7d84458beda91a48285e6b4e9d21e92",
+          "bytes": 170
+        },
+        {
+          "path": "src/app/hades/authorize/page.tsx",
+          "sha256": "16b5c78a7943b9df12d65868877634e0583bfac9f2f4d204d6d92c035f401b8e",
+          "bytes": 2504
+        },
+        {
+          "path": "src/lib/hades-oauth.ts",
+          "sha256": "672b47418c7e7a297be2314f405044b949715c33925dfa73b8a66c95f41c79e6",
+          "bytes": 17395
+        },
+        {
+          "path": "supabase/migrations/20260910_hades_oauth.sql",
+          "sha256": "de66a867c6b4573f1ddddf58d05fbc500c377ee6b9a1c4aee4419bad1911b314",
+          "bytes": 17141
+        }
+      ]
+    },
+    {
+      "provider": "cadre",
+      "root": "/Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo",
+      "baseline": "b3cdf808e8c975f2b81627eb78a1866e8198bf58",
+      "head": "81188b66656053de979010218044445f7856bc07",
+      "branch": "codex/hades-plugins-messages",
+      "committedThisPhase": true,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "b9738182c46747cb7cd36cad62d55c8922ca8d0029df280d3d73bb3c95d34935",
+          "bytes": 9717
+        },
+        {
+          "path": "apps/api/src/app.ts",
+          "sha256": "d7579a340728675edfea1a117ba202ca48232e8b056a5a0ca2bc14429db1c2b4",
+          "bytes": 22036
+        },
+        {
+          "path": "apps/api/src/hades-oauth.test.ts",
+          "sha256": "1275359ed4c503c92cdcec4552e1651d2eac8e22ce2c4196a1dfedfd1469b2b0",
+          "bytes": 4527
+        },
+        {
+          "path": "apps/api/src/hades-oauth.ts",
+          "sha256": "caace5ba22341e8813f744410d90190f0c766d2587ed439414795ead795aad78",
+          "bytes": 3952
+        },
+        {
+          "path": "docs/reports/HADES_MESSAGES_INDEPENDENT_REVIEW.md",
+          "sha256": "5b67747cc9ef0027ec500df4a594ae6a4bc3ecd21e7e4c739bdcf4c8ffb9f0c0",
+          "bytes": 5531
+        },
+        {
+          "path": "package.json",
+          "sha256": "a42958a0f26992e10c5a59b03f7ff8adce5fced44778fba0e3afa2437bd07ba2",
+          "bytes": 2508
+        },
+        {
+          "path": "packages/core/package.json",
+          "sha256": "3c9853cc8609a11a3247ddd9ec0dea05a62190475ef1c0266872ccb292ad8a11",
+          "bytes": 1558
+        },
+        {
+          "path": "packages/core/src/message-visibility.test.ts",
+          "sha256": "637570e3b11e22ad445041459ce52e2300b470b179254381184947ef622145ab",
+          "bytes": 4806
+        },
+        {
+          "path": "packages/core/src/message-visibility.ts",
+          "sha256": "774d8ebcab5b39aeaa895fcb839ef4d640b7596c68fc53188aa42cd3bca67aa5",
+          "bytes": 3167
+        },
+        {
+          "path": "packages/core/src/node/hades-messages-independent.review.mjs",
+          "sha256": "ee83c8c631672ed2a5c81ebac0b985d6c5ed414b7608a1f66508b3aea737ea42",
+          "bytes": 11025
+        },
+        {
+          "path": "packages/core/src/node/hades-messages.review.mjs",
+          "sha256": "e6a06189eab4a1be0a848bf1fee44d45e625f2883250da8b8ef85a569138d06a",
+          "bytes": 18236
+        },
+        {
+          "path": "packages/core/src/node/hades-messages.ts",
+          "sha256": "da91a1d32a255de9674eba3a446af96f5a8e709992cbd25ac3c7e1b59c213b74",
+          "bytes": 7983
+        },
+        {
+          "path": "packages/core/src/node/hades-oauth-independent.review.mjs",
+          "sha256": "9249e38655673a71ee9cc34427ab0da3884f00b4ea2777a526d6196232d65c72",
+          "bytes": 14442
+        },
+        {
+          "path": "packages/core/src/node/hades-oauth-v2-independent.review.mjs",
+          "sha256": "9c79e9daaa9f56ccff2749742fa504b7d140d357a573c51110fe98b75734dc58",
+          "bytes": 5872
+        },
+        {
+          "path": "packages/core/src/node/hades-oauth.ts",
+          "sha256": "5b22d3137104189838c14477db33881cd9550c63a1c34eed52e1d83d1c0c7096",
+          "bytes": 16529
+        },
+        {
+          "path": "packages/db/prisma/migrations/20260910000000_hades_oauth/migration.sql",
+          "sha256": "148f07dbb2bd776fbb46b110d47e429fa10e58801614f44fe9689cb1c3d4e587",
+          "bytes": 15424
+        },
+        {
+          "path": "packages/db/prisma/migrations/20260910010000_hades_messages/migration.sql",
+          "sha256": "0a84aa0cec8343250dfbcbbb58874b3eda14ee706b27a6dd0528c5e2ad5dbcb7",
+          "bytes": 13637
+        },
+        {
+          "path": "packages/db/prisma/schema.prisma",
+          "sha256": "1c92b95a6ef9d66cf2cdf5ff65ea07a9dfc2479d1fcf01b2f8ba3926f82262ca",
+          "bytes": 42668
+        },
+        {
+          "path": "scripts/HADES_MESSAGES.md",
+          "sha256": "a7880e91931a918c56cb0f62f86d0432a42c34f15018c60a111bcd23e9b2f086",
+          "bytes": 9245
+        },
+        {
+          "path": "scripts/HADES_REVIEW.md",
+          "sha256": "147a58705389d4007068276fdf045cec7bee74fc9ad1690c69c8914a8709c939",
+          "bytes": 1089
+        },
+        {
+          "path": "scripts/HADES_REVIEW_V2.md",
+          "sha256": "b0aa2b9de0039be33d711030f380a89638fb9ba9607efc326282b00deaf1489f",
+          "bytes": 4975
+        },
+        {
+          "path": "scripts/HADES_REVIEW_V2_REPLAY.md",
+          "sha256": "2ebf4cb5e9d297a9bae5cc6d681a6f97951ee2ee8999b25073e87c7161d837dd",
+          "bytes": 3982
+        },
+        {
+          "path": "scripts/run-hades-messages-independent-review.mjs",
+          "sha256": "4b12f890abe56c7c433a1da786081047ef6615f20e24ac97fd77698f0347ed0e",
+          "bytes": 2853
+        },
+        {
+          "path": "scripts/run-hades-messages-review.mjs",
+          "sha256": "8762eace1f68a23d08d431b63cf44ea89612a8ca5fad1101f563e1bcb0ef5420",
+          "bytes": 3041
+        },
+        {
+          "path": "scripts/run-hades-review.mjs",
+          "sha256": "42839731b33664609520a7310f7f919e9be3cd318497c1ec46d9b7065411556f",
+          "bytes": 2930
+        }
+      ]
+    },
+    {
+      "provider": "glove",
+      "root": "/Users/preston/Documents/Codex/2026-09-06/glove-audit/source",
+      "baseline": "89e49e4fb4e13ec77699ac043e50087ad567df05",
+      "head": "89e49e4fb4e13ec77699ac043e50087ad567df05",
+      "branch": "codex/persistent-demo-computers",
+      "committedThisPhase": false,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "app/api/hades/authorize/route.ts",
+          "sha256": "871d6127b998648379585caf2d43cd9af156b95201ef5b38f7fff1cf0ad4e4fb",
+          "bytes": 298
+        },
+        {
+          "path": "app/api/hades/changes/route.ts",
+          "sha256": "a502cd982322b94e9d22860015b73976c67da3ea2f4f7cd413e5e14456302aa0",
+          "bytes": 192
+        },
+        {
+          "path": "app/api/hades/records/route.ts",
+          "sha256": "ecbf35b2ee8de3f10114e57a503b5cf51b770f6049d5ca4ee35626022b69b392",
+          "bytes": 294
+        },
+        {
+          "path": "app/api/hades/revoke/route.ts",
+          "sha256": "00a58fed80c85d78803e2f22a880069b4c89d171222a95ae1029f9d69562e09f",
+          "bytes": 192
+        },
+        {
+          "path": "app/api/hades/token/route.ts",
+          "sha256": "f96b2d684d676b1d32ea88b3a46926742562a9162a1b90488118d3666ef66454",
+          "bytes": 191
+        },
+        {
+          "path": "app/api/hades/userinfo/route.ts",
+          "sha256": "501c9de33da196ce0b11f87980ee88e65b64dddb11f45902870b9e0dac0d3801",
+          "bytes": 193
+        },
+        {
+          "path": "convex/_generated/api.ts",
+          "sha256": "836138e136ec2a3bf69a193e410a361c9c703aba945168118cd53c5847d731b0",
+          "bytes": 10148
+        },
+        {
+          "path": "convex/_lib/hadesOAuthContract.ts",
+          "sha256": "79904c39521a2f6f9ccd8d3bda5cc7154ae3df68199fb516531b4419ad0e68cd",
+          "bytes": 8540
+        },
+        {
+          "path": "convex/_lib/hadesOAuthSchema.ts",
+          "sha256": "274a310ac3c91f2e6e5ee8eafd36e9cc9dcfb6ffcb61d1e1ed947eddc68ad992",
+          "bytes": 1871
+        },
+        {
+          "path": "convex/hadesOAuth.ts",
+          "sha256": "6a0a10b651d0815ba5ea6da90aa95950d7b0dacdbcc6400dc96b7d551b7059d8",
+          "bytes": 9943
+        },
+        {
+          "path": "convex/hadesOAuthStore.ts",
+          "sha256": "a91861893f4ae27c28e5608d48ed70c9b6cfa84b949cfdadc3fd1f8c0044a7df",
+          "bytes": 19691
+        },
+        {
+          "path": "convex/schema.ts",
+          "sha256": "f3786a8b142c5d3687798cfc848e6672376449cf95d00926b6146930ce0f6b00",
+          "bytes": 117914
+        },
+        {
+          "path": "lib/hades/server.ts",
+          "sha256": "dc6847dfaf6747339079e24e3270edde244fa2d45ef22da0497b270511999a6f",
+          "bytes": 811
+        },
+        {
+          "path": "lib/hades/transport.ts",
+          "sha256": "cf9d68c5a63a62878c12208f23ca8ee6d20a269316d0009d18d1f6952ef5e6e1",
+          "bytes": 8240
+        },
+        {
+          "path": "proxy.ts",
+          "sha256": "1d2a34fc4fb5cf02d0b36718db31bee19c43acfb7a6f95e8b43764d77be74fb1",
+          "bytes": 2895
+        }
+      ]
+    },
+    {
+      "provider": "companyos",
+      "root": "/Users/preston/company-os-web",
+      "baseline": "dfb526de427f9f7f8123a4fabcb92811c46f85f0",
+      "head": "dfb526de427f9f7f8123a4fabcb92811c46f85f0",
+      "branch": "codex/fix-convex-mcp",
+      "committedThisPhase": false,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "app/.well-known/oauth-authorization-server/route.ts",
+          "sha256": "142396af6fd7cde78929624c65a70ba09aeddfa0e2349f9b70fe3b1d470d17aa",
+          "bytes": 164
+        },
+        {
+          "path": "app/api/plugins/v1/account/route.ts",
+          "sha256": "be403dfe8645211383a838f6a63c1f4cf9d0ee9e770475e81f051e4c3e13b3c2",
+          "bytes": 153
+        },
+        {
+          "path": "app/api/plugins/v1/changes/route.ts",
+          "sha256": "77d1098ca7174254776dd11f7226073d64fafa19cdb89f17a8bd6fc5f94ea2ce",
+          "bytes": 153
+        },
+        {
+          "path": "app/api/plugins/v1/events/route.ts",
+          "sha256": "6da94de9eaf8cffde8fcd9c0be0af5b14d2d0bb5df1391578d419437a28a0bdd",
+          "bytes": 2154
+        },
+        {
+          "path": "app/api/plugins/v1/records/[id]/route.ts",
+          "sha256": "78dc0d926c750f94bd57e52f1cf35e9d32ae92186cad36441c98817d89580d3e",
+          "bytes": 385
+        },
+        {
+          "path": "app/api/plugins/v1/snapshot/route.ts",
+          "sha256": "9f2f0616929f38f8af189fa867c5316925096d8c3beda1f07a48581776c26e32",
+          "bytes": 154
+        },
+        {
+          "path": "app/api/plugins/v1/write/route.ts",
+          "sha256": "361d61484ec5b8bc799fd77a810438eddef0050e4d5ce932c5491ee5aef81e5b",
+          "bytes": 152
+        },
+        {
+          "path": "app/oauth/authorize/consent.tsx",
+          "sha256": "f5e69e2a95383647d1af052ee297261662a89c3b2b92d86b2cce94ce9723e0a7",
+          "bytes": 4659
+        },
+        {
+          "path": "app/oauth/authorize/page.tsx",
+          "sha256": "43b4d2b55710905a1e8f847e13dba0325f9806d73cf04f6182aac9edde3f4b4a",
+          "bytes": 1159
+        },
+        {
+          "path": "app/oauth/revoke/route.ts",
+          "sha256": "49a05aa3c3728eacb2a60206d66eb5dba415268d4df2763b752172c6205044fd",
+          "bytes": 144
+        },
+        {
+          "path": "app/oauth/token/route.ts",
+          "sha256": "4c3b13a6a20703d156ede9848f57437c9cd88f4fc47df3e7533e5ec843d59b4b",
+          "bytes": 143
+        },
+        {
+          "path": "convex/http.ts",
+          "sha256": "f28c14bfa313ad460a5c898bdbcd51ff568afd602232af44412a1ff42b1a8c55",
+          "bytes": 1308
+        },
+        {
+          "path": "convex/oauth.test.ts",
+          "sha256": "99d89521bf8e220851c8ccbf3f67b740dbcf1658e74825976017d043002a242b",
+          "bytes": 20378
+        },
+        {
+          "path": "convex/oauth.ts",
+          "sha256": "75a59c5478b57252882abc59f41f5ba1cc3e7cd172d67f82a3e523b6d1c241f4",
+          "bytes": 22726
+        },
+        {
+          "path": "convex/oauthHttp.ts",
+          "sha256": "0ed0a9c8d5f263375e3707a64888e54d4b5cbdef7ab163ea3e650aa017790da9",
+          "bytes": 8528
+        },
+        {
+          "path": "convex/oauthPolicy.ts",
+          "sha256": "4d486efbae3b586e54140da773e89692af4edf4fa32d92d23ec8f905a306c7d4",
+          "bytes": 2129
+        },
+        {
+          "path": "convex/schema.ts",
+          "sha256": "63b46e3ba8e06072fb7f9e1760ed6b917925699932b84ed090121e8b4dd10cf1",
+          "bytes": 15052
+        },
+        {
+          "path": "lib/oauth-body.test.ts",
+          "sha256": "7d2cf99e5ba89dc249eb0419889d494bcecc7147a48cc5967fa167926987f92d",
+          "bytes": 1187
+        },
+        {
+          "path": "lib/oauth-body.ts",
+          "sha256": "b4cb03feaa7286cf29b3030773d9a1b22d031944357065a98642609869cd7c6e",
+          "bytes": 1109
+        },
+        {
+          "path": "lib/oauth-events.test.ts",
+          "sha256": "7e917bee78f66a6abc3833652385d411af5d50177b916d9379a45804d64b3a1a",
+          "bytes": 2456
+        },
+        {
+          "path": "lib/oauth-events.ts",
+          "sha256": "1c249146faef94028e85421db7a38f6bd2ec3f61f4c3009a3097751d0573e523",
+          "bytes": 2666
+        },
+        {
+          "path": "lib/oauth-proxy.ts",
+          "sha256": "7703eb464c73ac0939b05a42b822364c535aa9ad3e488f90b0289cb0e0a4388e",
+          "bytes": 2587
+        }
+      ]
+    },
+    {
+      "provider": "operate",
+      "root": "/Users/preston/operate-companyos-connect",
+      "baseline": "849ddaa28b68adcd3b80c4b6b6a9aa23e0d8f4bd",
+      "head": "849ddaa28b68adcd3b80c4b6b6a9aa23e0d8f4bd",
+      "branch": "codex/companyos-connect",
+      "committedThisPhase": false,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "convex/companyOsChanges.ts",
+          "sha256": "135fe7b43e5842d18201ea4fe833464efd4f7314077554987e41edfb01331096",
+          "bytes": 5442
+        },
+        {
+          "path": "convex/companyOsConnector.ts",
+          "sha256": "59605d22e05edfee2faa0e1ccb3ff6b562ead769fa7769e5c395b4274af5942a",
+          "bytes": 31037
+        },
+        {
+          "path": "convex/companyOsNotifications.ts",
+          "sha256": "c3f9b5d58f8fbbd9d1f54cd326164f587fb39603c582d95c3339348dea13d6f1",
+          "bytes": 3823
+        },
+        {
+          "path": "convex/companyOsWrite.ts",
+          "sha256": "35b6c99a661db23bf35140585a33216240f3d7f6fa2c4b7c347c4deb394f5038",
+          "bytes": 2977
+        },
+        {
+          "path": "convex/http.ts",
+          "sha256": "d371d6c8cc5efec231169e96d7b5e94c4af936b128ab547e2e688afca42607e9",
+          "bytes": 32916
+        },
+        {
+          "path": "convex/oauth.ts",
+          "sha256": "d1f1f77ba07cd8bc709495fdc80150a89cbdd2ce41a0f6692166486492950fec",
+          "bytes": 27811
+        },
+        {
+          "path": "convex/schema.ts",
+          "sha256": "3c68d93d915c4cc87df0505aaafc8bb5d7a42fcad44f79785472b1970ae5f405",
+          "bytes": 122337
+        },
+        {
+          "path": "src/app/.well-known/companyos-connector/route.ts",
+          "sha256": "6a6fc9dcc67507527a99a2bf35d9ad4715461ed548adb26d2152d9160cfbe9d2",
+          "bytes": 1953
+        },
+        {
+          "path": "src/app/api/companyos/v1/changes/route.ts",
+          "sha256": "136142277f74a04bf6a709a90fa40a7ad4a4607c2c6bb17ff52c89a493ab6684",
+          "bytes": 1046
+        },
+        {
+          "path": "src/app/api/companyos/v1/events/route.ts",
+          "sha256": "838396693bbbbbe45002b247786e4850b4431a5d6a3504b933f499bebbdb5143",
+          "bytes": 2257
+        },
+        {
+          "path": "src/app/api/companyos/v1/snapshot/route.ts",
+          "sha256": "2d0012b77f49cff56a9f3eb6ca425ef955f13453718b03ad3c8e84b0d0ae2541",
+          "bytes": 17420
+        },
+        {
+          "path": "src/app/api/companyos/v1/write/route.ts",
+          "sha256": "dcd6301bf337c3733959ff1e14f2ddee044b38efa4421f09cb5cbe6290e282ab",
+          "bytes": 2760
+        },
+        {
+          "path": "src/app/oauth/authorize/oauth-authorize.tsx",
+          "sha256": "1833e535cdc90cf2f4de8aef61ec69cdeda90c61cff827032efcbffff692ce4c",
+          "bytes": 11118
+        },
+        {
+          "path": "src/lib/companyos-connect.ts",
+          "sha256": "68ed686ffb6a1a849a0cd15f0966bda0a1d40e6726115c47797cd368191eb95c",
+          "bytes": 5089
+        },
+        {
+          "path": "src/lib/companyos-events.ts",
+          "sha256": "b975fe7b352dbe97eae1fc598f759a84ea448af30295e1e166e823721a7678a9",
+          "bytes": 2670
+        },
+        {
+          "path": "src/lib/oauth-server.ts",
+          "sha256": "edc9f15d60dc8ccadbce0cb6181ff6cad691f2f89d71e24c9311fe52058fe611",
+          "bytes": 5412
+        },
+        {
+          "path": "tests/companyos-connector.test.ts",
+          "sha256": "89adfaef65d91c8589a6b7ace2b8e0546b191658045f392d4d9dcd53aa7ec9c3",
+          "bytes": 36655
+        },
+        {
+          "path": "tests/companyos-discovery.test.ts",
+          "sha256": "7e82ac627e346844aafb2b5f852484046ad2484bb5d3e4caabf4d3d0f9d0bf05",
+          "bytes": 3705
+        },
+        {
+          "path": "tests/companyos-events.test.ts",
+          "sha256": "18f94495ebbb40ecb4d14d5ec06678c8cae465411ea991ae2da29692d4b775be",
+          "bytes": 2474
+        },
+        {
+          "path": "tests/companyos-routes.test.ts",
+          "sha256": "895cc333b9f126616cbec5f1c4c577fc92f3b788d90b270b345fec2325471d33",
+          "bytes": 10013
+        },
+        {
+          "path": "tests/oauth.test.ts",
+          "sha256": "8576b2a55fdb7ed9ff6373078c948b0e2e33eb9862c7887f57bbd19315d0013f",
+          "bytes": 20993
+        }
+      ]
+    },
+    {
+      "provider": "scalar",
+      "root": "/Users/preston/Documents/Codex/2026-09-06/sicarii-ui-reference",
+      "baseline": "7922be8b22e6f7cd3e6041ddecfeceac8f0a4414",
+      "head": "542aea19d5bfbca44b998a6342fc69a0359e6b7b",
+      "branch": "codex/hades-plugins-crm-v2",
+      "committedThisPhase": true,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "docs/oauth/CRM_V2_INDEPENDENT_REVIEW.md",
+          "sha256": "8e3c93d00548c88c8d48f725128b4fc6f467eed06bff7958fb59a3238d37cc47",
+          "bytes": 4131
+        },
+        {
+          "path": "docs/oauth/CRM_V2_REVIEW.md",
+          "sha256": "67419d9e19e297c276d8d9a2ac91a3825487b4996b318eaff95606311fe21560",
+          "bytes": 9966
+        },
+        {
+          "path": "prisma/schema.prisma",
+          "sha256": "f38e68ceb677e715eba357fedb35098ab6ab79e10172cdf03fe897b2e82418e3",
+          "bytes": 41402
+        },
+        {
+          "path": "src/app/api/oauth/contacts/route.ts",
+          "sha256": "d42fcc3f59497b50be4bb21a4caa1ff7901bc789fe694d360e210aaf09bf6aee",
+          "bytes": 1580
+        },
+        {
+          "path": "src/app/api/oauth/records/route.ts",
+          "sha256": "46a638df6c71d459411eb56bd81e12f60fc18033580ac5f4e122a0ff8e3bf06f",
+          "bytes": 2536
+        },
+        {
+          "path": "src/app/oauth/register/route.ts",
+          "sha256": "2132cb9f6b407f4b59e02408509b9baadaebf89301618db1f8b7971ec70904dd",
+          "bytes": 3075
+        },
+        {
+          "path": "src/app/oauth/userinfo/route.ts",
+          "sha256": "8353fb4c69f47322e7cc928b54ffd7183d361f7c98b6adcc182b3aebfc28b0c5",
+          "bytes": 3814
+        },
+        {
+          "path": "src/lib/oauth-contact-data.ts",
+          "sha256": "daa837ed071af30399ab62187f43b8fd938ec5a2db4c283da64b930f0da64c06",
+          "bytes": 5122
+        },
+        {
+          "path": "src/lib/oauth-crm-data.ts",
+          "sha256": "3e9cfb6c727d2afbd3fc3a89add13b0567ce6b3be576d18f5da6c23f3c9d9ea1",
+          "bytes": 13128
+        },
+        {
+          "path": "src/lib/oauth-server.ts",
+          "sha256": "b6b713e321617e742fe6ea250a3e684d91dc6b9909140d47aaff7472e5b0a084",
+          "bytes": 21981
+        },
+        {
+          "path": "tests/oauth-contact-data.test.ts",
+          "sha256": "7efd6ec8ec3579cb2fce55a7db6a89301002208fd531438c71c0c4048fe5f5c1",
+          "bytes": 4078
+        },
+        {
+          "path": "tests/oauth-crm-data.test.ts",
+          "sha256": "ce608c5415aaea49df7265b8f652e249593f11163fd670f372f2332622ef7fd9",
+          "bytes": 12644
+        },
+        {
+          "path": "tests/oauth-crm-independent-review.test.ts",
+          "sha256": "f5f05b0acb28d4a6c7775d9cb30abe7efb6ba227b7f08da436479e0284e769f3",
+          "bytes": 10176
+        },
+        {
+          "path": "tests/oauth-crm-route.test.ts",
+          "sha256": "65a9c194773edc7d8e4e75134e04acc2229ea183d349d47d47434a7d162da7ef",
+          "bytes": 2776
+        },
+        {
+          "path": "tests/oauth-native-client.test.ts",
+          "sha256": "17ce19c3b4b653bae4b7f3d052ab084a7b9a6d5cdb7d77a6f52c59a5db88e8e6",
+          "bytes": 1856
+        }
+      ]
+    },
+    {
+      "provider": "stored",
+      "root": "/Users/preston/Documents/Codex/2026-09-10/stored-oauth-source-patch",
+      "baseline": "37ef3dfb155e7169b866fced81675dc886676b24",
+      "head": null,
+      "branch": null,
+      "committedThisPhase": false,
+      "remoteDelivered": false,
+      "installedOrDeployed": false,
+      "files": [
+        {
+          "path": "MANIFEST.json",
+          "sha256": "d1538212d345daf366004fccd26e720cf929f85ba581e7c3213626d707e07630",
+          "bytes": 4226
+        },
+        {
+          "path": "stored-oauth.patch",
+          "sha256": "04b7940ccacca31d61380b0ab01d6a80cd47378c4cc11f251d67c616805dd673",
+          "bytes": 25904
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/plugins/evidence/cadre-messages-api-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-author-contract.md",
+      "sha256": "a7880e91931a918c56cb0f62f86d0432a42c34f15018c60a111bcd23e9b2f086",
+      "bytes": 9245
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-author-final.log",
+      "sha256": "4bb911598bcecbc8a6cef21d637a2c40c883a013b92854481e5a8b01267af4ec",
+      "bytes": 326
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-core-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-independent-author-rerun.log",
+      "sha256": "7ddc8f15979d3b93e2825668650bc0b51a4629dd4b6c6818a0f6f8a2144a0d80",
+      "bytes": 321
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-independent-expanded-red.log",
+      "sha256": "ded37c248b53542f2c298557d407e1d798af95f53b88ac46265c28fb9c88e7b2",
+      "bytes": 1922
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-independent-final-green.log",
+      "sha256": "d051f53b36d56f43d5889b4a769a3dfc1ed4639bba07f4c7fdb8661db5ea704a",
+      "bytes": 321
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-independent-initial-red.log",
+      "sha256": "580ac13b8333f2737a4593fab9b1db124dd880f7545491c2cd039ffe3c470de9",
+      "bytes": 944
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-independent-review.md",
+      "sha256": "5b67747cc9ef0027ec500df4a594ae6a4bc3ecd21e7e4c739bdcf4c8ffb9f0c0",
+      "bytes": 5531
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-page-green.log",
+      "sha256": "e109a1a0b5e3a77a2da9fbf48ebd295e137a62e2530cdba2bec9cac5c3988113",
+      "bytes": 326
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-page-red.log",
+      "sha256": "40044cf2de25b12712878473fbbe0c8ac5aecc7f8204cd50a7fa6216dc942df1",
+      "bytes": 2818
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-messages-source-red.log",
+      "sha256": "f05527c6422d2a7f10964d67569dde74eb227f7d7171327f67ceb2db85abecc9",
+      "bytes": 1907
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-brand-build.log",
+      "sha256": "e2047894a6b7f184db9fe2493a2348a4c0e460975f6420b35120ccf3a5de55b7",
+      "bytes": 431
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-brand-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-build.log",
+      "sha256": "a88eb7de7339ffaf129ddcd24eb8566211d4ca429eca006d16b61825717a4a71",
+      "bytes": 431
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-default-work.log",
+      "sha256": "f402100bcd65508e2729207bf824d72672328fe3ad6e1d47f8734626dc2cb917",
+      "bytes": 407
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-fresh-read-independent.log",
+      "sha256": "563da084c9f727ebada9867b903f253f746b57f9f46b6daff91116fff6cc5473",
+      "bytes": 405
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-plugins-tests.log",
+      "sha256": "89b9752d36e4fb3ba298c6feba7b0139608931b321d08482f68e1d60bc1bca40",
+      "bytes": 2342
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-scalar-client-red.log",
+      "sha256": "7a6b36183c5ac02d1b0b8faabec72a572aaaa5c74ad3098fef549714ce571c7e",
+      "bytes": 1464
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-work-brand-tests.log",
+      "sha256": "1ccc75bb76a3ecd4f3c07e155d5dbfb3acd31ab138a42c3f2353a14cd0ff2e75",
+      "bytes": 2183
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-work-independent-green.log",
+      "sha256": "12cbf031ccef3c3216c82fcd0059431bbb33c2b1d107b429c33809aaf2a3c237",
+      "bytes": 404
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-work-independent-red.log",
+      "sha256": "402e4c7c5c21d912f0a936ce211e7ac6986dd7efc59121dd028039ac398eace1",
+      "bytes": 1010
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-work-tests.log",
+      "sha256": "55854beb55c2e42fed1a775b2cde2f2dffc187d71364fec6d0d17a237086ab1e",
+      "bytes": 2183
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-write-ack-independent.log",
+      "sha256": "46297df8ac39c743736bd3f572765a567f584618af8c2c830d89dc56a0e43342",
+      "bytes": 576
+    },
+    {
+      "path": "docs/plugins/evidence/hades-v3-write-ack-red.log",
+      "sha256": "09af6c4bbfab83ead2a21c13a0f0f98d6678b91858f3cb63a813711769df2119",
+      "bytes": 1969
+    },
+    {
+      "path": "docs/plugins/evidence/scalar-v3-author-contract.md",
+      "sha256": "67419d9e19e297c276d8d9a2ac91a3825487b4996b318eaff95606311fe21560",
+      "bytes": 9966
+    },
+    {
+      "path": "docs/plugins/evidence/scalar-v3-author-final.log",
+      "sha256": "ae6833cafdc7e9ab1f277a2811621b85026182e5e659171542ad8c237f8cc23c",
+      "bytes": 622
+    },
+    {
+      "path": "docs/plugins/evidence/scalar-v3-focused-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/plugins/evidence/scalar-v3-independent-green.log",
+      "sha256": "068d9fe226672c443a1c889de715a02d4118c1a4f289fcb157bd54069ae74a37",
+      "bytes": 474
+    },
+    {
+      "path": "docs/plugins/evidence/scalar-v3-independent-red.log",
+      "sha256": "cdae7ba4f9dbf15223a59f2cbd203d86bba108274f0d05b1677e028eb091e027",
+      "bytes": 2215
+    },
+    {
+      "path": "docs/plugins/evidence/scalar-v3-independent-review.md",
+      "sha256": "8e3c93d00548c88c8d48f725128b4fc6f467eed06bff7958fb59a3238d37cc47",
+      "bytes": 4131
+    }
+  ],
+  "verification": [
+    {
+      "command": "npm run test:plugins",
+      "exitCode": 0,
+      "passed": 247,
+      "files": 18,
+      "log": "docs/plugins/evidence/hades-v3-plugins-tests.log",
+      "scope": "in-process modeled providers and local host/UI fixtures"
+    },
+    {
+      "command": "npm run test:work:offline",
+      "exitCode": 0,
+      "passed": 127,
+      "files": 16,
+      "log": "docs/plugins/evidence/hades-v3-work-brand-tests.log",
+      "scope": "in-process Work/Orca with injected model/process/transport boundaries"
+    },
+    {
+      "command": "tsc --noEmit --incremental false",
+      "exitCode": 0,
+      "log": "docs/plugins/evidence/hades-v3-brand-types.log"
+    },
+    {
+      "command": "npm run desktop:build",
+      "exitCode": 0,
+      "log": "docs/plugins/evidence/hades-v3-brand-build.log",
+      "scope": "frontend/sidecar source bundles, not native/Helm/Orca runtime builds"
+    },
+    {
+      "provider": "scalar",
+      "authorCases": 26,
+      "independentCases": 7,
+      "focusedTypes": "passed",
+      "actualGeneratedPrismaOrHostedDatabase": "not accepted"
+    },
+    {
+      "provider": "cadre",
+      "authorCases": 56,
+      "independentCases": 9,
+      "coreAndApiTypes": "passed",
+      "actualProductionSchemaOrHostedDatabase": "not accepted"
+    }
+  ],
+  "liveAccountJourneysPassed": 0,
+  "liveAccountJourneysRequired": 7,
+  "goalStatus": "active",
+  "productAccepted": false,
+  "caveats": [
+    "Source identity is pinned by files; this receipt intentionally records Hades precommit HEAD and cannot contain its own eventual commit hash.",
+    "Scalar and Cadre now have reviewed local commits; the other five source delivery states remain those recorded in v2. None was remotely delivered or deployed.",
+    "Scalar has no whole-project type/build acceptance with the retained missing Prisma/AI dependencies. Its source schema/table changes need deployment readiness.",
+    "Cadre PGlite tests use a minimal compatible schema. Real production backfill, lock and concurrency behavior remains open.",
+    "Native app control and remote write/comparison task operations were denied in this session. No alternate path was used. Exact Helm/Orca dependencies and native disk headroom remain insufficient.",
+    "Current /company-os integration supplies verified versioned instructions. Registry publication/latest, Bun, runtime controllers and automatic framework scheduling are not accepted.",
+    "Durable Work Orca output remains unchecked until exact worktree integration/acceptance exists; unknown usage is not provider budget enforcement."
+  ],
+  "freezeRevision": 2,
+  "freezeReason": "Final UI review corrected visible OpenCode engine labels to Helm; internal identifier unchanged. Work gate, types and source builds rerun."
+}

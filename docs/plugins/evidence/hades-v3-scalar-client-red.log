@@ -1,0 +1,32 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:52755) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/ecosystem-scalar-review.test.ts (5 tests | 1 failed) 48ms
+   × a wrong-record write acknowledgement remains unknown and never reports applied 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/ecosystem-scalar-review.test.ts > a wrong-record write acknowledgement remains unknown and never reports applied
+AssertionError: expected 'applied' to be 'unknown' // Object.is equality
+
+Expected: "unknown"
+Received: "applied"
+
+ ❯ src/desktop/__tests__/ecosystem-scalar-review.test.ts:59:61
+     57|  const f=fixture();await f.service.sync("p","scalar");f.foreign();
+     58|  const input={key:ids[1],collection:"contacts",id:ids[0],operation:"up…
+     59|  expect((await f.service.write("p","scalar",input)).status).toBe("unkn…
+       |                                                             ^
+     60|  expect((await f.service.write("p","scalar",input)).status).toBe("unkn…
+     61| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 passed (5)
+   Start at  05:47:25
+   Duration  172ms (transform 51ms, setup 0ms, import 63ms, tests 48ms, environment 0ms)
+

@@ -1,0 +1,38 @@
+Review dependency: vitest@4.1.5
+Review dependency: @electric-sql/pglite@0.4.1
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo
+
+ ❯ packages/core/src/node/hades-messages.review.mjs (16 tests | 2 failed) 8371ms
+   × source receipt intent is reduced to bounded callback semantics with unknown intents hidden 455ms
+   × oversized hidden internal or system prose does not block a permitted public message 467ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/core/src/node/hades-messages.review.mjs > source receipt intent is reduced to bounded callback semantics with unknown intents hidden
+AssertionError: expected 300497 to be less than 2048
+ ❯ packages/core/src/node/hades-messages.review.mjs:140:49
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  packages/core/src/node/hades-messages.review.mjs > oversized hidden internal or system prose does not block a permitted public message
+Error: record_capacity_exceeded
+ ❯ projectHadesMessage packages/core/src/node/hades-messages.ts:27:40
+     25| export function projectHadesMessage(record: any, source: any) {
+     26|   if (!source) return null;
+     27|   if (source.oversized === true) throw new HadesMessageError(503, "rec…
+       |                                        ^
+     28|   if (!["user", "bot"].includes(source.role) || !Array.isArray(source.…
+     29|   const internal = source.runTrigger === "bot_message" && !isUserFacin…
+ ❯ readHadesMessages packages/core/src/node/hades-messages.ts:80:61
+ ❯ packages/core/src/node/hades-messages.review.mjs:148:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  2 failed | 54 passed (56)
+   Start at  05:53:07
+   Duration  19.81s (transform 59ms, setup 0ms, import 120ms, tests 19.40s, environment 0ms)
+

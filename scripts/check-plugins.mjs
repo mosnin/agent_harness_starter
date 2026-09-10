@@ -17,6 +17,7 @@ const suites = [
   "ecosystem-service", "ecosystem-events", "ecosystem-recovery",
   "ecosystem-catalog", "ecosystem-tools", "ecosystem-plugins-ui",
   "ecosystem-detail-ui", "ecosystem-scopes-review", "workbench-ecosystem-ui",
+  "ecosystem-read-review", "ecosystem-scalar-review", "ecosystem-write-ack-review",
   "workbench-ecosystem", "company-os", "company-os-resilience",
   "workbench-shutdown", "desktop-request-routing", "workbench-experience",
 ].map((name) => `src/desktop/__tests__/${name}.test.ts`);

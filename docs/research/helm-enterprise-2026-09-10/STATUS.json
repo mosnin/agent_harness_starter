@@ -1,6 +1,6 @@
 {
   "schema": "hades.enterprise-program-status.v1",
-  "updatedAt": "2026-09-10T07:32:51.805583+00:00",
+  "updatedAt": "2026-09-10T10:01:07.673628+00:00",
   "goal": "active",
   "productAccepted": false,
   "hadesBaseline": "81cd435977ee5f8b6e7e78f0595aa3da1777af78",
@@ -30,12 +30,12 @@
     {
       "id": "G05",
       "status": "partial",
-      "evidence": "38 actual-adapter contract fixtures passed, including unknown dispatch and reconciliation. Three repeated real crash-boundary trials remain open."
+      "evidence": "Durable Work now dispatches to the existing Orca service with persisted identity, no replay on unknown recovery, and three repeated in-process fault fixtures. Six independent review cases pass. Real runtime/crash-boundary trials remain open."
     },
     {
       "id": "G06",
       "status": "fixture_verified",
-      "evidence": "Rolling DAG admission, concurrency, overlapping edits and fairness pass local fixtures and independent source review. Real-provider coverage remains G13."
+      "evidence": "Rolling DAG/edit reservations and fairness pass source fixtures. An independently reproduced Orca preflight starvation bug is repaired; unrelated Hades tasks continue. Default multi-profile Workbench execution passes with injected models."
     },
     {
       "id": "G07",
@@ -50,7 +50,7 @@
     {
       "id": "G09",
       "status": "partial",
-      "evidence": "Hades Work persists measured usage and unknown reservations. Orca provider-wide token/time/spend enforcement is not implemented."
+      "evidence": "Work retains unknown Orca reservations across restart and reconciliation adds no token reservation. Provider token/time/spend enforcement remains unimplemented."
     },
     {
       "id": "G10",
@@ -74,8 +74,8 @@
     },
     {
       "id": "G14",
-      "status": "missing",
-      "evidence": "Real sourced research/document/spreadsheet/connector deliverable comparison workflows remain to be implemented and exercised."
+      "status": "partial",
+      "evidence": "Seven native plugin source adapters and real framework instruction integration exist; expanded Scalar CRM and Cadre conversation reads are locally verified. All seven live OAuth journeys and real general-work comparisons remain open."
     },
     {
       "id": "G15",
@@ -85,7 +85,7 @@
     {
       "id": "G16",
       "status": "partial",
-      "evidence": "Work, audit history and Orca controls have DOM coverage. Current native keyboard/pointer/visual acceptance has not run."
+      "evidence": "Work engine selection and readable native Plugins collections/details have DOM coverage. Installed native keyboard/pointer/visual acceptance has not run."
     },
     {
       "id": "G17",
@@ -95,7 +95,7 @@
     {
       "id": "G18",
       "status": "partial",
-      "evidence": "253/253 selected offline fixtures; 22/22 Node script tests; types and desktop frontend/sidecar build pass. Full listener/GUI/runtime/provider regression remains open."
+      "evidence": "Current Plugins247/247 and Work/Orca127/127 in-process tests, full TypeScript and desktop source builds pass. Older benchmark/helper evidence is retained separately. Full native/runtime/provider regression remains open."
     },
     {
       "id": "G19",
@@ -105,7 +105,7 @@
     {
       "id": "G20",
       "status": "partial",
-      "evidence": "Independent source/fixture reviews repaired material findings. Product-wide independent acceptance is not complete."
+      "evidence": "Fresh independent client, SQL and Work reviews repaired admission, input, acknowledgement and message-bound defects on hashed source. Product-wide independent acceptance remains open."
     }
   ],
   "nextExecutionOrder": [
@@ -115,6 +115,8 @@
     "Deliver and benchmark real general-work and enterprise policy workflows",
     "Run native usability and 24-case three-trial matched comparison, then independent product acceptance"
   ],
-  "sourceCandidate": "ab74827cbe01181acfa1ec83ae54775b827f184e",
-  "sourceState": "committed locally; not pushed or installed"
+  "sourceCandidate": "b6ec8b860252b34eefc80e0914bc1d1393eefb6a",
+  "sourceState": "Prior committed Hades baseline; the follow-up local source is pinned by docs/plugins/source-v3-receipt.json. No remote or installed release accepted.",
+  "pluginProgram": "docs/plugins/PROGRAM.md",
+  "sourceReceipt": "docs/plugins/source-v3-receipt.json"
 }

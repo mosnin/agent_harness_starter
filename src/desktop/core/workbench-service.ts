@@ -1,3 +1,4 @@
+import { executeWorkOrca } from "./work-orca";
 import { BrowserRuntimeServer } from './browser-runtime-server';
 import { EcosystemService } from './ecosystem-service';
 import { ecosystemTools } from './ecosystem-tools';
@@ -366,6 +367,7 @@ export class WorkbenchService {
     this.credentials = new CredentialPool(join(dataDir, "credential-pools.sqlite"), account => this.keys.get(account));
     this.computer.configure(this.settings.computerEnabled);
     this.work = new DurableWork(join(dataDir, "work.sqlite"), {
+      preflight: task => { if(task.engine?.kind === "orca") this.preflightWorkOrca(); },
       profile: id => { this.profile(id); }, root: path => this.root(path),
       execute: (input, signal, bind) => this.executeWorkRequest(input, signal, bind),
       changed: goal => this.emit({ kind: "desktop.work", id: goal.id, profile: goal.profile }),
@@ -1306,7 +1308,7 @@ export class WorkbenchService {
       case "work.audit.export": return this.work.auditExport(ident(a.id), this.profile(a.profile).id);
       case "work.create": return this.work.create(a, this.profile(a.profile).id);
       case "work.run": return this.work.run(ident(a.id), this.profile(a.profile).id);
-      case "work.stop": return this.work.stop(ident(a.id), this.profile(a.profile).id);
+      case "work.stop": return this.stopWork(ident(a.id), this.profile(a.profile).id);
       case "work.resume": return this.work.resume(ident(a.id), this.profile(a.profile).id, a);
       case "work.message": return this.work.message(ident(a.id), this.profile(a.profile).id, ident(a.task), text(a.input, 8000));
       case "harness.catalog": return harnessCatalog;
@@ -2442,7 +2444,7 @@ export class WorkbenchService {
         run: goal => this.work.run(goal, p.id),
         get: goal => this.work.get(goal, workOwner),
         message: (goal, task, message) => this.work.message(goal, workOwner, task, message),
-        stop: goal => { if (lineage.workGoal) throw new Error("A child cannot stop its parent plan"); return this.work.stop(goal, p.id); },
+        stop: goal => { if (lineage.workGoal) throw new Error("A child cannot stop its parent plan"); return this.stopWork(goal, p.id); },
       });
       for (const tool of [
         ...ecosystemTools(this.ecosystem,p.id,controller.signal),
@@ -2701,10 +2703,25 @@ export class WorkbenchService {
   private workView(goal: WorkGoal) {
     return { ...goal, tasks: goal.tasks.map(task => ({ ...task, pendingApproval: Boolean(task.session && this.progress.get(task.session)?.approval) })) };
   }
+  private preflightWorkOrca() {
+    try { this.helmOrcaRuntime.validateArtifacts(); }
+    catch(error) { throw new Error("Orca packaged artifacts are unavailable or invalid. Open Helm → Orca to inspect readiness; no worker was dispatched.", {cause:error}); }
+  }
+  private async stopWork(id: string, profile: string) {
+    const goal=this.work.stop(id,profile);
+    const outcomes=await Promise.all(goal.tasks.filter(t=>t.engine?.kind==='orca'&&t.engine.dispatchIntent).map(async task=>{
+      if(task.engine?.kind!=='orca')return;
+      const scope={root:goal.root,profile:task.profile};
+      const record=this.helmOrca.list(scope).find(r=>r.id===(task.engine as {requestId:string}).requestId);
+      if(record) return this.helmOrca.stop(scope,record.id);
+    }));
+    return {...goal,engineStops:outcomes.filter(Boolean)};
+  }
   private async executeWorkRequest(input: WorkExecution, signal: AbortSignal, bind: (session: string) => void) {
     this.assertMaintenanceAdmission();
     signal.throwIfAborted();
     const p = this.profile(input.profile), root = this.root(input.root);
+    if(input.engine?.kind === "orca") return executeWorkOrca({service:this.helmOrca,preflight:()=>this.preflightWorkOrca()},input,signal);
     const session = input.session
       ? await this.dispatch("session.get", { id: input.session, profile: p.id }) as { id: string; root: string }
       : await this.dispatch("session.new", { root, profile: p.id, title: this.work.get(input.goal, input.owner).tasks.find(task => task.id === input.task)?.title ?? "Work task" }) as { id: string; root?: string };

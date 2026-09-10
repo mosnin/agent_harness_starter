@@ -8,9 +8,11 @@ export type WorkTaskStatus = "queued" | "running" | "completed" | "failed" | "in
 export interface WorkAttempt {
   id: string; number: number; status: Exclude<WorkTaskStatus, "queued">;
   startedAt: number; finishedAt?: number; session?: string;
-  reservedTokens: number; tokens?: number; error?: string;
+  reservedTokens: number; tokens?: number; error?: string; engineRequestId?: string;
 }
+export type WorkEngine = { kind: "hades" } | { kind: "orca"; agent: "codex" | "claude" | "opencode"; model?: string; requestId: string; dispatchIntent?: boolean };
 export interface WorkTask {
+  engine?: WorkEngine;
   id: string; title: string; prompt: string; profile: string; dependsOn: string[];
   status: WorkTaskStatus; session?: string; answer?: string; error?: string;
   /** Upper bound reserved for interrupted calls whose usage is unknown. Not measured spend. */
@@ -27,11 +29,13 @@ export interface WorkGoal {
 }
 export interface WorkExecution {
   goal: string; task: string; profile: string; owner: string; root: string; prompt: string;
+  engine?: WorkEngine; markDispatchIntent: () => void;
   session?: string; maxTokens: number; maxRuntimeMs: number; attemptId: string; writes?: string[];
   /** Recheck durable ownership immediately before an external effect. */
   assertActive: () => void;
 }
 interface WorkDependencies {
+  preflight?: (task: WorkTask) => void;
   execute: (input: WorkExecution, signal: AbortSignal, bind: (session: string) => void) => Promise<{ answer: string; tokens: number; error?: string }>;
   profile: (id: string) => void;
   root: (path: string) => string;
@@ -163,9 +167,19 @@ export class DurableWork {
     const tasks: WorkTask[] = a.tasks.map((t: any, i) => {
       if (!t || typeof t !== "object") throw new Error("Invalid task");
       if (t.dependsOn !== undefined && (!Array.isArray(t.dependsOn) || t.dependsOn.length > 16)) throw new Error("Invalid task dependencies");
+      let engine: WorkEngine = {kind:"hades"};
+      if(t.engine !== undefined) {
+        if(!t.engine || typeof t.engine !== "object" || !["hades","orca"].includes(t.engine.kind)) throw new Error("Choose Hades or Orca engine");
+        if(Object.keys(t.engine).some(k=>!["kind","agent","model"].includes(k))) throw new Error("Engine authority fields cannot be supplied");
+        if(t.engine.kind === "orca") {
+          if(!["codex","claude","opencode"].includes(t.engine.agent)) throw new Error("Choose an Orca provider");
+          const model=t.engine.model===undefined?undefined:clean(t.engine.model,"Orca model",200); if(model?.startsWith("-")) throw new Error("Invalid Orca model");
+          engine={kind:"orca",agent:t.engine.agent,requestId:randomUUID(),...(model?{model}:{})};
+        }
+      }
       const assigned = ident(t.profile ?? profile); this.deps.profile(assigned);
       return { id: ident(t.id ?? `task${i + 1}`), title: clean(t.title, "task name", 160), prompt: clean(t.prompt, "task instructions"), profile: assigned,
-        dependsOn: (t.dependsOn ?? []).map(ident), status: "queued", rounds: 0, messages: [],
+        engine, dependsOn: (t.dependsOn ?? []).map(ident), status: "queued", rounds: 0, messages: [],
         writes: workWrites(root, t.writes), acceptance: workChecks(root, t.acceptance), attempts: [] };
     });
     if (new Set(tasks.map(t => t.id)).size !== tasks.length) throw new Error("Task identifiers must be unique");
@@ -261,16 +275,24 @@ export class DurableWork {
         for (const dependency of task.dependsOn.map(d => goal.tasks.find(t => t.id === d)!)) assertWorkEvidence(goal.root, dependency.acceptance ?? [], dependency.evidence);
         workWrites(goal.root, task.writes); // Recheck symbolic links changed since creation.
         if ([...busy, ...ready.map(task => ({root: goal.root, writes: task.writes}))].some(other => workPlanWritesOverlap(goal.root, task.writes, other.root, other.writes))) { waiting = true; continue; }
+        if(task.engine?.kind === "orca" && !task.engine.dispatchIntent) {
+          // Artifact availability is local to this task. Keep independent ready
+          // siblings eligible, while committing the refusal in the same admission
+          // transaction. Dependency/evidence/storage failures still propagate.
+          try { this.deps.preflight?.(task); }
+          catch(error) { task.status="failed"; task.error=error instanceof Error?error.message:"Orca artifacts are unavailable"; continue; }
+        }
         ready.push(task);
       }
       const eligible = goal.tasks.filter(task => task.status === "queued" && task.rounds < goal.maxRounds && task.dependsOn.every(d => goal.tasks.find(t => t.id === d)?.status === "completed")).length;
       // Keep the available slots' shares available for otherwise-ready tasks that
       // are briefly waiting on another plan's edit reservation.
       const allotment = ready.length ? Math.floor((goal.maxTokens - goal.tokens - reserved(goal)) / Math.max(ready.length, Math.min(slots, eligible))) : 0;
-      if (allotment > 0) for (const task of ready) {
+      for (const task of ready.filter(t=>allotment>0 || t.engine?.kind==="orca" && t.engine.dispatchIntent)) {
+        const taskAllotment=task.engine?.kind==="orca"&&task.engine.dispatchIntent?0:allotment;
         task.status = "running"; task.rounds++; task.error = undefined; task.evidence = undefined;
-        task.reservedTokens = (task.reservedTokens ?? 0) + allotment;
-        const attempt: WorkAttempt = { id: randomUUID(), number: task.rounds, status: "running", startedAt: this.now(), reservedTokens: allotment, session: task.session };
+        task.reservedTokens = (task.reservedTokens ?? 0) + taskAllotment;
+        const attempt: WorkAttempt = { id: randomUUID(), number: task.rounds, status: "running", startedAt: this.now(), reservedTokens: taskAllotment, ...(task.engine?.kind==="orca" && task.engine.dispatchIntent?{engineRequestId:task.engine.requestId}:{}), session: task.session };
         (task.attempts ??= []).push(attempt); claimed.push({ task, attempt });
       }
       if (JSON.stringify(before) !== JSON.stringify(goal)) {
@@ -289,7 +311,10 @@ export class DurableWork {
     const dependencies = task.dependsOn.map(d => goal.tasks.find(t => t.id === d)!).map(t => `${t.title}:\n${t.answer ?? ""}${t.evidence?.length ? "\nChecked artifact receipts: " + JSON.stringify(t.evidence) : "\nNo task-specific artifact checks were configured."}`).join("\n\n");
     try {
       const result = await abortable(this.deps.execute({ goal: id, task: task.id, profile: task.profile, owner: goal.profile, root: goal.root, session: task.session,
-        attemptId: attempt.id, writes: task.writes, maxTokens: attempt.reservedTokens, maxRuntimeMs,
+        attemptId: attempt.id, engine: task.engine, markDispatchIntent: () => {
+          controller.signal.throwIfAborted();
+          this.edit(id,g=>{const t=g.tasks.find(t=>t.id===task.id)!;if(t.engine?.kind!=="orca"||t.attempts?.at(-1)?.id!==attempt.id)throw new Error("Work engine attempt changed");t.engine.dispatchIntent=true;t.attempts!.at(-1)!.engineRequestId=t.engine.requestId;},owner,"task.engine_dispatch_intent",task.id);
+        }, writes: task.writes, maxTokens: attempt.reservedTokens, maxRuntimeMs,
         assertActive: () => {
           controller.signal.throwIfAborted();
           if (this.closed) throw new Error("Work service is closed");
@@ -303,7 +328,7 @@ export class DurableWork {
           this.edit(id, g => { const t = g.tasks.find(t => t.id === task.id)!; const a = t.attempts?.find(a => a.id === attempt.id); if (!a || a.status !== "running") throw new Error("Task attempt is no longer active"); t.session = session; a.session = session; }, owner, "task.session_bound", task.id);
         }), controller.signal);
       if (controller.signal.aborted || this.closed) return;
-      if (!Number.isSafeInteger(result.tokens) || result.tokens < 0) throw new Error("Worker did not report valid token usage; review the task before continuing");
+      if (!Number.isSafeInteger(result.tokens) || result.tokens < 0) throw new Error(result.error || "Worker did not report valid token usage; review the task before continuing");
       let failure = result.error || (!result.answer.trim() ? "Worker returned no result" : undefined);
       let evidence: WorkOutputEvidence[] | undefined;
       if (!failure) try { evidence = verifyWorkOutputs(goal.root, task.acceptance ?? []); } catch (error) { failure = error instanceof Error ? error.message : "Task output verification failed"; }
@@ -335,7 +360,7 @@ export class DurableWork {
         if (row.owner !== owner || (row.lease ?? 0) <= this.now()) { controller.abort(); break; }
         const goal = this.decode(row);
         if (goal.status !== "running") break;
-        if (initial.elapsedMs + this.now() - start >= goal.maxMinutes * 60000 || (!pool.size && !goal.tasks.every(t => t.status === "completed") && goal.tokens + reserved(goal) >= goal.maxTokens)) {
+        if (initial.elapsedMs + this.now() - start >= goal.maxMinutes * 60000 || (!pool.size && !goal.tasks.every(t => t.status === "completed") && goal.tokens + reserved(goal) >= goal.maxTokens && !goal.tasks.some(t=>t.status==="queued"&&t.engine?.kind==="orca"&&t.engine.dispatchIntent))) {
           this.edit(id, g => { g.status = "budget_exhausted"; g.error = reserved(g) ? "Interrupted calls have unmeasured usage reserved against this budget. Explicitly increase the budget before continuing." : "Increase the work budget explicitly before continuing."; }, owner); controller.abort(); break;
         }
         if (goal.tasks.every(t => t.status === "completed")) {
@@ -351,7 +376,7 @@ export class DurableWork {
         // worker is slow. Poll that admission condition when there is spare capacity.
         if (pool.size) await Promise.race([...pool.values(), ...(admitted.waiting && pool.size < admitted.goal.maxConcurrent ? [abortable(new Promise<void>(resolve => setTimeout(resolve, 50)), controller.signal)] : [])]);
         else if (admitted.waiting) await abortable(new Promise<void>(resolve => setTimeout(resolve, 50)), controller.signal);
-        else { this.edit(id, g => { g.status = "needs_review"; g.error = "A dependency failed or was interrupted. Review its conversation and resume."; }, owner); break; }
+        else { this.edit(id, g => { g.status = "needs_review"; g.error = "A dependency failed or was interrupted. Review its conversation and resume." + (g.tasks.find(t=>t.status==="failed"&&t.error)?.error ? " " + g.tasks.find(t=>t.status==="failed"&&t.error)!.error : ""); }, owner); break; }
       }
       if (controller.signal.aborted && !this.closed && this.row(id).owner === owner) this.edit(id, g => {
         if (g.status === "running") { g.status = "budget_exhausted"; g.error = "Work stopped at its time limit or lost worker ownership."; }

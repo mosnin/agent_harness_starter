@@ -608,14 +608,17 @@ export class EcosystemService {
     profile: string,
     id: unknown,
     signal?: AbortSignal,
+    agent = false,
   ): Promise<PluginView> {
     const d = this.available(id),
       c = this.store.get(profile, d.id);
     if (!c?.account) throw new Error("Connect this account first");
+    if (agent && !c.agentRead)
+      throw new Error("Agent read access is not enabled for this plugin");
     return this.track("sync:" + c.generation, async () => {
       this.update(c, { status: "syncing", reason: undefined });
       try {
-        const request = this.request(c, signal);
+        const request = this.request(c, signal, false, agent);
         const observed = d.adapter.account(
           await request(d.oauth.userInfoEndpoint),
         );
@@ -628,6 +631,8 @@ export class EcosystemService {
         const scoped = this.active(c),
           scopes = scopeIdentity(scoped.scopes),
           assertScopes = () => {
+            if (agent && !this.active(c).agentRead)
+              throw new Error("Agent read access was removed");
             if (scopeIdentity(this.active(c).scopes) !== scopes)
               throw new Error(
                 "Account permissions changed during sync. Sync again.",
@@ -802,6 +807,89 @@ export class EcosystemService {
       status: view.status,
       lastSyncedAt: view.lastSyncedAt,
       account: view.account,
+      ...(c?.snapshotId
+        ? { snapshotId: digest({ snapshot: c.snapshotId, collection, query }) }
+        : {}),
+    };
+  }
+  /** Fresh first page, explicitly version-bound continuation or requested offline cache. */
+  async read(
+    profile: string,
+    id: unknown,
+    input: {
+      collection?: unknown;
+      query?: unknown;
+      offset?: unknown;
+      freshness?: unknown;
+      expectedSnapshotId?: unknown;
+    } = {},
+    signal?: AbortSignal,
+  ) {
+    const d = this.available(id),
+      c = this.store.get(profile, d.id);
+    if (!c?.account || !c.agentRead)
+      throw new Error("Agent read access is not enabled for this plugin");
+    const initial = this.data(profile, d.id, input, true);
+    const expected = input.expectedSnapshotId,
+      freshness =
+        input.freshness ?? (expected !== undefined ? "cached" : "refresh");
+    if (freshness !== "refresh" && freshness !== "cached")
+      throw new Error("Choose refresh or cached data freshness");
+    if (
+      expected !== undefined &&
+      (typeof expected !== "string" || !/^[a-f0-9]{64}$/.test(expected))
+    )
+      throw new Error("Use the returned snapshotId for continuation");
+    if (Number(input.offset ?? 0) > 0 && expected === undefined)
+      throw new Error(
+        "Further pages require expectedSnapshotId from the first page",
+      );
+    if (expected !== undefined && expected !== initial.snapshotId)
+      throw new Error(
+        "Account data or filters changed. Read again from the first page.",
+      );
+    signal?.throwIfAborted();
+    if (freshness === "refresh") {
+      const job = this.sync(profile, d.id, signal, true);
+      // A background refresh may already own the shared sync. Cancelling this
+      // reader must return promptly without assuming that separate work stopped.
+      if (signal)
+        await new Promise<void>((resolve, reject) => {
+          const cancel = () =>
+            reject(signal.reason ?? new Error("Plugin read cancelled"));
+          signal.addEventListener("abort", cancel, { once: true });
+          const finish = () => signal.removeEventListener("abort", cancel);
+          void job.then(
+            () => {
+              finish();
+              resolve();
+            },
+            (error) => {
+              finish();
+              reject(error);
+            },
+          );
+          if (signal.aborted) {
+            finish();
+            cancel();
+          }
+        });
+      else await job;
+    }
+    signal?.throwIfAborted();
+    this.active(c);
+    const page = this.data(profile, d.id, input, true);
+    if (expected !== undefined && expected !== page.snapshotId)
+      throw new Error(
+        "Account data changed during refresh. Read again from the first page.",
+      );
+    return {
+      ...page,
+      source:
+        freshness === "refresh"
+          ? ("service-sync" as const)
+          : ("snapshot" as const),
+      ...(freshness === "refresh" ? { checkedAt: this.now() } : {}),
     };
   }
   permissions(profile: string, id: unknown, read: unknown, write: unknown) {

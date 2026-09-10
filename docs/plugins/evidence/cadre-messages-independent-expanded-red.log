@@ -1,0 +1,38 @@
+Review dependency: vitest@4.1.5
+Review dependency: @electric-sql/pglite@0.4.1
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo
+
+ ❯ packages/core/src/node/hades-messages-independent.review.mjs (9 tests | 2 failed) 5118ms
+   × independent oversized peer source intent cannot inflate the SQL source projection 517ms
+   × independent hidden oversized peer text does not block unrelated public results 528ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/core/src/node/hades-messages-independent.review.mjs > independent oversized peer source intent cannot inflate the SQL source projection
+AssertionError: expected 300436 to be less than 262144
+ ❯ packages/core/src/node/hades-messages-independent.review.mjs:81:52
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  packages/core/src/node/hades-messages-independent.review.mjs > independent hidden oversized peer text does not block unrelated public results
+Error: record_capacity_exceeded
+ ❯ projectHadesMessage packages/core/src/node/hades-messages.ts:27:40
+     25| export function projectHadesMessage(record: any, source: any) {
+     26|   if (!source) return null;
+     27|   if (source.oversized === true) throw new HadesMessageError(503, "rec…
+       |                                        ^
+     28|   if (!["user", "bot"].includes(source.role) || !Array.isArray(source.…
+     29|   const internal = source.runTrigger === "bot_message" && !isUserFacin…
+ ❯ readHadesMessages packages/core/src/node/hades-messages.ts:80:61
+ ❯ packages/core/src/node/hades-messages-independent.review.mjs:93:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 7 passed (9)
+   Start at  05:53:16
+   Duration  5.25s (transform 47ms, setup 0ms, import 68ms, tests 5.12s, environment 0ms)
+

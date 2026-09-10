@@ -1,0 +1,71 @@
+Review dependency: vitest@4.1.5
+Review dependency: @electric-sql/pglite@0.4.1
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo
+
+ ❯ packages/core/src/node/hades-messages.review.mjs (14 tests | 2 failed) 7152ms
+   × serialized record and change pages stay within 2 MiB without skipping later full messages 652ms
+   × a direct record cannot be combined with a continuation page 473ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/core/src/node/hades-messages.review.mjs > serialized record and change pages stay within 2 MiB without skipping later full messages
+AssertionError: expected 4441127 to be less than or equal to 2097152
+ ❯ packages/core/src/node/hades-messages.review.mjs:121:51
+    119|  let page=await f.read("collection=messages"),ids=[];
+    120|  for(let i=0;i<6;i++){
+    121|   expect(Buffer.byteLength(JSON.stringify(page))).toBeLessThanOrEqual(…
+       |                                                   ^
+    122|   if(!page.nextPage)break;page=await f.read("collection=messages&page=…
+    123|  }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  packages/core/src/node/hades-messages.review.mjs > a direct record cannot be combined with a continuation page
+AssertionError: promise resolved "{ record: { id: 'answer', …(5) }, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "cursor": "5",
++   "record": {
++     "collection": "messages",
++     "data": {
++       "botId": "bot",
++       "conversationName": "Writer",
++       "role": "bot",
++       "runCompletedAt": "2026-09-10T04:48:10.637-05:00",
++       "runId": "run",
++       "runStartedAt": "2026-09-10T04:48:10.637-05:00",
++       "runStatus": "completed",
++       "seq": 1,
++       "taskId": "task",
++       "text": "The actual result is 42.",
++       "threadId": "thread",
++     },
++     "id": "answer",
++     "revision": "5",
++     "title": "The actual result is 42.",
++     "updatedAt": 1789033690637,
++   },
+  }
+
+ ❯ packages/core/src/node/hades-messages.review.mjs:134:66
+    132|  const f=await fixture(),snapshot=await f.read("collection=messages");
+    133|  const page=Buffer.from(JSON.stringify({v:2,baseline:snapshot.cursor,c…
+    134|  await expect(f.read("collection=messages&id=answer&page="+page)).reje…
+       |                                                                  ^
+    135| });
+    136| it("ordinary message writes keep working without direct projection hel…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  2 failed | 52 passed (54)
+   Start at  05:47:57
+   Duration  18.13s (transform 48ms, setup 0ms, import 108ms, tests 17.73s, environment 0ms)
+

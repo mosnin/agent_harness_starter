@@ -16,7 +16,7 @@ import type {
 // Stored agentwiki37ef3df: web/src/app/oauth/userinfo/route.ts; source patch
 // /2026-09-10/stored-oauth-source-patch/source/web/{src/app/api/v1/oauth/memories/route.ts,src/lib/oauth/hades-client.ts}.
 // Operate /Users/preston/operate-companyos-connect: src/app/api/companyos/v1/{account,snapshot,installation,write,changes,events}/route.ts.
-// Scalar Sicarii7922be8 /2026-09-06/sicarii-ui-reference: src/lib/oauth-contact-data.ts; src/app/oauth/userinfo/route.ts.
+// Scalar Sicarii7922be8 /2026-09-06/sicarii-ui-reference: src/lib/oauth-crm-data.ts; src/app/oauth/userinfo/route.ts.
 // Company OS /Users/preston/company-os-web: convex/oauth{,Http,Policy}.ts and app/api/plugins/v1/*/route.ts.
 // Govern /Users/preston/govern-remediation-integration/src/lib/hades-oauth.ts.
 // Cadre /2026-09-05/cadre-revamp/rakazo/packages/core/src/node/hades-oauth.ts.
@@ -43,7 +43,7 @@ const definitions = {
   },
   scalar: {
     origin: "https://tryscalar.xyz",
-    path: "/api/oauth/contacts",
+    path: "/api/oauth/records",
     scopes: ["openid", "profile", "crm:read", "crm:write"],
     audience: undefined,
     client: undefined,
@@ -69,6 +69,7 @@ const definitions = {
       "bots:write",
       "bots:content:write",
       "bots:instructions:read",
+      "messages:read",
     ],
     audience: undefined,
     client: "hades-desktop-cadre",
@@ -120,6 +121,29 @@ function transport(...responses: unknown[]) {
     return responses.shift();
   };
   return { request, calls };
+}
+function sourceAcknowledgement(id: EcosystemId, input: PluginWrite) {
+  if (id === "operate")
+    return { id: input.id, version: "b".repeat(64), replayed: false };
+  if (id === "company-os")
+    return {
+      id: input.id,
+      version: "2",
+      contentHash: "b".repeat(64),
+      replayed: false,
+    };
+  return {
+    status: "applied",
+    ...(id === "stored" || id === "scalar" ? {} : { key: input.key }),
+    record: {
+      id: input.id,
+      collection: input.collection,
+      title: "Updated record",
+      revision: id === "stored" || id === "scalar" ? "b".repeat(64) : "8",
+      updatedAt: 2,
+      data: input.data,
+    },
+  };
 }
 const who: PluginAccount = {
   id: "human",
@@ -248,7 +272,7 @@ describe("source-reviewed native account catalog", () => {
       ).toThrow();
     },
   );
-  it.each(["stored", "scalar", ...native] as const)(
+  it.each(["stored", ...native] as const)(
     "%s retains common record and page fields exactly",
     async (id) => {
       const source = definitions[id],
@@ -257,13 +281,11 @@ describe("source-reviewed native account catalog", () => {
           collection:
             id === "stored"
               ? "memories"
-              : id === "scalar"
-                ? "contacts"
-                : id === "cadre"
-                  ? "bots"
-                  : id === "glove"
-                    ? "products"
-                    : "agents",
+              : id === "cadre"
+                ? "bots"
+                : id === "glove"
+                  ? "products"
+                  : "agents",
         };
       const io = transport({
         records: [fixture],
@@ -425,6 +447,166 @@ describe("source-reviewed native account catalog", () => {
     expect(io.calls[0].url.pathname).toBe("/api/plugins/v1/records/doc%2Fid");
   });
 });
+describe("Scalar CRM collection contract", () => {
+  const uuid = "12345678-1234-4234-8234-123456789abc";
+  const collections = [
+    "contacts",
+    "companies",
+    "activities",
+    "pipelines",
+    "pipelineEntries",
+  ];
+  it("finishes every collection including empty pages without inventing a change checkpoint", async () => {
+    const definition = plugin("scalar"),
+      adapter = definition.adapter!;
+    const rows = collections.map((collection) => ({
+      ...record,
+      id: uuid,
+      collection,
+    }));
+    const io = transport(
+      { records: [rows[0]], nextPage: uuid },
+      { records: [] },
+      ...rows.slice(1).map((row) => ({ records: [row] })),
+    );
+    const received: PluginRecord[] = [];
+    let page: string | undefined;
+    for (let i = 0; i < 6; i++) {
+      const response = await adapter.snapshot(io.request, who, page);
+      received.push(...response.records);
+      expect(response.cursor).toBeUndefined();
+      page = response.nextPage;
+      expect(Boolean(page)).toBe(i < 5);
+    }
+    expect(received).toEqual(rows);
+    expect(
+      io.calls.map((call) => call.url.searchParams.get("collection")),
+    ).toEqual(["contacts", ...collections]);
+    expect(io.calls[1].url.searchParams.get("page")).toBe(uuid);
+    expect(
+      io.calls.slice(2).every((call) => !call.url.searchParams.has("page")),
+    ).toBe(true);
+    expect(definition.capabilities!.reads).toEqual(collections);
+    expect(definition.capabilities!.detail).toBe("service");
+    expect(definition.adapter!.changes).toBeUndefined();
+    expect(definition.oauth!.resource).toBeUndefined(); // source supports legacy absent-resource CRM grants
+  });
+  it("refuses malformed or cross-collection pagination responses", async () => {
+    const adapter = plugin("scalar").adapter!,
+      io = transport({ records: [] });
+    for (const page of [
+      "old-contact-page",
+      "scalar-crm-v2:5:",
+      "scalar-crm-v2:1:bad",
+      "scalar-crm-v2:01:",
+    ]) {
+      await expect(adapter.snapshot(io.request, who, page)).rejects.toThrow(
+        "continuation",
+      );
+    }
+    expect(io.calls).toHaveLength(0);
+    await expect(
+      adapter.snapshot(
+        transport({ records: [{ ...record, collection: "companies" }] })
+          .request,
+        who,
+      ),
+    ).rejects.toThrow("collection response");
+    await expect(
+      adapter.snapshot(
+        transport({ records: [], nextPage: "invalid" }).request,
+        who,
+      ),
+    ).rejects.toThrow("continuation");
+  });
+  it.each(collections)(
+    "reads full %s details by current source identity",
+    async (collection) => {
+      const row = {
+          ...record,
+          collection,
+          id: uuid,
+          data: { body: "Full account content" },
+        },
+        adapter = plugin("scalar").adapter!,
+        io = transport({ record: row });
+      expect(await adapter.record!(io.request, who, collection, uuid)).toEqual(
+        row,
+      );
+      expect(io.calls[0].url.pathname).toBe("/api/oauth/records");
+      expect(Object.fromEntries(io.calls[0].url.searchParams)).toEqual({
+        collection,
+        id: uuid,
+      });
+    },
+  );
+  it.each([
+    ["contacts", { title: "Owner", tags: ["customer"] }],
+    ["companies", { description: "Account context", size: "20" }],
+    [
+      "pipelineEntries",
+      { stage: "WON", dealScore: 100, conversationStatus: "CLOSED" },
+    ],
+  ] as const)(
+    "advertises and dispatches actual %s edits",
+    async (collection, data) => {
+      const definition = plugin("scalar");
+      const input: PluginWrite = {
+        collection,
+        id: uuid,
+        key: uuid,
+        operation: "update",
+        expectedRevision: "a".repeat(64),
+        data: structuredClone(data),
+      };
+      const io = transport(sourceAcknowledgement("scalar", input));
+      expect(canWritePlugin(definition, ["crm:read"], input)).toBe(false);
+      expect(canWritePlugin(definition, ["crm:read", "crm:write"], input)).toBe(
+        true,
+      );
+      await definition.adapter!.write!(io.request, who, input);
+      expect(JSON.parse(String(io.calls[0].init?.body))).toEqual(input);
+      await expect(
+        definition.adapter!.write!(io.request, who, {
+          ...input,
+          data: { entityId: uuid },
+        }),
+      ).rejects.toThrow("supported Scalar fields");
+      expect(io.calls).toHaveLength(1);
+    },
+  );
+  it("refuses unsupported CRM effects and invalid identities before dispatch", async () => {
+    const adapter = plugin("scalar").adapter!,
+      io = transport({});
+    const input: PluginWrite = {
+      key: uuid,
+      id: uuid,
+      collection: "contacts",
+      operation: "update",
+      expectedRevision: "a".repeat(64),
+      data: { notes: "New note" },
+    };
+    for (const change of [
+      { collection: "activities" },
+      { operation: "delete" },
+      { key: "bad" },
+      { id: "bad" },
+      { expectedRevision: "old" },
+      { data: {} },
+    ]) {
+      await expect(
+        adapter.write!(io.request, who, { ...input, ...change }),
+      ).rejects.toThrow();
+    }
+    await expect(
+      adapter.record!(io.request, who, "tokens", uuid),
+    ).rejects.toThrow("supported Scalar");
+    await expect(
+      adapter.record!(io.request, who, "contacts", "bad"),
+    ).rejects.toThrow("supported Scalar");
+    expect(io.calls).toHaveLength(0);
+  });
+});
 const writes: Record<
   EcosystemId,
   {
@@ -444,7 +626,7 @@ const writes: Record<
     collection: "contacts",
     operation: "update",
     data: { name: "Contact", notes: "Notes" },
-    endpoint: "/api/oauth/contacts",
+    endpoint: "/api/oauth/records",
   },
   operate: {
     collection: "task",
@@ -483,6 +665,86 @@ const writes: Record<
   },
 };
 describe("source-owned write DTOs", () => {
+  it.each(native)(
+    "%s rejects an acknowledgement without its source sequence revision",
+    async (id) => {
+      const input: PluginWrite = {
+        collection: writes[id].collection,
+        operation: "rename",
+        id: "target",
+        key: "stable-write-key",
+        expectedRevision: "7",
+        data: { name: "Updated" },
+      };
+      const valid = sourceAcknowledgement(id, input) as {
+        status: string;
+        record: PluginRecord;
+      };
+      for (const revision of [
+        "garbage",
+        "0",
+        "-1",
+        "1.5",
+        "01",
+        "a".repeat(64),
+      ]) {
+        const io = transport({
+          ...valid,
+          record: { ...valid.record, revision },
+        });
+        await expect(
+          plugin(id).adapter!.write!(io.request, who, input),
+        ).rejects.toThrow("invalid updated record");
+        expect(io.calls).toHaveLength(1); // malformed acknowledgement follows an actual modeled dispatch
+      }
+    },
+  );
+  it("exposes Cadre conversation detail only with the new account consent", async () => {
+    const definition = plugin("cadre"),
+      row = {
+        id: "message-1",
+        collection: "messages",
+        title: "Result",
+        revision: "12",
+        data: {
+          threadId: "thread-1",
+          taskId: "task-1",
+          runId: "run-1",
+          role: "bot",
+          seq: 4,
+          text: "Verified task output",
+        },
+      },
+      io = transport({ record: row, cursor: "12" });
+    expect(
+      grantedPluginCapabilities(definition, definition.oauth!.readScopes)!
+        .reads,
+    ).toEqual(["bots", "tasks", "spaces"]);
+    expect(
+      grantedPluginCapabilities(definition, [
+        ...definition.oauth!.readScopes,
+        "messages:read",
+      ])!.reads,
+    ).toContain("messages");
+    expect(
+      await definition.adapter!.record!(
+        io.request,
+        who,
+        "messages",
+        "message-1",
+      ),
+    ).toEqual(row);
+    expect(io.calls[0].url.pathname).toBe("/api/hades/records");
+    expect(Object.fromEntries(io.calls[0].url.searchParams)).toEqual({
+      collection: "messages",
+      id: "message-1",
+    });
+    expect(
+      definition.capabilities!.writes.some(
+        (write) => write.collection === "messages",
+      ),
+    ).toBe(false);
+  });
   it("reads full Glove records through the source detail endpoint and limits optional collections to consent", async () => {
     const definition = plugin("glove"),
       record = {
@@ -540,7 +802,7 @@ describe("source-owned write DTOs", () => {
           expectedRevision: "4",
           data: structuredClone(data),
         },
-        io = transport({ status: "applied" });
+        io = transport(sourceAcknowledgement("glove", input));
       expect(canWritePlugin(definition, legacy, input)).toBe(false);
       expect(canWritePlugin(definition, [...legacy, writeScope], input)).toBe(
         true,
@@ -594,7 +856,7 @@ describe("source-owned write DTOs", () => {
           expectedRevision: "7",
           data,
         },
-        io = transport({ status: "applied" });
+        io = transport(sourceAcknowledgement(id, input));
       expect(canWritePlugin(definition, legacy)).toBe(true);
       expect(canWritePlugin(definition, legacy, input)).toBe(false);
       expect(canWritePlugin(definition, [...legacy, extraScope], input)).toBe(
@@ -656,7 +918,7 @@ describe("source-owned write DTOs", () => {
             : "a".repeat(64),
         };
       delete (input as Partial<typeof source>).endpoint;
-      const io = transport({ status: "applied" });
+      const io = transport(sourceAcknowledgement(id, input));
       await plugin(id).adapter!.write!(io.request, who, input);
       expect(io.calls[0].url.href).toBe(
         definitions[id].origin + source.endpoint,
@@ -672,7 +934,7 @@ describe("source-owned write DTOs", () => {
               expectedVersion: input.expectedRevision,
               idempotencyKey: input.key,
             }
-          : native.includes(id as (typeof native)[number])
+          : native.includes(id as (typeof native)[number]) || id === "scalar"
             ? input
             : {
                 key: input.key,

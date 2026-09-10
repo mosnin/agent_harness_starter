@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import {
   createCipheriv,
   createDecipheriv,
+  createHash,
   randomBytes,
   randomUUID,
 } from "node:crypto";
@@ -181,14 +182,46 @@ export class EcosystemStore {
         "INSERT INTO plugin_records VALUES(?,?,?,?,?) ON CONFLICT(profile,plugin,collection,id) DO UPDATE SET value=excluded.value",
       );
       for (const r of records)
-        put.run(c.profile, c.pluginId, r.collection, r.id, JSON.stringify(r));
+        put.run(
+          c.profile,
+          c.pluginId,
+          r.collection,
+          r.id,
+          JSON.stringify(r, (_key, value) =>
+            value && typeof value === "object" && !Array.isArray(value)
+              ? Object.fromEntries(
+                  Object.keys(value)
+                    .sort()
+                    .map((key) => [key, value[key]]),
+                )
+              : value,
+          ),
+        );
       for (const r of deleted)
         this.db
           .prepare(
             "DELETE FROM plugin_records WHERE profile=? AND plugin=? AND collection=? AND id=?",
           )
           .run(c.profile, c.pluginId, r.collection, r.id);
-      this.save(c, token);
+      // Cursor advances and unchanged refreshes must not invalidate an agent's
+      // page. Bind the view to its actual content and grant, not the sync clock.
+      const hash = createHash("sha256").update(
+        JSON.stringify([
+          c.profile,
+          c.pluginId,
+          c.generation,
+          c.account?.id,
+          c.account?.tenantId,
+          [...c.scopes].sort(),
+        ]),
+      );
+      for (const row of this.db
+        .prepare(
+          "SELECT value FROM plugin_records WHERE profile=? AND plugin=? ORDER BY collection,id",
+        )
+        .all(c.profile, c.pluginId) as { value: string }[])
+        hash.update("\n").update(row.value);
+      this.save({ ...c, snapshotId: hash.digest("hex") }, token);
     });
   }
   receipt(c: PluginConnection, key: string): PluginWriteReceipt | undefined {

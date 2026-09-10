@@ -1,0 +1,14 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /Users/preston/Documents/Codex/2026-09-06/sicarii-ui-reference
+
+ ✓ tests/oauth-native-client.test.ts (2 tests) 7ms
+ ✓ tests/oauth-contact-data.test.ts (6 tests) 8ms
+ ✓ tests/oauth-crm-data.test.ts (15 tests) 41ms
+ ✓ tests/oauth-crm-route.test.ts (3 tests) 56ms
+
+ Test Files  4 passed (4)
+      Tests  26 passed (26)
+   Start at  05:47:58
+   Duration  357ms (transform 132ms, setup 0ms, collect 282ms, tests 112ms, environment 0ms, prepare 140ms)
+

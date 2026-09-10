@@ -1,0 +1,43 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:53367) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:53368) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/ecosystem-write-ack-review.test.ts (31 tests | 3 failed) 106ms
+   × stored accepts its actual source acknowledgement shape 18ms
+   × operate keeps rejected successful HTTP acknowledgement unknown with durable no-retry 3ms
+   × company-os keeps rejected successful HTTP acknowledgement unknown with durable no-retry 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/ecosystem-write-ack-review.test.ts > stored accepts its actual source acknowledgement shape
+AssertionError: expected 'unknown' to be 'applied' // Object.is equality
+
+Expected: "applied"
+Received: "unknown"
+
+ ❯ src/desktop/__tests__/ecosystem-write-ack-review.test.ts:42:195
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/desktop/__tests__/ecosystem-write-ack-review.test.ts > operate keeps rejected successful HTTP acknowledgement unknown with durable no-retry
+ FAIL  src/desktop/__tests__/ecosystem-write-ack-review.test.ts > company-os keeps rejected successful HTTP acknowledgement unknown with durable no-retry
+AssertionError: expected 'applied' to be 'unknown' // Object.is equality
+
+Expected: "unknown"
+Received: "applied"
+
+ ❯ src/desktop/__tests__/ecosystem-write-ack-review.test.ts:47:90
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  3 failed | 34 passed (37)
+   Start at  05:51:30
+   Duration  351ms (transform 53ms, setup 0ms, import 76ms, tests 156ms, environment 0ms)
+

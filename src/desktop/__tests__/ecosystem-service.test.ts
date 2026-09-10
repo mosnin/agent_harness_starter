@@ -713,3 +713,135 @@ it("binds read-only OAuth consent to the pending connection and refuses extra to
     "write capability",
   );
 });
+
+it("refreshes the first agent page and refuses to disguise failed refresh as current data", async () => {
+  const f = fixture();
+  f.seed();
+  await f.service.sync("p", "stored");
+  f.snapshot.mockResolvedValueOnce({
+    records: [
+      {
+        id: "one",
+        collection: "items",
+        title: "Current",
+        revision: "2",
+        data: { safe: true },
+      },
+    ],
+    cursor: "c2",
+  });
+  const fresh = await f.service.read("p", "stored");
+  expect(fresh.source).toBe("service-sync");
+  expect(fresh.records[0].title).toBe("Current");
+  expect(fresh.snapshotId).toMatch(/^[a-f0-9]{64}$/);
+  f.fetcher.mockRejectedValueOnce(Error("offline"));
+  await expect(f.service.read("p", "stored")).rejects.toThrow("offline");
+  const offline = await f.service.read("p", "stored", { freshness: "cached" });
+  expect(offline.source).toBe("snapshot");
+  expect(offline.status).toBe("stale");
+  expect(offline.records[0].title).toBe("Current");
+  expect(offline).not.toHaveProperty("checkedAt");
+});
+it("keeps identical refreshed contents on one pagination identity while binding filters and changed content", async () => {
+  const f = fixture();
+  f.seed();
+  const records = Array.from({ length: 55 }, (_, i) => ({
+    id: String(i).padStart(3, "0"),
+    collection: "items",
+    title: "Record " + i,
+    revision: "1",
+    data: { safe: true },
+  }));
+  f.snapshot.mockResolvedValue({ records, cursor: "c1" });
+  const first = await f.service.read("p", "stored");
+  expect(first.nextOffset).toBe(50);
+  f.snapshot.mockResolvedValueOnce({
+    records: [...records].reverse(),
+    cursor: "advanced-no-data-change",
+  });
+  await f.service.sync("p", "stored");
+  const next = await f.service.read("p", "stored", {
+    offset: first.nextOffset,
+    expectedSnapshotId: first.snapshotId,
+  });
+  expect(next.records).toHaveLength(5);
+  expect(next.snapshotId).toBe(first.snapshotId);
+  await expect(f.service.read("p", "stored", { offset: 50 })).rejects.toThrow(
+    "expectedSnapshotId",
+  );
+  await expect(
+    f.service.read("p", "stored", {
+      offset: 50,
+      expectedSnapshotId: first.snapshotId,
+      query: "Record",
+    }),
+  ).rejects.toThrow("filters changed");
+  f.snapshot.mockResolvedValueOnce({
+    records: records.map((r, i) => (i === 0 ? { ...r, title: "Changed" } : r)),
+    cursor: "c3",
+  });
+  await f.service.sync("p", "stored");
+  await expect(
+    f.service.read("p", "stored", {
+      offset: 50,
+      expectedSnapshotId: first.snapshotId,
+    }),
+  ).rejects.toThrow("data or filters changed");
+});
+it("stops an agent waiting on an independently owned background sync without accepting its eventual page", async () => {
+  const f = fixture();
+  f.seed();
+  const entered = deferred(),
+    hold = deferred();
+  f.snapshot.mockImplementationOnce(async () => {
+    entered.done(true);
+    return hold.promise;
+  });
+  const background = f.service.sync("p", "stored");
+  await entered.promise;
+  const stop = new AbortController(),
+    reading = f.service.read("p", "stored", {}, stop.signal);
+  stop.abort(Error("reader stopped"));
+  await expect(reading).rejects.toThrow("reader stopped");
+  hold.done({
+    records: [
+      {
+        id: "one",
+        collection: "items",
+        title: "Background",
+        revision: "1",
+        data: { safe: true },
+      },
+    ],
+    cursor: "c1",
+  });
+  await background;
+  expect(f.service.data("p", "stored").records[0].title).toBe("Background");
+});
+it("refuses an agent page when local read permission is removed during its refresh", async () => {
+  const f = fixture();
+  f.seed();
+  const entered = deferred(),
+    hold = deferred();
+  f.snapshot.mockImplementationOnce(async () => {
+    entered.done(true);
+    return hold.promise;
+  });
+  const reading = f.service.read("p", "stored");
+  await entered.promise;
+  f.service.permissions("p", "stored", false, false);
+  hold.done({
+    records: [
+      {
+        id: "one",
+        collection: "items",
+        title: "Must not reach agent",
+        revision: "1",
+        data: { safe: true },
+      },
+    ],
+    cursor: "c1",
+  });
+  await expect(reading).rejects.toThrow("removed");
+  expect(f.store.records("p", "stored")).toEqual([]);
+});

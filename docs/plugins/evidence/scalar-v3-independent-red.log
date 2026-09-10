@@ -1,0 +1,62 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /Users/preston/Documents/Codex/2026-09-06/sicarii-ui-reference
+
+ ❯ tests/oauth-crm-independent-review.test.ts (7 tests | 1 failed) 40ms
+   × independent explicitly empty detail identity fails rather than returning a collection 4ms
+     → promise resolved "{ records: [ { …(6) } ] }" instead of rejecting
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/oauth-crm-independent-review.test.ts > independent explicitly empty detail identity fails rather than returning a collection
+AssertionError: promise resolved "{ records: [ { …(6) } ] }" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ Object {
++   "records": Array [
++     Object {
++       "collection": "contacts",
++       "data": Object {
++         "company": null,
++         "email": null,
++         "entityId": null,
++         "facebook": null,
++         "instagram": null,
++         "lastContactedAt": null,
++         "linkedin": null,
++         "location": null,
++         "name": "Owned",
++         "notes": "Original",
++         "phone": null,
++         "status": null,
++         "tags": Array [],
++         "title": null,
++         "twitter": null,
++         "website": null,
++       },
++       "id": "11111111-1111-4111-8111-111111111111",
++       "revision": "83b5fbf6d4aeb24ffa8040dfeb4e7705c5735c88a94f12599f58da3bd7fe95b7",
++       "title": "Owned",
++       "updatedAt": 1,
++     },
++   ],
++ }
+
+ ❯ tests/oauth-crm-independent-review.test.ts:258:89
+    256| 
+    257| it('independent explicitly empty detail identity fails rather than ret…
+    258|  const f=fixture();await expect(readOauthCrm(f.db,context,{collection:…
+       |                                                                                         ^
+    259| });
+    260| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  05:46:30
+   Duration  191ms (transform 30ms, setup 0ms, collect 50ms, tests 40ms, environment 0ms, prepare 24ms)
+

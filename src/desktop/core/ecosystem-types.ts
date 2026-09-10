@@ -84,6 +84,8 @@ export interface PluginConnection {
   scopes: string[];
   lastSyncedAt?: number;
   cursor?: string;
+  /** Content identity for stable, account-bound cached pagination. */
+  snapshotId?: string;
 }
 export interface OAuthConfiguration {
   issuer: string;
@@ -185,4 +187,6 @@ export interface PluginData {
   status: PluginView["status"];
   lastSyncedAt?: number;
   account?: PluginAccount;
+  /** Also bound to the exact collection/search filter returned for this page. */
+  snapshotId?: string;
 }
