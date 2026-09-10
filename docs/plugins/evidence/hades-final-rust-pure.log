@@ -1,0 +1,24 @@
+
+running 19 tests
+test gui::request_capacity::tests::old_cleanup_does_not_remove_a_reused_id ... ok
+test gui::request_capacity::tests::only_exact_contract_methods_receive_control_capacity ... ok
+test gui::request_capacity::tests::exhausted_ticket_counter_refuses_without_replacing_existing_waiters ... ok
+test gui::request_capacity::tests::clear_releases_waiters_without_reusing_tickets ... ok
+test gui::request_capacity::tests::duplicate_id_keeps_the_original_channel_waiter ... ok
+test gui::request_capacity::tests::delayed_response_after_timeout_cannot_consume_readmitted_caller_id ... ok
+test gui::tests::event_line_payload_skips_blank_keeps_content_trimmed ... ok
+test gui::tests::frame_command_line_appends_single_newline ... ok
+test gui::tests::frame_command_line_rejects_blank_and_multiline_payloads ... ok
+test gui::tests::frame_command_line_trims_surrounding_whitespace_before_framing ... ok
+test gui::tests::renderer_cannot_request_credentials_or_hijack_native_responses ... ok
+test gui::tests::resolve_sidecar_path_falls_back_on_none_or_blank ... ok
+test gui::tests::resolve_sidecar_path_prefers_non_blank_override ... ok
+test tests::backoff_grows_linearly_and_stays_short ... ok
+test tests::default_sidecar_path_is_relative_to_dist_desktop ... ok
+test tests::stdin_slot_starts_and_ends_empty_around_a_child_lifecycle ... ok
+test gui::request_capacity::tests::spatial_workflow_reserves_only_stop_and_cancel ... ok
+test gui::request_capacity::tests::control_saturation_does_not_consume_regular_capacity ... ok
+test gui::request_capacity::tests::regular_saturation_leaves_sixteen_control_slots ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

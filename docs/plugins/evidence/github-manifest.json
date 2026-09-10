@@ -1,0 +1,152 @@
+[
+  {
+    "repo": "mosnin/agentwiki",
+    "ref": "37ef3dfb155e7169b866fced81675dc886676b24",
+    "path": "web/src/lib/oauth/metadata.ts",
+    "blob": "c43638b0b1a66001925c6e465cb35afc9a25071a",
+    "url": "https://github.com/mosnin/agentwiki/blob/37ef3dfb155e7169b866fced81675dc886676b24/web/src/lib/oauth/metadata.ts",
+    "retained": "agentwiki--web__src__lib__oauth__metadata.ts.source",
+    "sha256": "641e8333ccb6a382525fa5a4f9d0754c935b0871cf1edde96f799a5c437de3c3",
+    "retainedGitBlob": "c43638b0b1a66001925c6e465cb35afc9a25071a"
+  },
+  {
+    "repo": "mosnin/agentwiki",
+    "ref": "37ef3dfb155e7169b866fced81675dc886676b24",
+    "path": "web/src/lib/oauth/scopes.ts",
+    "blob": "e91e745f97aeaa4219565c54039ad33c36dbc647",
+    "url": "https://github.com/mosnin/agentwiki/blob/37ef3dfb155e7169b866fced81675dc886676b24/web/src/lib/oauth/scopes.ts",
+    "retained": "agentwiki--web__src__lib__oauth__scopes.ts.source",
+    "sha256": "db9805ff4d479825dd2fd96176b6851f7c87cde2a388b627f4fa5d8d6a7b7cbb",
+    "retainedGitBlob": "e91e745f97aeaa4219565c54039ad33c36dbc647"
+  },
+  {
+    "repo": "mosnin/agentwiki",
+    "ref": "37ef3dfb155e7169b866fced81675dc886676b24",
+    "path": "web/src/lib/oauth/clients.ts",
+    "blob": "a48e06bf6339d67d2c952648beddb7910c8e218f",
+    "url": "https://github.com/mosnin/agentwiki/blob/37ef3dfb155e7169b866fced81675dc886676b24/web/src/lib/oauth/clients.ts",
+    "retained": "agentwiki--web__src__lib__oauth__clients.ts.source",
+    "sha256": "1f4bea59bc712b14a7fc716875b83572eaaddbf8ab444ba4efc47058c677f4a4",
+    "retainedGitBlob": "a48e06bf6339d67d2c952648beddb7910c8e218f"
+  },
+  {
+    "repo": "mosnin/agentwiki",
+    "ref": "37ef3dfb155e7169b866fced81675dc886676b24",
+    "path": "web/src/lib/api/gateway.ts",
+    "blob": "cfb3e346bfbd7995fde78e6d44301f33b6e875be",
+    "url": "https://github.com/mosnin/agentwiki/blob/37ef3dfb155e7169b866fced81675dc886676b24/web/src/lib/api/gateway.ts",
+    "retained": "agentwiki--web__src__lib__api__gateway.ts.source",
+    "sha256": "344eb33184739eac7e9f945d4834a5cbd262a2320d0cc947c4c82d803e00773e",
+    "retainedGitBlob": "cfb3e346bfbd7995fde78e6d44301f33b6e875be"
+  },
+  {
+    "repo": "mosnin/agentwiki",
+    "ref": "37ef3dfb155e7169b866fced81675dc886676b24",
+    "path": "web/src/lib/api/authenticate.ts",
+    "blob": "28a1c2a3b4d2f1e08de7a777f9043804649a5648",
+    "url": "https://github.com/mosnin/agentwiki/blob/37ef3dfb155e7169b866fced81675dc886676b24/web/src/lib/api/authenticate.ts",
+    "retained": "agentwiki--web__src__lib__api__authenticate.ts.source",
+    "sha256": "aae6621d4b6c15386f7a6bbb603ae729501273a19e342064e0a3082e9824ee32",
+    "retainedGitBlob": "28a1c2a3b4d2f1e08de7a777f9043804649a5648"
+  },
+  {
+    "repo": "mosnin/agentwiki",
+    "ref": "37ef3dfb155e7169b866fced81675dc886676b24",
+    "path": "web/src/app/api/v1/memories/route.ts",
+    "blob": "50d36b483eece1fed6ff76899623f9f9b027cd32",
+    "url": "https://github.com/mosnin/agentwiki/blob/37ef3dfb155e7169b866fced81675dc886676b24/web/src/app/api/v1/memories/route.ts",
+    "retained": "agentwiki--web__src__app__api__v1__memories__route.ts.source",
+    "sha256": "0576fe1c8b32295571fff7e2685718c0c41ca359114af70cec99a18ffabe7eea",
+    "retainedGitBlob": "50d36b483eece1fed6ff76899623f9f9b027cd32"
+  },
+  {
+    "repo": "mosnin/agentwiki",
+    "ref": "37ef3dfb155e7169b866fced81675dc886676b24",
+    "path": "web/src/app/api/v1/memories/[id]/route.ts",
+    "blob": "5a555f77df9dc73ebd2f9149491725bf81a19768",
+    "url": "https://github.com/mosnin/agentwiki/blob/37ef3dfb155e7169b866fced81675dc886676b24/web/src/app/api/v1/memories/[id]/route.ts",
+    "retained": "agentwiki--web__src__app__api__v1__memories__[id]__route.ts.source",
+    "sha256": "d45021d32c1b534bb61a0b1036644b35629b072384e2b21c2b1eb388964481e1",
+    "retainedGitBlob": "5a555f77df9dc73ebd2f9149491725bf81a19768"
+  },
+  {
+    "repo": "mosnin/agentwiki",
+    "ref": "37ef3dfb155e7169b866fced81675dc886676b24",
+    "path": "web/src/app/oauth/userinfo/route.ts",
+    "blob": "aaf18724945a5a3c4d73358f03ffdaf9dcdff5d5",
+    "url": "https://github.com/mosnin/agentwiki/blob/37ef3dfb155e7169b866fced81675dc886676b24/web/src/app/oauth/userinfo/route.ts",
+    "retained": "agentwiki--web__src__app__oauth__userinfo__route.ts.source",
+    "sha256": "6ce2653c0e5a6bcbbd6c59308fa15eb66ddbaee901fc28209d62da4e8fc609e8",
+    "retainedGitBlob": "aaf18724945a5a3c4d73358f03ffdaf9dcdff5d5"
+  },
+  {
+    "repo": "mosnin/Sicarii",
+    "ref": "7922be8b22e6f7cd3e6041ddecfeceac8f0a4414",
+    "path": "src/lib/oauth-server.ts",
+    "blob": "e53319018b732d9467d969d7a1bd2aaadda85389",
+    "url": "https://github.com/mosnin/Sicarii/blob/7922be8b22e6f7cd3e6041ddecfeceac8f0a4414/src/lib/oauth-server.ts",
+    "retained": "Sicarii--src__lib__oauth-server.ts.source",
+    "sha256": "f61c13a242c5222315eac1f7a1e7ba05579ff293244d92d9898b855eea782a4f",
+    "retainedGitBlob": "e53319018b732d9467d969d7a1bd2aaadda85389"
+  },
+  {
+    "repo": "mosnin/Sicarii",
+    "ref": "7922be8b22e6f7cd3e6041ddecfeceac8f0a4414",
+    "path": "src/lib/api-auth.ts",
+    "blob": "9dbb76ee678f6b65081f065ff836f708f69dc66f",
+    "url": "https://github.com/mosnin/Sicarii/blob/7922be8b22e6f7cd3e6041ddecfeceac8f0a4414/src/lib/api-auth.ts",
+    "retained": "Sicarii--src__lib__api-auth.ts.source",
+    "sha256": "1345a724b4cbc026800973ca4c16b306fa62f9a06f7ad4511988c3b9c55c7d91",
+    "retainedGitBlob": "9dbb76ee678f6b65081f065ff836f708f69dc66f"
+  },
+  {
+    "repo": "mosnin/Sicarii",
+    "ref": "7922be8b22e6f7cd3e6041ddecfeceac8f0a4414",
+    "path": "src/lib/auth-utils.ts",
+    "blob": "ae9facaf8fba39c87d0860667956193d08d65ba8",
+    "url": "https://github.com/mosnin/Sicarii/blob/7922be8b22e6f7cd3e6041ddecfeceac8f0a4414/src/lib/auth-utils.ts",
+    "retained": "Sicarii--src__lib__auth-utils.ts.source",
+    "sha256": "9a9a1a11bb3f129dc9b8da334509cff7aa5df1bd4508f71649306bbf8a9313da",
+    "retainedGitBlob": "ae9facaf8fba39c87d0860667956193d08d65ba8"
+  },
+  {
+    "repo": "mosnin/Sicarii",
+    "ref": "7922be8b22e6f7cd3e6041ddecfeceac8f0a4414",
+    "path": "src/app/oauth/register/route.ts",
+    "blob": "fa354c78b09736a5a85b2f69e92ece087e31d998",
+    "url": "https://github.com/mosnin/Sicarii/blob/7922be8b22e6f7cd3e6041ddecfeceac8f0a4414/src/app/oauth/register/route.ts",
+    "retained": "Sicarii--src__app__oauth__register__route.ts.source",
+    "sha256": "998f9067826c3f5116eadad30944e7efb8ae35acfa6ba19e95e78c246f256d24",
+    "retainedGitBlob": "fa354c78b09736a5a85b2f69e92ece087e31d998"
+  },
+  {
+    "repo": "mosnin/Sicarii",
+    "ref": "7922be8b22e6f7cd3e6041ddecfeceac8f0a4414",
+    "path": "src/app/oauth/userinfo/route.ts",
+    "blob": "6758175d9ae3da533bd4af765da4569aaf8546b5",
+    "url": "https://github.com/mosnin/Sicarii/blob/7922be8b22e6f7cd3e6041ddecfeceac8f0a4414/src/app/oauth/userinfo/route.ts",
+    "retained": "Sicarii--src__app__oauth__userinfo__route.ts.source",
+    "sha256": "68c1bae27b4aed0f14a84beabc71016f213fdd91d3fa0907fd82ee7f37128c13",
+    "retainedGitBlob": "6758175d9ae3da533bd4af765da4569aaf8546b5"
+  },
+  {
+    "repo": "mosnin/Sicarii",
+    "ref": "7922be8b22e6f7cd3e6041ddecfeceac8f0a4414",
+    "path": "src/app/oauth/metadata/authorization-server/route.ts",
+    "blob": "c46aca0aa78e4d743f2b644a6a53eac0e923f327",
+    "url": "https://github.com/mosnin/Sicarii/blob/7922be8b22e6f7cd3e6041ddecfeceac8f0a4414/src/app/oauth/metadata/authorization-server/route.ts",
+    "retained": "Sicarii--src__app__oauth__metadata__authorization-server__route.ts.source",
+    "sha256": "6438fc4cb87a4f83655a2e8ce95783ff4d8a45fb40f5bd08a414512e2b6f7eab",
+    "retainedGitBlob": "c46aca0aa78e4d743f2b644a6a53eac0e923f327"
+  },
+  {
+    "repo": "mosnin/Sicarii",
+    "ref": "7922be8b22e6f7cd3e6041ddecfeceac8f0a4414",
+    "path": "src/app/api/contacts/route.ts",
+    "blob": "958dec6321e7c5113e98c5cdede2a1e3981b50c6",
+    "url": "https://github.com/mosnin/Sicarii/blob/7922be8b22e6f7cd3e6041ddecfeceac8f0a4414/src/app/api/contacts/route.ts",
+    "retained": "Sicarii--src__app__api__contacts__route.ts.source",
+    "sha256": "8925f4168bb416a97259b8644b418be030a189dfb7d7741d5973f2ae1d4e3179",
+    "retainedGitBlob": "958dec6321e7c5113e98c5cdede2a1e3981b50c6"
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "scope": "Local optional framework resilience; no native/network/provider execution",
+  "files": {
+    "src/desktop/core/company-os.ts": "87f9a993c6df8ea88675cb17b6d1cd11abf547f208a85a15dfca86ebf18ea782",
+    "src/desktop/core/company-os-updates.ts": "2ca4379511b9f717c774996c30adc85c9b48ddf10a7f822754f4f7ea51a87965",
+    "src/desktop/__tests__/company-os-resilience.test.ts": "24796bd78c0530bfc9222e782da7ef9cd164a6c43686f86531ce7eb5746aa1b4"
+  },
+  "tests": {
+    "original": 9,
+    "new": 10,
+    "total": 19,
+    "result": "passed",
+    "log": "/tmp/company-os-resilience-tests.log"
+  },
+  "typecheck": {
+    "result": "passed",
+    "scope": "owned modules and new tests with strict TypeScript",
+    "log": "/tmp/company-os-resilience-types.log"
+  },
+  "lint": {
+    "result": "unavailable",
+    "reason": "Repository has no ESLint configuration",
+    "log": "/tmp/company-os-resilience-lint.log"
+  },
+  "runtimeScope": "No framework scripts or scheduling executed; context bytes always reverified, status cache is stat-based content validation not publisher authenticity"
+}

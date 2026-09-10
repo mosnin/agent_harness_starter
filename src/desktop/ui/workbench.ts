@@ -8,6 +8,7 @@ import { ShellHooksView } from "./shell-hooks";
 import { MaintenanceView } from "./maintenance";
 import { BrowserView } from "./browser";
 import { CredentialsView } from "./credentials";
+import { CompanyOsSettingsView, EcosystemPluginsView, ecosystemPlugins } from "./ecosystem-plugins";
 import { WebhooksView } from "./webhooks";
 import { SlackView } from "./slack-view";
 import { TeamChatView } from "./team-chat";
@@ -24,6 +25,7 @@ import { toolActivityCards } from "./tool-activity";
 import "@xterm/xterm/css/xterm.css";
 import "./workbench.css";
 import "./workbench-design.css";
+import "./ecosystem-plugins.css";
 import {
   shortcutDefaults,
   parseShortcuts,
@@ -92,6 +94,7 @@ export function mountWorkbench(root: HTMLElement) {
     promptHistory: string[] = [],
     historyIndex = 0;
   let plugins: Row[] = [];
+  let ecosystemPluginId = "stored";
   let harnessItems: Row[] = [];
   let codexAccount: Row = { connected: false }, codexPending = false;
   let room: Row | undefined,
@@ -155,6 +158,8 @@ export function mountWorkbench(root: HTMLElement) {
   const workGoals = new WorkGoalsView(rpc, id => { void selectSession(id).catch(toast); });
   const browserView = new BrowserView(rpc, (account, value) => tauri().core.invoke("hades_key", { account, value }));
   const credentials = new CredentialsView(rpc, (account, value) => tauri().core.invoke("hades_key", { account, value }));
+  const ecosystem = new EcosystemPluginsView(rpc, url => rpc("link.open", { url }), () => tauri().core.invoke("hades_ecosystem_unlock"));
+  const companyOsSettings = new CompanyOsSettingsView(rpc);
   const webhooks = new WebhooksView(rpc, id => { void selectSession(id).catch(toast); });
   const channels = new ChannelsView(rpc, () => { void navigate("team").catch(toast); }, (account, value) => tauri().core.invoke("hades_key", { account, value }));
   const hooks = new ShellHooksView(rpc);
@@ -215,6 +220,7 @@ export function mountWorkbench(root: HTMLElement) {
     if (view === "webhooks") await webhooks.open(webhookContext());
     if (view === "browser") await browserView.open({ profile: profile.id, root: project, name: profile.name });
     if (view === "credentials") await credentials.open(profile.id);
+    if (view === "ecosystem") { const loading = ecosystem.open(profile.id, ecosystemPluginId); render(); await loading; }
     if (view === "channels") await channels.open(webhookContext());
     if (view === "hooks") await hooks.open(webhookContext());
     if (view === "maintenance") await maintenance.open();
@@ -369,6 +375,9 @@ export function mountWorkbench(root: HTMLElement) {
       `data-view="${name}" aria-current="${view === name ? "page" : "false"}" class="nav-item ${view === name ? "selected" : ""}"`,
     );
   }
+  function ecosystemNavigation(open: boolean) {
+    return `<details class="sidebar-plugins" ${open ? "open" : ""}><summary id="plugins-dropdown">${icon("plugins")}<span>Plugins</span>${icon("chevron")}</summary><nav aria-label="Plugins">${ecosystemPlugins.map(plugin => button(`<span class="ecosystem-nav-mark" aria-hidden="true">${plugin.name[0]}</span>${plugin.name}`, "ecosystem-open", `data-plugin="${plugin.id}" class="nav-item ${view === "ecosystem" && ecosystemPluginId === plugin.id ? "selected" : ""}" aria-current="${view === "ecosystem" && ecosystemPluginId === plugin.id ? "page" : "false"}"`)).join("")}</nav></details>`;
+  }
   let renderedModal = "";
   let modalReturnFocus: ReturnType<typeof captureFocus>;
   let renderedPane = "";
@@ -383,8 +392,9 @@ export function mountWorkbench(root: HTMLElement) {
     const savedFields = [...root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
       [!modalChanged ? ".modal input[id], .modal textarea[id], .modal select[id]" : "", renderedPane === paneKey ? ".inspector input[id], .inspector textarea[id]" : ""].filter(Boolean).join(",") || "[data-no-preserved-fields]",
     )].filter(el => el.type !== "file").map(el => ({ id: el.id, value: el.value, checked: (el as HTMLInputElement).checked }));
-    const savedDetails = !modalChanged ? [...root.querySelectorAll<HTMLDetailsElement>(".modal details")].map(el => el.open) : [];
+    const savedDetails = !modalChanged ? [...root.querySelectorAll<HTMLDetailsElement>(".modal details")].filter(el => !el.closest("#company-os-settings")).map(el => el.open) : [];
     const projectsOpen = root.querySelector<HTMLDetailsElement>(".sidebar-projects")?.open ?? false;
+    const ecosystemOpen = root.querySelector<HTMLDetailsElement>(".sidebar-plugins")?.open ?? view === "ecosystem";
     const sidebarScroll = root.querySelector(".sidebar-content")?.scrollTop ?? 0;
     const terminalFocused = !!document.activeElement?.closest(".terminal-surface");
     const terminalWasVisible = !!root.querySelector("#terminal-host");
@@ -402,7 +412,7 @@ export function mountWorkbench(root: HTMLElement) {
     root.innerHTML = `<div class="workbench ${!sidebar ? "hide-sidebar" : ""} ${location.search.includes("hud=1") ? "hud" : ""}">
    <aside class="sidebar" id="sidebar" aria-label="Workspace navigation"><div class="window-space" data-tauri-drag-region></div><div class="sidebar-content"><div class="brand"><img src="./assets/hades-icon.png" alt="Hades logo"><strong>Hades</strong></div>
    ${button(icon("+") + `<span class="truncate">New chat</span><kbd>${esc(formatShortcut(bindings.new))}</kbd>`, "new", 'class="new-chat"')}
-   <nav class="sidebar-nav" aria-label="Main">${nav("sessions", "Conversations")}${nav("helm", "Helm")}${nav("work", "Work")}${nav("workspace", "Workspace")}${nav("team", "Team chat")}${nav("jobs", "Scheduled")}${nav("agents", "Agents")}${nav("tools", "Tools & connections")}${nav("system", "System")}</nav>
+   <nav class="sidebar-nav" aria-label="Main">${nav("sessions", "Conversations")}${nav("helm", "Helm")}${nav("work", "Work")}${nav("workspace", "Workspace")}${nav("team", "Team chat")}${nav("jobs", "Scheduled")}${nav("agents", "Agents")}${ecosystemNavigation(ecosystemOpen)}${nav("tools", "Tools & connections")}${nav("system", "System")}</nav>
    <details class="sidebar-projects" ${projectsOpen ? "open" : ""}><summary>Projects</summary><div class="section-label">Project folders ${button(icon("+"), "project", 'aria-label="Open project"')}</div><div class="project-list">${boot.projects.length ? boot.projects.map((p: string) => `<div class="project-row ${project === p ? "active" : ""}">${button(icon("files") + `<span class="truncate">${esc(labelProject(p))}</span>`, "project-select", `data-path="${esc(p)}" title="${esc(p)}"`)}${button(icon("close"), "project-hide", `data-path="${esc(p)}" class="hide-project" aria-label="Hide project ${esc(labelProject(p))}"`)}</div>`).join("") : `<p class="sidebar-hint">Open a project folder.</p>`}</div>
    </details><div class="section-label">${archived ? "Archived" : "Recent"} ${button(icon(archived ? "back" : "more"), "archive-view", 'aria-label="Toggle archived conversations"')}</div>
    <input id="session-search" class="search" aria-label="Search conversations" placeholder="Search conversations" value="${esc(search)}">
@@ -425,7 +435,7 @@ export function mountWorkbench(root: HTMLElement) {
      '<p class="sidebar-hint">Your conversations appear here.</p>'
    }</div>
    </div><div class="sidebar-footer"><select id="profile-switch" aria-label="Agent profile">${boot.profiles.map((p: Profile) => `<option value="${p.id}" ${p.id === profile?.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>${button(icon("settings"), "settings", `class="icon-button" aria-label="Settings" title="Settings ${esc(formatShortcut(bindings.settings))}"`)}</div></aside>
-   ${button("", "sidebar", 'class="sidebar-scrim" aria-label="Close sidebar" tabindex="-1"')}<main class="main"><header class="toolbar" data-tauri-drag-region>${button(icon("sidebar"), "sidebar", 'id="toggle-sidebar" class="icon-button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="' + sidebar + '"')}<div class="breadcrumb">${icon(view)}<strong>${esc(view === "chat" ? session?.title || "New conversation" : ({ helm: "Helm", browser: "Hades Browser", channels: "Channels", hooks: "Hooks", maintenance: "Maintenance", credentials: "Credentials", webhooks: "Webhooks", work: "Work", tools: "Tools & connections", sessions: "Conversations", system: "System", activity: "Activity", mcp: "MCP servers", computer: "Computer control", slack: "Slack", harness: "Harness", team: "Team chat", workspace: "Workspace", artifact: "Artifacts", memory: "Memory", skills: "Skills", jobs: "Routines", agents: "Agents", models: "Local models", rooms: "Team rooms", plugins: "Extensions" } as Row)[view])}</strong></div><div class="toolbar-actions">${boot.computerEnabled ? button("Stop computer control", "computer-stop", 'class="computer-stop"') : ""}${button(icon("search"), "palette", `class="icon-button" aria-label="Command palette" title="Command palette ${esc(formatShortcut(bindings.palette))}"`)}${view === "chat" ? button(icon("files"), "files", 'class="icon-button" aria-label="File browser"') : ""}${view === "chat" ? button(icon("git"), "git", 'class="icon-button" aria-label="Git review"') : ""}${view === "chat" ? button(icon("terminal"), "terminal", 'class="icon-button" aria-label="Terminal"') : ""}${view === "chat" ? button(icon("sidebar-right"), "task-inspector", 'class="icon-button" aria-label="Task details" aria-pressed="' + taskInspector + '"') : ""}<details class="toolbar-menu"><summary id="window-actions" class="icon-button" aria-label="Window actions" title="Window actions">${icon("more")}</summary><div>${button(icon("external") + "New window", "popout")}${button(icon("floating") + "Floating chat", "hud")}</div></details></div></header>
+   ${button("", "sidebar", 'class="sidebar-scrim" aria-label="Close sidebar" tabindex="-1"')}<main class="main"><header class="toolbar" data-tauri-drag-region>${button(icon("sidebar"), "sidebar", 'id="toggle-sidebar" class="icon-button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="' + sidebar + '"')}<div class="breadcrumb">${icon(view === "ecosystem" ? "plugins" : view)}<strong>${esc(view === "chat" ? session?.title || "New conversation" : ({ helm: "Helm", browser: "Hades Browser", channels: "Channels", hooks: "Hooks", maintenance: "Maintenance", credentials: "Credentials", webhooks: "Webhooks", work: "Work", tools: "Tools & connections", sessions: "Conversations", system: "System", activity: "Activity", mcp: "MCP servers", computer: "Computer control", slack: "Slack", harness: "Harness", team: "Team chat", workspace: "Workspace", artifact: "Artifacts", memory: "Memory", skills: "Skills", jobs: "Routines", agents: "Agents", models: "Local models", rooms: "Team rooms", plugins: "Extensions", ecosystem: ecosystemPlugins.find(plugin => plugin.id === ecosystemPluginId)?.name || "Plugins" } as Row)[view])}</strong></div><div class="toolbar-actions">${boot.computerEnabled ? button("Stop computer control", "computer-stop", 'class="computer-stop"') : ""}${button(icon("search"), "palette", `class="icon-button" aria-label="Command palette" title="Command palette ${esc(formatShortcut(bindings.palette))}"`)}${view === "chat" ? button(icon("files"), "files", 'class="icon-button" aria-label="File browser"') : ""}${view === "chat" ? button(icon("git"), "git", 'class="icon-button" aria-label="Git review"') : ""}${view === "chat" ? button(icon("terminal"), "terminal", 'class="icon-button" aria-label="Terminal"') : ""}${view === "chat" ? button(icon("sidebar-right"), "task-inspector", 'class="icon-button" aria-label="Task details" aria-pressed="' + taskInspector + '"') : ""}<details class="toolbar-menu"><summary id="window-actions" class="icon-button" aria-label="Window actions" title="Window actions">${icon("more")}</summary><div>${button(icon("external") + "New window", "popout")}${button(icon("floating") + "Floating chat", "hud")}</div></details></div></header>
    ${
      view === "chat" && visibleTabs.length > 1
        ? `<div class="tabs">${tabs
@@ -438,10 +448,10 @@ export function mountWorkbench(root: HTMLElement) {
        : ""
    }
    ${visibleError || notice ? `<div class="error ${visibleError ? "" : "notice"}" role="${visibleError ? "alert" : "status"}">${esc(visibleError || notice)}${button(icon("close"), "dismiss", `aria-label="${visibleError ? "Dismiss error" : "Dismiss notification"}"`)}</div>` : ""}
-   <div class="body"><section class="primary">${view === "chat" ? chatHTML() : view === "helm" ? '<div id="helm-host"></div>' : view === "workspace" ? workspaceHTML() : view === "work" ? '<div id="work-goals-host"></div>' : view === "channels" ? '<div id="channels-host"></div>' : view === "hooks" ? '<div id="hooks-host"></div>' : view === "maintenance" ? '<div id="maintenance-host"></div>' : view === "browser" ? '<div id="browser-host"></div>' : view === "credentials" ? '<div id="credentials-host"></div>' : view === "webhooks" ? '<div id="webhooks-host"></div>' : view === "team" ? '<div id="team-chat-host"></div>' : view === "slack" ? '<div id="slack-host"></div>' : pageHTML()}</section>${pane ? paneHTML() : view === "chat" && taskInspector ? taskInspectorHTML() : ""}</div>
+   <div class="body"><section class="primary">${view === "chat" ? chatHTML() : view === "helm" ? '<div id="helm-host"></div>' : view === "workspace" ? workspaceHTML() : view === "work" ? '<div id="work-goals-host"></div>' : view === "channels" ? '<div id="channels-host"></div>' : view === "hooks" ? '<div id="hooks-host"></div>' : view === "maintenance" ? '<div id="maintenance-host"></div>' : view === "browser" ? '<div id="browser-host"></div>' : view === "credentials" ? '<div id="credentials-host"></div>' : view === "ecosystem" ? '<div id="ecosystem-host"></div>' : view === "webhooks" ? '<div id="webhooks-host"></div>' : view === "team" ? '<div id="team-chat-host"></div>' : view === "slack" ? '<div id="slack-host"></div>' : pageHTML()}</section>${pane ? paneHTML() : view === "chat" && taskInspector ? taskInspectorHTML() : ""}</div>
    ${statusbar ? `<footer class="statusbar"><span><i class="${running() ? "busy" : connected ? "connected" : ""}"></i>${running() ? "Working" : connected ? "Ready" : "Disconnected"} <span class="muted">/</span> ${esc(profile?.name || "Connecting")}</span><span>${usage.tokensIn !== undefined ? `${usage.tokensIn.toLocaleString()} in · ${usage.tokensOut.toLocaleString()} out · ${usage.costMeasured ? "~$" + usage.usd.toFixed(4) : profile?.provider === "codex" ? "subscription" : "price unavailable"}` : "Workspace files · ask before changes"} <span class="muted">${esc(formatShortcut(bindings.palette))}</span></span></footer>` : ""}</main></div>${modal ? modalHTML() : ""}`;
     for (const field of savedFields) { const input = root.querySelector<HTMLInputElement>(`#${CSS.escape(field.id)}`); if (input) { input.value = field.value; if (field.checked !== undefined) input.checked = field.checked; } }
-    root.querySelectorAll<HTMLDetailsElement>(".modal details").forEach((el, i) => { if (savedDetails[i] !== undefined) el.open = savedDetails[i]; });
+    [...root.querySelectorAll<HTMLDetailsElement>(".modal details")].filter(el => !el.closest("#company-os-settings")).forEach((el, i) => { if (savedDetails[i] !== undefined) el.open = savedDetails[i]; });
     const savedProvider = savedFields.find(f => f.id === "settings-provider")?.value;
     if (savedProvider) { const codex = root.querySelector<HTMLElement>("#codex-connection"), api = root.querySelector<HTMLElement>("#api-connection"); if (codex) codex.hidden = savedProvider !== "codex"; if (api) api.hidden = savedProvider === "codex"; }
     bind();
@@ -455,6 +465,8 @@ export function mountWorkbench(root: HTMLElement) {
     if (browserHost) browserView.mount(browserHost);
     const credentialHost = root.querySelector<HTMLElement>("#credentials-host");
     if (credentialHost) credentials.mount(credentialHost);
+    ecosystem.mount(root.querySelector<HTMLElement>("#ecosystem-host") ?? undefined);
+    companyOsSettings.mount(root.querySelector<HTMLElement>("#company-os-settings") ?? undefined, profile?.id);
     const webhookHost = root.querySelector<HTMLElement>("#webhooks-host");
     if (webhookHost) webhooks.mount(webhookHost);
     spatial.setScope(view === "chat" && session ? {sessionId:current(), profile:profile.id, root:project} : undefined);
@@ -524,7 +536,7 @@ export function mountWorkbench(root: HTMLElement) {
   function toolsHTML() {
     const groups = [
       ["Agent capabilities", [["skills","Skills","Reusable instructions"],["memory","Memory","Saved context and preferences"],["computer","Computer control","Screen and accessibility tools"],["models","Local models","Manage models on this Mac"]]],
-      ["Connections", [["browser","Hades Browser","Connect your agent to the companion browser"],["credentials","Credentials","Manage provider key pools"],["mcp","MCP servers","Add and inspect tool servers"],["plugins","Extensions","Install skill and tool bundles"],["webhooks","Webhooks","Wake agents from local services"],["channels","Channels","Connect Slack and manage member access"],["slack","Slack activity","Review bot tasks and replies"],["rooms","Team rooms","Collaborate across agent profiles"]]],
+      ["Connections", [["browser","Hades Browser","Connect your agent to the companion browser"],["credentials","Credentials","Manage provider key pools"],["mcp","MCP servers","Add and inspect tool servers"],["ecosystem","Plugins","Connected accounts and agent access"],["plugins","Extensions","Install skill and tool bundles"],["webhooks","Webhooks","Wake agents from local services"],["channels","Channels","Connect Slack and manage member access"],["slack","Slack activity","Review bot tasks and replies"],["rooms","Team rooms","Collaborate across agent profiles"]]],
       ["Workspace", [["artifact","Artifacts","Files and results"],["activity","Activity","Recorded tools, approvals and usage"],["hooks","Hooks","Run scripts around approved tool calls"],["maintenance","Maintenance","Backups and local diagnostics"],["harness","Command library","Advanced Hades commands"]]],
     ] as Array<[string,Array<[string,string,string]>]>;
     return `<div class="page tools-page">${heading("Tools & connections", "Capabilities and connections for " + esc(profile?.name || "your agent") + ".")}${groups.map(([label,items]) => `<section class="tools-group"><h2>${label}</h2>${items.map(([id,name,detail]) => `<button type="button" class="tool-route" data-action="nav" data-view="${id}">${icon(id)}<span><strong>${name}</strong><small>${detail}</small></span>${icon("right")}</button>`).join("")}</section>`).join("")}</div>`;
@@ -608,7 +620,7 @@ export function mountWorkbench(root: HTMLElement) {
             }
           : profile;
       title = modal === "profile" ? "New agent" : "Settings";
-      content = `<div class="settings-section"><h3>Provider & model</h3>${field("Agent name", "settings-name", p.name)}<label class="field">Provider<select id="settings-provider">${Object.entries(providers).map(([v, item]) => `<option value="${v}" ${p.provider === v ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><div id="codex-connection" ${p.provider !== "codex" ? "hidden" : ""}>${codexHTML()}</div>${field("Model", "settings-model", p.model)}<div id="api-connection" ${p.provider === "codex" ? "hidden" : ""}>${field("Endpoint", "settings-url", p.baseUrl)}${field("API key", "settings-key", "", "password")}<p class="help">Saved in macOS Keychain. Leave blank to keep your existing key.</p></div></div><details class="settings-section"><summary>Instructions & tools</summary><label class="field">Agent instructions<textarea id="settings-persona" rows="4">${esc(p.persona)}</textarea></label>${field("Allowed shell commands, separated by commas", "settings-shell", p.shell.join(","))}<p class="help">Host commands require your approval each time. They run with your account’s access.</p><p class="help">Manage MCP servers from the sidebar. ${p.mcp?.length ?? 0} servers configured for this profile.</p></details><details class="settings-section"><summary>Appearance & preferences</summary><div class="segmented">${["system", "light", "dark"].map((t) => button(t[0].toUpperCase() + t.slice(1), "theme", `data-theme="${t}" aria-pressed="${theme === t}" class="${theme === t ? "active" : ""}"`)).join("")}</div><div class="page-actions">${button("A−", "zoom-out", 'aria-label="Decrease text size"')}${button("A+", "zoom-in", 'aria-label="Increase text size"')}${button("Export profile", "profile-export")}${button("Import profile", "profile-import")}<input id="profile-import-file" type="file" accept=".json" hidden>${button("Keyboard shortcuts", "shortcuts")}${button("Import VS Code theme", "theme-import")}<input id="theme-import-file" type="file" accept=".json,.jsonc" hidden>${importedTheme ? button(esc(importedTheme.name), "theme", 'data-theme="custom"') : ""}</div><div class="page-actions">${button(quickEntry ? "Disable Quick Entry" : "Enable Quick Entry", "quick-entry")}${button("Keep awake", "awake-on")}${button("Allow sleep", "awake-off")}${button("Stop speech", "voice-stop")}</div><p class="help">Quick Entry: ⌘ ⇧ Space while Hades is open. Voice clips go to your profile’s speech endpoint; transcripts stay in the composer until you send.</p></details>${button("Save settings", "settings-save", 'class="primary-button wide"')}`;
+      content = `<div class="settings-section"><h3>Provider & model</h3>${field("Agent name", "settings-name", p.name)}<label class="field">Provider<select id="settings-provider">${Object.entries(providers).map(([v, item]) => `<option value="${v}" ${p.provider === v ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><div id="codex-connection" ${p.provider !== "codex" ? "hidden" : ""}>${codexHTML()}</div>${field("Model", "settings-model", p.model)}<div id="api-connection" ${p.provider === "codex" ? "hidden" : ""}>${field("Endpoint", "settings-url", p.baseUrl)}${field("API key", "settings-key", "", "password")}<p class="help">Saved in macOS Keychain. Leave blank to keep your existing key.</p></div></div><details class="settings-section"><summary>Instructions & tools</summary><label class="field">Agent instructions<textarea id="settings-persona" rows="4">${esc(p.persona)}</textarea></label>${field("Allowed shell commands, separated by commas", "settings-shell", p.shell.join(","))}<p class="help">Host commands require your approval each time. They run with your account’s access.</p><p class="help">Manage MCP servers from the sidebar. ${p.mcp?.length ?? 0} servers configured for this profile.</p></details>${modal === "settings" ? '<div id="company-os-settings"></div>' : ""}<details class="settings-section"><summary>Appearance & preferences</summary><div class="segmented">${["system", "light", "dark"].map((t) => button(t[0].toUpperCase() + t.slice(1), "theme", `data-theme="${t}" aria-pressed="${theme === t}" class="${theme === t ? "active" : ""}"`)).join("")}</div><div class="page-actions">${button("A−", "zoom-out", 'aria-label="Decrease text size"')}${button("A+", "zoom-in", 'aria-label="Increase text size"')}${button("Export profile", "profile-export")}${button("Import profile", "profile-import")}<input id="profile-import-file" type="file" accept=".json" hidden>${button("Keyboard shortcuts", "shortcuts")}${button("Import VS Code theme", "theme-import")}<input id="theme-import-file" type="file" accept=".json,.jsonc" hidden>${importedTheme ? button(esc(importedTheme.name), "theme", 'data-theme="custom"') : ""}</div><div class="page-actions">${button(quickEntry ? "Disable Quick Entry" : "Enable Quick Entry", "quick-entry")}${button("Keep awake", "awake-on")}${button("Allow sleep", "awake-off")}${button("Stop speech", "voice-stop")}</div><p class="help">Quick Entry: ⌘ ⇧ Space while Hades is open. Voice clips go to your profile’s speech endpoint; transcripts stay in the composer until you send.</p></details>${button("Save settings", "settings-save", 'class="primary-button wide"')}`;
     }
     if (modal === "harness-command") {
       title = "hades " + modalData.command;
@@ -708,6 +720,7 @@ export function mountWorkbench(root: HTMLElement) {
           ["nav-jobs", "Routines", ""],
           ["nav-models", "Local models", ""],
           ["nav-rooms", "Team rooms", ""],
+          ["nav-ecosystem", "Plugins — connected accounts", ""],
           ["nav-plugins", "Extensions", ""],
           ["checkpoints", "Review file checkpoints", ""],
           ["shortcuts", "Keyboard shortcuts", "⌘ /"],
@@ -757,6 +770,7 @@ export function mountWorkbench(root: HTMLElement) {
     root.querySelector<HTMLInputElement>("#" + id)?.value ?? "";
   async function navigate(next: string) {
     view = next;
+    if (view !== "ecosystem") ecosystem.mount(undefined);
     if (!["chat", "workspace"].includes(view)) pane = "";
     if (matchMedia("(max-width: 800px)").matches) sidebar = false;
     if (view === "workspace" && project) { pane = "files"; folder = "."; files = await rpc("files.list", { root: project, path: folder }); }
@@ -768,6 +782,7 @@ export function mountWorkbench(root: HTMLElement) {
     if (view === "webhooks") await webhooks.open(webhookContext());
     if (view === "browser") await browserView.open({ profile: profile.id, root: project, name: profile.name });
     if (view === "credentials") await credentials.open(profile.id);
+    if (view === "ecosystem") { const loading = ecosystem.open(profile.id, ecosystemPluginId); render(); await loading; }
     if (view === "channels") await channels.open(webhookContext());
     if (view === "hooks") await hooks.open(webhookContext());
     if (view === "maintenance") await maintenance.open();
@@ -796,6 +811,14 @@ export function mountWorkbench(root: HTMLElement) {
   async function action(name: string, el?: HTMLElement) {
     if (name.startsWith("nav-")) return navigate(name.slice(4));
     switch (name) {
+      case "ecosystem-open": {
+        const id = el?.dataset.plugin;
+        if (!ecosystemPlugins.some(plugin => plugin.id === id)) return;
+        ecosystemPluginId = id!;
+        const dropdown = root.querySelector<HTMLDetailsElement>(".sidebar-plugins");
+        if (dropdown) dropdown.open = true;
+        return navigate("ecosystem");
+      }
       case "spatial-open": {
         if (!session) await newChat();
         if (!session) return;
@@ -2042,6 +2065,7 @@ export function mountWorkbench(root: HTMLElement) {
     unlisten = await tauri().event.listen(
       "hades_event",
       ({ payload: e }: { payload: Row }) => {
+        if(e.kind==='desktop.ecosystem'){if(view==='ecosystem'&&e.profile===profile.id)ecosystem.changed();return;}
         if (e.kind === "desktop.channels.changed" || e.kind === "desktop.slack.changed") {
           if (view === "channels") void channels.refresh();
         }
@@ -2190,6 +2214,8 @@ export function mountWorkbench(root: HTMLElement) {
   }
   void start().catch(toast);
   window.addEventListener("beforeunload", () => {
+    ecosystem.dispose();
+    companyOsSettings.mount(undefined);
     teamChat.destroy();
     slackView.destroy();
     editor.destroy();

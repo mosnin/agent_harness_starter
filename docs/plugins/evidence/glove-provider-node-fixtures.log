@@ -1,0 +1,76 @@
+TAP version 13
+# Subtest: fixed native client, callback and S256 scope contract rejects mixups
+ok 1 - fixed native client, callback and S256 scope contract rejects mixups
+  ---
+  duration_ms: 0.762583
+  type: 'test'
+  ...
+# Subtest: safe collection projections exclude credentials, join handles and playback URLs
+ok 2 - safe collection projections exclude credentials, join handles and playback URLs
+  ---
+  duration_ms: 0.181917
+  type: 'test'
+  ...
+# Subtest: correct-bound consumed code revokes family; wrong client, redirect or PKCE does not
+ok 3 - correct-bound consumed code revokes family; wrong client, redirect or PKCE does not
+  ---
+  duration_ms: 1.13
+  type: 'test'
+  ...
+# Subtest: refresh rotation rejects expired current token and revokes correctly bound spent replay
+ok 4 - refresh rotation rejects expired current token and revokes correctly bound spent replay
+  ---
+  duration_ms: 0.306542
+  type: 'test'
+  ...
+# Subtest: current membership attestation cannot switch actor, tenant, role or time
+ok 5 - current membership attestation cannot switch actor, tenant, role or time
+  ---
+  duration_ms: 0.502792
+  type: 'test'
+  ...
+# Subtest: record snapshots observe ordinary product edits and deletion with durable cursors
+ok 6 - record snapshots observe ordinary product edits and deletion with durable cursors
+  ---
+  duration_ms: 1.2045
+  type: 'test'
+  ...
+# Subtest: rename uses current projection CAS and keeps durable idempotency without a second edit
+ok 7 - rename uses current projection CAS and keeps durable idempotency without a second edit
+  ---
+  duration_ms: 0.628917
+  type: 'test'
+  ...
+# Subtest: large account fails before committing any projection or cursor advancement
+ok 8 - large account fails before committing any projection or cursor advancement
+  ---
+  duration_ms: 5.141959
+  type: 'test'
+  ...
+# Subtest: mounted transport requires human cookie and same-origin explicit consent
+ok 9 - mounted transport requires human cookie and same-origin explicit consent
+  ---
+  duration_ms: 11.5365
+  type: 'test'
+  ...
+# Subtest: bearer transport has bounded bodies and does not send renderer authority
+ok 10 - bearer transport has bounded bodies and does not send renderer authority
+  ---
+  duration_ms: 0.540792
+  type: 'test'
+  ...
+# Subtest: public action verifies current Clerk membership before internal grant use, with explicit fetch mocks
+ok 11 - public action verifies current Clerk membership before internal grant use, with explicit fetch mocks
+  ---
+  duration_ms: 1.359458
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 235.239375

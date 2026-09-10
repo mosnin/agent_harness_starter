@@ -1,0 +1,20 @@
+node:net:1918
+      const error = new UVExceptionWithHostPort(rval, 'listen', address, port);
+                    ^
+
+Error: listen EPERM: operation not permitted /var/folders/zp/3_gt4g9d0q5_jmxnw_spqp900000gn/T/tsx-501/45922.pipe
+    at Server.setupListenHandle [as _listen2] (node:net:1918:21)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2119:5)
+    at file:///Users/preston/Documents/Codex/2026-09-06/glove-audit/source/node_modules/tsx/dist/cli.mjs:53:31537
+    at new Promise (<anonymous>)
+    at createIpcServer (file:///Users/preston/Documents/Codex/2026-09-06/glove-audit/source/node_modules/tsx/dist/cli.mjs:53:31515)
+    at async file:///Users/preston/Documents/Codex/2026-09-06/glove-audit/source/node_modules/tsx/dist/cli.mjs:55:459 {
+  code: 'EPERM',
+  errno: -1,
+  syscall: 'listen',
+  address: '/var/folders/zp/3_gt4g9d0q5_jmxnw_spqp900000gn/T/tsx-501/45922.pipe',
+  port: -1
+}
+
+Node.js v22.22.2

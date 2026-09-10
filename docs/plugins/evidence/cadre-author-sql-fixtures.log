@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: code replay requires exact client/redirect/PKCE before committed family revocation
+ok 1 - code replay requires exact client/redirect/PKCE before committed family revocation
+  ---
+  duration_ms: 669.422042
+  type: 'test'
+  ...
+# Subtest: current owner-scoped bot CAS and durable receipt allow one edit and reject another actor
+ok 2 - current owner-scoped bot CAS and durable receipt allow one edit and reject another actor
+  ---
+  duration_ms: 460.013708
+  type: 'test'
+  ...
+# Subtest: existing business-role bot writes still capture private projections without direct grants
+ok 3 - existing business-role bot writes still capture private projections without direct grants
+  ---
+  duration_ms: 457.497209
+  type: 'test'
+  ...
+# Subtest: reassigned records publish old actor tombstone then new actor revision and deletion
+ok 4 - reassigned records publish old actor tombstone then new actor revision and deletion
+  ---
+  duration_ms: 444.433667
+  type: 'test'
+  ...
+# Subtest: refresh replay and suspension invalidate current authority
+ok 5 - refresh replay and suspension invalidate current authority
+  ---
+  duration_ms: 447.578333
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2541.519541

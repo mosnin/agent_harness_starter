@@ -1,0 +1,12 @@
+Fixture dependency: vitest@4.1.5
+Fixture dependency: convex-test@0.0.56
+Fixture dependency: convex@1.45.0
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/glove-audit/source
+
+
+ Test Files  2 passed (2)
+      Tests  19 passed (19)
+   Start at  05:15:34
+   Duration  492ms (transform 112ms, setup 0ms, import 191ms, tests 167ms, environment 0ms)
+

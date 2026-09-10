@@ -1,0 +1,165 @@
+{
+  "schema": "stored.remote-delivery.v1",
+  "observedAt": "2026-09-10 08:53:15 UTC",
+  "status": "blocked_by_connector_approval_policy",
+  "repository": "mosnin/agentwiki",
+  "defaultBranch": "main",
+  "defaultBranchHeadObserved": "37ef3dfb155e7169b866fced81675dc886676b24",
+  "baseRevision": "37ef3dfb155e7169b866fced81675dc886676b24",
+  "baseTreeSha": "a54bf1e8dc4d8a901f0b4c33e3dd3abc3e66fd1a",
+  "proposedBranch": "codex/hades-stored-oauth-20260910",
+  "proposedBranchPreflight": "not_found_404",
+  "branchCreated": false,
+  "commitCreated": false,
+  "remoteTreeCreated": false,
+  "remoteCommitSha": null,
+  "remoteBranchHead": null,
+  "remoteCandidateContentsVerified": false,
+  "authorizationScope": "Materialize exact retained patch on one isolated branch; no default-branch update, merge, PR, notification, provider registration or deployment.",
+  "pinnedInstructions": {
+    "path": "CLAUDE.md",
+    "gitBlobSha": "4f1e05086f941a08176d9a10dda209ef51459686",
+    "sha256": "d36d8143cfc068ec1068d9e17922237ed8e8979bd1a5fdffb3ee3ecd02d240bc",
+    "matchesRemote": true,
+    "branchRestrictionFound": false
+  },
+  "policyObservations": {
+    "repositoryPushPermission": true,
+    "mainProtected": false,
+    "rulesetsRead": "GitHub 403: upgrade plan or make repository public to enable this feature; not an automatic approval-review rejection",
+    "writesSubjectToConnectorApproval": true
+  },
+  "sourcePatch": {
+    "path": "/Users/preston/Documents/Codex/2026-09-10/stored-oauth-source-patch/stored-oauth.patch",
+    "sha256": "04b7940ccacca31d61380b0ab01d6a80cd47378c4cc11f251d67c616805dd673",
+    "changedFiles": 11,
+    "addedFiles": 7,
+    "modifiedFiles": 4,
+    "allManifestSourceHashesMatch": true,
+    "all20OriginalBlobsMatchRemoteBaseTree": true
+  },
+  "files": [
+    {
+      "path": "src/memory/oauth-write.ts",
+      "bytes": 2692,
+      "sha256": "d0883815763f6a956765718884e3548473a70aa5736b0fda61b5d4f06f6796ba",
+      "expectedGitBlobSha": "70ad385b6d6bb4d45aefa86ea053126bbdece040",
+      "remoteCandidateVerified": false
+    },
+    {
+      "path": "src/memory/store.ts",
+      "bytes": 73276,
+      "sha256": "c6dc353718fa0c43414681d52e4192b1de1c66c62697b53dbefa38fb932982ab",
+      "expectedGitBlobSha": "f4f7c076f170efaae2990986403a4ee49b75acd2",
+      "remoteCandidateVerified": false
+    },
+    {
+      "path": "src/server/api.ts",
+      "bytes": 49020,
+      "sha256": "f41eedf1ad2d343f129cfc517c52e08074617355878426bcd05a539190494676",
+      "expectedGitBlobSha": "8136ccef2c7be3152bfacd180c215624cede5017",
+      "remoteCandidateVerified": false
+    },
+    {
+      "path": "tests/oauth-hades-client.test.ts",
+      "bytes": 3393,
+      "sha256": "f40c1131e51c29f78ffff9da84fb7c9f18103f9713c49d39104d366134d50f9f",
+      "expectedGitBlobSha": "4f6be8a4d16fcecb392439ef34d8152c212d710a",
+      "remoteCandidateVerified": false
+    },
+    {
+      "path": "tests/oauth-memory-write.test.ts",
+      "bytes": 3961,
+      "sha256": "aea4ca7da082ef9a5369c67bc4332a0dd5691fbd20b129b6bccb563d644a41c6",
+      "expectedGitBlobSha": "6f3a197619210678c16999cd3913b49af5ed9d8b",
+      "remoteCandidateVerified": false
+    },
+    {
+      "path": "web/scripts/HADES-OAUTH.md",
+      "bytes": 2891,
+      "sha256": "8e9eaa287d9b63b4e252f95cf095417afc15889a64df7e843812dbbbe8eb1798",
+      "expectedGitBlobSha": "6c0114dd8d7097b48380c755aaaf8889ea4e1257",
+      "remoteCandidateVerified": false
+    },
+    {
+      "path": "web/scripts/oauth-register-hades.ts",
+      "bytes": 1507,
+      "sha256": "492eb22641f731bc9a83c939c837e00a11b7032153f25aff040754a1d16e3686",
+      "expectedGitBlobSha": "7020795edd26337eb0bd3c072e44d4b5ee6609cf",
+      "remoteCandidateVerified": false
+    },
+    {
+      "path": "web/src/app/api/v1/oauth/memories/route.ts",
+      "bytes": 4169,
+      "sha256": "ae4355c4f35b268a932e2dedb17fcd36cd7c30614578d42784dd624af5e1ff8a",
+      "expectedGitBlobSha": "d4d60e0bef276c92d4d587001f0044a1b289d6a7",
+      "remoteCandidateVerified": false
+    },
+    {
+      "path": "web/src/lib/engine/http.ts",
+      "bytes": 29863,
+      "sha256": "9a8a3be6002a74c2a67ee134569da5572a1d5da1e53ed2424a497e527b335685",
+      "expectedGitBlobSha": "834e280b6dbb805054cd1a76e431428a1d0a2b88",
+      "remoteCandidateVerified": false
+    },
+    {
+      "path": "web/src/lib/engine/types.ts",
+      "bytes": 14726,
+      "sha256": "73e7af8e6d4dcc8b6ed10e52e6c4940b0119706f0867531ea428d8efd4e560dc",
+      "expectedGitBlobSha": "ae5d387d9e7086a37e8a643f71b95a558093a565",
+      "remoteCandidateVerified": false
+    },
+    {
+      "path": "web/src/lib/oauth/hades-client.ts",
+      "bytes": 2849,
+      "sha256": "8033c9c922e018a82115ca77c21f5c48e6603210d79d53bf5004039a68f0c5f8",
+      "expectedGitBlobSha": "42f429780e5640b436935241c0be6a52314a861b",
+      "remoteCandidateVerified": false
+    }
+  ],
+  "attempt": {
+    "tool": "github_create_tree",
+    "baseTreeSha": "a54bf1e8dc4d8a901f0b4c33e3dd3abc3e66fd1a",
+    "fileCount": 11,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "MCP tool call requires approval, but approval policy is never"
+        }
+      ],
+      "isError": true
+    },
+    "outcome": "Blocked before connector mutation execution; no successful object or ref receipt",
+    "alternateWritePathAttempted": false
+  },
+  "retainedValidation": {
+    "sourceReceipt": "/Users/preston/Documents/Codex/2026-09-10/stored-oauth-source-patch/HADES-REGISTRATION-RECEIPT.json",
+    "fixtureTests": 21,
+    "registrationFixtures": 14,
+    "sqliteWriteFixtures": 7,
+    "pureRegistrationTypecheck": "passed in retained author receipt",
+    "rerunByDeliveryLane": false,
+    "fullCheckoutTypecheck": "not performed"
+  },
+  "automationReview": {
+    "ci": "Existing CI and Web CI are push-triggered; no dispatch or success claim",
+    "databaseMigration": "Main-only migration paths plus manual dispatch; neither triggered by this lane",
+    "pages": "Manual-only; no dispatch"
+  },
+  "openGates": [
+    "A write-capable approved connector session for isolated branch materialization",
+    "Full checkout integration and Prisma/Next typecheck/build",
+    "Operator provisioning of the fixed Hades public client",
+    "Hosted OAuth consent/read/write/refresh/revoke and native callback",
+    "Stored durable changes/subscription remains absent"
+  ],
+  "claimsExcluded": [
+    "remote push or commit success",
+    "CI success",
+    "deployment",
+    "operator registration",
+    "live account data"
+  ]
+}
+

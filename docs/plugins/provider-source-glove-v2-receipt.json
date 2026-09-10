@@ -1,0 +1,707 @@
+{
+  "schemaVersion": 2,
+  "recordedAt": "2026-09-10T09:23:03.472027+00:00",
+  "provider": "glove",
+  "status": "local_source_candidate_frozen",
+  "author": "reference_review",
+  "implementationFrozen": true,
+  "root": "/Users/preston/Documents/Codex/2026-09-06/glove-audit/source",
+  "branch": "codex/persistent-demo-computers",
+  "baselineHead": "89e49e4fb4e13ec77699ac043e50087ad567df05",
+  "currentHead": "89e49e4fb4e13ec77699ac043e50087ad567df05",
+  "authoredChangesCommitted": false,
+  "priorVersion": {
+    "path": "docs/plugins/provider-source-v1-receipt.json",
+    "sha256": "05666b7cb3ed989eec6da63900115c52145b1396e28183e0a351c0015bb05875",
+    "bytes": 21616,
+    "role": "historical_v1_receipt"
+  },
+  "implementation": [
+    {
+      "path": "convex/_lib/hadesOAuthContract.ts",
+      "sha256": "79904c39521a2f6f9ccd8d3bda5cc7154ae3df68199fb516531b4419ad0e68cd",
+      "bytes": 8540,
+      "role": "v2_implementation",
+      "v1Sha256": "0dd8c40dbdc0249418e164e89dce5f9a5047ac18d40cb5f7e16f25609806e50e"
+    },
+    {
+      "path": "convex/hadesOAuthStore.ts",
+      "sha256": "a91861893f4ae27c28e5608d48ed70c9b6cfa84b949cfdadc3fd1f8c0044a7df",
+      "bytes": 19691,
+      "role": "v2_implementation",
+      "v1Sha256": "449b8bb3c07169b51f401ef2ebbf1b3d59738950b6d72cca5c2ac85c634a0d7c"
+    },
+    {
+      "path": "convex/hadesOAuth.ts",
+      "sha256": "6a0a10b651d0815ba5ea6da90aa95950d7b0dacdbcc6400dc96b7d551b7059d8",
+      "bytes": 9943,
+      "role": "v2_implementation",
+      "v1Sha256": "d0dcc9d96be8da0a52de002b7fdaca0efd54d4b3f24c44a380e9d84dd4600adc"
+    },
+    {
+      "path": "lib/hades/transport.ts",
+      "sha256": "cf9d68c5a63a62878c12208f23ca8ee6d20a269316d0009d18d1f6952ef5e6e1",
+      "bytes": 8240,
+      "role": "v2_implementation",
+      "v1Sha256": "dcbf6d9ce618e3063b51022bec64253ba94c4dc4a8134e3d144823640596265d"
+    }
+  ],
+  "implementationDigestAlgorithm": "SHA256 of sorted relative path + NUL + file SHA256 + LF",
+  "implementationDigest": "be1893affb066dcb445a640d348780d86a37f06458a77b66b8e2b34a0dda0082",
+  "sourceContext": [
+    {
+      "path": "convex/schema.ts",
+      "sha256": "f3786a8b142c5d3687798cfc848e6672376449cf95d00926b6146930ce0f6b00",
+      "bytes": 117914,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "convex/_lib/hadesOAuthSchema.ts",
+      "sha256": "274a310ac3c91f2e6e5ee8eafd36e9cc9dcfb6ffcb61d1e1ed947eddc68ad992",
+      "bytes": 1871,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "convex/_lib/auth.ts",
+      "sha256": "805a45997f31e8946897d8d2c547748bdb8ba3174a4405d61f7eb3aa06066c01",
+      "bytes": 2595,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "convex/_lib/permissions.ts",
+      "sha256": "5fca098cb92c88a9fdbd81bb4896f2cf7504423ba1be9a23ddf9e82ff4f3179e",
+      "bytes": 8011,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "convex/_generated/api.ts",
+      "sha256": "836138e136ec2a3bf69a193e410a361c9c703aba945168118cd53c5847d731b0",
+      "bytes": 10148,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "convex/_generated/dataModel.ts",
+      "sha256": "3463abb4ace20c037fd7366c88326fcfadcb7bfffc7b593f736c070443aec111",
+      "bytes": 624,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "convex/_generated/server.ts",
+      "sha256": "87954129cb374df3e85f1a11fabce5b99fa3809278064f58e4d0246b90a3976b",
+      "bytes": 1439,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "convex/products.ts",
+      "sha256": "e5470e525dbff468c27aafff1af295a79b5971bf2adbbbd6a7fe5d9b329ceaaa",
+      "bytes": 11533,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "convex/knowledgeItems.ts",
+      "sha256": "26bcfa7160bb592a495a5a2d41a8dfb7de95dddb42fd84b4b395bdb94feab97d",
+      "bytes": 5020,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "convex/transcripts.ts",
+      "sha256": "816a381bc25516526b8cec592ec3ab5b6a28401e41cb6e32e13ec98c03ed2154",
+      "bytes": 3030,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "convex/demoSummaries.ts",
+      "sha256": "acad4e0e4c94af082a31d63455ef62be5cadaa7e29ae15591c2d187c0b489550",
+      "bytes": 8694,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "convex/recordings.ts",
+      "sha256": "4c73350c9a8efc1c26c610ef8300ae0a07b0e506421bf2ea799f29256a149801",
+      "bytes": 33252,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "lib/hades/server.ts",
+      "sha256": "dc6847dfaf6747339079e24e3270edde244fa2d45ef22da0497b270511999a6f",
+      "bytes": 811,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "app/api/hades/records/route.ts",
+      "sha256": "ecbf35b2ee8de3f10114e57a503b5cf51b770f6049d5ca4ee35626022b69b392",
+      "bytes": 294,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "proxy.ts",
+      "sha256": "1d2a34fc4fb5cf02d0b36718db31bee19c43acfb7a6f95e8b43764d77be74fb1",
+      "bytes": 2895,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    },
+    {
+      "path": "package.json",
+      "sha256": "d38522ee901036c34de0e9fcaa72b6e6549dccd3a32cc1cf146d1c1f45ad81ce",
+      "bytes": 3290,
+      "role": "unchanged_v2_context_not_owned_business_edits"
+    }
+  ],
+  "sourceOwnership": "Only four Hades OAuth modules changed in v2; author added fixture/runner. Existing business modules, dirty LiveKit work, native client and schemas not modified by this v2 author.",
+  "publicClientId": "hades-desktop-glove",
+  "redirectUri": "ai.hades.desktop:/oauth/glove",
+  "issuerDefault": "https://glove.so",
+  "issuerSetting": "HADES_OAUTH_ISSUER must match Next and Convex",
+  "resourceAudienceParameter": null,
+  "scopes": [
+    "products:read",
+    "sessions:read",
+    "recordings:read",
+    "workspaces:read",
+    "products:write",
+    "products:update",
+    "knowledge:read",
+    "knowledge:write",
+    "transcripts:read",
+    "outcomes:read"
+  ],
+  "collections": {
+    "products": [
+      "name",
+      "productUrl",
+      "audience",
+      "valueProposition",
+      "forbiddenClaims",
+      "painPoints",
+      "topFeatures",
+      "competitors",
+      "pricingSummary",
+      "status",
+      "slug"
+    ],
+    "sessions": [
+      "title",
+      "productId",
+      "flowId",
+      "status",
+      "scheduledAt",
+      "startedAt",
+      "endedAt",
+      "runtimeProvider",
+      "runtimeWorkerStatus",
+      "recordingStatus",
+      "summaryStatus",
+      "followUpStatus",
+      "completedSummaryId",
+      "scheduledTimezone",
+      "scheduledEndAt",
+      "durationMinutes"
+    ],
+    "recordings": [
+      "sessionId",
+      "provider",
+      "status",
+      "recordingType",
+      "durationSeconds",
+      "startedAt",
+      "stoppedAt",
+      "processedAt",
+      "publicReplayEnabled"
+    ],
+    "workspaces": [
+      "name",
+      "slug"
+    ],
+    "knowledge": [
+      "productId",
+      "title",
+      "content",
+      "category",
+      "sourceType",
+      "status"
+    ],
+    "transcripts": [
+      "sessionId",
+      "speakerRole",
+      "speakerName",
+      "content",
+      "timestampMs",
+      "source"
+    ],
+    "outcomes": [
+      "sessionId",
+      "recordingId",
+      "summaryStatus",
+      "executiveSummary",
+      "buyerCompany",
+      "buyerParticipants",
+      "buyerIntent",
+      "painPoints",
+      "featuresDiscussed",
+      "objections",
+      "answersGiven",
+      "unresolvedQuestions",
+      "competitorMentions",
+      "pricingSensitivity",
+      "integrationNeeds",
+      "securityConcerns",
+      "nextBestAction",
+      "recommendedFollowUpTiming",
+      "ctaShown",
+      "ctaClicked",
+      "conversionLikelihood",
+      "humanHandoffRecommended",
+      "confidence",
+      "riskFlags",
+      "generatedBy",
+      "generatedAt"
+    ]
+  },
+  "recordFields": [
+    "id",
+    "collection",
+    "title",
+    "updatedAt",
+    "revision",
+    "data"
+  ],
+  "authorization": {
+    "newScopeConsentRequired": true,
+    "refreshExpandsScopes": false,
+    "humanConsent": "Clerk human/org session, one-use consent and S256 PKCE",
+    "productWritePermission": "manage_products",
+    "knowledgeWritePermission": "manage_knowledge",
+    "recordingTranscriptOutcomePermission": "view_replays",
+    "proofMaxAgeMs": 15000,
+    "clerkFixedOrigin": "https://api.clerk.com",
+    "clerkRedirect": "error",
+    "clerkTimeoutMs": 5000,
+    "clerkResponseMaxBytes": 262144,
+    "crossSystemRevocationRace": "open"
+  },
+  "read": {
+    "endpoint": "GET /api/hades/records",
+    "detailQuery": [
+      "collection",
+      "id"
+    ],
+    "detailResult": [
+      "record",
+      "related",
+      "cursor"
+    ],
+    "recordPageSize": 100,
+    "relatedPreviewSize": 20,
+    "relatedResult": [
+      "collection",
+      "filter",
+      "records",
+      "total",
+      "nextPage?"
+    ],
+    "parentFilters": {
+      "productId": [
+        "knowledge",
+        "sessions"
+      ],
+      "sessionId": [
+        "recordings",
+        "transcripts",
+        "outcomes"
+      ]
+    },
+    "pageBoundToFilters": true,
+    "transcriptsExcludeRoles": [
+      "system"
+    ],
+    "recordingTranscription": "No distinct field; related session transcript only",
+    "currentParentAuthority": true,
+    "historicalPayloadCurrentAuthority": true
+  },
+  "writes": [
+    {
+      "collection": "products",
+      "operation": "rename",
+      "scope": "products:write",
+      "fields": [
+        "name"
+      ]
+    },
+    {
+      "collection": "products",
+      "operation": "update",
+      "scope": "products:update",
+      "fields": [
+        "name",
+        "audience",
+        "valueProposition",
+        "pricingSummary",
+        "forbiddenClaims",
+        "painPoints",
+        "topFeatures",
+        "competitors"
+      ]
+    },
+    {
+      "collection": "knowledge",
+      "operation": "update",
+      "scope": "knowledge:write",
+      "fields": [
+        "title",
+        "content",
+        "category",
+        "status"
+      ]
+    }
+  ],
+  "writeEnvelope": [
+    "key",
+    "collection",
+    "operation",
+    "id",
+    "expectedRevision",
+    "data"
+  ],
+  "writeEndpoint": "POST /api/hades/records",
+  "writeResult": [
+    "key",
+    "status:applied",
+    "record"
+  ],
+  "writeLimits": {
+    "keyPattern": "^[A-Za-z0-9._:-]{8,160}$",
+    "idCharacters": 200,
+    "expectedRevision": "canonical nonnegative decimal safe integer",
+    "dataJsonUtf8Bytes": 58000,
+    "httpUpdateBodyBytes": 65536,
+    "oauthAndLegacyBodyBytes": 8192,
+    "productNameCharacters": 160,
+    "productNameUtf8Bytes": 640,
+    "productDescriptionStringUtf8Bytes": 12000,
+    "productArrayItems": 100,
+    "productArrayItemUtf8Bytes": 1000,
+    "knowledgeTitleUtf8Bytes": 1000,
+    "knowledgeContentUtf8Bytes": 48000,
+    "knowledgeCategories": [
+      "faq",
+      "feature",
+      "pricing",
+      "objection",
+      "competitor",
+      "custom"
+    ],
+    "knowledgeStatuses": [
+      "active",
+      "draft",
+      "archived"
+    ],
+    "knowledgeIndexedChunkMaximum": 1000
+  },
+  "writeSemantics": {
+    "currentAuthorityBeforeReceiptReplay": true,
+    "canonicalIdempotency": "grant + key + canonical request fingerprint",
+    "cas": "current observed projection revision",
+    "transaction": "effect, chunk archival, reconciled result and receipt in one Convex mutation",
+    "knowledgeChunkInvalidation": "archive matching chunks on content/title/category edits or nonactive status; restore never revives prior chunks",
+    "knowledgeOverflow": "fail before effects and receipt",
+    "executionAndCredentialFieldsWritable": false
+  },
+  "delivery": {
+    "mode": "periodic",
+    "subscriptionEndpoint": null,
+    "snapshotPerCollection": 1000,
+    "snapshotTotal": 2000,
+    "projectedRecordCharacters": 64000,
+    "changeScanPageSize": 200,
+    "overCapacity": "fail without committed cursor",
+    "intermediateChangesBetweenPolls": "not a complete event audit",
+    "filteredHistoricPages": "scanned cursor advances; safe tombstones retained"
+  },
+  "fixtures": [
+    {
+      "path": "convex/hadesOAuthV2.test.mjs",
+      "sha256": "0407f4c64f47603c907e9f0da74aa668ac10dd316fbc9a34b0700fcfb08813f0",
+      "bytes": 16598,
+      "role": "author_v2"
+    },
+    {
+      "path": "scripts/run-hades-v2-tests.mjs",
+      "sha256": "c65095b1d1db4b32b660c47ad85268df48979048342c7c76adc1c790e8a26ea5",
+      "bytes": 2868,
+      "role": "author_runner"
+    },
+    {
+      "path": "scripts/tests/hades-oauth.test.ts",
+      "sha256": "b350a65501fe38a7bdaec60e33b99a1ef8f117ea81e4e47076eb65efa43c0de0",
+      "bytes": 14726,
+      "role": "unchanged_author_v1"
+    },
+    {
+      "path": "convex/hadesOAuthIndependent.review.mjs",
+      "sha256": "92854ad53eaaaa4e65fd39073f96c9876821b6816408555adff0e33c5edbb71f",
+      "bytes": 7672,
+      "role": "unchanged_independent_v1"
+    },
+    {
+      "path": "convex/hadesOAuthV2Independent.review.mjs",
+      "sha256": "35b235e4f2e964b5da3c7b1c4394a7e909e1e10c4d07dc4a56faf995a7964ff8",
+      "bytes": 11804,
+      "role": "independent_v2"
+    },
+    {
+      "path": "scripts/run-hades-review.mjs",
+      "sha256": "41cddd1b4079169553e6c0bdc09a335f2379133f5c3b35c6f9b2f2063c882393",
+      "bytes": 2868,
+      "role": "independent_runner"
+    }
+  ],
+  "independentReport": {
+    "path": "scripts/HADES_REVIEW_V2_INDEPENDENT.md",
+    "sha256": "951afd2d972302e73faf11634bc9e8179f421f1b2db737a4bee2510bf0575ef2",
+    "bytes": 4634,
+    "role": "independent_reviewer_report",
+    "root": "/Users/preston/Documents/Codex/2026-09-06/glove-audit/source",
+    "reportedOutcome": "No material blocker reproduced within bounded authority/receipt/history/detail review"
+  },
+  "testResults": [
+    {
+      "command": "node --import tsx --test scripts/tests/hades-oauth.test.ts",
+      "exitCode": 0,
+      "passedTests": 11,
+      "scope": "original author Node fixtures; mocked Clerk",
+      "evidencePath": "docs/plugins/evidence/glove-v2-author-node-final.log"
+    },
+    {
+      "command": "node scripts/run-hades-v2-tests.mjs",
+      "requiredEnvironment": [
+        "HADES_REVIEW_NODE_MODULES",
+        "HADES_REVIEW_CONVEX_NODE_MODULES"
+      ],
+      "exitCode": 0,
+      "passedTests": 19,
+      "newAuthorTests": 12,
+      "priorIndependentTests": 7,
+      "scope": "in-process convex-test; actual schema; mocked Clerk",
+      "evidencePath": "docs/plugins/evidence/glove-v2-author-convex-final.log"
+    },
+    {
+      "command": "node scripts/run-hades-review.mjs",
+      "requiredEnvironment": [
+        "HADES_REVIEW_NODE_MODULES",
+        "HADES_REVIEW_CONVEX_NODE_MODULES"
+      ],
+      "exitCode": 0,
+      "passedTests": 19,
+      "newIndependentTests": 12,
+      "priorIndependentTests": 7,
+      "scope": "independent gate; overlaps seven cases in author runner",
+      "evidencePath": "docs/plugins/evidence/glove-v2-independent-final.log"
+    },
+    {
+      "command": "./node_modules/.bin/tsc --noEmit --incremental false --pretty false",
+      "exitCode": 2,
+      "diagnostics": 32,
+      "baselineLogByteIdentical": true,
+      "laneDiagnostics": 0,
+      "missingGeneratedApiModules": [
+        "liveKitAdmission",
+        "liveKitRecordingActions",
+        "liveKitRecordings"
+      ],
+      "evidencePath": "docs/plugins/evidence/glove-v2-types-final.log"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/plugins/evidence/glove-v2-author-node-final.log",
+      "sha256": "99b04965a0726125c3b1d2ca4379c55c33416e60cf6bf86be6860067b4c5e675",
+      "bytes": 2653,
+      "role": "author_node",
+      "originalPath": "/tmp/glove-hades-v2-existing-final.log"
+    },
+    {
+      "path": "docs/plugins/evidence/glove-v2-author-convex-final.log",
+      "sha256": "fc00ac71305df45e9a1a4e68ef4481c03d04d81e9af3ab20e53baad33b364e2c",
+      "bytes": 352,
+      "role": "author_convex",
+      "originalPath": "/tmp/glove-hades-v2-convex-final.log"
+    },
+    {
+      "path": "docs/plugins/evidence/glove-v2-types-final.log",
+      "sha256": "d4cfd618db74b5a8bb4e6139bee9eeffebbc385c92dec446e79280a380f3c952",
+      "bytes": 13772,
+      "role": "project_types",
+      "originalPath": "/tmp/glove-hades-v2-types-final.log"
+    },
+    {
+      "path": "docs/plugins/evidence/glove-v2-independent-red.log",
+      "sha256": "46aa70b89c18cccda1739a131d97dc4d343c701aa896e1edf2ec394148e4e46d",
+      "bytes": 4116,
+      "role": "independent_red_receipts",
+      "originalPath": "/tmp/glove-v2-independent-red.log"
+    },
+    {
+      "path": "docs/plugins/evidence/glove-v2-independent-history.log",
+      "sha256": "893dfeec7bba7674111272df89e097a5174a96a8f22fa22a600e4fcfadd020f8",
+      "bytes": 1462,
+      "role": "independent_red_history",
+      "originalPath": "/tmp/glove-v2-independent-history.log"
+    },
+    {
+      "path": "docs/plugins/evidence/glove-v2-independent-final.log",
+      "sha256": "7421a91afc0742ccbd786ad0309af3aa56c3107dac81aec65aa3fa6e5bdef082",
+      "bytes": 348,
+      "role": "independent_final",
+      "originalPath": "/tmp/glove-v2-independent-final.log"
+    },
+    {
+      "path": "docs/plugins/evidence/glove-v2-independent-report.md",
+      "sha256": "951afd2d972302e73faf11634bc9e8179f421f1b2db737a4bee2510bf0575ef2",
+      "bytes": 4634,
+      "role": "independent_report_copy",
+      "originalPath": "/Users/preston/Documents/Codex/2026-09-06/glove-audit/source/scripts/HADES_REVIEW_V2_INDEPENDENT.md"
+    }
+  ],
+  "dependencies": [
+    {
+      "root": "/Users/preston/Documents/Codex/2026-09-06/hades-repair/node_modules/vitest",
+      "role": "fixture",
+      "name": "vitest",
+      "version": "4.1.5",
+      "licenseDeclared": "MIT",
+      "manifest": {
+        "path": "package.json",
+        "sha256": "2003da5a6f67c6b1001c6a5ac04d0f8107ba2b525ff502bb9abd6a9562a02049",
+        "bytes": 5918,
+        "role": "installed_manifest"
+      },
+      "licenseFiles": [
+        {
+          "path": "LICENSE.md",
+          "sha256": "881d660c26831481b697e39724d4a35c9f86e07b67156d4aeb693a0b39910435",
+          "bytes": 37726,
+          "role": "package_license"
+        }
+      ]
+    },
+    {
+      "root": "/Users/preston/company-os-web/node_modules/convex-test",
+      "role": "fixture",
+      "name": "convex-test",
+      "version": "0.0.56",
+      "licenseDeclared": "Apache-2.0",
+      "manifest": {
+        "path": "package.json",
+        "sha256": "8c1ef35bccb5586be5d75151afd2e8bb18f8804312d4047a2295f914cbce83ff",
+        "bytes": 2091,
+        "role": "installed_manifest"
+      },
+      "licenseFiles": [
+        {
+          "path": "LICENSE",
+          "sha256": "dec23a93339dc3b52bad1ee6cc96f452a6aaea5fc89a5e58150ee4370f71945e",
+          "bytes": 11343,
+          "role": "package_license"
+        }
+      ]
+    },
+    {
+      "root": "/Users/preston/company-os-web/node_modules/convex",
+      "role": "fixture",
+      "name": "convex",
+      "version": "1.45.0",
+      "licenseDeclared": "Apache-2.0",
+      "manifest": {
+        "path": "package.json",
+        "sha256": "aa9f5baee26b69a88d6b61180e540cce1f52baa31094e7124c8c0393e4b3211e",
+        "bytes": 9067,
+        "role": "installed_manifest"
+      },
+      "licenseFiles": [
+        {
+          "path": "LICENSE",
+          "sha256": "79aaec53ef1333544088fe80ecb8ec70f2b84f60c0c4157240df0911cf9696c7",
+          "bytes": 11343,
+          "role": "package_license"
+        }
+      ]
+    },
+    {
+      "root": "/Users/preston/Documents/Codex/2026-09-06/glove-audit/source/node_modules/convex",
+      "role": "project_installed",
+      "name": "convex",
+      "version": "1.45.0",
+      "licenseDeclared": "Apache-2.0",
+      "manifest": {
+        "path": "package.json",
+        "sha256": "aa9f5baee26b69a88d6b61180e540cce1f52baa31094e7124c8c0393e4b3211e",
+        "bytes": 9067,
+        "role": "installed_manifest"
+      },
+      "licenseFiles": [
+        {
+          "path": "LICENSE",
+          "sha256": "79aaec53ef1333544088fe80ecb8ec70f2b84f60c0c4157240df0911cf9696c7",
+          "bytes": 11343,
+          "role": "package_license"
+        }
+      ]
+    },
+    {
+      "root": "/Users/preston/Documents/Codex/2026-09-06/glove-audit/source/node_modules/tsx",
+      "role": "node_fixture_loader",
+      "name": "tsx",
+      "version": "4.22.4",
+      "licenseDeclared": "MIT",
+      "manifest": {
+        "path": "package.json",
+        "sha256": "b0d63b124b9b85b53d09cff256fa7832cb6a774f8b90ae1353e63df5275824b2",
+        "bytes": 1600,
+        "role": "installed_manifest"
+      },
+      "licenseFiles": [
+        {
+          "path": "LICENSE",
+          "sha256": "8dded67841a9261a622c739fb61c81785e93765de852828ceeb9403d20a74581",
+          "bytes": 1088,
+          "role": "package_license"
+        }
+      ]
+    }
+  ],
+  "dependencyErratum": "Glove declares convex ^1.41.0; current installed package is 1.45.0. Earlier wording calling 1.41.0 installed conflated the declared minimum with the installed version. No dependency was installed or changed by this lane.",
+  "licenseBoundary": {
+    "sourcePackage": "aidemo",
+    "private": true,
+    "declaredLicense": null,
+    "rootLicenseFilesFound": [],
+    "redistributionPermissionInferred": false,
+    "newDependenciesAdded": false
+  },
+  "contractDocument": {
+    "path": "docs/plugins/GLOVE_PROVIDER_V2.md",
+    "sha256": "7c10e5e8ba71b21f9d6f7a5b83eadff152c447360c1b558e51d81925f489e87d",
+    "bytes": 11919,
+    "role": "author_contract_and_gaps"
+  },
+  "executionLimits": {
+    "newPackagesInstalled": false,
+    "productListenersStarted": false,
+    "providerNetworkRequests": false,
+    "nativeAppControlAttempted": false,
+    "databaseMigrationsApplied": false,
+    "deploymentsExecuted": false,
+    "remoteRepositoryWrites": false
+  },
+  "openGates": [
+    "Hosted Convex multi-connection contention/retry and transaction limits",
+    "Real human Clerk consent and revocation races",
+    "Native callback/Keychain recovery and authenticated provider use",
+    "Production generation/deployment with exact revision",
+    "32 preexisting LiveKit generated-API diagnostics",
+    "Large-account/transcript backend pagination beyond snapshot bound",
+    "Full business read/write: creation/deletion, execution, flows, follow-up, leads, billing/security and other entities",
+    "Media and uploaded file delivery, fresh knowledge reindexing, cleanup/retention",
+    "Full seven-provider authenticated workflow"
+  ],
+  "acceptanceBoundary": "This manifest freezes local source and fixture evidence. It is not hosted, native, live-notification, redistribution-license or overall product acceptance."
+}

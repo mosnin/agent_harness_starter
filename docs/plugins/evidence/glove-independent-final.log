@@ -1,0 +1,9 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/glove-audit/source
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  04:39:42
+   Duration  238ms (transform 99ms, setup 0ms, import 134ms, tests 37ms, environment 0ms)
+

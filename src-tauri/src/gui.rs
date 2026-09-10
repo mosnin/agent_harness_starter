@@ -173,7 +173,7 @@ async fn request_sidecar(
 // The renderer cannot request native credential replies or reserve native IDs.
 #[cfg_attr(not(feature = "gui"), allow(dead_code))]
 fn renderer_request_allowed(method: &str, id: &str) -> bool {
-    !method.starts_with("native.") && !id.starts_with("native-")
+    !method.starts_with("native.") && method != "key.set" && !id.starts_with("native-")
 }
 #[cfg(feature = "gui")]
 fn validate_renderer_request(cmd: &serde_json::Value) -> Result<(), String> {
@@ -242,6 +242,7 @@ pub fn run() {
             hades_request,
             hades_window,
             hades_key,
+            hades_ecosystem_unlock,
             hades_team,
             hades_quick_entry
         ])
@@ -282,6 +283,11 @@ pub fn run() {
                 .arg(&sidecar_path)
                 .current_dir(&home)
                 .env("HADES_DATA_DIR", &data)
+                .env("HADES_COMPANY_OS_BUNDLE", if resources.join("company-os/bundle.json").exists() {
+                    resources.join("company-os/bundle.json")
+                } else {
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../third_party/company-os/bundle.json")
+                })
                 .env("HADES_COMPUTER", if resources.join("hades-computer").exists() {
                     resources.join("hades-computer")
                 } else {
@@ -405,6 +411,15 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building Hades")
         .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { ref urls } = event {
+                for url in urls {
+                    if url.scheme() == "ai.hades.desktop" && url.as_str().len() <= 16384 {
+                        // Codes remain on the native IPC path. Never emit the URL to the renderer or logs.
+                        let _ = send_sidecar(serde_json::json!({"kind":"desktop.request","id":"native-plugin-callback","method":"native.ecosystem.callback","args":{"url":url.as_str()}}), app.state::<SidecarState>());
+                    }
+                }
+            }
             if let tauri::RunEvent::Exit = event {
                 let state = app.state::<SidecarState>();
                 state.stdin.lock().ok().and_then(|mut s| s.take());
@@ -508,6 +523,7 @@ async fn hades_key(
     value: Option<String>,
     state: tauri::State<'_, SidecarState>,
 ) -> Result<bool, String> {
+    if account == "ecosystem-master" { return Err("Use the native Plugins unlock action".into()); }
     if !account
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || "-_:".contains(c))
@@ -557,6 +573,39 @@ async fn hades_key(
         let _ = (value, state);
         Err("Keychain is available on macOS only; use environment credentials.".into())
     }
+}
+
+/// The renderer can request unlock, but cannot supply, retrieve or replace the vault key.
+#[cfg(feature = "gui")]
+#[tauri::command]
+async fn hades_ecosystem_unlock(state: tauri::State<'_, SidecarState>) -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        use std::sync::atomic::Ordering;
+        if state.keychain_busy.swap(true, Ordering::SeqCst) { return Err("Finish the existing macOS Keychain request first".into()); }
+        let result = tauri::async_runtime::spawn_blocking(|| -> Result<String, String> {
+            use security_framework::passwords::{get_generic_password, set_generic_password};
+            let bytes = match get_generic_password("ai.hades.desktop", "ecosystem-master") {
+                Ok(bytes) => bytes,
+                Err(error) if error.code() == -25300 => {
+                    let mut bytes = vec![0u8; 32];
+                    security_framework::random::SecRandom::default().copy_bytes(&mut bytes).map_err(|_| "Could not generate a Plugins vault key".to_string())?;
+                    set_generic_password("ai.hades.desktop", "ecosystem-master", &bytes).map_err(|_| "macOS did not allow saving the Plugins vault key".to_string())?;
+                    bytes
+                }
+                Err(_) => return Err("macOS did not allow Plugins access. Finish the Keychain prompt and try again.".into()),
+            };
+            if bytes.len() != 32 { return Err("The Plugins vault key is invalid".into()); }
+            Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
+        }).await;
+        state.keychain_busy.store(false, Ordering::SeqCst);
+        let key = result.map_err(|_| "Plugins unlock did not finish".to_string())??;
+        let response = request_sidecar(serde_json::json!({"kind":"desktop.request","id":"native-plugin-unlock","method":"native.ecosystem.unlock","args":{"key":key}}),state).await?;
+        if response.get("error").is_some() { return Err("Plugins could not unlock saved accounts".into()); }
+        Ok(true)
+    }
+    #[cfg(not(target_os = "macos"))]
+    { let _ = state; Err("Native Plugins vault is currently available on macOS".into()) }
 }
 
 // ---------------------------------------------------------------------------
@@ -611,6 +660,9 @@ mod tests {
     #[test]
     fn renderer_cannot_request_credentials_or_hijack_native_responses() {
         assert!(!renderer_request_allowed("native.team.resume", "web-1"));
+        assert!(!renderer_request_allowed("native.ecosystem.unlock", "web-1"));
+        assert!(!renderer_request_allowed("native.ecosystem.callback", "web-1"));
+        assert!(!renderer_request_allowed("key.set", "web-1"));
         assert!(!renderer_request_allowed("boot", "native-team-123"));
         assert!(!renderer_request_allowed("boot", "native-key"));
         assert!(renderer_request_allowed("team.status", "web-1"));

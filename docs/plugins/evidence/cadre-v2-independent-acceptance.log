@@ -1,0 +1,11 @@
+Review dependency: vitest@4.1.5
+Review dependency: @electric-sql/pglite@0.4.1
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo
+
+
+ Test Files  3 passed (3)
+      Tests  29 passed (29)
+   Start at  05:13:18
+   Duration  10.64s (transform 41ms, setup 0ms, import 80ms, tests 10.39s, environment 0ms)
+

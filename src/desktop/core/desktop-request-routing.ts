@@ -8,6 +8,7 @@ export const DESKTOP_CONTROL_METHODS = [
   "team.disconnect", "terminal.close", "helm.cancel", "helm.source.cancel",
   "helm.code.close", "helm.orca.stop", "work.stop", "spatial.cancel",
   "voice.stop",
+  "ecosystem.disconnect",
 ] as const;
 const inspections = new Set([
   "models.list", "slack.status", "team.status", "team.messages", "team.read",
@@ -17,6 +18,8 @@ const inspections = new Set([
   "helm.code.status", "helm.list", "helm.get", "helm.orca.info", "helm.orca.list",
   "helm.orca.get", "helm.orca.read", "helm.orca.refresh", "helm.orca.recover",
   "spatial.status", "browser.status", "session.get",
+  "ecosystem.list", "ecosystem.data", "ecosystem.record", "ecosystem.sync", "ecosystem.permissions",
+  "native.ecosystem.unlock", "native.ecosystem.callback", "companyos.status", "companyos.check",
 ]);
 export function desktopRequestLane(method: string, args?: unknown): DesktopRequestLane {
   if ((DESKTOP_CONTROL_METHODS as readonly string[]).includes(method)) return "control";
@@ -39,6 +42,7 @@ function queuedStartMatchesStop(start: DesktopQueuedRequest, stop: DesktopQueued
   if (stop.method === "voice.stop" && start.method === "voice.speak") return true;
   const a = start.args as Record<string, unknown> | undefined, b = stop.args as Record<string, unknown> | undefined;
   if (!a || !b || a.profile !== b.profile) return false;
+  if (stop.method === 'ecosystem.disconnect' && start.method === 'ecosystem.connect') return typeof b.pluginId === 'string' && a.pluginId === b.pluginId;
   if (stop.method === "work.stop" && ["work.run", "work.resume"].includes(start.method)) return typeof b.id === "string" && a.id === b.id;
   if (stop.method === "helm.code.close" && start.method === "helm.code.open") return typeof b.root === "string" && a.root === b.root;
   if (stop.method === "spatial.cancel" && start.method === "spatial.capture") return typeof b.sessionId === "string" && a.sessionId === b.sessionId;

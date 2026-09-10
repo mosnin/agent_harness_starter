@@ -5,7 +5,7 @@ use std::fmt;
 
 pub const REGULAR_CAPACITY: usize = 256;
 pub const CONTROL_CAPACITY: usize = 16;
-pub const CONTROL_METHODS: [&str; 18] = [
+pub const CONTROL_METHODS: [&str; 19] = [
     "approval.reply",
     "chat.stop",
     "room.stop",
@@ -24,6 +24,7 @@ pub const CONTROL_METHODS: [&str; 18] = [
     "work.stop",
     "spatial.cancel",
     "voice.stop",
+    "ecosystem.disconnect",
 ];
 
 pub fn is_control_method(method: &str) -> bool {
@@ -282,6 +283,7 @@ mod tests {
             "work.stop",
             "spatial.cancel",
             "voice.stop",
+            "ecosystem.disconnect",
         ];
         assert_eq!(CONTROL_METHODS, expected);
         for method in expected {

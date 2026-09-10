@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "scope": "Native Plugins UI source and isolated happy-dom verification",
+  "domain": "ui_design",
+  "capability": "ui_design_quality",
+  "recordedAt": "2026-09-10T07:57:57.664233+00:00",
+  "files": {
+    "src/desktop/ui/ecosystem-plugins.ts": "e6df175858f92d9f3ef8903de642d11fc7fb571cd9a5a54bd9e111f64b332918",
+    "src/desktop/ui/ecosystem-plugins.css": "83b0c2918f936c279a8ed9707708b6f678c9eb176fbdb5c41c4d0ba1a007aef3",
+    "src/desktop/ui/workbench.ts": "dbaa3caac98e8d77c60232f567720bfa1ed662bc9a50027d15367eaf593a6572",
+    "src/desktop/__tests__/ecosystem-plugins-ui.test.ts": "c1f5092c7f4403ac2c9b8b42f598b58843aa0e466ad519029db1432307634459",
+    "src/desktop/__tests__/workbench-ecosystem-ui.test.ts": "d2323824b637e1a03cd91701bee93bb5a06c5b178a9c9ae9ad661a9ceb4f3ddb"
+  },
+  "verification": {
+    "happyDom": {
+      "files": 3,
+      "tests": 34,
+      "exitCode": 0,
+      "log": "/tmp/hades-plugins-ui-tests.log"
+    },
+    "typescript": {
+      "command": "tsc --noEmit --pretty false",
+      "exitCode": 0,
+      "log": "/tmp/hades-plugins-ui-types.log"
+    },
+    "uiBundle": {
+      "outdir": "/tmp/hades-plugins-ui-build",
+      "exitCode": 0,
+      "log": "/tmp/hades-plugins-ui-build.log"
+    }
+  },
+  "implemented": [
+    "Native Plugins sidebar disclosure with all seven required routes; existing Extensions retained",
+    "Profile-scoped native account/status/scopes and sync-mode freshness view",
+    "Native Keychain unlock, browser authorization URL, reconnect and disconnect",
+    "Acknowledged agent read/write grants, scoped search/collection filters, server-offset pagination and escaped bounded record detail",
+    "Company OS Settings enable/auto-update/version/check/apply/digest-fenced rollback controls",
+    "Stale profile/account/operation fencing; bounded 12-poll connection monitoring; focus and settings draft preservation"
+  ],
+  "limits": [
+    "RPC and native commands are mocked in tests; no authenticated account or provider journey performed",
+    "No native GUI, CUA, OS Keychain, callback or browser sign-in was exercised",
+    "No listener or network operation was started by this UI lane",
+    "Native visual/keyboard/zoom acceptance and independent security/product acceptance remain open",
+    "No new dependencies; existing theme tokens and accepted direction retained; no new animation"
+  ],
+  "acceptance": "source_and_mocked_ui_checks_only"
+}

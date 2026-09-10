@@ -41,6 +41,8 @@ done || true
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp src-tauri/target/debug/hades-desktop "$APP/Contents/MacOS/Hades"
 cp dist/desktop/sidecar-entry.js "$APP/Contents/Resources/sidecar-entry.js"
+mkdir -p "$APP/Contents/Resources/company-os"
+cp third_party/company-os/bundle.json third_party/company-os/manifest.json "$APP/Contents/Resources/company-os/"
 cp dist-hades/hades.js "$APP/Contents/Resources/hades.js"
 cp dist/desktop/team-server.js "$APP/Contents/Resources/team-server.js"
 node scripts/package-codex-runtime.mjs "$APP/Contents/Resources"
@@ -67,6 +69,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>ai.hades.desktop</string><key>CFBundleExecutable</key><string>Hades</string>
 <key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>0.1.0</string>
 <key>CFBundleVersion</key><string>1</string><key>CFBundleIconFile</key><string>Hades.icns</string>
+<key>CFBundleURLTypes</key><array><dict><key>CFBundleURLName</key><string>Hades account connection</string><key>CFBundleURLSchemes</key><array><string>ai.hades.desktop</string></array><key>CFBundleTypeRole</key><string>Viewer</string></dict></array>
 <key>LSMinimumSystemVersion</key><string>14.0</string><key>NSHighResolutionCapable</key><true/>
 <key>NSMicrophoneUsageDescription</key><string>Record voice messages when you choose the microphone.</string>
 <key>NSDocumentsFolderUsageDescription</key><string>Read and edit the project folders you open in Hades.</string>

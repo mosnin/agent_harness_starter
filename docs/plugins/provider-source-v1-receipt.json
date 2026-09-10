@@ -1,0 +1,609 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-10T08:46:24.932098+00:00",
+  "status": "source_candidates_with_bounded_independent_fixture_reviews",
+  "author": "/root/reference_review",
+  "implementationFrozen": true,
+  "digestAlgorithm": "SHA-256 of sorted implementation path + NUL + file SHA-256, joined with LF; excludes fixtures",
+  "providers": {
+    "govern": {
+      "root": "/Users/preston/govern-remediation-integration",
+      "branch": "remediation/integration",
+      "baselineHead": "0a64d0e87b357630cf956a1af6cebf857ae04d9e",
+      "currentHead": "0a64d0e87b357630cf956a1af6cebf857ae04d9e",
+      "authoredChangesCommitted": false,
+      "sourceState": "frozen_candidate",
+      "implementationDigest": "0f79506100a229e3b65039d9278b608807f457834a780a85bff752cbe9204c12",
+      "ownedFiles": [
+        {
+          "path": "src/app/api/hades/authorize/route.ts",
+          "sha256": "451b642c8ce51d1138739dd8d36c194d56267a8c48632917e046a0a77d4bf18d",
+          "bytes": 444,
+          "role": "implementation"
+        },
+        {
+          "path": "src/app/api/hades/changes/route.ts",
+          "sha256": "840aef2794760c5ed6197b7c0c7725573ad4408d46bfb1b7b256caef4126b41a",
+          "bytes": 169,
+          "role": "implementation"
+        },
+        {
+          "path": "src/app/api/hades/records/route.ts",
+          "sha256": "b0db18873c87f6b6efbe13c695ee508bcabf48cc25d63fd20f7a29678b83b083",
+          "bytes": 277,
+          "role": "implementation"
+        },
+        {
+          "path": "src/app/api/hades/revoke/route.ts",
+          "sha256": "17e5e4155a55bce7d4ad72de90d1710f974c55497065acdf3131b28878ca2a99",
+          "bytes": 159,
+          "role": "implementation"
+        },
+        {
+          "path": "src/app/api/hades/token/route.ts",
+          "sha256": "90ddb3c0ca1e5e0df6e4c90060619e80d018d83c7eaaafe7e3e7082e432fbd74",
+          "bytes": 163,
+          "role": "implementation"
+        },
+        {
+          "path": "src/app/api/hades/userinfo/route.ts",
+          "sha256": "9c80cbbec7c851fedaa74ec8c8cb1d9fb7d84458beda91a48285e6b4e9d21e92",
+          "bytes": 170,
+          "role": "implementation"
+        },
+        {
+          "path": "src/app/hades/authorize/page.tsx",
+          "sha256": "5d05aacafd0e3a984ce2809476783ba3283eb9fbcdc0c78afd7a7635b7002261",
+          "bytes": 2193,
+          "role": "implementation"
+        },
+        {
+          "path": "src/lib/hades-oauth.test.ts",
+          "sha256": "a9d8a710ec9ca857db45f0d4deaf87a64ccb51492feb8c54c3a8badeee3b5762",
+          "bytes": 7318,
+          "role": "author_fixture"
+        },
+        {
+          "path": "src/lib/hades-oauth.ts",
+          "sha256": "ee809072c8b1d028b9e009d2f72b1ee052862b6185b91b9c1dfbc6bf53ed5351",
+          "bytes": 13683,
+          "role": "implementation"
+        },
+        {
+          "path": "supabase/migrations/20260910_hades_oauth.sql",
+          "sha256": "97bbc968c0c761ce441d9e4920c9816d6895bcba3b85717070290130d9553acc",
+          "bytes": 11895,
+          "role": "implementation"
+        }
+      ],
+      "publicClientId": "hades-desktop-govern",
+      "redirectUri": "ai.hades.desktop:/oauth/govern",
+      "issuer": "https://govern.sh",
+      "issuerSetting": "NEXT_PUBLIC_SITE_URL",
+      "resourceAudienceParameter": null,
+      "scopes": [
+        "agents:read",
+        "policies:read",
+        "workspaces:read",
+        "agents:write"
+      ],
+      "collections": {
+        "agents": [
+          "name",
+          "description",
+          "provider",
+          "model",
+          "status",
+          "risk"
+        ],
+        "policies": [
+          "name",
+          "description",
+          "category",
+          "effect",
+          "status",
+          "enabled",
+          "severity",
+          "approvalRequired"
+        ],
+        "workspaces": [
+          "name",
+          "slug",
+          "plan"
+        ]
+      },
+      "dataCoverage": "explicit_safe_DTO_projection_not_full_business_export",
+      "recordDetailEndpoint": null,
+      "accountId": "workspaceId",
+      "tenantId": "workspaceId",
+      "write": {
+        "collection": "agents",
+        "operation": "rename",
+        "fields": [
+          "name"
+        ],
+        "requiresExpectedRevision": true,
+        "durableIdempotencyKey": true
+      },
+      "delivery": "periodic",
+      "subscriptionEndpoint": null,
+      "independentFixture": {
+        "path": "src/lib/hades-oauth-independent.review.mjs",
+        "sha256": "73aa0118baf54a8e1af129b1954efbd2d9855a1db0087241859c439053e2e091",
+        "bytes": 8463,
+        "role": "independent_reviewer_fixture"
+      }
+    },
+    "cadre": {
+      "root": "/Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo",
+      "branch": "fix/computer-startup-recovery",
+      "baselineHead": "b3cdf808e8c975f2b81627eb78a1866e8198bf58",
+      "currentHead": "b3cdf808e8c975f2b81627eb78a1866e8198bf58",
+      "authoredChangesCommitted": false,
+      "sourceState": "frozen_candidate",
+      "implementationDigest": "750ca8ca5e33d97417dc7d4b2d400f273c47fe126884294d6da9256c30b37b42",
+      "ownedFiles": [
+        {
+          "path": "apps/api/src/app.ts",
+          "sha256": "d7579a340728675edfea1a117ba202ca48232e8b056a5a0ca2bc14429db1c2b4",
+          "bytes": 22036,
+          "role": "implementation"
+        },
+        {
+          "path": "apps/api/src/hades-oauth.test.ts",
+          "sha256": "1275359ed4c503c92cdcec4552e1651d2eac8e22ce2c4196a1dfedfd1469b2b0",
+          "bytes": 4527,
+          "role": "author_fixture"
+        },
+        {
+          "path": "apps/api/src/hades-oauth.ts",
+          "sha256": "5297561ca13be43fcfe2ead46335b47c945bac3df233ce74e2703cf132450dbd",
+          "bytes": 3761,
+          "role": "implementation"
+        },
+        {
+          "path": "packages/core/package.json",
+          "sha256": "3c9853cc8609a11a3247ddd9ec0dea05a62190475ef1c0266872ccb292ad8a11",
+          "bytes": 1558,
+          "role": "implementation"
+        },
+        {
+          "path": "packages/core/src/node/hades-oauth.ts",
+          "sha256": "3ac0e752e9e024cf888670638aeba956cdadbe331f7a3f9d5fc514e2b9753601",
+          "bytes": 14672,
+          "role": "implementation"
+        },
+        {
+          "path": "packages/db/prisma/migrations/20260910000000_hades_oauth/migration.sql",
+          "sha256": "48950c00efcb7aadfff57a135ba2cc0996f2a227d83956ead657bbec636d93e9",
+          "bytes": 11869,
+          "role": "implementation"
+        },
+        {
+          "path": "packages/db/prisma/schema.prisma",
+          "sha256": "1c92b95a6ef9d66cf2cdf5ff65ea07a9dfc2479d1fcf01b2f8ba3926f82262ca",
+          "bytes": 42668,
+          "role": "implementation"
+        }
+      ],
+      "publicClientId": "hades-desktop-cadre",
+      "redirectUri": "ai.hades.desktop:/oauth/cadre",
+      "issuer": "https://cadre.to",
+      "issuerSetting": "API env.webOrigin",
+      "resourceAudienceParameter": null,
+      "scopes": [
+        "bots:read",
+        "tasks:read",
+        "spaces:read",
+        "bots:write"
+      ],
+      "collections": {
+        "bots": [
+          "name",
+          "title",
+          "description",
+          "modelProvider",
+          "modelId",
+          "archivedAt"
+        ],
+        "tasks": [
+          "prompt",
+          "status",
+          "botId",
+          "threadId"
+        ],
+        "spaces": [
+          "name",
+          "organizationId"
+        ]
+      },
+      "dataCoverage": "explicit_safe_DTO_projection_not_full_business_export",
+      "recordDetailEndpoint": null,
+      "accountId": "spaceId:userId",
+      "tenantId": "spaceId",
+      "write": {
+        "collection": "bots",
+        "operation": "rename",
+        "fields": [
+          "name"
+        ],
+        "requiresExpectedRevision": true,
+        "durableIdempotencyKey": true
+      },
+      "delivery": "periodic",
+      "subscriptionEndpoint": null,
+      "independentFixture": {
+        "path": "packages/core/src/node/hades-oauth-independent.review.mjs",
+        "sha256": "0c97a3f8950cd68c486ab7a84e984ffbf06764f027004f31655eec351e34efb0",
+        "bytes": 9460,
+        "role": "independent_reviewer_fixture"
+      }
+    },
+    "glove": {
+      "root": "/Users/preston/Documents/Codex/2026-09-06/glove-audit/source",
+      "branch": "codex/persistent-demo-computers",
+      "baselineHead": "89e49e4fb4e13ec77699ac043e50087ad567df05",
+      "currentHead": "89e49e4fb4e13ec77699ac043e50087ad567df05",
+      "authoredChangesCommitted": false,
+      "sourceState": "frozen_candidate",
+      "implementationDigest": "6d071b25e783c8c8343c26f42ecced954909161e7614ba5ba6df90953470b2b4",
+      "ownedFiles": [
+        {
+          "path": "app/api/hades/authorize/route.ts",
+          "sha256": "871d6127b998648379585caf2d43cd9af156b95201ef5b38f7fff1cf0ad4e4fb",
+          "bytes": 298,
+          "role": "implementation"
+        },
+        {
+          "path": "app/api/hades/changes/route.ts",
+          "sha256": "a502cd982322b94e9d22860015b73976c67da3ea2f4f7cd413e5e14456302aa0",
+          "bytes": 192,
+          "role": "implementation"
+        },
+        {
+          "path": "app/api/hades/records/route.ts",
+          "sha256": "ecbf35b2ee8de3f10114e57a503b5cf51b770f6049d5ca4ee35626022b69b392",
+          "bytes": 294,
+          "role": "implementation"
+        },
+        {
+          "path": "app/api/hades/revoke/route.ts",
+          "sha256": "00a58fed80c85d78803e2f22a880069b4c89d171222a95ae1029f9d69562e09f",
+          "bytes": 192,
+          "role": "implementation"
+        },
+        {
+          "path": "app/api/hades/token/route.ts",
+          "sha256": "f96b2d684d676b1d32ea88b3a46926742562a9162a1b90488118d3666ef66454",
+          "bytes": 191,
+          "role": "implementation"
+        },
+        {
+          "path": "app/api/hades/userinfo/route.ts",
+          "sha256": "501c9de33da196ce0b11f87980ee88e65b64dddb11f45902870b9e0dac0d3801",
+          "bytes": 193,
+          "role": "implementation"
+        },
+        {
+          "path": "convex/_generated/api.ts",
+          "sha256": "836138e136ec2a3bf69a193e410a361c9c703aba945168118cd53c5847d731b0",
+          "bytes": 10148,
+          "role": "implementation"
+        },
+        {
+          "path": "convex/_lib/hadesOAuthContract.ts",
+          "sha256": "0dd8c40dbdc0249418e164e89dce5f9a5047ac18d40cb5f7e16f25609806e50e",
+          "bytes": 4565,
+          "role": "implementation"
+        },
+        {
+          "path": "convex/_lib/hadesOAuthSchema.ts",
+          "sha256": "274a310ac3c91f2e6e5ee8eafd36e9cc9dcfb6ffcb61d1e1ed947eddc68ad992",
+          "bytes": 1871,
+          "role": "implementation"
+        },
+        {
+          "path": "convex/hadesOAuth.ts",
+          "sha256": "d0dcc9d96be8da0a52de002b7fdaca0efd54d4b3f24c44a380e9d84dd4600adc",
+          "bytes": 9190,
+          "role": "implementation"
+        },
+        {
+          "path": "convex/hadesOAuthStore.ts",
+          "sha256": "449b8bb3c07169b51f401ef2ebbf1b3d59738950b6d72cca5c2ac85c634a0d7c",
+          "bytes": 13471,
+          "role": "implementation"
+        },
+        {
+          "path": "convex/schema.ts",
+          "sha256": "f3786a8b142c5d3687798cfc848e6672376449cf95d00926b6146930ce0f6b00",
+          "bytes": 117914,
+          "role": "implementation"
+        },
+        {
+          "path": "lib/hades/server.ts",
+          "sha256": "dc6847dfaf6747339079e24e3270edde244fa2d45ef22da0497b270511999a6f",
+          "bytes": 811,
+          "role": "implementation"
+        },
+        {
+          "path": "lib/hades/transport.ts",
+          "sha256": "dcbf6d9ce618e3063b51022bec64253ba94c4dc4a8134e3d144823640596265d",
+          "bytes": 7478,
+          "role": "implementation"
+        },
+        {
+          "path": "proxy.ts",
+          "sha256": "1d2a34fc4fb5cf02d0b36718db31bee19c43acfb7a6f95e8b43764d77be74fb1",
+          "bytes": 2895,
+          "role": "implementation"
+        },
+        {
+          "path": "scripts/tests/hades-oauth.test.ts",
+          "sha256": "b350a65501fe38a7bdaec60e33b99a1ef8f117ea81e4e47076eb65efa43c0de0",
+          "bytes": 14726,
+          "role": "author_fixture"
+        }
+      ],
+      "publicClientId": "hades-desktop-glove",
+      "redirectUri": "ai.hades.desktop:/oauth/glove",
+      "issuer": "https://glove.so",
+      "issuerSetting": "HADES_OAUTH_ISSUER, matching Next and Convex",
+      "resourceAudienceParameter": null,
+      "scopes": [
+        "products:read",
+        "sessions:read",
+        "recordings:read",
+        "workspaces:read",
+        "products:write"
+      ],
+      "collections": {
+        "products": [
+          "name",
+          "productUrl",
+          "audience",
+          "valueProposition",
+          "forbiddenClaims",
+          "painPoints",
+          "topFeatures",
+          "competitors",
+          "pricingSummary",
+          "status"
+        ],
+        "sessions": [
+          "title",
+          "productId",
+          "flowId",
+          "status",
+          "scheduledAt",
+          "startedAt",
+          "endedAt",
+          "runtimeProvider",
+          "runtimeWorkerStatus"
+        ],
+        "recordings": [
+          "sessionId",
+          "provider",
+          "status",
+          "recordingType",
+          "durationSeconds",
+          "startedAt",
+          "stoppedAt",
+          "processedAt",
+          "publicReplayEnabled"
+        ],
+        "workspaces": [
+          "name",
+          "slug"
+        ]
+      },
+      "dataCoverage": "explicit_safe_DTO_projection_not_full_business_export",
+      "recordDetailEndpoint": null,
+      "accountId": "organizationId:clerkUserId",
+      "tenantId": "organizationId",
+      "write": {
+        "collection": "products",
+        "operation": "rename",
+        "fields": [
+          "name"
+        ],
+        "requiresExpectedRevision": true,
+        "durableIdempotencyKey": true
+      },
+      "delivery": "periodic",
+      "subscriptionEndpoint": null,
+      "independentFixture": {
+        "path": "convex/hadesOAuthIndependent.review.mjs",
+        "sha256": "92854ad53eaaaa4e65fd39073f96c9876821b6816408555adff0e33c5edbb71f",
+        "bytes": 7672,
+        "role": "independent_reviewer_fixture"
+      },
+      "sharedFileOwnership": {
+        "convex/schema.ts": "Only import/spread of hadesOAuthTables; existing recording fields retained.",
+        "convex/_generated/api.ts": "Only imports and module types for hadesOAuth/hadesOAuthStore; existing sessionActionAccess edits retained.",
+        "proxy.ts": "Only /api/hades/(.*) self-authenticated route entry and comment."
+      },
+      "preexistingDirtyWork": "Extensive lifecycle, recording, knowledge, worker and documentation changes retained; not authored or accepted by this lane.",
+      "snapshotLimits": {
+        "perCollection": 1000,
+        "total": 2000,
+        "recordCharacters": 64000,
+        "recordPage": 100,
+        "changeScanPage": 200,
+        "overCapacity": "fail_without_committed_cursor",
+        "intermediateChangesBetweenPolls": "not_retained_as_event_audit"
+      }
+    }
+  },
+  "commonEndpoints": {
+    "authorize": "GET/POST /api/hades/authorize",
+    "token": "POST /api/hades/token",
+    "revoke": "POST /api/hades/revoke",
+    "userinfo": "GET /api/hades/userinfo",
+    "records": "GET/POST /api/hades/records",
+    "changes": "GET /api/hades/changes"
+  },
+  "commonRecordFields": [
+    "id",
+    "collection",
+    "title",
+    "updatedAt",
+    "revision",
+    "data"
+  ],
+  "evidence": [
+    {
+      "path": "docs/plugins/evidence/govern-author-repaired-fixtures.log",
+      "sha256": "f77badcbc3f11f207d66d6fc0ce55e96d68e02a29f5ee5b72f44630c182cb11d",
+      "bytes": 230,
+      "role": "author_rerun_including_prior_independent_tests",
+      "originalLog": "/tmp/govern-hades-repaired.log",
+      "exitCode": 0,
+      "passedTests": 16
+    },
+    {
+      "path": "docs/plugins/evidence/govern-independent-green.log",
+      "sha256": "c6f2f47d535e677f7dc3e086c748eaa4e4091d282fb84bb7f70e069485b5ed79",
+      "bytes": 229,
+      "role": "independent_reviewer",
+      "originalLog": "/tmp/govern-independent-green.log",
+      "exitCode": 0,
+      "passedTests": 17
+    },
+    {
+      "path": "docs/plugins/evidence/govern-provider-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "role": "author_typecheck",
+      "originalLog": "/tmp/govern-hades-types.log",
+      "exitCode": 0
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-provider-http-fixtures.log",
+      "sha256": "eb25692a789b4033568c0b36ad4967d2f59455768167afc520b2617364fa17f9",
+      "bytes": 244,
+      "role": "author_fixture",
+      "originalLog": "/tmp/cadre-hades-final-fixtures.log",
+      "exitCode": 0,
+      "passedTests": 7
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-independent-green.log",
+      "sha256": "ee1cf3236cc169b389644d91cc187c00da9bf7193a6655b6408a2c3e44fbfb48",
+      "bytes": 247,
+      "role": "independent_reviewer",
+      "originalLog": "/tmp/cadre-independent-green.log",
+      "exitCode": 0,
+      "passedTests": 16
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-provider-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "role": "author_typecheck",
+      "originalLog": "/tmp/cadre-hades-types.log",
+      "exitCode": 0
+    },
+    {
+      "path": "docs/plugins/evidence/cadre-author-sql-fixtures.log",
+      "sha256": "10362a03c78be034250e7e0a459611c7c391cff9d90619a2bdce33465e9eb791",
+      "bytes": 1285,
+      "role": "author_in_memory_PGlite_fixture",
+      "originalLog": "/tmp/cadre-hades-sql-fixtures.log",
+      "exitCode": 0,
+      "passedTests": 5
+    },
+    {
+      "path": "docs/plugins/evidence/glove-provider-node-fixtures.log",
+      "sha256": "1b34df90d4be75c5bb6a33e6e1bdeb05448fcdd25451c97f3bfd395457cf9c9a",
+      "bytes": 2646,
+      "role": "author_in_memory_handlers_and_mocked_Clerk",
+      "originalLog": "/tmp/glove-hades-node-fixtures.log",
+      "exitCode": 0,
+      "passedTests": 11
+    },
+    {
+      "path": "docs/plugins/evidence/glove-independent-final.log",
+      "sha256": "fddedfecfb19a09e085c64706bbd156601e750c2e0f9feaf0f12fa7100ae6a97",
+      "bytes": 242,
+      "role": "independent_convex_test_and_mocked_Clerk",
+      "originalLog": "/tmp/glove-independent-final.log",
+      "exitCode": 0,
+      "passedTests": 7
+    },
+    {
+      "path": "docs/plugins/evidence/glove-provider-types-baseline.log",
+      "sha256": "d4cfd618db74b5a8bb4e6139bee9eeffebbc385c92dec446e79280a380f3c952",
+      "bytes": 13772,
+      "role": "author_typecheck_32_preexisting_LiveKit_errors",
+      "originalLog": "/tmp/glove-hades-types.log",
+      "exitCode": 2
+    },
+    {
+      "path": "docs/plugins/evidence/glove-provider-types-transient-review-fixture.log",
+      "sha256": "0fa867a8d2f17834478e426eb50eb3ac711cc7bd5874cde201e7f860e9ab7b9c",
+      "bytes": 15240,
+      "role": "author_typecheck_32_preexisting_plus_reviewer_type_identity_diagnostic",
+      "originalLog": "/tmp/glove-hades-final-types.log",
+      "exitCode": 2
+    },
+    {
+      "path": "docs/plugins/evidence/glove-tsx-cli-failed-invocation.log",
+      "sha256": "ca77139c832950942ee100c9c767d6d673eb6c2d6cda04bf0e5ec91fa2462aaf",
+      "bytes": 939,
+      "role": "failed_before_tests_IPC_pipe_attempt",
+      "originalLog": "/tmp/glove-hades-fixtures.log",
+      "exitCode": 1,
+      "passedTests": 0
+    }
+  ],
+  "independentReports": [
+    {
+      "path": "docs/plugins/GOVERN_SECURITY_REVIEW.md",
+      "sha256": "8df3ef1a4b58f0e9ffea0bc5079b2384f21eb07d2de9fc4d670e81b430c587cb",
+      "bytes": 10285,
+      "role": "independent_reviewer_report_snapshot"
+    },
+    {
+      "path": "docs/plugins/GLOVE_SECURITY_REVIEW.md",
+      "sha256": "9525e6edc61a29c5854908b94235083c10d191dfc73b22c939adfab80f8a302f",
+      "bytes": 6382,
+      "role": "independent_reviewer_report_snapshot"
+    }
+  ],
+  "laneArtifacts": [
+    {
+      "path": "docs/plugins/GOVERN_CADRE_GLOVE.md",
+      "sha256": "7fc05319a345eecea22c7b353cbfa63a81ddd68019c39be65f8abbc58fb53f5b",
+      "bytes": 13562,
+      "role": "source_contract_and_limits"
+    },
+    {
+      "path": "docs/plugins/fixtures/cadre-provider-sql.mjs",
+      "sha256": "dd48958fddf6029d3ddb2f9577fc5f03528c404ea15a9c292fdf9b08676f8fce",
+      "bytes": 6952,
+      "role": "author_sql_fixture"
+    }
+  ],
+  "executionLimits": {
+    "newPackagesInstalled": false,
+    "productListenersStarted": false,
+    "nativeAppControlAttempted": false,
+    "authenticatedProviderCallsExecuted": false,
+    "productDatabaseMigrationsApplied": false,
+    "deploymentsExecuted": false,
+    "inMemorySQLMigrationsExecuted": true,
+    "initialTsxCliIpcAttempt": "EPERM before tests; retained failure; Node loader rerun avoids CLI IPC"
+  },
+  "openGates": [
+    "Glove preexisting 32 LiveKit generated API TypeScript diagnostics",
+    "Production schema migrations/function generation and deployment revision binding",
+    "Hosted multi-connection contention, token/revocation races, and provider transaction limits",
+    "Real Clerk/Better Auth/Govern session sign-in and human consent",
+    "Native callback and Keychain journey; native UI acceptance remains denied/open",
+    "All mandatory business read/write functionality beyond the explicit safe projection and rename operation",
+    "Retention, cleanup, provider-wide abuse limits and operator revocation UI",
+    "Full seven-provider authenticated end-to-end account/data/write/change/revoke acceptance"
+  ],
+  "acceptanceBoundary": "Independent fixture/source reviews do not accept hosted providers, live updates, native UI or the overall seven-platform product."
+}

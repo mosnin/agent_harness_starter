@@ -45,6 +45,8 @@
       "icons/icon.icns"
     ],
     "resources": {
+      "../third_party/company-os/bundle.json": "company-os/bundle.json",
+      "../third_party/company-os/manifest.json": "company-os/manifest.json",
       "../dist/desktop/sidecar-entry.js": "sidecar-entry.js",
       "../dist/runtime/node": "node",
       "../dist/runtime/hades-pty": "hades-pty",

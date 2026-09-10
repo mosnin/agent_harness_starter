@@ -1,0 +1,265 @@
+{
+  "schema": "hades.provider-source-receipt.v1",
+  "observedAt": "2026-09-10T08:23:02.936928+00:00",
+  "scope": "local source and in-process tests only",
+  "repositories": [
+    {
+      "provider": "companyos",
+      "repository": "/Users/preston/company-os-web",
+      "baseline": "dfb526de427f9f7f8123a4fabcb92811c46f85f0",
+      "files": [
+        {
+          "path": "app/.well-known/oauth-authorization-server/route.ts",
+          "bytes": 164,
+          "sha256": "142396af6fd7cde78929624c65a70ba09aeddfa0e2349f9b70fe3b1d470d17aa"
+        },
+        {
+          "path": "app/api/plugins/v1/account/route.ts",
+          "bytes": 153,
+          "sha256": "be403dfe8645211383a838f6a63c1f4cf9d0ee9e770475e81f051e4c3e13b3c2"
+        },
+        {
+          "path": "app/api/plugins/v1/changes/route.ts",
+          "bytes": 153,
+          "sha256": "77d1098ca7174254776dd11f7226073d64fafa19cdb89f17a8bd6fc5f94ea2ce"
+        },
+        {
+          "path": "app/api/plugins/v1/events/route.ts",
+          "bytes": 2154,
+          "sha256": "6da94de9eaf8cffde8fcd9c0be0af5b14d2d0bb5df1391578d419437a28a0bdd"
+        },
+        {
+          "path": "app/api/plugins/v1/records/[id]/route.ts",
+          "bytes": 385,
+          "sha256": "78dc0d926c750f94bd57e52f1cf35e9d32ae92186cad36441c98817d89580d3e"
+        },
+        {
+          "path": "app/api/plugins/v1/snapshot/route.ts",
+          "bytes": 154,
+          "sha256": "9f2f0616929f38f8af189fa867c5316925096d8c3beda1f07a48581776c26e32"
+        },
+        {
+          "path": "app/api/plugins/v1/write/route.ts",
+          "bytes": 152,
+          "sha256": "361d61484ec5b8bc799fd77a810438eddef0050e4d5ce932c5491ee5aef81e5b"
+        },
+        {
+          "path": "app/oauth/authorize/consent.tsx",
+          "bytes": 4659,
+          "sha256": "f5e69e2a95383647d1af052ee297261662a89c3b2b92d86b2cce94ce9723e0a7"
+        },
+        {
+          "path": "app/oauth/authorize/page.tsx",
+          "bytes": 1159,
+          "sha256": "43b4d2b55710905a1e8f847e13dba0325f9806d73cf04f6182aac9edde3f4b4a"
+        },
+        {
+          "path": "app/oauth/revoke/route.ts",
+          "bytes": 144,
+          "sha256": "49a05aa3c3728eacb2a60206d66eb5dba415268d4df2763b752172c6205044fd"
+        },
+        {
+          "path": "app/oauth/token/route.ts",
+          "bytes": 143,
+          "sha256": "4c3b13a6a20703d156ede9848f57437c9cd88f4fc47df3e7533e5ec843d59b4b"
+        },
+        {
+          "path": "convex/http.ts",
+          "bytes": 1308,
+          "sha256": "f28c14bfa313ad460a5c898bdbcd51ff568afd602232af44412a1ff42b1a8c55"
+        },
+        {
+          "path": "convex/oauth.test.ts",
+          "bytes": 20378,
+          "sha256": "99d89521bf8e220851c8ccbf3f67b740dbcf1658e74825976017d043002a242b"
+        },
+        {
+          "path": "convex/oauth.ts",
+          "bytes": 22726,
+          "sha256": "75a59c5478b57252882abc59f41f5ba1cc3e7cd172d67f82a3e523b6d1c241f4"
+        },
+        {
+          "path": "convex/oauthHttp.ts",
+          "bytes": 8528,
+          "sha256": "0ed0a9c8d5f263375e3707a64888e54d4b5cbdef7ab163ea3e650aa017790da9"
+        },
+        {
+          "path": "convex/oauthPolicy.ts",
+          "bytes": 2129,
+          "sha256": "4d486efbae3b586e54140da773e89692af4edf4fa32d92d23ec8f905a306c7d4"
+        },
+        {
+          "path": "convex/schema.ts",
+          "bytes": 15052,
+          "sha256": "63b46e3ba8e06072fb7f9e1760ed6b917925699932b84ed090121e8b4dd10cf1"
+        },
+        {
+          "path": "lib/oauth-body.test.ts",
+          "bytes": 1187,
+          "sha256": "7d2cf99e5ba89dc249eb0419889d494bcecc7147a48cc5967fa167926987f92d"
+        },
+        {
+          "path": "lib/oauth-body.ts",
+          "bytes": 1109,
+          "sha256": "b4cb03feaa7286cf29b3030773d9a1b22d031944357065a98642609869cd7c6e"
+        },
+        {
+          "path": "lib/oauth-events.test.ts",
+          "bytes": 2456,
+          "sha256": "7e917bee78f66a6abc3833652385d411af5d50177b916d9379a45804d64b3a1a"
+        },
+        {
+          "path": "lib/oauth-events.ts",
+          "bytes": 2666,
+          "sha256": "1c249146faef94028e85421db7a38f6bd2ec3f61f4c3009a3097751d0573e523"
+        },
+        {
+          "path": "lib/oauth-proxy.ts",
+          "bytes": 2587,
+          "sha256": "7703eb464c73ac0939b05a42b822364c535aa9ad3e488f90b0289cb0e0a4388e"
+        }
+      ],
+      "excludedUnrelated": [
+        "package.json",
+        "DESIGN.md",
+        "design-system/",
+        "output/",
+        "convex/oauth-independent.test.ts"
+      ]
+    },
+    {
+      "provider": "operate",
+      "repository": "/Users/preston/operate-companyos-connect",
+      "baseline": "849ddaa28b68adcd3b80c4b6b6a9aa23e0d8f4bd",
+      "files": [
+        {
+          "path": "convex/companyOsChanges.ts",
+          "bytes": 5442,
+          "sha256": "135fe7b43e5842d18201ea4fe833464efd4f7314077554987e41edfb01331096"
+        },
+        {
+          "path": "convex/companyOsConnector.ts",
+          "bytes": 31037,
+          "sha256": "59605d22e05edfee2faa0e1ccb3ff6b562ead769fa7769e5c395b4274af5942a"
+        },
+        {
+          "path": "convex/companyOsNotifications.ts",
+          "bytes": 3823,
+          "sha256": "c3f9b5d58f8fbbd9d1f54cd326164f587fb39603c582d95c3339348dea13d6f1"
+        },
+        {
+          "path": "convex/companyOsWrite.ts",
+          "bytes": 2977,
+          "sha256": "35b6c99a661db23bf35140585a33216240f3d7f6fa2c4b7c347c4deb394f5038"
+        },
+        {
+          "path": "convex/http.ts",
+          "bytes": 32916,
+          "sha256": "d371d6c8cc5efec231169e96d7b5e94c4af936b128ab547e2e688afca42607e9"
+        },
+        {
+          "path": "convex/oauth.ts",
+          "bytes": 27811,
+          "sha256": "d1f1f77ba07cd8bc709495fdc80150a89cbdd2ce41a0f6692166486492950fec"
+        },
+        {
+          "path": "convex/schema.ts",
+          "bytes": 122337,
+          "sha256": "3c68d93d915c4cc87df0505aaafc8bb5d7a42fcad44f79785472b1970ae5f405"
+        },
+        {
+          "path": "src/app/.well-known/companyos-connector/route.ts",
+          "bytes": 1953,
+          "sha256": "6a6fc9dcc67507527a99a2bf35d9ad4715461ed548adb26d2152d9160cfbe9d2"
+        },
+        {
+          "path": "src/app/api/companyos/v1/changes/route.ts",
+          "bytes": 1046,
+          "sha256": "136142277f74a04bf6a709a90fa40a7ad4a4607c2c6bb17ff52c89a493ab6684"
+        },
+        {
+          "path": "src/app/api/companyos/v1/events/route.ts",
+          "bytes": 2257,
+          "sha256": "838396693bbbbbe45002b247786e4850b4431a5d6a3504b933f499bebbdb5143"
+        },
+        {
+          "path": "src/app/api/companyos/v1/snapshot/route.ts",
+          "bytes": 17420,
+          "sha256": "2d0012b77f49cff56a9f3eb6ca425ef955f13453718b03ad3c8e84b0d0ae2541"
+        },
+        {
+          "path": "src/app/api/companyos/v1/write/route.ts",
+          "bytes": 2760,
+          "sha256": "dcd6301bf337c3733959ff1e14f2ddee044b38efa4421f09cb5cbe6290e282ab"
+        },
+        {
+          "path": "src/app/oauth/authorize/oauth-authorize.tsx",
+          "bytes": 11118,
+          "sha256": "1833e535cdc90cf2f4de8aef61ec69cdeda90c61cff827032efcbffff692ce4c"
+        },
+        {
+          "path": "src/lib/companyos-connect.ts",
+          "bytes": 5089,
+          "sha256": "68ed686ffb6a1a849a0cd15f0966bda0a1d40e6726115c47797cd368191eb95c"
+        },
+        {
+          "path": "src/lib/companyos-events.ts",
+          "bytes": 2670,
+          "sha256": "b975fe7b352dbe97eae1fc598f759a84ea448af30295e1e166e823721a7678a9"
+        },
+        {
+          "path": "src/lib/oauth-server.ts",
+          "bytes": 5412,
+          "sha256": "edc9f15d60dc8ccadbce0cb6181ff6cad691f2f89d71e24c9311fe52058fe611"
+        },
+        {
+          "path": "tests/companyos-connector.test.ts",
+          "bytes": 36655,
+          "sha256": "89adfaef65d91c8589a6b7ace2b8e0546b191658045f392d4d9dcd53aa7ec9c3"
+        },
+        {
+          "path": "tests/companyos-discovery.test.ts",
+          "bytes": 3705,
+          "sha256": "7e82ac627e346844aafb2b5f852484046ad2484bb5d3e4caabf4d3d0f9d0bf05"
+        },
+        {
+          "path": "tests/companyos-events.test.ts",
+          "bytes": 2474,
+          "sha256": "18f94495ebbb40ecb4d14d5ec06678c8cae465411ea991ae2da29692d4b775be"
+        },
+        {
+          "path": "tests/companyos-routes.test.ts",
+          "bytes": 10013,
+          "sha256": "895cc333b9f126616cbec5f1c4c577fc92f3b788d90b270b345fec2325471d33"
+        },
+        {
+          "path": "tests/oauth.test.ts",
+          "bytes": 20993,
+          "sha256": "8576b2a55fdb7ed9ff6373078c948b0e2e33eb9862c7887f57bbd19315d0013f"
+        }
+      ],
+      "excludedUnrelated": []
+    }
+  ],
+  "validation": {
+    "companyos": {
+      "tests": 27,
+      "typecheck": "passed",
+      "focusedLint": "passed"
+    },
+    "operate": {
+      "tests": 54,
+      "typecheck": "passed",
+      "focusedLint": "passed"
+    }
+  },
+  "gates": [
+    "Independent review of Operate pending",
+    "Deploy schema/functions/routes as one compatible release",
+    "Native public client registration/callback acceptance",
+    "Live human OAuth tenant/refresh/revoke acceptance",
+    "Actual hosted subscription/reconnect and provider network acceptance",
+    "Long-term event retention/reset protocol",
+    "Non-task write lanes for Operate and new-document/merge/archive writes for CompanyOS"
+  ]
+}

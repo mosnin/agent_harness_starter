@@ -26,7 +26,7 @@ export interface MaintenanceDependencies {
   /** Root must reject active work and pause admission/mutations for this entire operation. */
   withSnapshotBarrier: <T>(operation: () => Promise<T>) => Promise<T>;
 }
-const exclusions = ["Provider auth homes and credentials", "Keychain and API keys", "Slack and team connection credentials", "Shell hook configuration and channel access approvals (configure and approve again after import)", "External project files and checkpoints", "Model weights, caches, raw model context archives and terminal scrollback"];
+const exclusions = ["Provider auth homes and credentials", "Keychain and API keys", "Plugin account credentials, cached account data and write receipts (reconnect accounts after import)", "Company OS framework versions and profile switches (configure again after import)", "Slack and team connection credentials", "Shell hook configuration and channel access approvals (configure and approve again after import)", "External project files and checkpoints", "Model weights, caches, raw model context archives and terminal scrollback"];
 function manifest(bundle: Pick<Bundle, "format" | "createdAt" | "files" | "exclusions">) { return JSON.stringify({ format: bundle.format, createdAt: bundle.createdAt, exclusions: bundle.exclusions, files: bundle.files.map(({ content: _content, ...entry }) => entry) }); }
 function writePrivate(path: string, data: string | Buffer) {
   writeFileSync(path, data, { flag: "wx", mode: 0o600, flush: true });

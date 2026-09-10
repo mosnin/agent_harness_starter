@@ -60,3 +60,6 @@ src-tauri/gen/
 # Built OpenCode fork UI and optional local source checkout.
 dist/helm-ui/
 vendor/opencode/
+
+# Local review captures from other product repositories are evidence, not Hades source.
+docs/plugins/evidence/*.source

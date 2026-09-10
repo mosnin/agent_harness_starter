@@ -1,0 +1,14 @@
+{
+  "scope": "Real npm pack --ignore-scripts --offline archive; metadata fixture; no network or publish",
+  "filename": "mosnin-companyos-0.6.0.tgz",
+  "files": 694,
+  "bytes": 1686376,
+  "archiveSha256": "252a8c05800e28919474092b24bd29ab3a66e8ed6aafd66a02576c4f7693a702",
+  "parser": "available",
+  "bundleBytes": 9167400,
+  "release": {
+    "version": "0.6.0",
+    "revision": "5b374ba2066332c44f74eafddab4f8f575715ba3",
+    "sha256": "bab686685a36437967e3445934c4af983085a82962c84d63ae17adcf0244d59d"
+  }
+}

@@ -1,0 +1,49 @@
+Fixture dependency: vitest@4.1.5
+Fixture dependency: convex-test@0.0.56
+Fixture dependency: convex@1.45.0
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/glove-audit/source
+
+ ❯ convex/hadesOAuthV2Independent.review.mjs (9 tests | 1 failed) 42ms
+   × retained change payloads do not disclose knowledge after parent authority withdrawal 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  convex/hadesOAuthV2Independent.review.mjs > retained change payloads do not disclose knowledge after parent authority withdrawal
+AssertionError: expected [ { record: { …(6) } } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "record": {
++       "collection": "knowledge",
++       "data": {
++         "category": "feature",
++         "content": "Complete knowledge text",
++         "productId": "000000000000000000010001products",
++         "sourceType": "manual",
++         "status": "active",
++         "title": "Feature guide",
++       },
++       "id": "000000000000010005knowledgeItems",
++       "revision": "5",
++       "title": "Feature guide",
++       "updatedAt": 1,
++     },
++   },
++ ]
+
+ ❯ convex/hadesOAuthV2Independent.review.mjs:95:63
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 27 passed (28)
+   Start at  05:12:47
+   Duration  565ms (transform 105ms, setup 0ms, import 206ms, tests 184ms, environment 0ms)
+

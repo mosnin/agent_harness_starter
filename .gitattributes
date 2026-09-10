@@ -1,0 +1,3 @@
+# Preserve exact captured evidence bytes, including trailing blank output lines.
+docs/plugins/evidence/*.log -whitespace
+docs/plugins/*-receipt.json -whitespace

@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "package": "@mosnin/companyos",
+  "version": "0.6.0",
+  "revision": "5b374ba2066332c44f74eafddab4f8f575715ba3",
+  "sha256": "bab686685a36437967e3445934c4af983085a82962c84d63ae17adcf0244d59d",
+  "bytes": 9167400,
+  "files": 688,
+  "license": "UNLICENSED",
+  "repository": "https://github.com/mosnin/companyos",
+  "npm": {
+    "name": "@mosnin/companyos",
+    "engines": {
+      "node": ">=20"
+    }
+  },
+  "compatibility": "Data-only JSON; vendor script uses Node builtins available in Node20+ and Bun. Bun execution not verified."
+}

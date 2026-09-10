@@ -1,0 +1,130 @@
+Fixture dependency: vitest@4.1.5
+Fixture dependency: convex-test@0.0.56
+Fixture dependency: convex@1.45.0
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/glove-audit/source
+
+ ❯ convex/hadesOAuthV2Independent.review.mjs (8 tests | 3 failed) 38ms
+   × products receipt refuses target moved to another organization 14ms
+   × knowledge receipt refuses target moved to another organization 5ms
+   × knowledge receipt refuses newly foreign parent without repeating a write 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  convex/hadesOAuthV2Independent.review.mjs > products receipt refuses target moved to another organization
+AssertionError: promise resolved "{ key: 'request-one', …(2) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "key": "request-one",
++   "record": {
++     "collection": "products",
++     "data": {
++       "forbiddenClaims": [],
++       "name": "Product",
++       "productUrl": "https://product.invalid",
++       "status": "active",
++       "topFeatures": [
++         "Existing feature",
++       ],
++       "valueProposition": "Recorded update",
++     },
++     "id": "000000000000000000010001products",
++     "revision": "8",
++     "title": "Product",
++     "updatedAt": 1789031518982,
++   },
++   "status": "applied",
+  }
+
+ ❯ convex/hadesOAuthV2Independent.review.mjs:44:53
+     42|   await f.write(collection,id,revision,data);
+     43|   await f.t.run(async ctx=>{const org=await ctx.db.insert("organizatio…
+     44|   await expect(f.write(collection,id,revision,data)).rejects.toThrow("…
+       |                                                     ^
+     45|  });
+     46| }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  convex/hadesOAuthV2Independent.review.mjs > knowledge receipt refuses target moved to another organization
+AssertionError: promise resolved "{ key: 'request-one', …(2) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "key": "request-one",
++   "record": {
++     "collection": "knowledge",
++     "data": {
++       "category": "feature",
++       "content": "Recorded private content",
++       "productId": "000000000000000000010001products",
++       "sourceType": "manual",
++       "status": "active",
++       "title": "Feature guide",
++     },
++     "id": "000000000000010005knowledgeItems",
++     "revision": "8",
++     "title": "Feature guide",
++     "updatedAt": 1789031518991,
++   },
++   "status": "applied",
+  }
+
+ ❯ convex/hadesOAuthV2Independent.review.mjs:44:53
+     42|   await f.write(collection,id,revision,data);
+     43|   await f.t.run(async ctx=>{const org=await ctx.db.insert("organizatio…
+     44|   await expect(f.write(collection,id,revision,data)).rejects.toThrow("…
+       |                                                     ^
+     45|  });
+     46| }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  convex/hadesOAuthV2Independent.review.mjs > knowledge receipt refuses newly foreign parent without repeating a write
+AssertionError: promise resolved "{ key: 'request-one', …(2) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "key": "request-one",
++   "record": {
++     "collection": "knowledge",
++     "data": {
++       "category": "feature",
++       "content": "Recorded private content",
++       "productId": "000000000000000000010001products",
++       "sourceType": "manual",
++       "status": "active",
++       "title": "Feature guide",
++     },
++     "id": "000000000000010005knowledgeItems",
++     "revision": "8",
++     "title": "Feature guide",
++     "updatedAt": 1789031518996,
++   },
++   "status": "applied",
+  }
+
+ ❯ convex/hadesOAuthV2Independent.review.mjs:51:62
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  3 failed | 24 passed (27)
+   Start at  05:11:58
+   Duration  560ms (transform 101ms, setup 0ms, import 202ms, tests 183ms, environment 0ms)
+

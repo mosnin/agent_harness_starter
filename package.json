@@ -204,7 +204,8 @@
     "benchmark:helm": "node scripts/benchmark-helm.mjs",
     "test:benchmark:helm": "node --test scripts/__tests__/benchmark-helm.test.mjs",
     "helm:orca:check": "node scripts/build-helm-orca.mjs --check",
-    "helm:orca:build": "node scripts/build-helm-orca.mjs --build"
+    "helm:orca:build": "node scripts/build-helm-orca.mjs --build",
+    "test:plugins": "node scripts/check-plugins.mjs"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",

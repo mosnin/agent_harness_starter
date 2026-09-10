@@ -1,0 +1,9 @@
+
+ RUN  v4.1.10 /Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  04:39:36
+   Duration  160ms (transform 32ms, setup 12ms, import 47ms, tests 21ms, environment 0ms)
+

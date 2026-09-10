@@ -1,0 +1,39 @@
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-06/hades-repair
+
+(node:47189) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/desktop/__tests__/ecosystem-recovery.test.ts (9 tests | 1 failed) 371ms
+   × disconnect cancels reconnect while prior remote revocation is pending 70ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/desktop/__tests__/ecosystem-recovery.test.ts > disconnect cancels reconnect while prior remote revocation is pending
+AssertionError: promise resolved "{ …(2) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "authorizationUrl": "https://fixture.invalid/authorize?response_type=code&client_id=native&redirect_uri=ai.hades.desktop%3A%2Foauth%2Fstored&scope=read+write&state=x_tpkk5kSNRbD5qufoJQS2aRrdjm45ghNWpsm9rmh7k&code_challenge=GPWK6BKHB4be-Z9XGS0ReM4Ts_FooLc2RZYsYttsaDQ&code_challenge_method=S256",
++   "requestId": "58f0cbaa-4a5e-48c7-9649-a7ad6c64c1e1",
+  }
+
+ ❯ src/desktop/__tests__/ecosystem-recovery.test.ts:50:26
+     48|  const f=fixture();f.seed();f.definition.oauth!.revocationEndpoint='ht…
+     49|  const connecting=f.service.connect('p','stored');await vi.waitFor(()=…
+     50|  await expect(connecting).rejects.toThrow('changed');expect(f.service.…
+       |                          ^
+     51| });
+     52| it('a newer connect supersedes an older connect waiting for revocation…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 passed (9)
+   Start at  04:51:29
+   Duration  490ms (transform 46ms, setup 0ms, import 57ms, tests 371ms, environment 0ms)
+

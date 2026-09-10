@@ -1,0 +1,161 @@
+Review dependency: vitest@4.1.5
+Review dependency: @electric-sql/pglite@0.4.1
+
+ RUN  v4.1.5 /Users/preston/Documents/Codex/2026-09-05/cadre-revamp/rakazo
+
+ ❯ packages/core/src/node/hades-oauth-v2-independent.review.mjs (7 tests | 4 failed) 3366ms
+   × rename removes instructions from an existing receipt after scope removal 659ms
+   × rename refuses existing receipt after current bot ownership changes 460ms
+   × update removes instructions from an existing receipt after scope removal 451ms
+   × update refuses existing receipt after current bot ownership changes 450ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/core/src/node/hades-oauth-v2-independent.review.mjs > rename removes instructions from an existing receipt after scope removal
+AssertionError: expected { name: 'Updated', title: null, …(5) } to not have property "instructions"
+
+- Expected:
+undefined
+
++ Received:
+"PRIVATE_INSTRUCTIONS"
+
+ ❯ packages/core/src/node/hades-oauth-v2-independent.review.mjs:46:36
+     44|     await db.exec("update hades_oauth_grants set scopes=array_remove(s…
+     45|     const replay=(await db.query(sql,args)).rows[0].result;
+     46|     expect(replay.record.data).not.toHaveProperty("instructions");
+       |                                    ^
+     47|     expect(replay.status).toBe("applied");
+     48|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  packages/core/src/node/hades-oauth-v2-independent.review.mjs > rename refuses existing receipt after current bot ownership changes
+AssertionError: promise resolved "{ rows: [ { result: { …(3) } } ], …(2) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "affectedRows": 0,
++   "fields": [
++     {
++       "dataTypeID": 3802,
++       "name": "result",
++     },
++   ],
++   "rows": [
++     {
++       "result": {
++         "key": "review-receipt-rename",
++         "record": {
++           "collection": "bots",
++           "data": {
++             "archivedAt": null,
++             "description": "",
++             "instructions": "PRIVATE_INSTRUCTIONS",
++             "modelId": null,
++             "modelProvider": null,
++             "name": "Updated",
++             "title": null,
++           },
++           "id": "agent",
++           "revision": "4",
++           "title": "Updated",
++           "updatedAt": 1789031264374,
++         },
++         "status": "applied",
++       },
++     },
++   ],
+  }
+
+ ❯ packages/core/src/node/hades-oauth-v2-independent.review.mjs:52:37
+     50|     const {db,sql,args}=await prepared();
+     51|     await db.exec(`update bots set "userId"='new-owner' where id='agen…
+     52|     await expect(db.query(sql,args)).rejects.toThrow("not_found");
+       |                                     ^
+     53|   });
+     54|   it(operation+" refuses receipt after current organization membership…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  packages/core/src/node/hades-oauth-v2-independent.review.mjs > update removes instructions from an existing receipt after scope removal
+AssertionError: expected { name: 'Original', title: null, …(5) } to not have property "instructions"
+
+- Expected:
+undefined
+
++ Received:
+"PRIVATE_INSTRUCTIONS"
+
+ ❯ packages/core/src/node/hades-oauth-v2-independent.review.mjs:46:36
+     44|     await db.exec("update hades_oauth_grants set scopes=array_remove(s…
+     45|     const replay=(await db.query(sql,args)).rows[0].result;
+     46|     expect(replay.record.data).not.toHaveProperty("instructions");
+       |                                    ^
+     47|     expect(replay.status).toBe("applied");
+     48|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  packages/core/src/node/hades-oauth-v2-independent.review.mjs > update refuses existing receipt after current bot ownership changes
+AssertionError: promise resolved "{ rows: [ { result: { …(3) } } ], …(2) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "affectedRows": 0,
++   "fields": [
++     {
++       "dataTypeID": 3802,
++       "name": "result",
++     },
++   ],
++   "rows": [
++     {
++       "result": {
++         "key": "review-receipt-update",
++         "record": {
++           "collection": "bots",
++           "data": {
++             "archivedAt": null,
++             "description": "Updated description",
++             "instructions": "PRIVATE_INSTRUCTIONS",
++             "modelId": null,
++             "modelProvider": null,
++             "name": "Original",
++             "title": null,
++           },
++           "id": "agent",
++           "revision": "4",
++           "title": "Original",
++           "updatedAt": 1789031265732,
++         },
++         "status": "applied",
++       },
++     },
++   ],
+  }
+
+ ❯ packages/core/src/node/hades-oauth-v2-independent.review.mjs:52:37
+     50|     const {db,sql,args}=await prepared();
+     51|     await db.exec(`update bots set "userId"='new-owner' where id='agen…
+     52|     await expect(db.query(sql,args)).rejects.toThrow("not_found");
+       |                                     ^
+     53|   });
+     54|   it(operation+" refuses receipt after current organization membership…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  4 failed | 23 passed (27)
+   Start at  05:07:37
+   Duration  9.69s (transform 36ms, setup 0ms, import 73ms, tests 9.44s, environment 0ms)
+

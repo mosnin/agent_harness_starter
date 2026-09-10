@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/preston/company-os-web
+
+
+ Test Files  4 passed (4)
+      Tests  27 passed (27)
+   Start at  04:22:15
+   Duration  343ms (transform 248ms, setup 0ms, import 325ms, tests 203ms, environment 0ms)
+

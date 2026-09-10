@@ -1,0 +1,9 @@
+
+ RUN  v4.1.9 /Users/preston/govern-remediation-integration
+
+
+ Test Files  2 passed (2)
+      Tests  17 passed (17)
+   Start at  04:26:08
+   Duration  4.03s (transform 38ms, setup 0ms, import 55ms, tests 3.82s, environment 0ms)
+
