@@ -32,15 +32,15 @@ if (version !== "1.18.21") throw new Error("This Hades integration requires the 
 const revision = run("git", ["rev-parse", "HEAD"], source, true);
 const dirty = !!run("git", ["status", "--porcelain"], source, true);
 const before = sourceState(source);
-const bunVersion = run(bun, ["--version"], source, true);
-if(bunVersion !== "1.3.14") throw new Error("Helm fork requires Bun 1.3.14; no rebuild attempted.");
 let releasePin;
 if (process.env.HADES_HELM_REQUIRE_PIN === "1") {
   const pin = JSON.parse(readFileSync(join(root, "third_party/helm-opencode.json"), "utf8"));
   if (dirty || revision !== pin.revision || version !== pin.version) throw new Error("Release build requires the clean OpenCode revision pinned in third_party/helm-opencode.json.");
-  if(run(bun,["--version"],source,true)!==pin.bun) throw new Error("Release build requires the Bun version pinned in third_party/helm-opencode.json.");
   releasePin=pin;
 }
+const bunVersion = run(bun, ["--version"], source, true);
+if(bunVersion !== "1.3.14") throw new Error("Helm fork requires Bun 1.3.14; no rebuild attempted.");
+if(releasePin && bunVersion!==releasePin.bun) throw new Error("Release build requires the Bun version pinned in third_party/helm-opencode.json.");
 run(bun, ["run", "build"], join(source, "packages/app"));
 // The gateway serves the fork UI separately. Do not embed a duplicate in the runtime.
 run(bun, ["run", "script/build.ts", "--single", "--skip-install", "--skip-embed-web-ui"], join(source, "packages/opencode"));

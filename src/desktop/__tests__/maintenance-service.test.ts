@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, symlinkSyn
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
+import { WorkAuditJournal, hashWorkAuditSnapshot } from "../core/work-audit";
 import { MaintenanceService } from "../core/maintenance-service";
 const roots: string[] = [], dbs: DatabaseSync[] = [];
 afterEach(() => { dbs.splice(0).forEach(db => db.close()); roots.splice(0).forEach(root => rmSync(root, { recursive: true, force: true })); });
@@ -108,4 +109,27 @@ it("reports actual runtime/schema/disk facts and exports only support metadata",
 it("honors snapshot admission refusal without writing an archive", async () => {
   const { data, destination } = setup(); const service = new MaintenanceService(data, { withSnapshotBarrier: async () => { throw new Error("Active work must finish"); } });
   await expect(service.create({ destination })).rejects.toThrow("Active work"); expect(readdirSync(destination)).toEqual([]);
+});
+
+it("preserves the audited Work chain while staging disabled goals and rejects modified audit triggers", async () => {
+  const {data,destination,service}=setup();
+  const db=database(data,"work.sqlite","CREATE TABLE work_goals(id TEXT PRIMARY KEY,profile TEXT,payload TEXT,owner TEXT,lease INTEGER,started INTEGER,revision INTEGER NOT NULL DEFAULT 0);");
+  const goal={id:"g",profile:"p",root:"/project",status:"draft",tasks:[],tokens:0};
+  const scope={goalId:"g",profile:"p",root:"/project"};
+  const journal=new WorkAuditJournal(db);
+  journal.append({scope,transitionId:"revision:0",actor:{kind:"system",id:"fixture"},kind:"work.created",at:1,revision:0,after:goal});
+  db.prepare("INSERT INTO work_goals(id,profile,payload) VALUES(?,?,?)").run("g","p",JSON.stringify(goal));
+  const backup=await service.create({destination});
+  const staged=await service.stage({path:backup.path,destination,expectedSha256:backup.sha256});
+  const restored=new DatabaseSync(join(staged.path,"work.sqlite"));
+  try {
+    const row=restored.prepare("SELECT payload,revision FROM work_goals WHERE id='g'").get() as any;
+    const imported=JSON.parse(row.payload);
+    expect(imported.status).toBe("needs_review");expect(row.revision).toBe(1);
+    const history=new WorkAuditJournal(restored).read(scope);
+    expect(history.events.map(event=>event.kind)).toEqual(["work.created","work.imported"]);
+    expect(history.events[1].afterHash).toBe(hashWorkAuditSnapshot(imported));
+  } finally {restored.close();}
+  db.exec("DROP TRIGGER work_audit_no_update; CREATE TRIGGER work_audit_no_update BEFORE UPDATE ON work_audit_events BEGIN SELECT 1; END;");
+  await expect(service.create({destination})).rejects.toThrow("Unexpected database schema");
 });

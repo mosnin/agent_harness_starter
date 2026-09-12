@@ -2029,7 +2029,7 @@ export class WorkbenchService {
         ).finally(() => {
           clearTimeout(deadline);
           this.active.delete(id);
-          this.emit({ kind: "desktop.done", session: id });
+          this.emit({ kind: "desktop.done", session: id, cancelled: controller.signal.aborted });
           this.turns.delete(id);
         });
         this.turns.set(id, task);

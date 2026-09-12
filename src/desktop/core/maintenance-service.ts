@@ -1,4 +1,5 @@
 import { backup, DatabaseSync } from "node:sqlite";
+import { WorkAuditJournal } from "./work-audit";
 import { arch, platform, release } from "node:os";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -10,9 +11,19 @@ const MAX_BUNDLE = 100 * 1024 * 1024, MAX_FILE = 32 * 1024 * 1024, MAX_TOTAL = 7
 const databases: Record<string, string[]> = {
   "credential-pools.sqlite": ["credentials"],
   "activity.sqlite": ["activity"], "execution-journal.sqlite": ["events", "streams"],
-  "wakes.sqlite": ["wakes"], "work.sqlite": ["work_goals"], "native-schedules.sqlite": ["executions"],
+  "wakes.sqlite": ["wakes"], "work.sqlite": ["work_goals", "work_source_operations", "work_audit_scopes", "work_audit_events"], "native-schedules.sqlite": ["executions"],
   "webhooks.sqlite": ["webhook_subscriptions", "webhook_receipts", "webhook_owner"],
 };
+// Compare trigger bodies with the runtime schema; names alone cannot authorize imported SQL.
+let workTriggers: Map<string,string> | undefined;
+function expectedWorkTriggers() {
+  if (!workTriggers) {
+    const schema = new DatabaseSync(":memory:");
+    try { new WorkAuditJournal(schema); workTriggers = new Map((schema.prepare("SELECT name,sql FROM sqlite_master WHERE type='trigger'").all() as Array<{name:string;sql:string}>).map(row=>[row.name,row.sql])); }
+    finally { schema.close(); }
+  }
+  return workTriggers;
+}
 const texts = ["desktop.json", "sessions.json", "memory.json", "schedule.json", "schedule-receipts.json", "desktop-artifacts.json", "MEMORY.md", "USER.md", "SOUL.md"];
 const hash = (data: string | Buffer) => createHash("sha256").update(data).digest("hex");
 const inside = (root: string, path: string) => { const rel = relative(root, path); return rel === "" || (!rel.startsWith("../") && rel !== ".." && !isAbsolute(rel)); };
@@ -105,8 +116,8 @@ export class MaintenanceService {
     const db = new DatabaseSync(path, { readOnly: true, allowExtension: false });
     try {
       db.exec("PRAGMA trusted_schema=OFF");
-      const rows = db.prepare("SELECT name,type FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all() as Array<{ name: string; type: string }>;
-      if (rows.some(row => !["table", "index"].includes(row.type) || (row.type === "table" && !databases[kind].includes(row.name)))) throw new Error(`Unexpected database schema: ${kind}`);
+      const rows = db.prepare("SELECT name,type,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all() as Array<{ name: string; type: string; sql: string }>;
+      if (rows.some(row => (row.type === "trigger" ? kind !== "work.sqlite" || expectedWorkTriggers().get(row.name) !== row.sql : !["table", "index"].includes(row.type)) || (row.type === "table" && !databases[kind].includes(row.name)))) throw new Error(`Unexpected database schema: ${kind}`);
       const check = db.prepare("PRAGMA quick_check").all();
       if (check.length !== 1 || Object.values(check[0])[0] !== "ok") throw new Error(`Database integrity check failed: ${kind}`);
       return { tables: rows.filter(row => row.type === "table").map(row => row.name), integrity: "ok" };
@@ -214,13 +225,21 @@ export class MaintenanceService {
       const tables = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>).map(row => row.name));
       if (kind === "wakes.sqlite" && tables.has("wakes")) db.exec("UPDATE wakes SET status='interrupted',owner=NULL,lease_until=NULL,error='Imported for review; not replayed' WHERE status IN ('queued','running')");
       if (kind === "work.sqlite" && tables.has("work_goals")) {
-        for (const row of db.prepare("SELECT id,payload FROM work_goals").all() as Array<{ id: string; payload: string }>) {
-          const goal = JSON.parse(row.payload);
+        if (!(db.prepare("PRAGMA table_info(work_goals)").all() as Array<{name:string}>).some(column=>column.name==="revision")) db.exec("ALTER TABLE work_goals ADD COLUMN revision INTEGER NOT NULL DEFAULT 0");
+        const audit = tables.has("work_audit_events") ? new WorkAuditJournal(db) : undefined;
+        for (const row of db.prepare("SELECT id,payload,revision FROM work_goals").all() as Array<{ id: string; payload: string; revision: number }>) {
+          const before = JSON.parse(row.payload), goal = JSON.parse(row.payload);
           if (goal.status !== "completed") { goal.status = "needs_review"; goal.error = "Imported for review; inspect files and explicitly resume"; }
           for (const task of goal.tasks ?? []) if (["queued", "running"].includes(task.status)) task.status = "interrupted";
-          db.prepare("UPDATE work_goals SET payload=?,owner=NULL,lease=NULL,started=NULL WHERE id=?").run(JSON.stringify(goal), row.id);
+          if (audit) {
+            const scope = {goalId:goal.id,profile:goal.profile,root:goal.root};
+            if (!audit.head(scope).sequence) audit.append({scope,transitionId:`baseline:${row.revision}`,actor:{kind:"system",id:"maintenance"},kind:"work.baseline",at:Date.now(),revision:row.revision,after:before});
+            audit.append({scope,transitionId:`revision:${row.revision+1}`,actor:{kind:"system",id:"maintenance"},kind:"work.imported",at:Date.now(),revision:row.revision+1,before,after:goal});
+          }
+          db.prepare("UPDATE work_goals SET payload=?,revision=revision+1,owner=NULL,lease=NULL,started=NULL WHERE id=?").run(JSON.stringify(goal), row.id);
         }
       }
+      if (kind === "work.sqlite" && tables.has("work_source_operations")) db.exec("UPDATE work_source_operations SET cancelled=1");
       if (kind === "webhooks.sqlite") {
         if (tables.has("webhook_owner")) db.exec("DELETE FROM webhook_owner");
         if (tables.has("webhook_subscriptions")) for (const row of db.prepare("SELECT id,payload FROM webhook_subscriptions").all() as Array<{ id: string; payload: string }>) {

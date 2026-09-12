@@ -120,6 +120,13 @@ export function applyJournalEvent(state: SessionProgress, event: Event) {
   if (event.kind === "desktop.approval.resolved") state.approval = undefined;
   if (event.kind === "desktop.usage") state.usage = event;
   if (event.kind === "desktop.error") state.error = event.message;
-  if (event.kind === "desktop.done") { state.stream = ""; state.approval = undefined; state.running = false; }
+  if (event.kind === "desktop.done") {
+    state.stream = ""; state.approval = undefined; state.running = false;
+    if (event.cancelled === true) {
+      state.interrupted = true;
+      state.error = [state.error, "This run was interrupted. Review recorded actions before continuing; pending approvals were cancelled and no actions were replayed."].filter(Boolean).join(" ");
+      state.tools = state.tools.map(tool => tool.status === "running" ? {...tool,status:"interrupted"} : tool);
+    }
+  }
   if (kinds.has(event.kind)) { state.journal.push(event); state.journal = state.journal.slice(-MAX_EVENTS); }
 }
