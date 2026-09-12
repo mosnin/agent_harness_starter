@@ -19,6 +19,7 @@ export async function connectMcp(
     cwd,
     env: {
       NODE_ENV: "production",
+      CONTEXT_MODE_PROJECT_DIR: cwd,
       PATH: process.env.PATH,
       HOME: process.env.HOME,
       LANG: process.env.LANG,

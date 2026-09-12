@@ -1,0 +1,19 @@
+{
+  "name": "hades",
+  "version": "0.1.0",
+  "description": "Delegate and supervise Hades work from this conversation.",
+  "author": {
+    "name": "Hades"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Hades",
+    "shortDescription": "Delegate and supervise Hades work from this conversation.",
+    "longDescription": "Delegate and supervise Hades work from this conversation. Requires the updated local Hades runtime. Approvals and provider access remain in Hades.",
+    "developerName": "Hades",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Help me use Hades."
+  },
+  "mcpServers": "./.mcp.json"
+}

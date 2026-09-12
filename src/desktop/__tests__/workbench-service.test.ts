@@ -472,6 +472,8 @@ describe("desktop plugin packages", () => {
       model: "test",
       baseUrl: p.url,
     });
+    const bundled = await s.dispatch("skills.list", {});
+    expect(bundled).toEqual(expect.arrayContaining([expect.objectContaining({name:"ponytail",readonly:true})]));
     const content = JSON.stringify({
       format: "hades-plugin-v1",
       name: "editor",
@@ -486,14 +488,14 @@ describe("desktop plugin packages", () => {
       name: "editor",
     });
     await s.dispatch("plugins.install", { content });
-    expect(await s.dispatch("skills.list", {})).toEqual([]);
+    expect(await s.dispatch("skills.list", {})).toEqual(bundled);
     await expect(s.dispatch("plugins.install", { content })).rejects.toThrow(
       "already installed",
     );
     await s.dispatch("plugins.toggle", { name: "editor", enabled: true });
-    expect(await s.dispatch("skills.list", {})).toMatchObject([
-      { name: "editor--prose", readonly: true },
-    ]);
+    expect(await s.dispatch("skills.list", {})).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "editor--prose", readonly: true }),
+    ]));
     const session = (await s.dispatch("session.new", { root })) as {
       id: string;
     };
@@ -507,7 +509,7 @@ describe("desktop plugin packages", () => {
       }),
     ).rejects.toThrow("belongs to an extension");
     await s.dispatch("plugins.toggle", { name: "editor", enabled: false });
-    expect(await s.dispatch("skills.list", {})).toEqual([]);
+    expect(await s.dispatch("skills.list", {})).toEqual(bundled);
     await s.dispatch("plugins.remove", { name: "editor" });
     expect(await s.dispatch("plugins.list", {})).toEqual([]);
     expect(existsSync(join(root, "data/removed-plugins"))).toBe(true);

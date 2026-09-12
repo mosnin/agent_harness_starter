@@ -28,9 +28,9 @@ describe("native computer authority", () => {
     expect(result.images).toHaveLength(1); const observed = JSON.parse(result.output);
     expect(observed.elements[0].path).toBeUndefined(); expect(observed.elements[0].fingerprint).toBeUndefined();
     expect((await s.call("computer_action",{snapshot:observed.snapshot,action:"press",element:0})).ok).toBe(true);
-    expect(s.invoke.mock.calls.at(-1)![0]).toMatchObject({op:"press",pid:123,path:[1],fingerprint:"button|Save"});
+    expect(s.invoke.mock.calls.find(([request]) => request.op === "press")![0]).toMatchObject({op:"press",pid:123,path:[1],fingerprint:"button|Save"});
     expect((await s.call("computer_action",{snapshot:observed.snapshot,action:"press",element:0})).ok).toBe(false);
-    expect(s.invoke).toHaveBeenCalledTimes(2);
+    expect(s.invoke).toHaveBeenCalledTimes(3);
   });
   it("rejects stale, unissued, out-of-display, cross-turn and revoked references without dispatch", async () => {
     const s = setup(), snapshot = await s.observe();
@@ -75,6 +75,14 @@ describe("native computer authority", () => {
     const secondSnapshot = JSON.parse((await other.run({tool:"computer_observe",input:"{}"})).output).snapshot;
     expect((await s.call("computer_action",{snapshot:firstSnapshot,action:"press",element:0})).ok).toBe(true);
     expect((await other.run({tool:"computer_action",input:JSON.stringify({snapshot:secondSnapshot,action:"press",element:0})})).ok).toBe(false);
-    expect(s.invoke).toHaveBeenCalledTimes(3);
+    expect(s.invoke).toHaveBeenCalledTimes(4);
   });
+});
+
+it("returns fresh one-use targets after an action without replaying it", async()=>{
+ const s=setup(),before=await s.observe();
+ const result=await s.call("computer_action",{snapshot:before,action:"press",element:0});
+ const output=JSON.parse(result.output);expect(output.actionDispatched).toBe(true);expect(output.observation.snapshot).not.toBe(before);expect(result.images).toHaveLength(1);
+ expect((await s.call("computer_action",{snapshot:before,action:"press",element:0})).ok).toBe(false);
+ expect(s.invoke.mock.calls.filter(([args])=>args.op==="press")).toHaveLength(1);
 });

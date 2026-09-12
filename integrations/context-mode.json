@@ -1,0 +1,15 @@
+{
+  "format": "hades-plugin-v1",
+  "name": "context-mode",
+  "version": "1.0.0",
+  "description": "Project-scoped context retrieval for Work and Helm. Requires locally installed context-mode 1.0.169.",
+  "skills": [],
+  "mcp": [
+    {
+      "name": "context-mode",
+      "command": "context-mode",
+      "args": [],
+      "enabled": false
+    }
+  ]
+}

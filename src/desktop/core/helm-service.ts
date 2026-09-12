@@ -1,3 +1,4 @@
+import conversationSkills from "../../../third_party/conversation-skills/bundle.json";
 import { validateSpatialImage } from "./spatial-context";
 import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -168,6 +169,7 @@ export class HelmService {
       if (signal.aborted) return;
       run.status='running'; this.changed(run);
       let prompt = `${run.prompt}\n\n${run.contextSnapshot ? `Explicit task context:\n${run.contextSnapshot}\n\n` : ''}Work only in this isolated workspace. Do not commit, push, merge, or remove worktrees. Report changes and verification honestly.`;
+      prompt += "\n\nCoding discipline (user instructions take precedence; scope ends with this task):\n" + conversationSkills.skills.find(skill => skill.name === "ponytail")!.content;
       if (run.agent === 'hades') {
         if (!this.options.runBuiltin) throw new Error('Hades executor is unavailable');
         const timer = setTimeout(() => { run.error='Task time limit reached'; live.controller.abort(); }, run.maxMinutes*60000);

@@ -81,3 +81,31 @@ it("previews provider models without forwarding a saved key to a draft endpoint"
   await expect(f.service.dispatch("models.catalog", { provider: "local", baseUrl: "http://remote.invalid" })).rejects.toThrow("Use HTTPS");
   expect(fetcher).toHaveBeenCalledTimes(2);
 });
+
+
+it("resolves a skill and saves a goal while preserving the typed command", async () => {
+  const f = await fixture();
+  await f.service.dispatch("chat.send", {id:f.session.id,input:"/goal Build a useful calendar"});
+  await vi.waitFor(() => expect(f.events.some(e => e.kind === "desktop.done")).toBe(true));
+  expect((await f.service.dispatch("session.get",{id:f.session.id}) as any).conversationGoal).toBe("Build a useful calendar");
+  expect(f.requests[0].messages.find(m=>m.role==="user")?.content).toBe("/goal Build a useful calendar");
+  await f.service.dispatch("chat.send",{id:f.session.id,input:"/skill ponytail Improve this implementation"});
+  await vi.waitFor(() => expect(f.requests.length).toBe(2));
+  expect(f.requests[1].messages.filter(m=>m.role==="system").map(m=>m.content).join("\n")).toContain("The ladder");
+  await vi.waitFor(() => expect(f.events.filter(e => e.kind === "desktop.done").length).toBe(2));
+  await expect(f.service.dispatch("chat.send",{id:f.session.id,input:"/skill absent task"})).rejects.toThrow("not installed");
+  expect(f.requests).toHaveLength(2);
+});
+
+it("delegates externally once and keeps profile ownership across retries", async () => {
+  const f=await fixture();
+  const request={operation:"delegate",requestId:"request-one",input:"Read the project",root:f.session.root};
+  const result:any=await f.service.dispatch("external.conversation",request);
+  expect(result.admission).toBe("started");
+  await vi.waitFor(()=>expect(f.events.some(e=>e.kind==="desktop.done"&&e.session===result.sessionId)).toBe(true));
+  const again:any=await f.service.dispatch("external.conversation",request);
+  expect(again.id).toBe(result.id);expect(f.requests).toHaveLength(1);
+  await expect(f.service.dispatch("external.conversation",{...request,input:"Different"})).rejects.toThrow("different instructions");
+  await expect(f.service.dispatch("external.conversation",{operation:"status",id:f.session.id})).rejects.toThrow("not found");
+  await expect(f.service.dispatch("external.conversation",{operation:"approval.reply",id:result.id})).rejects.toThrow("Unknown");
+});

@@ -1,0 +1,17 @@
+{
+  "format": "hades-plugin-v1",
+  "name": "open-computer-use",
+  "version": "1.0.0",
+  "description": "App-scoped computer observation and actions through the locally installed Open Computer Use MCP service.",
+  "skills": [],
+  "mcp": [
+    {
+      "name": "open-computer-use",
+      "command": "open-computer-use",
+      "args": [
+        "mcp"
+      ],
+      "enabled": false
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "name": "ponytail",
+    "repository": "https://github.com/DietrichGebert/ponytail",
+    "revision": "356918eba965ee1eac64bd3a7f0dd02108350de5",
+    "path": "skills/ponytail",
+    "license": "MIT"
+  },
+  {
+    "name": "ecc-verification-loop",
+    "repository": "https://github.com/affaan-m/ECC",
+    "revision": "8321021c54d670126ce3b2969d5deb880b4b0c2a",
+    "path": "skills/verification-loop",
+    "license": "MIT"
+  },
+  {
+    "name": "ecc-search-first",
+    "repository": "https://github.com/affaan-m/ECC",
+    "revision": "8321021c54d670126ce3b2969d5deb880b4b0c2a",
+    "path": "skills/search-first",
+    "license": "MIT"
+  },
+  {
+    "name": "ecc-security-review",
+    "repository": "https://github.com/affaan-m/ECC",
+    "revision": "8321021c54d670126ce3b2969d5deb880b4b0c2a",
+    "path": "skills/security-review",
+    "license": "MIT"
+  },
+  {
+    "name": "ecc-team-agent-orchestration",
+    "repository": "https://github.com/affaan-m/ECC",
+    "revision": "8321021c54d670126ce3b2969d5deb880b4b0c2a",
+    "path": "skills/team-agent-orchestration",
+    "license": "MIT"
+  },
+  {
+    "name": "humanlayer-show-me",
+    "repository": "https://github.com/humanlayer/skills",
+    "revision": "3c2629142c5d437428269b1b722b08c0b87f574d",
+    "path": "plugins/show-me/skills/show-me",
+    "license": "MIT"
+  },
+  {
+    "name": "humanlayer-narrow-react-prop-types",
+    "repository": "https://github.com/humanlayer/skills",
+    "revision": "3c2629142c5d437428269b1b722b08c0b87f574d",
+    "path": "plugins/narrow-react-prop-types/skills/narrow-react-prop-types",
+    "license": "MIT"
+  },
+  {
+    "name": "humanlayer-improve-claude-md",
+    "repository": "https://github.com/humanlayer/skills",
+    "revision": "3c2629142c5d437428269b1b722b08c0b87f574d",
+    "path": "plugins/improve-claude-md/skills/improve-claude-md",
+    "license": "MIT"
+  },
+  {
+    "name": "humanlayer-design-control-loop",
+    "repository": "https://github.com/humanlayer/skills",
+    "revision": "3c2629142c5d437428269b1b722b08c0b87f574d",
+    "path": "plugins/design-control-loop/skills/design-control-loop",
+    "license": "MIT"
+  },
+  {
+    "name": "humanlayer-build-iterated-agentic-loop",
+    "repository": "https://github.com/humanlayer/skills",
+    "revision": "3c2629142c5d437428269b1b722b08c0b87f574d",
+    "path": "plugins/build-iterated-agentic-loop/skills/build-iterated-agentic-loop",
+    "license": "MIT"
+  }
+]

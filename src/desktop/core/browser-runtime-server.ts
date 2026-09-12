@@ -79,12 +79,12 @@ export class BrowserRuntimeServer {
     if (!port || typeof port === "string" || request.headers.host !== `127.0.0.1:${port.port}`) {
       this.reply(response, 403, { error: "Invalid local destination." }); return;
     }
-    if (request.method !== "POST" || !["/readiness", "/pair", "/helm-draft"].includes(request.url ?? "")) {
+    if (request.method !== "POST" || !["/readiness", "/pair", "/helm-draft", "/conversation"].includes(request.url ?? "")) {
       this.reply(response, 404, { error: "Unknown Agent operation." }); return;
     }
     const chunks: Buffer[] = [];
     let bytes=0;
-    const limit=request.url==="/helm-draft"?131072:16384;
+    const limit=["/helm-draft","/conversation"].includes(request.url??"")?131072:16384;
     for await (const chunk of request) {
       bytes+=chunk.length;
       if (bytes > limit) { this.reply(response, 413, { error: "Request is too large." }); return; }
@@ -94,6 +94,11 @@ export class BrowserRuntimeServer {
     let body: Record<string, unknown>;
     try { body = raw ? JSON.parse(raw) : {}; } catch { this.reply(response, 400, { error: "Invalid request." }); return; }
     if (!body || typeof body !== "object" || Array.isArray(body)) { this.reply(response, 400, { error: "Invalid request." }); return; }
+    if(request.url==="/conversation") {
+      try { this.reply(response,200,await this.dispatch("external.conversation",body)); }
+      catch(error) { this.reply(response,400,{error:error instanceof Error?error.message:"Conversation request failed"}); }
+      return;
+    }
     if(request.url==="/helm-draft") {
       try { this.reply(response,200,await this.dispatch("browser.helmDraft",body)); }
       catch { this.reply(response,400,{error:"Could not save this Helm draft. Check notebook size and request identity; no coding task was started."}); }

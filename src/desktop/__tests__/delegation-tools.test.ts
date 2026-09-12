@@ -74,3 +74,23 @@ it("waits for actual status changes, remains bounded, and aborts promptly", asyn
     expect(await aborting).toMatchObject({ ok: false, output: "Delegation cancelled" });
   } finally { vi.useRealTimers(); }
 });
+
+it("only exposes resume to the owning parent within the existing plan", async () => {
+ const resume=vi.fn(async()=>goal());
+ const parent=fixture({resume,ownedGoals:["child"]});
+ expect((await parent.run("delegation_resume",{goal:"foreign"})).ok).toBe(false);
+ expect((await parent.run("delegation_resume",{goal:"child",maxTokens:999999})).ok).toBe(false);
+ expect(resume).not.toHaveBeenCalled();
+ expect((await parent.run("delegation_resume",{goal:"child"})).ok).toBe(true);
+ expect(resume).toHaveBeenCalledWith("child");
+ expect(fixture({resume,depth:1}).tools.some(t=>t.name==="delegation_resume")).toBe(false);
+});
+it("binds inbox reads to the trusted worker identity without consuming messages", async () => {
+ const state=goal();state.tasks[0].messages=[{id:"message",input:"Peer: verify the output",at:1}];
+ const worker=fixture({depth:1,taskId:"one",ownedGoals:["child"],get:async()=>state});
+ const result=await worker.run("delegation_inbox",{goal:"child"});
+ expect(JSON.parse(result.output)).toMatchObject({task:"one",messages:[{id:"message",input:"Peer: verify the output",at:1}]});
+ expect(state.tasks[0].messages).toHaveLength(1);
+ expect((await worker.run("delegation_inbox",{goal:"child",task:"two"})).ok).toBe(false);
+ expect((await worker.run("delegation_inbox",{goal:"foreign"})).ok).toBe(false);
+});
