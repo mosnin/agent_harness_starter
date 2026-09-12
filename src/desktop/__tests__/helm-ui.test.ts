@@ -610,3 +610,15 @@ it("opens Orca as a separate destination without starting a worker or code serve
   expect(host.textContent).toContain("Runtime not installed");
   expect(rpc.mock.calls.some(([method]) => method === "helm.orca.start" || method === "helm.code.open")).toBe(false);
 });
+
+it("keeps inline review free of controls that require leaving the conversation", async () => {
+  const view = new HelmView(rpc, callbacks);
+  view.mount(host);
+  await view.openReview({ root: "/project", profile: "p1", projects: ["/project"] }, run);
+  expect(host.querySelector(".chat-inline-helm")).toBeTruthy();
+  expect(host.querySelector('[data-helm="workspace"]')).toBeNull();
+  expect(host.querySelector('[data-helm="source-terminal"]')).toBeNull();
+  expect(host.querySelector('[data-helm="new"]')).toBeNull();
+  expect(host.querySelector('[data-helm="diff"]')).toBeTruthy();
+  view.detachReview();
+});

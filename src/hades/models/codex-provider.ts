@@ -96,6 +96,9 @@ export class CodexProvider implements ModelClient {
   private pending = new Map<number, Pending>();
   private listeners = new Set<(method: string, params: Json) => void>();
   private loginId?: string;
+  private loginEpoch = 0;
+  private loginPending?: Promise<{ url: string }>;
+  private earlyLoginCompletions = new Map<string, Json>();
   private inferenceThreads = new Map<string, InferenceThread>();
   private activeSessions = new Set<string>();
   private workspace?: string;
@@ -180,8 +183,10 @@ export class CodexProvider implements ModelClient {
     }
     const p = message.params ?? {};
     if (message.method === "account/login/completed") {
-      this.loginId = undefined;
-      this.emit({ kind: "desktop.codex.auth", success: p.success === true, message: p.success ? "Connected to ChatGPT." : "Sign-in did not complete. Try again." });
+      if (typeof p.loginId !== "string") return;
+      if (p.loginId === this.loginId) this.completeLogin(p);
+      else if (this.loginPending && this.earlyLoginCompletions.size < 8)
+        this.earlyLoginCompletions.set(p.loginId, p);
     }
     for (const listener of this.listeners) listener(message.method, p);
   }
@@ -195,18 +200,49 @@ export class CodexProvider implements ModelClient {
     const { account } = await this.request("account/read", { refreshToken: false });
     return { connected: account?.type === "chatgpt", email: account?.email, plan: account?.planType };
   }
-  async login() {
+  private completeLogin(p: Json) {
+    this.loginId = undefined;
+    this.emit({ kind: "desktop.codex.auth", success: p.success === true, message: p.success ? "Connected to ChatGPT." : "Sign-in did not complete. Try again." });
+  }
+  login(): Promise<{ url: string }> {
+    if (this.loginPending) return this.loginPending;
+    const epoch = this.loginEpoch;
+    const pending = this.beginLogin(epoch);
+    this.loginPending = pending;
+    void pending.finally(() => {
+      if (this.loginPending === pending) {
+        this.loginPending = undefined;
+        this.earlyLoginCompletions.clear();
+      }
+    }).catch(() => {});
+    return pending;
+  }
+  private async beginLogin(epoch: number) {
     await this.start();
-    if (this.loginId) await this.cancelLogin();
+    if (epoch !== this.loginEpoch) throw new Error("Codex sign-in cancelled.");
+    if (this.loginId) {
+      const previous = this.loginId; this.loginId = undefined;
+      await this.request("account/login/cancel", { loginId: previous });
+    }
+    if (epoch !== this.loginEpoch) throw new Error("Codex sign-in cancelled.");
     const result = await this.request("account/login/start", { type: "chatgpt" });
+    if (typeof result.loginId !== "string" || !result.loginId) throw new Error("Codex returned an invalid sign-in attempt.");
+    if (epoch !== this.loginEpoch) {
+      await this.request("account/login/cancel", { loginId: result.loginId }).catch(() => {});
+      throw new Error("Codex sign-in cancelled.");
+    }
     const url = new URL(result.authUrl);
     if (url.protocol !== "https:" || !["auth.openai.com", "chatgpt.com", "auth0.openai.com"].includes(url.hostname)) throw new Error("Codex returned an unexpected sign-in address.");
     this.loginId = result.loginId;
+    const completed = this.earlyLoginCompletions.get(result.loginId);
+    if (completed) this.completeLogin(completed);
     return { url: url.href };
   }
   async cancelLogin() {
-    if (this.loginId) await this.request("account/login/cancel", { loginId: this.loginId });
-    this.loginId = undefined;
+    this.loginEpoch++;
+    const id = this.loginId; this.loginId = undefined;
+    this.earlyLoginCompletions.clear();
+    if (id) await this.request("account/login/cancel", { loginId: id });
     return true;
   }
   async logout() { await this.start(); await this.cancelLogin(); await this.request("account/logout", {}); return true; }
@@ -403,6 +439,7 @@ export class CodexProvider implements ModelClient {
   }
   close() {
     const proc = this.proc; this.proc = undefined; this.ready = undefined;
+    this.loginEpoch++; this.loginId = undefined; this.loginPending = undefined; this.earlyLoginCompletions.clear();
     this.inferenceThreads.clear(); this.activeSessions.clear();
     for (const listener of this.listeners) listener("hades/disconnected", { message: "Codex connection closed." });
     for (const p of this.pending.values()) { clearTimeout(p.timer); p.reject(new Error("Codex connection closed.")); }

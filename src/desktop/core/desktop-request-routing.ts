@@ -11,8 +11,8 @@ export const DESKTOP_CONTROL_METHODS = [
   "ecosystem.disconnect",
 ] as const;
 const inspections = new Set([
-  "models.list", "slack.status", "team.status", "team.messages", "team.read",
-  "codex.status", "codex.login", "voice.transcribe", "local.list",
+  "models.list", "models.catalog", "slack.status", "team.status", "team.messages", "team.read",
+  "codex.status", "codex.models", "codex.login", "voice.transcribe", "local.list",
   "computer.configure", "terminal.write", "terminal.resize", "key.set",
   "work.list", "work.get", "work.audit.head", "work.audit.read", "work.audit.export",
   "work.source.status", "work.orca.acceptance", "work.orca.replacement",

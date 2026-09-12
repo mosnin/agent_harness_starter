@@ -38,13 +38,16 @@ async function mount(compact = false) {
 beforeEach(() => { root = document.createElement("div"); document.body.append(root); localStorage.clear(); terminal.focus.mockClear(); restoredSession = undefined; restoredArtifacts = []; });
 afterEach(() => { window.dispatchEvent(new Event("beforeunload")); document.body.replaceChildren(); vi.unstubAllGlobals(); });
 describe("workbench interaction experience", () => {
-  it("opens the exact Work review in Helm, invalidates acceptance on Work events, and returns to the task", async () => {
-    await mount();
+  it("opens the session-linked Helm review inline without configuring another task", async () => {
     const goal = { id: "work-goal", root: "/project", profile: "p", objective: "Review delivery", status: "needs_review", maxTokens: 30000, maxMinutes: 10, tasks: [{ id: "work-task", title: "Reviewed parser", profile: "p", status: "failed", engine: { kind: "orca", agent: "codex", requestId: "intent", dispatchIntent: true }, attempts: [{ id: "attempt", number: 1, status: "failed", startedAt: 1 }], dependsOn: [] }] };
     const run = { id: "imported-run", root: "/project", owner: "p", workspace: "/review", agent: "codex", title: "Reviewed parser", prompt: "Inspect parser", status: "verified", updatedAt: 1, maxMinutes: 5, output: "", exclusions: [], orcaOrigin: { intentId: "intent", runId: "worker-run", dispatchId: "dispatch", revision: "snapshot" }, workOrigin: { goalId: goal.id, taskId: "work-task", ownerProfile: "p", taskProfile: "p", requestId: "intent", attemptId: "attempt" } };
     const review = { id: "review", runId: run.id, root: "/project", status: "applied", patch: "full patch", files: ["result.md"], sourceRevision: "before", revision: "snapshot" };
     const source = { id: "check", reviewId: "review", runId: run.id, root: "/project", status: "passed", after: "source", checks: [], results: [], maxSeconds: 30 };
     let eligible = true;
+    restoredSession={id:"saved",title:"Saved task",root:"/project",messages:[],helmRuns:[run.id],delegatedWork:[goal.id]};
+    (boot.sessions as any[]).push({id:"saved",title:"Saved task",profile:"p"});
+    localStorage.setItem("hades.lastSession","saved");
+    await mount();
     const invoke = (globalThis as any).__TAURI__.core.invoke, original = invoke.getMockImplementation();
     invoke.mockImplementation(async (nativeMethod: string, args: any) => {
       const method = args?.cmd?.method;
@@ -58,20 +61,18 @@ describe("workbench interaction experience", () => {
       if (method === "work.orca.acceptance") return { result: { eligible, reasons: eligible ? [] : ["New instructions invalidate the previous result"], goalId: goal.id, taskId: "work-task", runId: run.id, reviewId: "review", sourceCheckId: "check", evidence: [] } };
       return original(nativeMethod, args);
     });
-    click('[data-action="nav"][data-view="work"]'); await settle();
-    click('[data-work="open"]'); await settle(); click('[data-work="orca-review"]');
-    await vi.waitFor(() => expect(root.querySelector('[data-helm="work-accept"]')).toBeTruthy());
-    expect(root.querySelector("#helm-selected-heading")?.textContent).toBe("Reviewed parser");
-    const methodCalls = (method: string) => invoke.mock.calls.filter(([, args]: any[]) => args?.cmd?.method === method);
-    expect(methodCalls("work.orca.import")[0][1].cmd.args).toEqual({ id: goal.id, task: "work-task", profile: "p" });
-    const before = methodCalls("work.orca.acceptance").length;
-    emit({ kind: "desktop.work", profile: "other" }); await settle(); expect(methodCalls("work.orca.acceptance")).toHaveLength(before);
-    eligible = false; emit({ kind: "desktop.work", profile: "p" });
-    expect(root.querySelector('[data-helm="work-accept"]')).toBeNull(); await settle();
-    expect(root.querySelector(".helm-work-acceptance")?.textContent).toContain("New instructions invalidate");
-    click('[data-helm="work-open"]'); await vi.waitFor(() => expect(root.querySelector('[data-work-task="work-task"]')).toBeTruthy()); await settle();
-    expect((document.activeElement as HTMLElement)?.dataset.workTask).toBe("work-task");
-    for (const method of ["helm.code.open", "helm.orca.start", "work.orca.accept", "work.resume"]) expect(methodCalls(method)).toHaveLength(0);
+    try{
+      click('[data-action="session"][data-id="saved"]');
+      await vi.waitFor(()=>expect(root.querySelector('[data-chat-work="review"]')).toBeTruthy());
+      click('[data-chat-work="review"]');
+      await vi.waitFor(()=>expect(root.querySelector(".chat-inline-helm")).toBeTruthy());
+      expect(root.querySelector("#helm-selected-heading")?.textContent).toBe("Reviewed parser");
+      expect(root.querySelector("#composer")).toBeTruthy();
+      expect(root.querySelector('[data-action="nav"][data-view="helm"]')).toBeNull();
+      const calls=invoke.mock.calls.map(([,args]:any[])=>args?.cmd?.method);
+      for(const method of ["helm.code.open","helm.orca.start","work.orca.import","work.orca.accept","work.resume"])expect(calls).not.toContain(method);
+    }finally{boot.sessions.splice(0);}
+
   });
   it("opens all new native management pages from Tools and connections", async () => {
     await mount();
@@ -107,6 +108,7 @@ describe("workbench interaction experience", () => {
   });
   it("restores task outputs and persisted failures immediately on native startup", async () => {
     restoredSession = { id: "saved", title: "Saved task", root: "/project", messages: [], progress: { interrupted: true, tools: [{ tool: "file_ops", status: "done", ok: false, output: "Denied by user" }] } };
+    localStorage.setItem("hades.taskInspector","true");
     restoredArtifacts = [{ session: "saved", path: "report.md", at: Date.now() }, { session: "other", path: "private.md", at: Date.now() }];
     (boot.sessions as any[]).push({ id: "saved", title: "Saved task", profile: "p" });
     localStorage.setItem("hades.lastSession", "saved");
@@ -140,7 +142,7 @@ describe("workbench interaction experience", () => {
     await mount(); click('[data-action="settings"]'); await settle();
     const dialog = root.querySelector<HTMLElement>(".modal")!;
     expect(dialog.contains(document.activeElement)).toBe(true);
-    expect(document.activeElement?.tagName).toBe("INPUT");
+    expect(document.activeElement?.tagName).toBe("SELECT");
     expect(root.querySelector<HTMLElement>(".workbench")!.inert).toBe(true);
     const candidates = dialogFocusable(dialog);
     expect(candidates.every(el => !el.matches(":disabled"))).toBe(true);
@@ -222,42 +224,16 @@ describe("inspector file ownership", () => {
   });
 });
 
-it("opens Helm in the native workbench without replacing chat or workspace", async () => {
-  await mount();
-  click('[data-action="nav"][data-view="helm"]'); await settle();
-  expect(root.querySelector(".breadcrumb")?.textContent).toContain("Helm");
-  expect(root.querySelector("#helm-host")?.textContent).toContain("Code with Helm");
-  expect(root.querySelector('[data-action="nav"][data-view="sessions"]')).toBeTruthy();
-  expect(root.querySelector('[data-action="nav"][data-view="workspace"]')).toBeTruthy();
+it("keeps a single composer with no Work/Helm navigation or mode picker",async()=>{
+ await mount();expect(root.querySelectorAll("#composer")).toHaveLength(1);
+ expect(root.querySelector('[data-action="nav"][data-view="helm"]')).toBeNull();
+ expect(root.querySelector('[data-action="nav"][data-view="work"]')).toBeNull();
+ expect(root.querySelector('[data-chat-mode]')).toBeNull();
+ expect(root.querySelector<HTMLDetailsElement>(".sidebar-more")?.open).toBe(false);
+ expect(root.querySelector(".task-inspector")).toBeNull();
 });
-
-it("opens a typed project folder from Helm and stays in the coding workspace", async () => {
-  await mount();
-  click('[data-action="nav"][data-view="helm"]'); await settle();
-  click('[data-helm="project"]'); await settle();
-  const path = root.querySelector<HTMLInputElement>("#project-path")!;
-  expect(path).toBeTruthy();
-  expect(root.querySelector('[data-action="project-pick"]')?.textContent).toContain("Choose in Finder");
-  path.value = "/typed-project";
-  click('[data-action="project-add"]'); await settle();
-  expect(root.querySelector("#project-path")).toBeNull();
-  expect(root.querySelector(".breadcrumb")?.textContent).toContain("Helm");
-  expect(root.querySelector("#helm-host")?.textContent).toContain("Code with Helm");
-  const invoke = (globalThis as any).__TAURI__.core.invoke;
-  expect(invoke).toHaveBeenCalledWith("hades_request", expect.objectContaining({ cmd: expect.objectContaining({ method: "project.add", args: { path: "/typed-project" } }) }));
-  expect(invoke).toHaveBeenCalledWith("hades_request", expect.objectContaining({ cmd: expect.objectContaining({ method: "helm.list", args: expect.objectContaining({ root: "/typed-project" }) }) }));
-});
-
-it("keeps restored conversation errors in chat rather than the Helm workspace", async () => {
-  restoredSession = { id: "saved", title: "Saved task", root: "/project", messages: [], progress: { error: "Run cancelled" } };
-  (boot.sessions as any[]).push({ id: "saved", title: "Saved task", profile: "p" });
-  localStorage.setItem("hades.lastSession", "saved");
-  try {
-    await mount(); await settle();
-    expect(root.querySelector('[role="alert"]')?.textContent).toContain("Run cancelled");
-    click('[data-action="nav"][data-view="helm"]'); await settle();
-    expect(root.textContent).not.toContain("Run cancelled");
-    click('[data-action="session"][data-id="saved"]'); await settle();
-    expect(root.querySelector('[role="alert"]')?.textContent).toContain("Run cancelled");
-  } finally { boot.sessions.splice(0); }
+it("keeps restored errors beside the single composer",async()=>{
+ restoredSession={id:"saved",title:"Saved task",root:"/project",messages:[],progress:{error:"Run cancelled"}};
+ (boot.sessions as any[]).push({id:"saved",title:"Saved task",profile:"p"});localStorage.setItem("hades.lastSession","saved");
+ try{await mount();await settle();expect(root.querySelector('[role="alert"]')?.textContent).toContain("Run cancelled");expect(root.querySelector("#composer")).toBeTruthy();}finally{boot.sessions.splice(0);}
 });

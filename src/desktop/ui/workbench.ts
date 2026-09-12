@@ -1,3 +1,6 @@
+import { ChatWorkActivity } from "./chat-work-activity";
+import { actionSummary } from "./action-summary";
+import "./chat-work-controls.css";
 import { SpatialView } from "./spatial";
 import "./spatial.css";
 import { ManagementView, managementViews } from "./management";
@@ -97,6 +100,7 @@ export function mountWorkbench(root: HTMLElement) {
   let ecosystemPluginId = "stored";
   let harnessItems: Row[] = [];
   let codexAccount: Row = { connected: false }, codexPending = false;
+  let codexModels: string[] = [], codexModelsError = "Catalog not loaded", codexCatalogLoaded = false, codexCatalogVersion = 0;
   let room: Row | undefined,
     roomDraft = "";
   let bindings = parseShortcuts({});
@@ -122,7 +126,7 @@ export function mountWorkbench(root: HTMLElement) {
   let quickEntry = localStorage.getItem("hades.quickEntry") === "true";
   let connected = false,
     sidebar = !matchMedia("(max-width: 800px)").matches,
-    taskInspector = localStorage.getItem("hades.taskInspector") !== "false",
+    taskInspector = localStorage.getItem("hades.taskInspector") === "true",
     statusbar = false,
     archived = false,
     theme = localStorage.getItem("hades.theme") ?? "dark",
@@ -182,6 +186,7 @@ export function mountWorkbench(root: HTMLElement) {
   };
   const maintenance = new MaintenanceView(rpc, () => pickMaintenance(true), () => pickMaintenance(false));
   const webhookContext = () => ({ profile: profile.id, root: project, profiles: boot.profiles, projects: boot.projects });
+  const chatWork = new ChatWorkActivity(rpc, id => { void selectSession(id).catch(toast); }, value => { draft = value; render(); root.querySelector<HTMLTextAreaElement>("#composer")?.focus(); });
   const workContext = () => ({ profile: profile.id, root: project, profiles: boot.profiles });
   const editor = new WorkspaceEditor(rpc, text => { draft += text; view = "chat"; render(); }, toast);
   const applyTheme = () => {
@@ -282,12 +287,8 @@ export function mountWorkbench(root: HTMLElement) {
     render();
   }
   async function newChat() {
-    if (!project) {
-      modal = "project";
-      render();
-      return;
-    }
-    session = await rpc("session.new", { root: project, profile: profile.id });
+    session = await rpc("session.new", { ...(project && !session?.managedWorkspace ? {root:project} : {}), profile: profile.id });
+    if (session?.root) setProject(session.root);
     tabs.push(current());
     rememberTabs();
     localStorage.setItem("hades.lastSession", current());
@@ -425,7 +426,7 @@ export function mountWorkbench(root: HTMLElement) {
     root.innerHTML = `<div class="workbench ${!sidebar ? "hide-sidebar" : ""} ${location.search.includes("hud=1") ? "hud" : ""}">
    <aside class="sidebar" id="sidebar" aria-label="Workspace navigation"><div class="window-space" data-tauri-drag-region></div><div class="sidebar-content"><div class="brand"><img src="./assets/hades-icon.png" alt="Hades logo"><strong>Hades</strong></div>
    ${button(icon("+") + `<span class="truncate">New chat</span><kbd>${esc(formatShortcut(bindings.new))}</kbd>`, "new", 'class="new-chat"')}
-   <nav class="sidebar-nav" aria-label="Main">${nav("sessions", "Conversations")}${nav("helm", "Helm")}${nav("work", "Work")}${nav("workspace", "Workspace")}${nav("team", "Team chat")}${nav("jobs", "Scheduled")}${nav("agents", "Agents")}${ecosystemNavigation(ecosystemOpen)}${nav("tools", "Tools & connections")}${nav("system", "System")}</nav>
+   <nav class="sidebar-nav" aria-label="Main">${nav("sessions", "Conversations")}${ecosystemNavigation(ecosystemOpen)}<details class="sidebar-more"><summary>More</summary>${nav("workspace", "Workspace")}${nav("team", "Team chat")}${nav("jobs", "Scheduled")}${nav("agents", "Agents")}${nav("tools", "Tools & connections")}${nav("system", "System")}</details></nav>
    <details class="sidebar-projects" ${projectsOpen ? "open" : ""}><summary>Projects</summary><div class="section-label">Project folders ${button(icon("+"), "project", 'aria-label="Open project"')}</div><div class="project-list">${boot.projects.length ? boot.projects.map((p: string) => `<div class="project-row ${project === p ? "active" : ""}">${button(icon("files") + `<span class="truncate">${esc(labelProject(p))}</span>`, "project-select", `data-path="${esc(p)}" title="${esc(p)}"`)}${button(icon("close"), "project-hide", `data-path="${esc(p)}" class="hide-project" aria-label="Hide project ${esc(labelProject(p))}"`)}</div>`).join("") : `<p class="sidebar-hint">Open a project folder.</p>`}</div>
    </details><div class="section-label">${archived ? "Archived" : "Recent"} ${button(icon(archived ? "back" : "more"), "archive-view", 'aria-label="Toggle archived conversations"')}</div>
    <input id="session-search" class="search" aria-label="Search conversations" placeholder="Search conversations" value="${esc(search)}">
@@ -448,7 +449,7 @@ export function mountWorkbench(root: HTMLElement) {
      '<p class="sidebar-hint">Your conversations appear here.</p>'
    }</div>
    </div><div class="sidebar-footer"><select id="profile-switch" aria-label="Agent profile">${boot.profiles.map((p: Profile) => `<option value="${p.id}" ${p.id === profile?.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>${button(icon("settings"), "settings", `class="icon-button" aria-label="Settings" title="Settings ${esc(formatShortcut(bindings.settings))}"`)}</div></aside>
-   ${button("", "sidebar", 'class="sidebar-scrim" aria-label="Close sidebar" tabindex="-1"')}<main class="main"><header class="toolbar" data-tauri-drag-region>${button(icon("sidebar"), "sidebar", 'id="toggle-sidebar" class="icon-button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="' + sidebar + '"')}<div class="breadcrumb">${icon(view === "ecosystem" ? "plugins" : view)}<strong>${esc(view === "chat" ? session?.title || "New conversation" : ({ helm: "Helm", browser: "Hades Browser", channels: "Channels", hooks: "Hooks", maintenance: "Maintenance", credentials: "Credentials", webhooks: "Webhooks", work: "Work", tools: "Tools & connections", sessions: "Conversations", system: "System", activity: "Activity", mcp: "MCP servers", computer: "Computer control", slack: "Slack", harness: "Harness", team: "Team chat", workspace: "Workspace", artifact: "Artifacts", memory: "Memory", skills: "Skills", jobs: "Routines", agents: "Agents", models: "Local models", rooms: "Team rooms", plugins: "Extensions", ecosystem: ecosystemPlugins.find(plugin => plugin.id === ecosystemPluginId)?.name || "Plugins" } as Row)[view])}</strong></div><div class="toolbar-actions">${boot.computerEnabled ? button("Stop computer control", "computer-stop", 'class="computer-stop"') : ""}${button(icon("search"), "palette", `class="icon-button" aria-label="Command palette" title="Command palette ${esc(formatShortcut(bindings.palette))}"`)}${view === "chat" ? button(icon("files"), "files", 'class="icon-button" aria-label="File browser"') : ""}${view === "chat" ? button(icon("git"), "git", 'class="icon-button" aria-label="Git review"') : ""}${view === "chat" ? button(icon("terminal"), "terminal", 'class="icon-button" aria-label="Terminal"') : ""}${view === "chat" ? button(icon("sidebar-right"), "task-inspector", 'class="icon-button" aria-label="Task details" aria-pressed="' + taskInspector + '"') : ""}<details class="toolbar-menu"><summary id="window-actions" class="icon-button" aria-label="Window actions" title="Window actions">${icon("more")}</summary><div>${button(icon("external") + "New window", "popout")}${button(icon("floating") + "Floating chat", "hud")}</div></details></div></header>
+   ${button("", "sidebar", 'class="sidebar-scrim" aria-label="Close sidebar" tabindex="-1"')}<main class="main"><header class="toolbar" data-tauri-drag-region>${button(icon("sidebar"), "sidebar", 'id="toggle-sidebar" class="icon-button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="' + sidebar + '"')}<div class="breadcrumb">${icon(view === "ecosystem" ? "plugins" : view)}<strong>${esc(view === "chat" ? session?.title || "New conversation" : ({ helm: "Helm", browser: "Hades Browser", channels: "Channels", hooks: "Hooks", maintenance: "Maintenance", credentials: "Credentials", webhooks: "Webhooks", work: "Work", tools: "Tools & connections", sessions: "Conversations", system: "System", activity: "Activity", mcp: "MCP servers", computer: "Computer control", slack: "Slack", harness: "Harness", team: "Team chat", workspace: "Workspace", artifact: "Artifacts", memory: "Memory", skills: "Skills", jobs: "Routines", agents: "Agents", models: "Local models", rooms: "Team rooms", plugins: "Extensions", ecosystem: ecosystemPlugins.find(plugin => plugin.id === ecosystemPluginId)?.name || "Plugins" } as Row)[view])}</strong></div><div class="toolbar-actions">${["helm", "work"].includes(view) ? button("Back to conversation", "nav-chat") : ""}${boot.computerEnabled ? button("Stop computer control", "computer-stop", 'class="computer-stop"') : ""}${button(icon("search"), "palette", `class="icon-button" aria-label="Command palette" title="Command palette ${esc(formatShortcut(bindings.palette))}"`)}${view === "chat" ? button(icon("files"), "files", 'class="icon-button" aria-label="File browser"') : ""}${view === "chat" ? button(icon("git"), "git", 'class="icon-button" aria-label="Git review"') : ""}${view === "chat" ? button(icon("terminal"), "terminal", 'class="icon-button" aria-label="Terminal"') : ""}${view === "chat" ? button(icon("sidebar-right"), "task-inspector", 'class="icon-button" aria-label="Task details" aria-pressed="' + taskInspector + '"') : ""}<details class="toolbar-menu"><summary id="window-actions" class="icon-button" aria-label="Window actions" title="Window actions">${icon("more")}</summary><div>${button(icon("external") + "New window", "popout")}${button(icon("floating") + "Floating chat", "hud")}</div></details></div></header>
    ${
      view === "chat" && visibleTabs.length > 1
        ? `<div class="tabs">${tabs
@@ -485,6 +486,7 @@ export function mountWorkbench(root: HTMLElement) {
     spatial.setScope(view === "chat" && session ? {sessionId:current(), profile:profile.id, root:project} : undefined);
     const spatialHost = root.querySelector<HTMLElement>("#spatial-host");
     if (spatialHost) spatial.mount(spatialHost);
+    chatWork.mount(root.querySelector<HTMLElement>("#chat-work-activity") ?? undefined, view === "chat" && session ? {id:current(),profile:profile.id,root:project,delegatedWork:session.delegatedWork,helmRuns:session.helmRuns,orcaIntents:session.orcaIntents} : undefined);
     const helmHost = root.querySelector<HTMLElement>("#helm-host");
     if(helmHost)helm.mount(helmHost);
     const workHost = root.querySelector<HTMLElement>("#work-goals-host");
@@ -522,13 +524,14 @@ export function mountWorkbench(root: HTMLElement) {
     const tools = toolActivityCards(activity, running());
     const hookReceipts = activity.filter(event => event.kind === "desktop.hook");
     return `${find !== "" ? `<div class="findbar"><input id="find-input" placeholder="Find in conversation" value="${esc(find === " " ? "" : find)}" aria-label="Find in conversation">${button(icon("down"), "find-next", 'aria-label="Next match"')}${button(icon("close"), "find-close", 'aria-label="Close find"')}</div>` : ""}
-  <div class="transcript" role="log" aria-label="Conversation">${!messages.length ? `<div class="welcome"><h1>New conversation</h1><p>${project ? "Ask a question or describe a task." : "Open a project to start working with Hades."}</p><div class="starter-actions">${button("Open project", "project")}${button("Choose provider", "settings")}</div></div>` : messages.map((m: Row, i: number) => `<article id="message-${i}" class="message ${m.role}"><div class="message-label">${m.role === "user" ? "You" : `<img src="./assets/hades-icon.png" alt=""> ${esc(profile.name)}`}<time>${new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>${m.role === "assistant" ? button(icon("speaker"), "speak-message", `data-index="${i}" aria-label="Read message aloud"`) : ""}${button(icon("copy"), "copy-message", `data-index="${i}" aria-label="Copy message"`)}</div><div class="message-body">${m.images?.map((image: string) => `<img class="chat-attachment" src="${esc(image)}" alt="Attached image">`).join("") ?? ""}${formatText(m.content)}</div></article>`).join("")}
+  <div class="transcript" role="log" aria-label="Conversation">${!messages.length ? `<div class="welcome"><h1>New conversation</h1><p>Describe what you want to build, fix, or get done.</p><div class="starter-actions">${button("Open project", "project")}${button("Choose provider", "settings")}</div></div>` : messages.map((m: Row, i: number) => `<article id="message-${i}" class="message ${m.role}"><div class="message-label">${m.role === "user" ? "You" : `<img src="./assets/hades-icon.png" alt=""> ${esc(profile.name)}`}<time>${new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>${m.role === "assistant" ? button(icon("speaker"), "speak-message", `data-index="${i}" aria-label="Read message aloud"`) : ""}${button(icon("copy"), "copy-message", `data-index="${i}" aria-label="Copy message"`)}</div><div class="message-body">${m.images?.map((image: string) => `<img class="chat-attachment" src="${esc(image)}" alt="Attached image">`).join("") ?? ""}${formatText(m.content)}</div></article>`).join("")}
   ${running() ? `<article class="message assistant"><div class="message-label"><img src="./assets/hades-icon.png" alt="">${esc(profile.name)} <span class="working">Working<span>...</span></span></div><div class="message-body live-output">${formatText(visibleResponse(stream))}</div></article>` : ""}
   ${tools.length ? `<details class="activity" ${pendingApproval ? "open" : ""}><summary>${icon("terminal")}${tools.length} tool ${tools.length === 1 ? "call" : "calls"}</summary>${tools.map(t => `<div class="tool-activity-card"><span class="mono">${esc(t.tool)} · ${t.status}</span>${t.input !== undefined ? `<div class="help">Input</div><pre>${esc(t.input)}</pre>` : ""}${t.output !== undefined ? `<div class="help">Result</div><pre>${esc(t.output)}</pre>` : ""}</div>`).join("")}</details>` : ""}
+  <div id="chat-work-activity"></div>
   ${hookReceipts.length ? `<details class="activity hook-activity"><summary>${icon("hooks")}${hookReceipts.length} hook ${hookReceipts.length === 1 ? "receipt" : "receipts"}</summary>${hookReceipts.map(h => `<div class="hook-receipt"><span>${esc(h.name)} · ${h.phase === "pre_tool" ? "Before" : "After"} ${esc(h.tool)} · ${esc(h.status)}</span>${h.output ? `<pre>${esc(h.output)}</pre>` : ""}${h.message ? `<p class="help">${esc(h.message)}</p>` : ""}</div>`).join("")}</details>` : ""}
-  ${pendingApproval ? `<div class="approval" role="alert"><strong>Hades needs your approval</strong><p>${esc(pendingApproval.tool)}</p><pre>${esc(pendingApproval.input)}</pre>${button("Allow once", "approve", 'class="primary-button"')}${button("Deny", "deny")}</div>` : ""}</div>
+  ${pendingApproval ? `<div class="approval" role="alert"><strong>Hades needs your approval</strong>${actionSummary(pendingApproval.tool,pendingApproval.input)}${button("Allow once", "approve", 'class="primary-button"')}${button("Deny", "deny")}</div>` : ""}</div>
   <div class="composer-area">${(queued[current()] ?? []).length ? `<div class="queue"><span class="eyebrow">${paused.has(current()) ? "PAUSED" : "QUEUED"} · ${queued[current()].length}</span>${queued[current()].map((q, i) => `<div><span>${esc(q.slice(0, 120))}</span>${button("Edit", "queue-edit", `data-index="${i}"`)}${button(icon("close"), "queue-delete", `data-index="${i}" aria-label="Delete queued message"`)}</div>`).join("")}${paused.has(current()) ? button("Resume queue", "queue-resume") : ""}</div>` : ""}
-  <div id="spatial-host"></div><div class="attachment-tray">${draftImages.map((src, i) => `<div><img src="${esc(src)}" alt="Image attachment ${i + 1}">${button(icon("close"), "image-remove", `data-index="${i}" aria-label="Remove image"`)}</div>`).join("")}</div><form id="composer-form" class="composer"><textarea id="composer" aria-label="Message Hades" placeholder="${project ? "Describe a task…" : "Open a project to start…"}" rows="2">${esc(draft)}</textarea><div class="composer-bottom"><div>${button("Point at something", "spatial-open", 'class="composer-spatial"')}${button(icon("+"), "attach", 'class="icon-button" aria-label="Attach files or images"')}<input id="attachments" type="file" multiple hidden accept="image/png,image/jpeg,image/gif,image/webp,text/*,.md,.json,.ts,.tsx,.py,.js,.csv,.html,.css,.yaml,.yml">${button(icon("files") + `<span class="truncate">${project ? esc(labelProject(project)) : "Choose project"}</span>`, "project", 'class="composer-project"')}</div><div>${button(`<span class="truncate">${esc(session?.model || profile?.model || "Choose model")}</span>` + icon("chevron"), "model", 'class="model-picker"')}${button(icon(recording ? "stop" : "microphone"), "voice-record", `class="icon-button ${recording ? "recording" : ""}" aria-label="${recording ? "Finish voice message" : "Record voice message"}" ${!["local", "openai"].includes(profile?.provider) ? 'disabled title="Choose an OpenAI API or compatible speech provider to record voice"' : ""}`)}${running() ? button(icon("stop"), "stop", 'class="send" aria-label="Stop generation"') : `<button type="submit" class="send" aria-label="Send message">${icon("up")}</button>`}</div></div></form><div class="composer-hint"><span>Return to send <span class="muted">·</span> ⇧ Return for a new line</span></div></div>`;
+  <div id="spatial-host"></div><div class="attachment-tray">${draftImages.map((src, i) => `<div><img src="${esc(src)}" alt="Image attachment ${i + 1}">${button(icon("close"), "image-remove", `data-index="${i}" aria-label="Remove image"`)}</div>`).join("")}</div><form id="composer-form" class="composer"><textarea id="composer" aria-label="Message Hades" placeholder="Describe what you want to do…" rows="2">${esc(draft)}</textarea><div class="composer-bottom"><div>${button("Point at something", "spatial-open", 'class="composer-spatial"')}${button(icon("+"), "attach", 'class="icon-button" aria-label="Attach files or images"')}<input id="attachments" type="file" multiple hidden accept="image/png,image/jpeg,image/gif,image/webp,text/*,.md,.json,.ts,.tsx,.py,.js,.csv,.html,.css,.yaml,.yml">${button(icon("files") + `<span class="truncate">${project && !session?.managedWorkspace ? esc(labelProject(project)) : "Attach project"}</span>`, "project", 'class="composer-project"')}</div><div>${button(`<span class="truncate">${esc(session?.model || profile?.model || "Choose model")}</span>` + icon("chevron"), "model", 'class="model-picker"')}${button(icon(recording ? "stop" : "microphone"), "voice-record", `class="icon-button ${recording ? "recording" : ""}" aria-label="${recording ? "Finish voice message" : "Record voice message"}" ${!["local", "openai"].includes(profile?.provider) ? 'disabled title="Choose an OpenAI API or compatible speech provider to record voice"' : ""}`)}${running() ? button(icon("stop"), "stop", 'class="send" aria-label="Stop generation"') : `<button type="submit" class="send" aria-label="Send message">${icon("up")}</button>`}</div></div></form><div class="composer-hint"><span>Return to send <span class="muted">·</span> ⇧ Return for a new line</span></div></div>`;
   }
   function formatText(content: string) {
     return esc(content)
@@ -544,7 +547,7 @@ export function mountWorkbench(root: HTMLElement) {
   }
   function taskInspectorHTML() {
     const outputs = artifacts.filter(a => a.session === current());
-    return `<aside class="task-inspector" aria-label="Task details"><div class="task-card"><section><div class="task-card-heading"><span>Outputs</span>${button(icon("+"), "nav", 'data-view="artifact" aria-label="View artifacts"')}</div>${outputs.length ? outputs.slice(0,5).map(a => button(icon("artifact") + esc(a.path || a.url), "artifact-open", `data-index="${artifacts.indexOf(a)}"`)).join("") : '<p>Files and results from this task.</p>'}${button("View all outputs", "nav", 'data-view="artifact"')}</section><section><div class="task-card-heading">Agent</div><p class="task-agent">${icon("agents")}${esc(profile?.name)}<span>${running() ? "Working" : "Idle"}</span></p>${button("Manage agents", "nav", 'data-view="agents"')}</section><section><div class="task-card-heading">Computer use</div><p>${boot.computerEnabled ? "Access enabled · input asks for approval" : "Access is off"}</p>${button(boot.computerEnabled ? "Stop computer control" : "Manage access", boot.computerEnabled ? "computer-stop" : "nav", boot.computerEnabled ? "" : 'data-view="computer"')}</section><section><div class="task-card-heading">Context</div>${button(icon("files") + esc(project ? labelProject(project) : "Choose project"), "project")}${button(icon("memory") + "Memory", "nav", 'data-view="memory"')}</section></div></aside>`;
+    return `<aside class="task-inspector" aria-label="Task details"><div class="task-card"><section><div class="task-card-heading"><span>Outputs</span>${button(icon("+"), "nav", 'data-view="artifact" aria-label="View artifacts"')}</div>${outputs.length ? outputs.slice(0,5).map(a => button(icon("artifact") + esc(a.path || a.url), "artifact-open", `data-index="${artifacts.indexOf(a)}"`)).join("") : '<p>Files and results from this task.</p>'}${button("View all outputs", "nav", 'data-view="artifact"')}</section><section><div class="task-card-heading">Agent</div><p class="task-agent">${icon("agents")}${esc(profile?.name)}<span>${running() ? "Working" : "Idle"}</span></p>${button("Manage agents", "nav", 'data-view="agents"')}</section><section><div class="task-card-heading">Computer use</div><p>${boot.computerEnabled ? "Access enabled · input asks for approval" : "Access is off"}</p>${button(boot.computerEnabled ? "Stop computer control" : "Manage access", boot.computerEnabled ? "computer-stop" : "nav", boot.computerEnabled ? "" : 'data-view="computer"')}</section><section><div class="task-card-heading">Context</div>${button(icon("files") + esc(project ? (session?.managedWorkspace ? "Attach project" : labelProject(project)) : "Attach project"), "project")}${button(icon("memory") + "Memory", "nav", 'data-view="memory"')}</section></div></aside>`;
   }
   function toolsHTML() {
     const groups = [
@@ -609,11 +612,31 @@ export function mountWorkbench(root: HTMLElement) {
   function codexHTML() {
     return `<div class="provider-account"><strong>${codexAccount.connected ? "Connected to ChatGPT" : "Use your Codex subscription"}</strong><p class="help">${codexAccount.connected ? esc([codexAccount.email, codexAccount.plan].filter(Boolean).join(" · ")) : "Sign in with the ChatGPT account that includes Codex. No API key needed."}</p><div class="page-actions">${button(codexPending ? "Waiting for sign-in…" : codexAccount.connected ? "Sign out" : "Sign in with ChatGPT", codexAccount.connected ? "codex-logout" : "codex-login", codexPending ? "disabled" : 'class="primary-button"')}${codexPending ? button("Cancel", "codex-cancel") : button("Refresh status", "codex-status")}</div><p class="help" id="codex-error" role="status"></p></div>`;
   }
+  const providerCatalogs = new Map<string,string[]>();
+  let modelCatalogVersion = 0;
+  function settingsModelHTML(provider:string,selected:string,endpoint = profile?.baseUrl ?? "") {
+    if(provider!=="codex"){const models=providerCatalogs.get(JSON.stringify([profile?.id,provider,endpoint]));return `<select id="settings-model">${!models?.includes(selected)?`<option value="${esc(selected)}" selected>${esc(selected)} — ${models?"unavailable in current catalog":"saved selection"}</option>`:""}${(models??[]).map(model=>`<option value="${esc(model)}" ${model===selected?"selected":""}>${esc(model)}</option>`).join("")}</select><span class="help" id="settings-catalog-status">${models?"Models from your provider":"Load available models from your provider."}</span>`;}
+    const missing=!codexModels.includes(selected);
+    return `<select id="settings-model">${missing?`<option value="${esc(selected)}" selected>${esc(selected)} — ${codexCatalogLoaded?"unavailable in current catalog":"saved selection"}</option>`:""}${codexModels.map(model=>`<option value="${esc(model)}" ${model===selected?"selected":""}>${esc(model)}</option>`).join("")}</select><span class="help" id="settings-catalog-status">${esc(codexModelsError || "Models available to your connected ChatGPT account")}</span>`;
+  }
   async function updateCodex() {
-    try { codexAccount = await rpc("codex.status"); }
-    catch (e) { codexAccount = { connected: false, message: String(e) }; }
+    const version=++codexCatalogVersion,profileId=profile.id;
+    let account:Row;
+    try { account = await rpc("codex.status"); }
+    catch (e) { account = { connected: false, message: String(e) }; }
+    if(version!==codexCatalogVersion||profile.id!==profileId)return;
+    codexAccount=account;codexModels=[];codexCatalogLoaded=false;codexModelsError="Connect ChatGPT to load its model catalog.";
+    if(account.connected){
+      try{const models=await rpc("codex.models");if(version!==codexCatalogVersion||profile.id!==profileId)return;codexModels=models;codexCatalogLoaded=true;codexModelsError=models.length?"":"No models returned by this account.";}
+      catch(e){if(version!==codexCatalogVersion||profile.id!==profileId)return;codexModelsError=String(e);}
+    }
     const panel = root.querySelector<HTMLElement>("#codex-connection");
     if (panel) { panel.innerHTML = codexHTML(); panel.querySelector<HTMLElement>("#codex-error")!.textContent = codexAccount.message ?? ""; }
+    const modelHost=root.querySelector<HTMLElement>("#settings-model-control");
+    if(modelHost&&root.querySelector<HTMLSelectElement>("#settings-provider")?.value==="codex"){
+      const selected=root.querySelector<HTMLInputElement>("#settings-model")?.value??profile.model;
+      modelHost.innerHTML=settingsModelHTML("codex",selected);
+    }
   }
   function modalHTML() {
     let title = "",
@@ -633,7 +656,7 @@ export function mountWorkbench(root: HTMLElement) {
             }
           : profile;
       title = modal === "profile" ? "New agent" : "Settings";
-      content = `<div class="settings-section"><h3>Provider & model</h3>${field("Agent name", "settings-name", p.name)}<label class="field">Provider<select id="settings-provider">${Object.entries(providers).map(([v, item]) => `<option value="${v}" ${p.provider === v ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><div id="codex-connection" ${p.provider !== "codex" ? "hidden" : ""}>${codexHTML()}</div>${field("Model", "settings-model", p.model)}<div id="api-connection" ${p.provider === "codex" ? "hidden" : ""}>${field("Endpoint", "settings-url", p.baseUrl)}${field("API key", "settings-key", "", "password")}<p class="help">Saved in macOS Keychain. Leave blank to keep your existing key.</p></div></div><details class="settings-section"><summary>Instructions & tools</summary><label class="field">Agent instructions<textarea id="settings-persona" rows="4">${esc(p.persona)}</textarea></label>${field("Allowed shell commands, separated by commas", "settings-shell", p.shell.join(","))}<p class="help">Host commands require your approval each time. They run with your account’s access.</p><p class="help">Manage MCP servers from the sidebar. ${p.mcp?.length ?? 0} servers configured for this profile.</p></details>${modal === "settings" ? '<div id="company-os-settings"></div>' : ""}<details class="settings-section"><summary>Appearance & preferences</summary><div class="segmented">${["system", "light", "dark"].map((t) => button(t[0].toUpperCase() + t.slice(1), "theme", `data-theme="${t}" aria-pressed="${theme === t}" class="${theme === t ? "active" : ""}"`)).join("")}</div><div class="page-actions">${button("A−", "zoom-out", 'aria-label="Decrease text size"')}${button("A+", "zoom-in", 'aria-label="Increase text size"')}${button("Export profile", "profile-export")}${button("Import profile", "profile-import")}<input id="profile-import-file" type="file" accept=".json" hidden>${button("Keyboard shortcuts", "shortcuts")}${button("Import VS Code theme", "theme-import")}<input id="theme-import-file" type="file" accept=".json,.jsonc" hidden>${importedTheme ? button(esc(importedTheme.name), "theme", 'data-theme="custom"') : ""}</div><div class="page-actions">${button(quickEntry ? "Disable Quick Entry" : "Enable Quick Entry", "quick-entry")}${button("Keep awake", "awake-on")}${button("Allow sleep", "awake-off")}${button("Stop speech", "voice-stop")}</div><p class="help">Quick Entry: ⌘ ⇧ Space while Hades is open. Voice clips go to your profile’s speech endpoint; transcripts stay in the composer until you send.</p></details>${button("Save settings", "settings-save", 'class="primary-button wide"')}`;
+      content = `<div class="settings-section"><h3>Provider & model</h3><label class="field">Provider<select id="settings-provider">${Object.entries(providers).map(([v, item]) => `<option value="${v}" ${p.provider === v ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><div id="codex-connection" ${p.provider !== "codex" ? "hidden" : ""}>${codexHTML()}</div><label class="field">Model<span id="settings-model-control">${settingsModelHTML(p.provider,p.model,p.baseUrl)}</span></label>${button("Refresh available models", "settings-model-catalog")}<div id="api-connection" ${p.provider === "codex" ? "hidden" : ""}>${field("Endpoint", "settings-url", p.baseUrl)}${field("API key", "settings-key", "", "password")}<p class="help">Saved in macOS Keychain. Leave blank to keep your existing key.</p></div></div><details class="settings-section"><summary>Profile & advanced instructions</summary>${field("Profile name (optional)", "settings-name", p.name)}<label class="field">Agent instructions<textarea id="settings-persona" rows="4">${esc(p.persona)}</textarea></label>${field("Allowed shell commands, separated by commas", "settings-shell", p.shell.join(","))}<p class="help">Host commands require your approval each time. They run with your account’s access.</p><p class="help">Manage MCP servers from the sidebar. ${p.mcp?.length ?? 0} servers configured for this profile.</p></details>${modal === "settings" ? '<div id="company-os-settings"></div>' : ""}<details class="settings-section"><summary>Appearance & preferences</summary><div class="segmented">${["system", "light", "dark"].map((t) => button(t[0].toUpperCase() + t.slice(1), "theme", `data-theme="${t}" aria-pressed="${theme === t}" class="${theme === t ? "active" : ""}"`)).join("")}</div><div class="page-actions">${button("A−", "zoom-out", 'aria-label="Decrease text size"')}${button("A+", "zoom-in", 'aria-label="Increase text size"')}${button("Export profile", "profile-export")}${button("Import profile", "profile-import")}<input id="profile-import-file" type="file" accept=".json" hidden>${button("Keyboard shortcuts", "shortcuts")}${button("Import VS Code theme", "theme-import")}<input id="theme-import-file" type="file" accept=".json,.jsonc" hidden>${importedTheme ? button(esc(importedTheme.name), "theme", 'data-theme="custom"') : ""}</div><div class="page-actions">${button(quickEntry ? "Disable Quick Entry" : "Enable Quick Entry", "quick-entry")}${button("Keep awake", "awake-on")}${button("Allow sleep", "awake-off")}${button("Stop speech", "voice-stop")}</div><p class="help">Quick Entry: ⌘ ⇧ Space while Hades is open. Voice clips go to your profile’s speech endpoint; transcripts stay in the composer until you send.</p></details>${button("Save settings", "settings-save", 'class="primary-button wide"')}`;
     }
     if (modal === "harness-command") {
       title = "hades " + modalData.command;
@@ -646,7 +669,7 @@ export function mountWorkbench(root: HTMLElement) {
     if (modal === "model") {
       title = "Model for this conversation";
       content =
-        field("Model ID", "session-model", session?.model || profile.model) +
+        `<label class="field">Model<select id="session-model"><option value="${esc(session?.model || profile.model)}">${esc(session?.model || profile.model)} — saved selection</option></select></label>` +
         '<p class="help">Uses the current profile’s provider. Your profile default stays the same.</p>' +
         button("Browse available models", "model-catalog") +
         '<div id="model-catalog" class="palette-list"></div>' +
@@ -721,7 +744,6 @@ export function mountWorkbench(root: HTMLElement) {
           ["session-export", "Export conversation", ""],
           ["hud", "Floating chat", "⌘ ⇧ H"],
           ["popout", "New window", "⌘ ⇧ N"],
-          ["nav-helm", "Helm coding workspace", ""],
           ["nav-tools", "Tools & connections", ""],
           ["nav-sessions", "Conversation history", ""],
           ["nav-computer", "Computer control", ""],
@@ -1095,6 +1117,8 @@ export function mountWorkbench(root: HTMLElement) {
       case "branch":
       case "worktree":
         modal = name;
+        if(name==="settings"){void updateCodex().catch(toast);void action("settings-model-catalog").catch(toast);}
+        if(name==="model")void action("model-catalog").catch(toast);
         break;
       case "memory-add":
         modal = "memory";
@@ -1171,6 +1195,7 @@ export function mountWorkbench(root: HTMLElement) {
       }
       case "project-add":
         setProject(await rpc("project.add", { path: val("project-path") }));
+        session = undefined;
         modal = "";
         await refresh();
         if (view !== "helm") await newChat();
@@ -1185,8 +1210,13 @@ export function mountWorkbench(root: HTMLElement) {
           files = await rpc("files.list", { root: project, path: "." });
         break;
       case "codex-status": await updateCodex(); return;
-      case "codex-login":
-        await rpc("codex.login"); codexPending = true; await updateCodex(); return;
+      case "codex-login": {
+        if (codexPending) return;
+        codexPending = true; render();
+        try { await rpc("codex.login"); await updateCodex(); }
+        catch (error) { codexPending = false; throw error; }
+        return;
+      }
       case "codex-cancel":
         await rpc("codex.cancel"); codexPending = false; await updateCodex(); return;
       case "codex-logout":
@@ -1196,7 +1226,7 @@ export function mountWorkbench(root: HTMLElement) {
           apiKey = val("settings-key");
         const p = await rpc("profile.save", {
           id: modal === "profile" ? undefined : profile.id,
-          name: val("settings-name"),
+          name: val("settings-name").trim() || (modal === "profile" ? "Hades" : profile.name),
           provider,
           model: val("settings-model"),
           baseUrl: val("settings-url"),
@@ -1213,42 +1243,39 @@ export function mountWorkbench(root: HTMLElement) {
         await refresh();
         return;
       }
+      case "settings-model-catalog":
       case "model-catalog": {
-        const models: string[] = await rpc("models.list", {
-          profile: profile.id,
-        });
-        const list = root.querySelector<HTMLElement>("#model-catalog");
-        if (list) {
-          list.replaceChildren();
-          for (const model of models) {
-            const item = document.createElement("button");
-            item.className = "palette-item";
-            item.textContent = model;
-            item.onclick = () => {
-              const input =
-                root.querySelector<HTMLInputElement>("#session-model");
-              if (input) input.value = model;
-            };
-            list.append(item);
-          }
-          if (!models.length)
-            list.textContent =
-              "This endpoint returned no models. Enter an ID manually.";
-        }
+        const settings=name==="settings-model-catalog",version=++modelCatalogVersion,profileId=profile.id;
+        await Promise.resolve();
+        const provider=settings?(root.querySelector<HTMLSelectElement>("#settings-provider")?.value??profile.provider):profile.provider;
+        const endpoint=settings?val("settings-url"):profile.baseUrl;
+        const target=settings?"settings-model":"session-model";
+        const status=settings?"settings-catalog-status":"model-catalog";
+        try{
+          const models:string[]=await rpc(provider==="codex"?"codex.models":settings?"models.catalog":"models.list",provider==="codex"?{}:settings?{provider,baseUrl:endpoint,profile:profileId}:{profile:profileId});
+          if(version!==modelCatalogVersion||profile.id!==profileId)return;
+          if(settings&&(root.querySelector<HTMLSelectElement>("#settings-provider")?.value!==provider||val("settings-url")!==endpoint))return;
+          const select=root.querySelector<HTMLSelectElement>(`#${target}`);if(!select)return;
+          const selected=select.value;providerCatalogs.set(JSON.stringify([profileId,provider,endpoint]),models);
+          select.innerHTML=`${!models.includes(selected)?`<option value="${esc(selected)}">${esc(selected)} — unavailable in current catalog</option>`:""}${models.map(model=>`<option value="${esc(model)}">${esc(model)}</option>`).join("")}`;select.value=selected;
+          const message=root.querySelector<HTMLElement>(`#${status}`);if(message)message.textContent=models.length?"Choose a model available from this provider.":"No models returned. Check the connection and retry.";
+        }catch(e){if(version!==modelCatalogVersion||profile.id!==profileId)return;const message=root.querySelector<HTMLElement>(`#${status}`);if(message)message.textContent=`Catalog unavailable: ${String(e)}. Retry when connected.`;}
         return;
       }
-      case "model-save":
+      case "model-save": {
+        const selectedModel = val("session-model");
         if (!session) await newChat();
         if (session) {
           await rpc("session.update", {
             id: current(),
-            model: val("session-model"),
+            model: selectedModel,
             profile: profile.id,
           });
-          session.model = val("session-model");
+          session.model = selectedModel;
         }
         modal = "";
         break;
+      }
       case "theme":
         theme = el!.dataset.theme!;
         localStorage.setItem("hades.theme", theme);
@@ -1938,11 +1965,12 @@ export function mountWorkbench(root: HTMLElement) {
     if (providerSelect) providerSelect.onchange = () => {
       const item = providers[providerSelect.value as keyof typeof providers];
       root.querySelector<HTMLInputElement>("#settings-url")!.value = item.url;
-      root.querySelector<HTMLInputElement>("#settings-model")!.value = item.model;
+      root.querySelector<HTMLElement>("#settings-model-control")!.innerHTML = settingsModelHTML(providerSelect.value,item.model,item.url);
       root.querySelector<HTMLInputElement>("#settings-key")!.value = "";
       root.querySelector<HTMLElement>("#api-connection")!.hidden = !item.key;
       root.querySelector<HTMLElement>("#codex-connection")!.hidden = item.key;
       if (!item.key) void updateCodex().catch(toast);
+      void action("settings-model-catalog").catch(toast);
     };
     root
       .querySelector(".breadcrumb strong")
@@ -2088,8 +2116,9 @@ export function mountWorkbench(root: HTMLElement) {
           if (view === "webhooks") void webhooks.refresh();
           return;
         }
-        if (e.kind === "desktop.helm") { if(view === "helm")void helm.refresh(); return; }
+        if (e.kind === "desktop.helm") { if(view === "helm")void helm.refresh(); if(view === "chat")void chatWork.refresh(); return; }
         if (e.kind === "desktop.work") {
+          if(view === "chat" && (!e.profile || e.profile === profile.id))void chatWork.refresh();
           if (view === "work" && (!e.profile || e.profile === profile.id)) void workGoals.refresh();
           if (view === "helm" && (!e.profile || e.profile === profile.id)) void helm.refreshWorkAcceptance();
           return;
@@ -2233,6 +2262,7 @@ export function mountWorkbench(root: HTMLElement) {
     teamChat.destroy();
     slackView.destroy();
     editor.destroy();
+    chatWork.dispose();
     unlisten?.();
     document.removeEventListener("keydown", onKey);
     for (const item of terminalViews.values()) {

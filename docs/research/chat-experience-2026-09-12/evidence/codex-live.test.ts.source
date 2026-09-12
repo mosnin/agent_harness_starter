@@ -1,0 +1,22 @@
+import {it,expect,vi} from 'vitest';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';import {join} from 'node:path';import {randomUUID} from 'node:crypto';
+import {WorkbenchService} from '../core/workbench-service';
+vi.mock('../core/webhook-service',async()=>({WebhookService:(await import('./fixtures/offline-webhooks')).OfflineWebhookFixture}));
+it('actual subscription Workbench reads disposable README',async()=>{
+ const home=mkdtempSync(join(tmpdir(),'hades-subscription-read-'));const root=join(home,'project');mkdirSync(root);
+ const marker='HADES_READ_'+randomUUID();writeFileSync(join(root,'README.md'),marker+'\n');const events:any[]=[];
+ const service=new WorkbenchService(join(home,'data'),e=>{events.push(e);if(e.kind==='desktop.approval')queueMicrotask(()=>{void service.dispatch('approval.reply',{id:e.id,allow:false});});},{...process.env,NODE_ENV:'test',HADES_CODEX_HOME:'/Users/preston/.hades/codex',HADES_COMPANY_OS_BUNDLE:join(process.cwd(),'third_party/company-os/bundle.json')});
+ try{
+ await service.dispatch('project.add',{path:root});await service.dispatch('profile.save',{id:'default',name:'Disposable subscription probe',provider:'codex',model:'gpt-5.6-sol',shell:''});
+ const session=await service.dispatch('session.new',{root}) as {id:string};
+ await service.dispatch('chat.send',{id:session.id,profile:'default',input:'Read README.md using file_ops and report its exact marker. Do not write files or use shell commands.',toolAllowlist:['file_ops'],maxTokens:20000,maxRuntimeMs:60000});
+ await vi.waitFor(()=>expect(events.some(e=>e.kind==='desktop.done')).toBe(true),{timeout:65000,interval:100});
+ const errors=events.filter(e=>e.kind==='desktop.error').map(e=>e.message);
+ const reads=events.filter(e=>e.kind==='desktop.tool'&&e.status==='done'&&e.tool==='file_ops'&&e.ok&&JSON.parse(e.input).op==='read');
+ const record=await service.dispatch('session.get',{id:session.id,profile:'default'});
+ const finalMarker=(record as any).messages.filter((m:any)=>m.role==='assistant').at(-1)?.content.includes(marker)===true;
+ writeFileSync('/private/tmp/hades-codex-workbench-live-result.json',JSON.stringify({model:'gpt-5.6-sol',successfulReadCount:reads.length,readOutputContainsMarker:reads.some(e=>e.output.includes(marker)),finalMarker,errors,usage:events.filter(e=>e.kind==='desktop.usage').map(e=>({tokensIn:e.tokensIn,tokensOut:e.tokensOut}))}));
+ expect(errors).toEqual([]);expect(reads.some(e=>e.output.includes(marker))).toBe(true);expect(finalMarker).toBe(true);expect(readFileSync(join(root,'README.md'),'utf8')).toBe(marker+'\n');
+ }finally{await service.close();rmSync(home,{recursive:true,force:true});}
+},75000);
