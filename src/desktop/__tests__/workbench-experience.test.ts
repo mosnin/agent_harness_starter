@@ -251,3 +251,25 @@ it("closes saved activity when another conversation is selected",async()=>{
  try {await mount();click('[data-action="conversation-history"]');await settle();expect(root.querySelector(".conversation-history")).toBeTruthy();click('[data-action="session"][data-id="saved"]');await settle();expect(root.querySelector(".conversation-history")).toBeNull();expect(root.querySelector("#composer")).toBeTruthy();}
  finally {boot.sessions.splice(0);}
 });
+
+it("restores live background work with Stop and running tool state",async()=>{
+ restoredSession={id:'saved',title:'Background task',root:'/project',messages:[],progress:{running:true,journal:[{kind:'desktop.started',session:'saved'},{kind:'desktop.tool',session:'saved',tool:'shell',input:'read-only probe',status:'running'}],approval:{id:'approval',tool:'shell',input:'read-only probe'}}};
+ (boot.sessions as any[]).push({id:'saved',title:'Background task',profile:'p'});
+ try{
+  await mount();emit({kind:'desktop.started',session:'saved'});
+  click('[data-action="session"][data-id="saved"]');await settle();
+  expect(root.querySelector('[aria-label="Stop generation"]')).toBeTruthy();
+  expect(root.querySelector('.activity')?.textContent).toContain('shell · Running');
+  expect(root.querySelector('.approval')?.textContent).toContain('read-only probe');
+ }finally{boot.sessions.splice(0);}
+});
+it("clears the prior error when an external continuation starts",async()=>{
+ restoredSession={id:'saved',title:'Retry task',root:'/project',messages:[],progress:{running:false,error:'Previous provider failed',journal:[]}};
+ (boot.sessions as any[]).push({id:'saved',title:'Retry task',profile:'p'});localStorage.setItem('hades.lastSession','saved');
+ try{
+  await mount();await vi.waitFor(()=>expect(root.textContent).toContain('Previous provider failed'));
+  emit({kind:'desktop.started',session:'saved'});
+  expect(root.textContent).not.toContain('Previous provider failed');
+  expect(root.querySelector('[aria-label="Stop generation"]')).toBeTruthy();
+ }finally{boot.sessions.splice(0);}
+});

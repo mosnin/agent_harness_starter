@@ -261,6 +261,7 @@ export function mountWorkbench(root: HTMLElement) {
     ]);
     if (selection !== sessionSelection || profile.id !== selectedProfile) return;
     session = s;
+    if (s.progress?.running && !boot.active.includes(id)) boot.active.push(id);
     artifacts = outputs;
     modal = "";
     setProject(s.root || project);
@@ -2206,6 +2207,7 @@ export function mountWorkbench(root: HTMLElement) {
           void refresh().catch(toast);
           return;
         }
+        if (e.kind === "desktop.started" && !boot.active.includes(e.session)) boot.active.push(e.session);
         if (e.session && e.session !== current()) return;
         if (e.kind === "desktop.delta") {
           stream += e.chunk;
@@ -2218,7 +2220,7 @@ export function mountWorkbench(root: HTMLElement) {
         }
         if (e.kind === "desktop.started") {
           activity = [...activity, e].slice(-512);
-          if (!boot.active.includes(e.session)) boot.active.push(e.session);
+          stream = ""; usage = {}; pendingApproval = undefined; error = sessionError = "";
         }
         if (e.kind === "desktop.hook") activity = [...activity, e].slice(-512);
         if (e.kind === "desktop.tool") {

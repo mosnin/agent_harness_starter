@@ -127,3 +127,9 @@ All source checkouts were resolved on 2026-09-12. The identifiers below pin the 
 - [yc-software/qm](https://github.com/yc-software/qm/tree/234022fd5c9245002339815b4944c7c6cfd8a578) — `234022fd5c9245002339815b4944c7c6cfd8a578`.
 
 - [imputnet/helium](https://github.com/imputnet/helium/tree/52d17a26f29b6a86dde7730e49e825cc98437a3c) — `52d17a26f29b6a86dde7730e49e825cc98437a3c`.
+
+## Context-mode runtime acceptance (2026-09-12 local evening)
+
+Pinned npm `context-mode@1.0.169` was installed in a disposable local prefix with `--ignore-scripts`, without global installation, hook setup, or changes to user profiles. Hades' real `connectMcp` transport discovered 11 tools. Two disposable project roots sharing one disposable data directory indexed different facts under the same source name. Each default search returned its own fact and excluded the other. Closing and reconnecting the first server preserved retrieval. Both the initial probe and the checked-in reproduction passed.
+
+Reproduce after installing that exact package locally: `npx tsx scripts/check-context-mode.ts /absolute/path/to/context-mode/cli.bundle.mjs`. The test creates its own temporary project/data roots and retains `evidence.json`. It never calls execute, fetch, upgrade, purge, or insight. This proves default project attribution and restart retrieval, not a security boundary: upstream search supports global/explicit project scope and the optional server exposes code execution. Hades approvals still apply. The optional integration remains disabled by default; it has not been silently enabled in a user profile or bundled into the app. Elastic License 2.0 distribution review remains separate.
