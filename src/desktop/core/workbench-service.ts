@@ -2717,6 +2717,9 @@ export class WorkbenchService {
         memory: this.memory(p.id),
         contextFiles: { dataDir: this.dir(p.id), projectDir: root },
         brain: async (ctx, _stream, signal) => {
+          // The handler has persisted the user instruction. Publish it before any
+          // model/tool activity so external continuations are visible immediately.
+          this.emit({ kind: "desktop.session", session: id, record: this.sessions(p.id).get(id) });
           const contextDirectory = join(this.dir(p.id), "context", id, randomUUID());
           const modelBudgets: Array<Record<string, unknown>> = [];
           const result = await new AgentLoop(client, tools, {

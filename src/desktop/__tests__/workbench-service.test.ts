@@ -126,7 +126,11 @@ describe("native desktop workbench", () => {
   });
   it("streams a real HTTP response and persists it in the shared CLI session format", async () => {
     const { root, s, events } = setup();
-    const p = await provider(() => "ANSWER: Hello from the test provider.");
+    let visibleBeforeReply = false;
+    const p = await provider(() => {
+      visibleBeforeReply = events.some(e => e.kind === "desktop.session" && (e.record as { messages?: Array<{ content: string }> } | undefined)?.messages?.at(-1)?.content === "Hello");
+      return "ANSWER: Hello from the test provider.";
+    });
     await s.dispatch("project.add", { path: root });
     await s.dispatch("profile.save", {
       id: "default",
@@ -155,6 +159,7 @@ describe("native desktop workbench", () => {
     ]);
     expect(stored[0].messages[1].content).toBe("Hello from the test provider.");
     expect(p.requests.length).toBe(1);
+    expect(visibleBeforeReply).toBe(true);
   });
   it("blocks file writes until an explicit approval and allows cancellation while waiting", async () => {
     const { root, s, events } = setup();
