@@ -432,18 +432,35 @@ export class WorkbenchService {
     return helmTools({ signal, canDelegate: meta.source !== "helm" && !meta.toolAllowlist,
       agents: () => this.helm.agents(),
       context: () => this.helmContext.snapshot(root),
+      handoffs: target => {
+        const available=this.helmHandoffs.list().filter(item=>(!item.owner || item.owner===owner) && (!item.root || item.root===root));
+        if(!target)return available.map(item=>({id:item.id,title:item.notebook.title,status:item.status,runId:item.runId}));
+        const item=available.find(item=>item.id===target);
+        if(!item)throw new Error("Browser draft is not available in this conversation");
+        return {...item,notebook:{...item.notebook,body:item.notebook.body.slice(0,12000)},excerptTruncated:item.notebook.body.length>12000};
+      },
       get: target => view(owned(target)), cancel: target => this.helm.cancel(owned(target).id),
       diff: async target => { const diff = await this.helm.diff(owned(target).id); return { ...diff, text: diff.text.slice(0, 20000) }; },
       start: async input => {
         const minutes = Number(input.maxMinutes ?? 15);
         const previous = meta.helmReserved ?? { runs: 0, minutes: 0 };
-        if (previous.runs >= 4 || previous.minutes + minutes > 60) throw new Error("This conversation has used its Helm allocation. Start a task in Helm to explicitly allocate more work.");
-        const context = this.helmContext.snapshot(root, input.contextIds);
+        if (previous.runs >= 4 || previous.minutes + minutes > 60) throw new Error("This conversation has used its Helm allocation. Start a new conversation to explicitly allocate more work.");
+        const snapshot = this.helmContext.snapshot(root, input.contextIds);
+        const handoffId = input.handoffId === undefined ? undefined : ident(input.handoffId);
+        const handoff = handoffId ? this.helmHandoffs.get(handoffId) : undefined;
+        if(handoff && ((handoff.owner && handoff.owner!==owner) || (handoff.root && handoff.root!==root))) throw new Error("Browser draft belongs to another project or profile");
+        const spatial=handoff?.spatial ? this.spatial.prepare([{id:handoff.spatial.id,revision:handoff.spatial.revision}],{sessionId:handoff.spatial.sessionId,profile:owner,root}) : undefined;
+        const context = [snapshot.text,handoff ? helmHandoffContext(handoff) : ""].filter(Boolean).join("\n\n");
+        if(context.length>100000)throw new Error("Selected context exceeds the coding task limit");
         // Reserve before asynchronous work. Unknown delivery is never refunded
         // or silently replayed by a later model turn.
         meta.helmReserved = { runs: previous.runs + 1, minutes: previous.minutes + minutes }; this.save();
         signal.throwIfAborted();
-        const run = await this.helm.start({ root, owner, parentSession: id, agent: input.agent as any, prompt: String(input.prompt), ...(input.title ? { title: String(input.title) } : {}), ...(input.model ? { model: String(input.model) } : {}), maxMinutes: minutes, context: context.text });
+        const request = { root, owner, parentSession: id, agent: input.agent as any, prompt: String(input.prompt), ...(input.title ? { title: String(input.title) } : {}), ...(input.model ? { model: String(input.model) } : {}), maxMinutes: minutes, context, ...(handoffId?{handoffId}:{}), ...(spatial?{images:spatial.images}:{}) };
+        this.helm.validateStart(request);
+        if(handoffId)this.helmHandoffs.claim(handoffId,{root,owner});
+        const run = await this.helm.start(request);
+        if(handoffId)this.helmHandoffs.complete(handoffId,run.id);
         meta.helmRuns = [...(meta.helmRuns ?? []), run.id]; this.save();
         if (signal.aborted) await this.helm.cancel(run.id);
         return view(this.helm.get(run.id));
@@ -2539,12 +2556,12 @@ export class WorkbenchService {
       const workOwner = lineage.workOwner ?? p.id;
       const delegated = delegationTools({
         root, profile: p.id, signal: controller.signal, depth: lineage.workGoal ? 1 : 0, taskId:lineage.workTask,
-        maxTokens: 50000, maxGoals: 2, maxTasks: 4,
+        maxTokens: 300000, maxGoals: 2, maxTasks: 4,
         ownedGoals: lineage.workGoal ? [lineage.workGoal] : lineage.delegatedWork ?? [],
         reserve: budget => {
           const previous = lineage.delegationReserved ?? { goals: 0, tasks: 0, tokens: 0, minutes: 0 };
           const next = { goals: previous.goals + 1, tasks: previous.tasks + budget.tasks, tokens: previous.tokens + budget.tokens, minutes: previous.minutes + budget.minutes };
-          if (lineage.workGoal || next.goals > 2 || next.tasks > 8 || next.tokens > 100000 || next.minutes > 30) throw new Error("This conversation has reached its delegation budget. Start a new work plan to explicitly allocate more.");
+          if (lineage.workGoal || next.goals > 2 || next.tasks > 8 || next.tokens > 600000 || next.minutes > 30) throw new Error("This conversation has reached its delegation budget. Start a new work plan to explicitly allocate more.");
           lineage.delegationReserved = next; this.save();
         },
         rememberGoal: goal => { lineage.delegatedWork = [...(lineage.delegatedWork ?? []), goal]; this.save(); },

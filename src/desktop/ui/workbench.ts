@@ -5,7 +5,6 @@ import "./chat-work-controls.css";
 import { SpatialView } from "./spatial";
 import "./spatial.css";
 import { ManagementView, managementViews } from "./management";
-import { HelmView } from "./helm";
 import { WorkGoalsView } from "./work-goals";
 import { ChannelsView } from "./channels";
 import { ShellHooksView } from "./shell-hooks";
@@ -29,6 +28,7 @@ import { toolActivityCards } from "./tool-activity";
 import "@xterm/xterm/css/xterm.css";
 import "./workbench.css";
 import "./workbench-design.css";
+import "./conversation-shell.css";
 import "./ecosystem-plugins.css";
 import {
   shortcutDefaults,
@@ -129,6 +129,9 @@ export function mountWorkbench(root: HTMLElement) {
     sidebar = !matchMedia("(max-width: 800px)").matches,
     taskInspector = localStorage.getItem("hades.taskInspector") === "true",
     statusbar = false,
+    historyOpen = false,
+    codingHistory: Row[] = [],
+    codingDrafts: Row[] = [],
     archived = false,
     theme = localStorage.getItem("hades.theme") ?? "dark",
     fontSize = Number(localStorage.getItem("hades.zoom") ?? 14),
@@ -154,26 +157,12 @@ export function mountWorkbench(root: HTMLElement) {
   });
   const management = new ManagementView(rpc, id => { void selectSession(id).catch(toast); }, next => { void navigate(next).catch(toast); }, (name, value) => download(name, JSON.stringify(value, null, 2)));
   const spatial = new SpatialView(rpc, () => { render(); root.querySelector<HTMLElement>('[data-action="spatial-open"]')?.focus(); });
-  const helm = new HelmView(rpc, {
-    chooseProject: () => { modal = "project"; view = "helm"; render(); },
-    selectProject: async next => {setProject(next);view="helm";await refresh();},
-    openWorkspace: async (next,nextPane) => {setProject(await rpc("project.add",{path:next}));await navigate("workspace");if(nextPane!=="files")await loadPane(nextPane);},
-    openSession: id => {void selectSession(id).catch(toast);},
-    openWork: async origin => {
-      if (profile.id !== origin.ownerProfile) throw new Error("Open the owning Hades profile before returning to this work.");
-      setProject(origin.root);
-      await navigate("work");
-      if (view !== "work" || profile.id !== origin.ownerProfile || project !== origin.root) return;
-      await workGoals.selectGoal(origin.goalId, origin.taskId);
-    },
-  });
   const workGoals = new WorkGoalsView(rpc, id => { void selectSession(id).catch(toast); }, async run => {
-    if (!run.owner || profile.id !== run.owner) throw new Error("Open the owning Hades profile before reviewing this task.");
-    setProject(run.root);
-    await navigate("helm");
-    if (view !== "helm" || profile.id !== run.owner || project !== run.root) return;
-    await helm.selectRun(run);
-  });
+    if (run.owner !== profile.id) throw new Error("Open the owning profile before reviewing these changes.");
+    if (project !== run.root) { setProject(run.root); await newChat(run.root); }
+    view = "chat"; historyOpen = false; render();
+    await chatWork.reviewRun(run);
+  }, () => { historyOpen = false; draft = "/team "; render(); root.querySelector<HTMLTextAreaElement>("#composer")?.focus(); });
   const browserView = new BrowserView(rpc, (account, value) => tauri().core.invoke("hades_key", { account, value }));
   const credentials = new CredentialsView(rpc, (account, value) => tauri().core.invoke("hades_key", { account, value }));
   const ecosystem = new EcosystemPluginsView(rpc, url => rpc("link.open", { url }), () => tauri().core.invoke("hades_ecosystem_unlock"));
@@ -234,8 +223,7 @@ export function mountWorkbench(root: HTMLElement) {
       if (row) session.title = row.title;
     }
     if (managementViews.has(view)) await management.open(view, profile.id, profile.name, project);
-    if (view === "work") await workGoals.open(workContext());
-    if (view === "helm") await helm.open({root:project,profile:profile.id,profileName:profile.name,projects:boot.projects});
+    if (historyOpen) await workGoals.open(workContext());
     if (view === "webhooks") await webhooks.open(webhookContext());
     if (view === "browser") await browserView.open({ profile: profile.id, root: project, name: profile.name });
     if (view === "credentials") await credentials.open(profile.id);
@@ -260,6 +248,7 @@ export function mountWorkbench(root: HTMLElement) {
   let sessionSelection = 0;
   async function selectSession(id: string) {
     const selection = ++sessionSelection;
+    historyOpen = false; codingHistory = [];
     const meta = boot.allSessions?.find((s: Row) => s.id === id);
     if (meta && meta.profile !== profile.id) {
       profile = boot.profiles.find((p: Profile) => p.id === meta.profile);
@@ -287,8 +276,9 @@ export function mountWorkbench(root: HTMLElement) {
     localStorage.setItem("hades.lastSession", id);
     render();
   }
-  async function newChat() {
-    session = await rpc("session.new", { ...(project && !session?.managedWorkspace ? {root:project} : {}), profile: profile.id });
+  async function newChat(rootOverride?: string) {
+    historyOpen = false;
+    session = await rpc("session.new", { ...(rootOverride ? {root:rootOverride} : project && !session?.managedWorkspace ? {root:project} : {}), profile: profile.id });
     if (session?.root) setProject(session.root);
     tabs.push(current());
     rememberTabs();
@@ -424,10 +414,10 @@ export function mountWorkbench(root: HTMLElement) {
           70
         : true;
     const visibleTabs = tabs.filter(id => boot.sessions.some((s: Row) => s.id === id));
-    root.innerHTML = `<div class="workbench ${!sidebar ? "hide-sidebar" : ""} ${location.search.includes("hud=1") ? "hud" : ""}">
+    root.innerHTML = `<div class="workbench ${!sidebar ? "hide-sidebar" : ""} ${view === "chat" && !historyOpen && !session?.messages?.length ? "conversation-empty" : ""} ${location.search.includes("hud=1") ? "hud" : ""}">
    <aside class="sidebar" id="sidebar" aria-label="Workspace navigation"><div class="window-space" data-tauri-drag-region></div><div class="sidebar-content"><div class="brand"><img src="./assets/hades-icon.png" alt="Hades logo"><strong>Hades</strong></div>
    ${button(icon("+") + `<span class="truncate">New chat</span><kbd>${esc(formatShortcut(bindings.new))}</kbd>`, "new", 'class="new-chat"')}
-   <nav class="sidebar-nav" aria-label="Main">${nav("sessions", "Conversations")}${ecosystemNavigation(ecosystemOpen)}<details class="sidebar-more"><summary>More</summary>${nav("workspace", "Workspace")}${nav("team", "Team chat")}${nav("jobs", "Scheduled")}${nav("agents", "Agents")}${nav("tools", "Tools & connections")}${nav("system", "System")}</details></nav>
+   <nav class="sidebar-nav" aria-label="Main">${button(icon("activity") + "Activity", "conversation-history", 'class="nav-item"')}${ecosystemNavigation(ecosystemOpen)}<details class="sidebar-more"><summary>More</summary>${nav("workspace", "Workspace")}${nav("team", "Team chat")}${nav("jobs", "Scheduled")}${nav("agents", "Agents")}${nav("tools", "Tools & connections")}${nav("system", "System")}</details></nav>
    <details class="sidebar-projects" ${projectsOpen ? "open" : ""}><summary>Projects</summary><div class="section-label">Project folders ${button(icon("+"), "project", 'aria-label="Open project"')}</div><div class="project-list">${boot.projects.length ? boot.projects.map((p: string) => `<div class="project-row ${project === p ? "active" : ""}">${button(icon("files") + `<span class="truncate">${esc(labelProject(p))}</span>`, "project-select", `data-path="${esc(p)}" title="${esc(p)}"`)}${button(icon("close"), "project-hide", `data-path="${esc(p)}" class="hide-project" aria-label="Hide project ${esc(labelProject(p))}"`)}</div>`).join("") : `<p class="sidebar-hint">Open a project folder.</p>`}</div>
    </details><div class="section-label">${archived ? "Archived" : "Recent"} ${button(icon(archived ? "back" : "more"), "archive-view", 'aria-label="Toggle archived conversations"')}</div>
    <input id="session-search" class="search" aria-label="Search conversations" placeholder="Search conversations" value="${esc(search)}">
@@ -435,6 +425,7 @@ export function mountWorkbench(root: HTMLElement) {
      boot.sessions
        .filter(
          (s: Row) =>
+           (!s.workGoal || s.id === current() || !!search) &&
            !!s.archived === archived &&
            (!search ||
              JSON.stringify(s).toLowerCase().includes(search.toLowerCase())),
@@ -463,7 +454,7 @@ export function mountWorkbench(root: HTMLElement) {
        : ""
    }
    ${visibleError || notice ? `<div class="error ${visibleError ? "" : "notice"}" role="${visibleError ? "alert" : "status"}">${esc(visibleError || notice)}${button(icon("close"), "dismiss", `aria-label="${visibleError ? "Dismiss error" : "Dismiss notification"}"`)}</div>` : ""}
-   <div class="body"><section class="primary">${view === "chat" ? chatHTML() : view === "helm" ? '<div id="helm-host"></div>' : view === "workspace" ? workspaceHTML() : view === "work" ? '<div id="work-goals-host"></div>' : view === "channels" ? '<div id="channels-host"></div>' : view === "hooks" ? '<div id="hooks-host"></div>' : view === "maintenance" ? '<div id="maintenance-host"></div>' : view === "browser" ? '<div id="browser-host"></div>' : view === "credentials" ? '<div id="credentials-host"></div>' : view === "ecosystem" ? '<div id="ecosystem-host"></div>' : view === "webhooks" ? '<div id="webhooks-host"></div>' : view === "team" ? '<div id="team-chat-host"></div>' : view === "slack" ? '<div id="slack-host"></div>' : pageHTML()}</section>${pane ? paneHTML() : view === "chat" && taskInspector ? taskInspectorHTML() : ""}</div>
+   <div class="body"><section class="primary">${view === "chat" ? chatHTML() : view === "workspace" ? workspaceHTML() : view === "channels" ? '<div id="channels-host"></div>' : view === "hooks" ? '<div id="hooks-host"></div>' : view === "maintenance" ? '<div id="maintenance-host"></div>' : view === "browser" ? '<div id="browser-host"></div>' : view === "credentials" ? '<div id="credentials-host"></div>' : view === "ecosystem" ? '<div id="ecosystem-host"></div>' : view === "webhooks" ? '<div id="webhooks-host"></div>' : view === "team" ? '<div id="team-chat-host"></div>' : view === "slack" ? '<div id="slack-host"></div>' : pageHTML()}</section>${pane ? paneHTML() : view === "chat" && taskInspector ? taskInspectorHTML() : ""}</div>
    ${statusbar ? `<footer class="statusbar"><span><i class="${running() ? "busy" : connected ? "connected" : ""}"></i>${running() ? "Working" : connected ? "Ready" : "Disconnected"} <span class="muted">/</span> ${esc(profile?.name || "Connecting")}</span><span>${usage.tokensIn !== undefined ? `${usage.tokensIn.toLocaleString()} in · ${usage.tokensOut.toLocaleString()} out · ${usage.costMeasured ? "~$" + usage.usd.toFixed(4) : profile?.provider === "codex" ? "subscription" : "price unavailable"}` : "Workspace files · ask before changes"} <span class="muted">${esc(formatShortcut(bindings.palette))}</span></span></footer>` : ""}</main></div>${modal ? modalHTML() : ""}`;
     for (const field of savedFields) { const input = root.querySelector<HTMLInputElement>(`#${CSS.escape(field.id)}`); if (input) { input.value = field.value; if (field.checked !== undefined) input.checked = field.checked; } }
     [...root.querySelectorAll<HTMLDetailsElement>(".modal details")].filter(el => !el.closest("#company-os-settings")).forEach((el, i) => { if (savedDetails[i] !== undefined) el.open = savedDetails[i]; });
@@ -488,8 +479,6 @@ export function mountWorkbench(root: HTMLElement) {
     const spatialHost = root.querySelector<HTMLElement>("#spatial-host");
     if (spatialHost) spatial.mount(spatialHost);
     chatWork.mount(root.querySelector<HTMLElement>("#chat-work-activity") ?? undefined, view === "chat" && session ? {id:current(),profile:profile.id,root:project,delegatedWork:session.delegatedWork,helmRuns:session.helmRuns,orcaIntents:session.orcaIntents} : undefined);
-    const helmHost = root.querySelector<HTMLElement>("#helm-host");
-    if(helmHost)helm.mount(helmHost);
     const workHost = root.querySelector<HTMLElement>("#work-goals-host");
     if (workHost) workGoals.mount(workHost);
     const editorHost = root.querySelector<HTMLElement>("#workspace-editor-host");
@@ -525,14 +514,15 @@ export function mountWorkbench(root: HTMLElement) {
     const tools = toolActivityCards(activity, running());
     const hookReceipts = activity.filter(event => event.kind === "desktop.hook");
     return `${find !== "" ? `<div class="findbar"><input id="find-input" placeholder="Find in conversation" value="${esc(find === " " ? "" : find)}" aria-label="Find in conversation">${button(icon("down"), "find-next", 'aria-label="Next match"')}${button(icon("close"), "find-close", 'aria-label="Close find"')}</div>` : ""}
-  <div class="transcript" role="log" aria-label="Conversation">${!messages.length ? `<div class="welcome"><h1>New conversation</h1><p>Describe what you want to build, fix, or get done.</p><div class="starter-actions">${button("Open project", "project")}${button("Choose provider", "settings")}</div></div>` : messages.map((m: Row, i: number) => `<article id="message-${i}" class="message ${m.role}"><div class="message-label">${m.role === "user" ? "You" : `<img src="./assets/hades-icon.png" alt=""> ${esc(profile.name)}`}<time>${new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>${m.role === "assistant" ? button(icon("speaker"), "speak-message", `data-index="${i}" aria-label="Read message aloud"`) : ""}${button(icon("copy"), "copy-message", `data-index="${i}" aria-label="Copy message"`)}</div><div class="message-body">${m.images?.map((image: string) => `<img class="chat-attachment" src="${esc(image)}" alt="Attached image">`).join("") ?? ""}${formatText(m.content)}</div></article>`).join("")}
+  <div class="transcript" role="log" aria-label="Conversation">${!messages.length ? `<div class="welcome"><img class="conversation-mark" src="./assets/hades-icon.png" alt=""><h1>What would you like to get done?</h1><p>Describe the outcome. Hades can write code, use your apps, and coordinate a team here.</p></div>` : messages.map((m: Row, i: number) => `<article id="message-${i}" class="message ${m.role}"><div class="message-label">${m.role === "user" ? "You" : `<img src="./assets/hades-icon.png" alt=""> ${esc(profile.name)}`}<time>${new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>${m.role === "assistant" ? button(icon("speaker"), "speak-message", `data-index="${i}" aria-label="Read message aloud"`) : ""}${button(icon("copy"), "copy-message", `data-index="${i}" aria-label="Copy message"`)}</div><div class="message-body">${m.images?.map((image: string) => `<img class="chat-attachment" src="${esc(image)}" alt="Attached image">`).join("") ?? ""}${formatText(m.content)}</div></article>`).join("")}
   ${running() ? `<article class="message assistant"><div class="message-label"><img src="./assets/hades-icon.png" alt="">${esc(profile.name)} <span class="working">Working<span>...</span></span></div><div class="message-body live-output">${formatText(visibleResponse(stream))}</div></article>` : ""}
   ${tools.length ? `<details class="activity" ${pendingApproval ? "open" : ""}><summary>${icon("terminal")}${tools.length} tool ${tools.length === 1 ? "call" : "calls"}</summary>${tools.map(t => `<div class="tool-activity-card"><span class="mono">${esc(t.tool)} · ${t.status}</span>${t.input !== undefined ? `<div class="help">Input</div><pre>${esc(t.input)}</pre>` : ""}${t.output !== undefined ? `<div class="help">Result</div><pre>${esc(t.output)}</pre>` : ""}</div>`).join("")}</details>` : ""}
   <div id="chat-work-activity"></div>
+  ${historyOpen ? `<section class="conversation-history" aria-label="Saved activity"><header><h2>Saved activity</h2>${button("Close activity", "conversation-history")}</header><p class="help">Previous tasks and changes. New work starts in the conversation below.</p><details open><summary>Team tasks</summary><div id="work-goals-host"></div></details><details><summary>Browser and capture drafts</summary>${codingDrafts.map(item=>`<article><strong>${esc(item.notebook.title)}</strong><p>${esc(item.prompt)}</p>${item.status==="draft"?button("Use in conversation","conversation-draft",`data-id="${esc(item.id)}"`):`<p class="help">${esc(item.status)}</p>`}</article>`).join("") || '<p class="help">No drafts available.</p>'}</details><details><summary>Code changes</summary>${codingHistory.map(run => button(esc(run.title || run.prompt?.slice(0,80) || "Coding task") + " · " + esc(run.status), "conversation-review", `data-id="${esc(run.id)}"`)).join("") || '<p class="help">No coding tasks for this project.</p>'}</details></section>` : ""}
   ${hookReceipts.length ? `<details class="activity hook-activity"><summary>${icon("hooks")}${hookReceipts.length} hook ${hookReceipts.length === 1 ? "receipt" : "receipts"}</summary>${hookReceipts.map(h => `<div class="hook-receipt"><span>${esc(h.name)} · ${h.phase === "pre_tool" ? "Before" : "After"} ${esc(h.tool)} · ${esc(h.status)}</span>${h.output ? `<pre>${esc(h.output)}</pre>` : ""}${h.message ? `<p class="help">${esc(h.message)}</p>` : ""}</div>`).join("")}</details>` : ""}
   ${pendingApproval ? `<div class="approval" role="alert"><strong>Hades needs your approval</strong>${actionSummary(pendingApproval.tool,pendingApproval.input)}${button("Allow once", "approve", 'class="primary-button"')}${button("Deny", "deny")}</div>` : ""}</div>
   <div class="composer-area">${(queued[current()] ?? []).length ? `<div class="queue"><span class="eyebrow">${paused.has(current()) ? "PAUSED" : "QUEUED"} · ${queued[current()].length}</span>${queued[current()].map((q, i) => `<div><span>${esc(q.slice(0, 120))}</span>${button("Edit", "queue-edit", `data-index="${i}"`)}${button(icon("close"), "queue-delete", `data-index="${i}" aria-label="Delete queued message"`)}</div>`).join("")}${paused.has(current()) ? button("Resume queue", "queue-resume") : ""}</div>` : ""}
-  <div id="spatial-host"></div><div class="attachment-tray">${draftImages.map((src, i) => `<div><img src="${esc(src)}" alt="Image attachment ${i + 1}">${button(icon("close"), "image-remove", `data-index="${i}" aria-label="Remove image"`)}</div>`).join("")}</div><div id="chat-command-options" class="chat-command-options" hidden></div><form id="composer-form" class="composer"><textarea id="composer" aria-label="Message Hades" placeholder="Message Hades, or type / for commands…" rows="2">${esc(draft)}</textarea><div class="composer-bottom"><div>${button("Point at something", "spatial-open", 'class="composer-spatial"')}${button(icon("+"), "attach", 'class="icon-button" aria-label="Attach files or images"')}<input id="attachments" type="file" multiple hidden accept="image/png,image/jpeg,image/gif,image/webp,text/*,.md,.json,.ts,.tsx,.py,.js,.csv,.html,.css,.yaml,.yml">${button(icon("files") + `<span class="truncate">${project && !session?.managedWorkspace ? esc(labelProject(project)) : "Attach project"}</span>`, "project", 'class="composer-project"')}</div><div>${button(`<span class="truncate">${esc(session?.model || profile?.model || "Choose model")}</span>` + icon("chevron"), "model", 'class="model-picker"')}${button(icon(recording ? "stop" : "microphone"), "voice-record", `class="icon-button ${recording ? "recording" : ""}" aria-label="${recording ? "Finish voice message" : "Record voice message"}" ${!["local", "openai"].includes(profile?.provider) ? 'disabled title="Choose an OpenAI API or compatible speech provider to record voice"' : ""}`)}${running() ? button(icon("stop"), "stop", 'class="send" aria-label="Stop generation"') : `<button type="submit" class="send" aria-label="Send message">${icon("up")}</button>`}</div></div></form><div class="composer-hint"><span>Return to send <span class="muted">·</span> ⇧ Return for a new line</span></div></div>`;
+  <div id="spatial-host"></div><div class="attachment-tray">${draftImages.map((src, i) => `<div><img src="${esc(src)}" alt="Image attachment ${i + 1}">${button(icon("close"), "image-remove", `data-index="${i}" aria-label="Remove image"`)}</div>`).join("")}</div><div id="chat-command-options" class="chat-command-options" hidden></div><form id="composer-form" class="composer"><textarea id="composer" aria-label="Message Hades" placeholder="Message Hades, or type / for commands…" rows="2">${esc(draft)}</textarea><div class="composer-bottom"><div>${button("Point at something", "spatial-open", 'class="composer-spatial"')}${button(icon("+"), "attach", 'class="icon-button" aria-label="Attach files or images"')}<input id="attachments" type="file" multiple hidden accept="image/png,image/jpeg,image/gif,image/webp,text/*,.md,.json,.ts,.tsx,.py,.js,.csv,.html,.css,.yaml,.yml">${button(icon("files") + `<span class="truncate">${project && !session?.managedWorkspace ? esc(labelProject(project)) : "Attach project"}</span>`, "project", 'class="composer-project"')}</div><div>${button(`<span class="truncate">${esc(session?.model || profile?.model || "Choose model")}</span>` + icon("chevron"), "model", 'class="model-picker"')}${button(icon(recording ? "stop" : "microphone"), "voice-record", `class="icon-button ${recording ? "recording" : ""}" aria-label="${recording ? "Finish voice message" : "Record voice message"}" ${!["local", "openai"].includes(profile?.provider) ? 'disabled title="Choose an OpenAI API or compatible speech provider to record voice"' : ""}`)}${running() ? button(icon("stop"), "stop", 'class="send" aria-label="Stop generation"') : `<button type="submit" class="send" aria-label="Send message">${icon("up")}</button>`}</div></div></form>${!messages.length ? `<div class="outcome-shortcuts">${button("Build or fix code", "conversation-starter", 'data-command="code"')}${button("Research in the browser", "conversation-starter", 'data-command="browser"')}${button("Work with a team", "conversation-starter", 'data-command="team"')}</div>` : ""}<div class="composer-hint"><span>Type / for skills and goals <span class="muted">·</span> Return to send <span class="muted">·</span> ⇧ Return for a new line</span></div></div>`;
   }
   function formatText(content: string) {
     return esc(content)
@@ -804,7 +794,8 @@ export function mountWorkbench(root: HTMLElement) {
   }
   const val = (id: string) =>
     root.querySelector<HTMLInputElement>("#" + id)?.value ?? "";
-  async function navigate(next: string) {
+  async function navigate(next: string): Promise<void> {
+    if (next === "work" || next === "helm") return action("conversation-history");
     view = next;
     if (view !== "ecosystem") ecosystem.mount(undefined);
     if (!["chat", "workspace"].includes(view)) pane = "";
@@ -813,8 +804,7 @@ export function mountWorkbench(root: HTMLElement) {
 
     modal = "";
     if (managementViews.has(view)) await management.open(view, profile.id, profile.name, project);
-    if (view === "work") await workGoals.open(workContext());
-    if (view === "helm") await helm.open({root:project,profile:profile.id,profileName:profile.name,projects:boot.projects});
+    if (historyOpen) await workGoals.open(workContext());
     if (view === "webhooks") await webhooks.open(webhookContext());
     if (view === "browser") await browserView.open({ profile: profile.id, root: project, name: profile.name });
     if (view === "credentials") await credentials.open(profile.id);
@@ -847,6 +837,24 @@ export function mountWorkbench(root: HTMLElement) {
   async function action(name: string, el?: HTMLElement) {
     if (name.startsWith("nav-")) return navigate(name.slice(4));
     switch (name) {
+      case "conversation-starter":
+        draft = `/${el?.dataset.command ?? "goal"} `; view = "chat"; render(); root.querySelector<HTMLTextAreaElement>("#composer")?.focus(); return;
+      case "conversation-history":
+        view = "chat"; historyOpen = !historyOpen;
+        if (historyOpen) { await workGoals.open(workContext()); codingHistory = project ? await rpc("helm.list", {root:project,profile:profile.id}) : []; codingDrafts = (await rpc("helm.handoff.list",{profile:profile.id})).filter((item:Row)=>!item.root || item.root===project); }
+        render(); return;
+      case "conversation-draft": {
+        const selected = codingDrafts.find(item=>item.id===el?.dataset.id && item.status==="draft");
+        if(!selected)return;
+        draft=`/code Use browser draft ${selected.id} (${selected.notebook.title}). Read it with helm_handoffs and retain its handoffId when delegating. ${selected.prompt}`;
+        historyOpen=false;render();root.querySelector<HTMLTextAreaElement>("#composer")?.focus();return;
+      }
+      case "conversation-review": {
+        const run = codingHistory.find(item => item.id === el?.dataset.id);
+        if (!run) return;
+        if (!session || session.root !== run.root) await newChat(run.root);
+        historyOpen = false; render(); await chatWork.reviewRun(run); return;
+      }
       case "ecosystem-open": {
         const id = el?.dataset.plugin;
         if (!ecosystemPlugins.some(plugin => plugin.id === id)) return;
@@ -2118,11 +2126,11 @@ export function mountWorkbench(root: HTMLElement) {
           if (view === "webhooks") void webhooks.refresh();
           return;
         }
-        if (e.kind === "desktop.helm") { if(view === "helm")void helm.refresh(); if(view === "chat")void chatWork.refresh(); return; }
+        if (e.kind === "desktop.helm") { if(view === "chat")void chatWork.refresh(); return; }
         if (e.kind === "desktop.work") {
           if(view === "chat" && (!e.profile || e.profile === profile.id))void chatWork.refresh();
           if (view === "work" && (!e.profile || e.profile === profile.id)) void workGoals.refresh();
-          if (view === "helm" && (!e.profile || e.profile === profile.id)) void helm.refreshWorkAcceptance();
+          if (historyOpen && (!e.profile || e.profile === profile.id)) void workGoals.refresh();
           return;
         }
         if (e.kind === "desktop.codex.auth") {

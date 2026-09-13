@@ -23,7 +23,7 @@ it("creates a scoped DAG after reserving durably and records ownership before st
 });
 it("rejects authority overrides, malformed/cyclic plans and budgets before callbacks", async () => {
   const { scope, run } = fixture();
-  for (const bad of [{ ...plan, root: "/outside" }, { ...plan, tasks: [{ ...plan.tasks[0], profile: "admin" }] }, { ...plan, maxTokens: 50_001 }, { ...plan, maxMinutes: 16 }, { ...plan, tasks: [{ ...plan.tasks[0], dependsOn: ["one"] }] }]) {
+  for (const bad of [{ ...plan, root: "/outside" }, { ...plan, tasks: [{ ...plan.tasks[0], profile: "admin" }] }, { ...plan, maxTokens: 300_001 }, { ...plan, maxMinutes: 16 }, { ...plan, tasks: [{ ...plan.tasks[0], dependsOn: ["one"] }] }]) {
     expect((await run("delegate_work", bad)).ok).toBe(false);
   }
   expect(scope.reserve).not.toHaveBeenCalled(); expect(scope.create).not.toHaveBeenCalled();
@@ -32,7 +32,7 @@ it("rejects authority overrides, malformed/cyclic plans and budgets before callb
 });
 it("limits cumulative allocations and respects persisted reservation refusals on later turns", async () => {
   let spent = 0;
-  const reserve = vi.fn(({ tokens }: { tokens: number }) => { if (spent + tokens > 25_000) throw new Error("Durable budget exhausted"); spent += tokens; });
+  const reserve = vi.fn(({ tokens }: { tokens: number }) => { if (spent + tokens > 150_000) throw new Error("Durable budget exhausted"); spent += tokens; });
   const first = fixture({ reserve }); expect((await first.run("delegate_work", plan)).ok).toBe(true);
   const later = fixture({ reserve, ownedGoals: ["child"] });
   expect(await later.run("delegate_work", plan)).toMatchObject({ ok: false, output: "Durable budget exhausted" });
@@ -93,4 +93,12 @@ it("binds inbox reads to the trusted worker identity without consuming messages"
  expect(state.tasks[0].messages).toHaveLength(1);
  expect((await worker.run("delegation_inbox",{goal:"child",task:"two"})).ok).toBe(false);
  expect((await worker.run("delegation_inbox",{goal:"foreign"})).ok).toBe(false);
+});
+
+it("rejects nonviable team budgets before reserving or creating workers", async () => {
+ const f=fixture();
+ for (const maxTokens of [2000,8000,49999]) expect((await f.run("delegate_work",{...plan,maxTokens})).ok).toBe(false);
+ expect(f.scope.reserve).not.toHaveBeenCalled();
+ expect((await f.run("delegate_work",plan)).ok).toBe(true);
+ expect(f.scope.create).toHaveBeenCalledWith(expect.objectContaining({maxTokens:150000}));
 });

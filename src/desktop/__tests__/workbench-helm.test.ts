@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { WorkbenchService } from "../core/workbench-service";
 const directories: string[] = [], services: WorkbenchService[] = [], servers: Server[] = [];
 afterEach(() => { services.splice(0).forEach(s => s.close()); servers.splice(0).forEach(s => { s.closeAllConnections(); s.close(); }); directories.splice(0).forEach(path => rmSync(path, { recursive: true, force: true })); });
-async function fixture() {
+async function fixture(delegateExtra:Record<string,unknown> = {}) {
   const directory = mkdtempSync(join(tmpdir(), "helm-workbench-")); directories.push(directory);
   const root = join(directory, "project"); mkdirSync(root); writeFileSync(join(root, "code.js"), "original\n");
   for (const args of [["init", "-q"], ["add", "."], ["-c", "user.name=Helm test", "-c", "user.email=helm@example.invalid", "commit", "-qm", "fixture"]]) execFileSync("git", args, { cwd: root });
@@ -17,7 +17,7 @@ async function fixture() {
   const events: any[] = [], requests: any[] = [];
   const server = createServer((req, res) => { let raw = ""; req.on("data", chunk => raw += chunk); req.on("end", () => {
     const request = JSON.parse(raw); requests.push(request);
-    const content = !request.messages[0].content.includes("- helm_delegate:") ? "ANSWER: Inspected the isolated code without additional delegation." : /^TOOL_(RESULT|ERROR):/.test(request.messages.at(-1).content) ? "ANSWER: Delegated. Inspect Helm for the result." : 'TOOL: helm_delegate\nINPUT: {"agent":"codex","prompt":"Fix the code","model":"fixture-selected-model","maxMinutes":1}';
+    const content = !request.messages[0].content.includes("- helm_delegate:") ? "ANSWER: Inspected the isolated code without additional delegation." : /^TOOL_(RESULT|ERROR):/.test(request.messages.at(-1).content) ? "ANSWER: Delegated. Inspect Helm for the result." : 'TOOL: helm_delegate\nINPUT: '+JSON.stringify({agent:'codex',prompt:'Fix the code',model:'fixture-selected-model',maxMinutes:1,...delegateExtra});
     res.writeHead(200, { "content-type": "text/event-stream" }); res.end(`data: ${JSON.stringify({ choices: [{ delta: { content } }], usage: { prompt_tokens: 10, completion_tokens: 5 } })}\n\ndata: [DONE]\n\n`);
   }); }); servers.push(server); await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   const service = new WorkbenchService(join(directory, "data"), event => events.push(event), { ...process.env, NODE_ENV: "test", HADES_WEBHOOK_PORT: "0", HADES_BROWSER_RUNTIME: "0", HADES_HELM_CODEX_BIN: binary }); services.push(service);
@@ -113,4 +113,17 @@ it("requires verified source review through owned RPC and retains its applicatio
   await expect(service.dispatch("helm.preview.open",{id:run.id,sourceCheckId:source.id,requestId:randomUUID(),url:"http://127.0.0.1:3000"})).rejects.toThrow(/originating Browser/);
   writeFileSync(join(root,"code.js"),"later source change\n");
   expect((await service.dispatch("helm.source.get",{id:run.id,reviewId:review.id,sourceCheckId:source.id}) as any).status).toBe("stale");
+});
+
+it("consumes a browser draft through the parent chat and preserves its evidence",async()=>{
+ const draftId=randomUUID();const {service,root,events}=await fixture({handoffId:draftId});
+ await service.dispatch("browser.helmDraft",{requestId:draftId,prompt:"Implement",notebook:{id:"note",workspaceId:"space",title:"Browser findings",body:"Original notebook evidence",sources:[]}});
+ const session:any=await service.dispatch("session.new",{root});
+ await service.dispatch("chat.send",{id:session.id,input:"Use the selected browser draft"});
+ await vi.waitFor(()=>expect(events.some(e=>e.kind==="desktop.approval"&&e.tool==="helm_delegate")).toBe(true));
+ const approval=events.find(e=>e.kind==="desktop.approval"&&e.tool==="helm_delegate");await service.dispatch("approval.reply",{id:approval.id,allow:true});
+ let run:any;await vi.waitFor(async()=>{run=(await service.dispatch("helm.list",{root}) as any[])[0];expect(run?.status).toBe("needs_review");});
+ expect(run).toMatchObject({handoffId:draftId,parentSession:session.id});expect(run.contextSnapshot).toContain("Original notebook evidence");
+ expect((await service.dispatch("session.get",{id:session.id}) as any).helmRuns).toContain(run.id);
+ expect((await service.dispatch("helm.handoff.list",{}) as any[])[0]).toMatchObject({status:"started",runId:run.id});
 });

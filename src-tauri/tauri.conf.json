@@ -5,7 +5,7 @@
   "identifier": "ai.hades.desktop",
   "build": {
     "frontendDist": "../dist/desktop",
-    "beforeBuildCommand": "node scripts/package-helm-orca.mjs --check && node scripts/check-helm-provenance.mjs && npm run desktop:build",
+    "beforeBuildCommand": "npm run desktop:build",
     "beforeDevCommand": "npm run desktop:build"
   },
   "app": {
@@ -50,10 +50,7 @@
       "../dist/desktop/sidecar-entry.js": "sidecar-entry.js",
       "../dist/runtime/node": "node",
       "../dist/runtime/hades-pty": "hades-pty",
-      "runtime-package.json": "package.json",
-      "../dist/runtime/helm-opencode": "helm-opencode",
-      "../dist/helm-ui/": "helm-ui/",
-      "../dist/helm-orca/": "helm-orca/"
+      "runtime-package.json": "package.json"
     },
     "macOS": {
       "minimumSystemVersion": "14.0"

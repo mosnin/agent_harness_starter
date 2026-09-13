@@ -1,4 +1,5 @@
 import { captureFocus, restoreFocus } from "./focus";
+import { actionSummary } from "./action-summary";
 import { HelmView } from "./helm";
 type Row = Record<string, any>;
 type Rpc = (method: string, args?: Row) => Promise<any>;
@@ -19,6 +20,11 @@ export class ChatWorkActivity {
     this.host=host;this.render();if(changed&&scope&&host)void this.refresh();
   }
   dispose(){this.mount(undefined,undefined);}
+  async reviewRun(run: Row) {
+    if (!this.scope || run.owner !== this.scope.profile || run.root !== this.scope.root) throw new Error("Open a conversation in this project before reviewing its changes.");
+    if (!this.rows.some(row => row.kind === "helm" && row.value.id === run.id)) this.rows.push({kind:"helm",value:run});
+    this.render(); await this.action("review",run.id);
+  }
   refresh():Promise<void> {
     if(this.inFlight){this.again=true;return this.inFlight;}
     const scope=this.scope,version=this.version;
@@ -35,6 +41,14 @@ export class ChatWorkActivity {
           rows.push(...await Promise.all(requests.slice(offset,offset+4).map(async item=>{
             let value=await this.rpc(item.kind==="work"?"work.get":item.kind==="orca"?"helm.orca.get":"helm.get",{id:item.id,root:scope.root,profile:scope.profile});
             if(value.id!==item.id||value.root!==scope.root)throw new Error("Task scope mismatch");
+            if(item.kind==="work") {
+              value={...value,tasks:await Promise.all((value.tasks??[]).map(async(task:Row)=>{
+                if(!task.pendingApproval || !task.session)return task;
+                const child=await this.rpc("session.get",{id:task.session,profile:task.profile??scope.profile});
+                if(child.id!==task.session || child.root!==scope.root || child.workGoal!==item.id)throw new Error("Worker approval scope mismatch");
+                return {...task,approval:child.progress?.approval};
+              }))};
+            }
             if(item.kind==="orca"){
               if(version!==this.version)return {kind:item.kind,value};
               if(["ready","stopping","unknown"].includes(value.state)&&value.dispatchId)value=await this.rpc("helm.orca.refresh",{id:item.id,root:scope.root,profile:scope.profile});
@@ -54,16 +68,24 @@ export class ChatWorkActivity {
     if(!this.host)return;
     const focus=captureFocus(this.host);
     this.host.querySelectorAll<HTMLDetailsElement>("details[data-task]").forEach(el=>{if(el.open)this.openDetails.add(el.dataset.task!);else this.openDetails.delete(el.dataset.task!);});
-    this.host.innerHTML=`${this.error?`<p role="alert">${esc(this.error)} <button type="button" data-chat-work="retry">Try again</button></p>`:""}${this.rows.length?`<section class="chat-work-progress" aria-label="Work in this conversation"><h3>Work in this conversation</h3>${this.rows.map(({kind,value:r})=>`<article class="chat-work-card"><div><strong>${esc(r.title||r.objective||r.prompt?.slice(0,120)||"Task")}</strong><span>${esc(label(r.status))}</span></div>${r.error?`<p>${esc(r.error)}</p>`:""}<details data-task="${esc(r.id)}" ${this.openDetails.has(r.id)?"open":""}><summary>Progress and result</summary>${kind==="work"?(r.tasks??[]).map((task:Row)=>`<section><strong>${esc(task.title||task.prompt||task.id)}</strong><p>${esc(label(task.status))}</p>${task.error?`<p role="alert">${esc(task.error)}</p>`:""}${task.evidence?.length?`<ul>${task.evidence.map((e:Row)=>`<li>${esc(e.path)}</li>`).join("")}</ul>`:""}${task.messages?.length?`<p class="help">${task.messages.length} pending team ${task.messages.length===1?"message":"messages"}</p>`:""}${task.answer?`<pre>${esc(String(task.answer).slice(-12000))}</pre>`:""}</section>`).join(""):`<pre>${esc(String(r.output||"No output yet.").slice(-12000))}</pre>`}</details><div class="chat-work-actions">${kind==="orca"?`<button type="button" data-chat-work="read" data-id="${esc(r.id)}">Read output</button>`:kind==="helm"?`<button type="button" data-chat-work="review" data-id="${esc(r.id)}">Review changes</button>`:`<button type="button" data-chat-work="discuss" data-id="${esc(r.id)}">Discuss results</button><button type="button" data-chat-work="steer" data-id="${esc(r.id)}">Message team</button>${["cancelled","interrupted","failed","paused","needs_review"].includes(r.status)?`<button type="button" data-chat-work="resume" data-id="${esc(r.id)}">Continue work</button>`:""}`}${["running","starting","stopping","ready","unknown"].includes(r.status)?`<button type="button" data-chat-work="stop" data-id="${esc(r.id)}" ${this.busy.has(r.id)?"disabled":""}>${this.busy.has(r.id)?"Requesting stop…":"Stop task"}</button>`:""}</div></article>`).join("")}<button type="button" data-chat-work="refresh">Refresh progress</button></section>`:""}<div class="chat-work-review-host"></div>`;
+    this.host.innerHTML=`${this.error?`<p role="alert">${esc(this.error)} <button type="button" data-chat-work="retry">Try again</button></p>`:""}${this.rows.length?`<section class="chat-work-progress" aria-label="Work in this conversation"><h3>Work in this conversation</h3>${this.rows.map(({kind,value:r})=>`<article class="chat-work-card"><div><strong>${esc(r.title||r.objective||r.prompt?.slice(0,120)||"Task")}</strong><span>${esc(label(r.status))}</span></div>${r.error?`<p>${esc(r.error)}</p>`:""}${kind==="work"?`<ul class="chat-team-members">${(r.tasks??[]).map((task:Row)=>`<li><span class="task-state" data-state="${esc(task.status)}"></span><span>${esc(task.title||task.id)}</span><small>${esc(task.approval?"Needs approval":label(task.status))}</small></li>`).join("")}</ul>${(r.tasks??[]).filter((task:Row)=>task.approval).map((task:Row)=>`<div class="approval" role="alert"><strong>${esc(task.title||"Worker")} needs approval</strong>${actionSummary(task.approval.tool,task.approval.input)}<button type="button" data-chat-work="allow" data-id="${esc(r.id)}" data-task="${esc(task.id)}">Allow once</button><button type="button" data-chat-work="deny" data-id="${esc(r.id)}" data-task="${esc(task.id)}">Deny</button></div>`).join("")}`:""}<details data-task="${esc(r.id)}" ${this.openDetails.has(r.id)?"open":""}><summary>Progress and result</summary>${kind==="work"?(r.tasks??[]).map((task:Row)=>`<section><strong>${esc(task.title||task.prompt||task.id)}</strong><p>${esc(label(task.status))}</p>${task.error?`<p role="alert">${esc(task.error)}</p>`:""}${task.evidence?.length?`<ul>${task.evidence.map((e:Row)=>`<li>${esc(e.path)}</li>`).join("")}</ul>`:""}${task.messages?.length?`<p class="help">${task.messages.length} pending team ${task.messages.length===1?"message":"messages"}</p>`:""}${task.answer?`<pre>${esc(String(task.answer).slice(-12000))}</pre>`:""}</section>`).join(""):`<pre>${esc(String(r.output||"No output yet.").slice(-12000))}</pre>`}</details><div class="chat-work-actions">${kind==="orca"?`<button type="button" data-chat-work="read" data-id="${esc(r.id)}">Read output</button>`:kind==="helm"?`<button type="button" data-chat-work="review" data-id="${esc(r.id)}">Review changes</button>`:`<button type="button" data-chat-work="discuss" data-id="${esc(r.id)}">Discuss results</button><button type="button" data-chat-work="steer" data-id="${esc(r.id)}">Message team</button>${["cancelled","interrupted","failed","paused","needs_review"].includes(r.status)?`<button type="button" data-chat-work="resume" data-id="${esc(r.id)}">Continue work</button>`:""}`}${["running","starting","stopping","ready","unknown"].includes(r.status)?`<button type="button" data-chat-work="stop" data-id="${esc(r.id)}" ${this.busy.has(r.id)?"disabled":""}>${this.busy.has(r.id)?"Requesting stop…":"Stop task"}</button>`:""}</div></article>`).join("")}<button type="button" data-chat-work="refresh">Refresh progress</button></section>`:""}<div class="chat-work-review-host"></div>`;
     if(this.reviewNode)this.host.querySelector(".chat-work-review-host")?.append(this.reviewNode);
-    this.host.querySelectorAll<HTMLElement>("[data-chat-work]").forEach(el=>{el.id=`chat-work-${el.dataset.chatWork}-${el.dataset.id ?? "all"}`;const version=this.version;el.onclick=()=>{void this.action(el.dataset.chatWork!,el.dataset.id).catch(error=>{if(version!==this.version)return;this.error=String(error instanceof Error?error.message:error);this.render();});};});
+    this.host.querySelectorAll<HTMLElement>("[data-chat-work]").forEach(el=>{el.id=`chat-work-${el.dataset.chatWork}-${el.dataset.id ?? "all"}${el.dataset.task ? "-"+el.dataset.task : ""}`;const version=this.version;el.onclick=()=>{void this.action(el.dataset.chatWork!,el.dataset.id,el.dataset.task).catch(error=>{if(version!==this.version)return;this.error=String(error instanceof Error?error.message:error);this.render();});};});
     this.host.querySelectorAll<HTMLDetailsElement>("details[data-task]").forEach(el=>{el.ontoggle=()=>{if(el.open)this.openDetails.add(el.dataset.task!);else this.openDetails.delete(el.dataset.task!);};});
     restoreFocus(this.host,focus);
   }
-  private async action(action:string,id?:string){
+  private async action(action:string,id?:string,taskId?:string){
     if(action==="refresh"||action==="retry")return this.refresh();
     const scope=this.scope,version=this.version,row=this.rows.find(row=>row.value.id===id);
     if(!scope||!row||this.busy.has(id!))return;
+    if(action==="allow"||action==="deny") {
+      const task=row.value.tasks?.find((task:Row)=>task.id===taskId);
+      if(!task?.approval || !task.session)return;
+      this.busy.add(id!);
+      try {await this.rpc("approval.reply",{id:task.approval.id,allow:action==="allow"});}
+      finally {if(version===this.version){this.busy.delete(id!);await this.refresh();}}
+      return;
+    }
     if(action==="steer"){this.draft(`Send this guidance to the team working on “${row.value.objective||row.value.title||"this task"}”: `);return;}
     if(action==="resume"){this.draft(`Inspect and resume unfinished work for “${row.value.objective||row.value.title||"this task"}” (plan ${row.value.id}) using its existing budget. Report any review or budget decision needed here.`);return;}
     if(action==="discuss"){this.draft(`Review the results of “${row.value.objective||row.value.title||"this task"}” and explain what is done and what still needs attention.`);return;}

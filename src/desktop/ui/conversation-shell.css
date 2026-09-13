@@ -1,0 +1,41 @@
+/* Conversation is the product surface; tools and execution engines support it. */
+.workbench .sidebar { background:var(--sidebar); }
+.workbench .new-chat,.workbench .nav-item,.workbench .session-row { min-height:36px; }
+.workbench .toolbar { min-height:48px; border-bottom-color:transparent; }
+.conversation-empty .primary { justify-content:center; padding-bottom:8vh; }
+.conversation-empty .transcript { flex:0 0 auto; overflow:visible; padding-bottom:20px; }
+.conversation-empty .welcome { max-width:680px; padding:0; margin:0 auto; text-align:center; align-items:center; }
+.conversation-mark { width:42px; height:42px; border-radius:12px; margin-bottom:20px; }
+.conversation-empty .welcome h1 { font-size:clamp(24px,2.5vw,32px); font-weight:500; line-height:1.2; letter-spacing:-.035em; margin:0 0 12px; }
+.conversation-empty .welcome p { max-width:480px; font-size:15px; line-height:1.6; margin:0; }
+.conversation-empty .composer-area { flex:0 0 auto; }
+.workbench .composer { background:var(--bg); border-radius:22px; box-shadow:0 3px 16px #00000006; }
+.workbench .composer textarea { min-height:82px; font-size:15px; padding:18px 18px 8px; }
+.workbench .composer-bottom { padding:8px 12px 12px; gap:4px; flex-wrap:wrap; }
+.workbench .send { width:34px; height:34px; min-width:34px; }
+.outcome-shortcuts { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:18px 0 12px; }
+.outcome-shortcuts button { border:1px solid var(--line); border-radius:999px; min-height:36px; padding:7px 13px; font-size:13px; background:transparent; }
+.outcome-shortcuts button:hover { background:var(--hover); }
+.conversation-history { border:1px solid var(--line); border-radius:16px; padding:18px; margin:18px 0; }
+.conversation-history > header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.conversation-history h2 { font-size:18px; margin:0; }
+.conversation-history > details > summary { padding:12px 0; cursor:pointer; }
+.conversation-history .page { padding:0; }
+.conversation-history .page-heading h1 { font-size:18px; }
+.conversation-history .page-heading { margin:12px 0; }
+.conversation-history > details > button { display:block; text-align:left; width:100%; margin:5px 0; }
+@media(max-width:900px) {
+  .conversation-empty .primary { padding-bottom:3vh; }
+  .workbench .composer-bottom .composer-spatial { font-size:12px; }
+  .workbench .composer .model-picker { max-width:165px; }
+  .workbench .composer-bottom > div { flex-wrap:wrap; }
+  .conversation-empty .transcript { padding-left:20px; padding-right:20px; }
+}
+
+.chat-team-members { list-style:none; padding:0; margin:14px 0; display:grid; gap:10px; }
+.chat-team-members li { display:flex; align-items:center; gap:9px; font-size:13px; }
+.chat-team-members small { margin-left:auto; color:var(--muted); }
+.task-state { width:7px; height:7px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+.task-state[data-state="running"] { background:var(--accent); }
+.task-state[data-state="completed"] { background:var(--success, #42a882); }
+.chat-work-card .approval { margin:12px 0; }

@@ -10,7 +10,10 @@ export function actionSummary(tool: string, input: unknown): string {
     if (!args || typeof args !== "object" || Array.isArray(args)) throw new Error("Invalid arguments");
   } catch { return `<p>${esc(tool)}</p><pre>${esc(raw)}</pre>`; }
   let title = "", body = "";
-  if (tool === "helm_delegate" || tool === "helm_orca_start") {
+  if (tool === "file_ops" && ["write","append","delete","mkdir"].includes(args.op)) {
+    title = ({write:"Write file",append:"Append to file",delete:"Delete file",mkdir:"Create folder"} as Record<string,string>)[args.op];
+    body = `<p class="mono">${esc(args.path)}</p>${typeof args.content==="string"?`<details><summary>Content to write</summary><pre>${esc(args.content)}</pre></details>`:""}`;
+  } else if (tool === "helm_delegate" || tool === "helm_orca_start") {
     title = `Start coding with ${agents[String(args.agent)] ?? "the selected agent"}`;
     body = `<p>${esc(args.prompt)}</p><p class="help">Works in a separate checkout. Changes remain available for review before integration.</p>`;
   } else if (tool === "delegate_work") {

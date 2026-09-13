@@ -69,7 +69,7 @@ it("approves agent-created work and child writes independently, enforces depende
   expect(readFileSync(join(root, "second.txt"), "utf8")).toBe("SECOND");
   await done(s, session.id); s.close();
   const restored = reopen();
-  expect(await restored.dispatch("session.get", { id: session.id })).toMatchObject({ delegatedWork: [goal.id], delegationReserved: { goals: 1, tasks: 2, tokens: 25000, minutes: 15 } });
+  expect(await restored.dispatch("session.get", { id: session.id })).toMatchObject({ delegatedWork: [goal.id], delegationReserved: { goals: 1, tasks: 2, tokens: 150000, minutes: 15 } });
   for (const task of goal.tasks) expect(await restored.dispatch("session.get", { id: task.session })).toMatchObject({ workGoal: goal.id, workOwner: "default" });
   expect(await restored.dispatch("work.get", { id: goal.id })).toMatchObject({ status: "completed", evidence: goal.evidence });
 });
@@ -108,7 +108,7 @@ it("retains goal ownership and cumulative allocation limits across service resta
     }
   }
   expect(await service.dispatch("work.list", {})).toHaveLength(2);
-  expect((await service.dispatch("session.get", { id: session.id }) as any).delegationReserved).toEqual({ goals: 2, tasks: 2, tokens: 50000, minutes: 30 });
+  expect((await service.dispatch("session.get", { id: session.id }) as any).delegationReserved).toEqual({ goals: 2, tasks: 2, tokens: 150000, minutes: 30 });
   expect(events.some(event => event.kind === "desktop.tool" && event.tool === "delegate_work" && event.ok === false && event.output.includes("delegation budget"))).toBe(true);
 });
 

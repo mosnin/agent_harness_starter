@@ -58,7 +58,7 @@ export class WorkGoalsView {
   private replacementRequest?: ReplacementPanel;
   private stopRequest?: { scope: number; goal: string };
   private resumeLimits: Record<string, string> = {};
-  constructor(private rpc: Rpc, private openSession: (id: string) => void, private openReview?: (run: HelmRun) => Promise<void>) {}
+  constructor(private rpc: Rpc, private openSession: (id: string) => void, private openReview?: (run: HelmRun) => Promise<void>, private startInChat?: () => void) {}
 
   async open(context: Context) {
     if (this.context?.profile !== context.profile || this.context?.root !== context.root) {
@@ -329,7 +329,7 @@ reports/summary.md">${esc(task.writes)}</textarea></label><p class="help">Choose
     const scope = this.scopeVersion;
     const auditScope = !this.creating && this.selected ? { goalId: String(this.selected.id), profile: this.context.profile, root: String(this.selected.root ?? this.context.root) } : undefined;
     if (!auditScope || !this.audit?.matches(auditScope)) { this.audit?.dispose(); this.audit = auditScope ? new WorkAuditView(this.rpc, auditScope) : undefined; }
-    this.host.innerHTML = `<div class="page work-page">${this.error ? `<p class="inline-notice" role="alert">${esc(this.error)}</p>` : ""}${this.notice ? `<p role="status">${esc(this.notice)}</p>` : ""}${this.creating ? this.form() : this.selected ? this.detail() : `<div class="page-heading"><h1>Work</h1><p>Goals, delegated tasks and their saved results.</p></div><div class="page-actions">${button("New work", "new", 'class="primary-button"')}${button("Refresh", "refresh")}</div>${this.goals.length ? this.goals.map(goal => `<div class="record"><div><h3>${esc(goal.objective)}</h3><small>${esc(label(goal.status))} · ${goal.tasks?.length ?? 0} tasks</small></div>${button("Open", "open", `data-id="${esc(goal.id)}"`)}</div>`).join("") : '<p class="help">Create a goal to organize work across your agents.</p>'}`}</div>`;
+    this.host.innerHTML = `<div class="page work-page">${this.error ? `<p class="inline-notice" role="alert">${esc(this.error)}</p>` : ""}${this.notice ? `<p role="status">${esc(this.notice)}</p>` : ""}${this.creating ? this.form() : this.selected ? this.detail() : `<div class="page-heading"><h1>${this.startInChat ? "Team activity" : "Work"}</h1><p>Goals, delegated tasks and their saved results.</p></div><div class="page-actions">${button("New work", "new", 'class="primary-button"')}${button("Refresh", "refresh")}</div>${this.goals.length ? this.goals.map(goal => `<div class="record"><div><h3>${esc(goal.objective)}</h3><small>${esc(label(goal.status))} · ${goal.tasks?.length ?? 0} tasks</small></div>${button("Open", "open", `data-id="${esc(goal.id)}"`)}</div>`).join("") : '<p class="help">Create a goal to organize work across your agents.</p>'}`}</div>`;
     this.host.querySelectorAll<HTMLDetailsElement>("details").forEach((item, index) => { if (expanded[index] !== undefined) item.open = expanded[index]; });
     if (this.audit) this.audit.mount(this.host.querySelector<HTMLElement>(".work-page")!);
     this.host.querySelectorAll<HTMLElement>("[data-work]").forEach((el, index) => {
@@ -384,6 +384,7 @@ reports/summary.md">${esc(task.writes)}</textarea></label><p class="help">Choose
     this.error = ""; this.notice = "";
     if (["new", "back", "open"].includes(action)) { this.replacement = undefined; this.resumeLimits = {}; }
     if (action === "new") {
+      if (this.startInChat) { this.startInChat(); return; }
       this.creating = true; this.objective = ""; this.nextCheck = 2; this.checks = [{ id: "check1", path: "", contains: "" }];
       this.tasks = [{ id: "task1", title: "", prompt: "", profile: this.context!.profile, dependsOn: [], writeMode: "project", writes: "", acceptance: [] }];
     } else if (action === "task-check-add") {

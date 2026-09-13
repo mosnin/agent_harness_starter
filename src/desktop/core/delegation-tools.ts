@@ -62,7 +62,7 @@ function view(goal: WorkGoal) {
 export function delegationTools(scope: DelegationScope): Tool[] {
   const owned = new Set(scope.ownedGoals ?? []);
   const maxGoals = scope.maxGoals ?? 2, maxTasks = scope.maxTasks ?? 4;
-  const maxTokens = scope.maxTokens ?? 50_000, maxMinutes = scope.maxMinutes ?? 15;
+  const maxTokens = scope.maxTokens ?? 300_000, maxMinutes = scope.maxMinutes ?? 15;
   let created = 0, reservedTokens = 0;
   const check = () => { if (scope.signal.aborted) throw new Error("Delegation cancelled"); };
   const permitted = (value: unknown) => { const target = id(value); if (!owned.has(target)) throw new Error("This conversation does not own that work plan"); return target; };
@@ -106,7 +106,7 @@ export function delegationTools(scope: DelegationScope): Tool[] {
     return {goal, task:task.id, messages:task.messages.slice(-32)};
   }));
   if (scope.depth < (scope.maxDepth ?? 1)) tools.unshift(make("delegate_work",
-    'Create and start a bounded dependent work plan in this conversation’s project/profile. Requires approval. JSON: {"objective":string,"tasks":[{"id":string,"title":string,"prompt":string,"dependsOn"?:string[],"writes"?:string[],"acceptance"?:[{"path":string,"contains"?:string}]}],"acceptance"?:[{"path":string,"contains"?:string}],"maxConcurrent"?:1..4,"maxTokens"?:number,"maxMinutes"?:number}. Declared edit paths coordinate tasks; they do not grant tool permissions. An omitted writes list reserves the whole project; [] declares no edits. Checked task artifacts gate dependents and must remain unchanged until acceptance. Do not claim completion before inspecting status and evidence.',
+    'Create and start a bounded dependent work plan in this conversation’s project/profile. Requires approval. JSON: {"objective":string,"tasks":[{"id":string,"title":string,"prompt":string,"dependsOn"?:string[],"writes"?:string[],"acceptance"?:[{"path":string,"contains"?:string}]}],"acceptance"?:[{"path":string,"contains"?:string}],"maxConcurrent"?:1..4,"maxTokens"?:number,"maxMinutes"?:number}. Omit maxTokens for the automatic budget (75000 per task); explicit budgets must reserve at least 25000 per task and stay within the scope cap. Declared edit paths coordinate tasks; they do not grant tool permissions. An omitted writes list reserves the whole project; [] declares no edits. Checked task artifacts gate dependents and must remain unchanged until acceptance. Do not claim completion before inspecting status and evidence.',
     value => {
       keys(value, ["objective", "tasks", "acceptance", "maxTokens", "maxMinutes", "maxConcurrent"]);
       if (!Array.isArray(value.tasks) || !value.tasks.length || value.tasks.length > maxTasks) throw new Error(`Choose one to ${maxTasks} tasks`);
@@ -127,7 +127,7 @@ export function delegationTools(scope: DelegationScope): Tool[] {
       });
       return { objective: string(value.objective, "objective", 16000), root: scope.root, profile: scope.profile, tasks, acceptance,
         maxConcurrent: integer(value.maxConcurrent, Math.min(2, maxTasks), 1, Math.min(4, maxTasks)),
-        maxTokens: integer(value.maxTokens, Math.min(25_000, maxTokens), 1000, maxTokens), maxMinutes: integer(value.maxMinutes, Math.min(15, maxMinutes), 1, maxMinutes), maxRounds: 2 };
+        maxTokens: integer(value.maxTokens, Math.min(75_000 * tasks.length, maxTokens), 25_000 * tasks.length, maxTokens), maxMinutes: integer(value.maxMinutes, Math.min(15, maxMinutes), 1, maxMinutes), maxRounds: 2 };
     }, async plan => {
       if (created >= maxGoals || reservedTokens + plan.maxTokens > maxTokens) throw new Error("This delegation scope has exhausted its child-work budget");
       // Reserve locally before an await; concurrent calls cannot race the cap.

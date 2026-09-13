@@ -34,3 +34,21 @@ it("polls acknowledged Orca state and retains explicit output through refresh",a
  await f.component.refresh();expect(f.rpc.mock.calls.some(([method])=>method==="helm.orca.refresh")).toBe(true);
  f.host.querySelector<HTMLButtonElement>('[data-chat-work="read"]')!.click();await settle();await f.component.refresh();expect(f.host.textContent).toContain("Partial worker output");
 });
+
+it("shows and resolves each worker approval in the parent conversation",async()=>{
+ const f=fixture();await settle();
+ const original=f.rpc.getMockImplementation()!;
+ (f.goal.tasks[0] as any).session="worker";(f.goal.tasks[0] as any).profile="p";(f.goal.tasks[0] as any).pendingApproval=true;
+ f.rpc.mockImplementation(async(method,args)=>method==="session.get"&&args.id==="worker"?{id:"worker",root:"/project",workGoal:"goal",progress:{approval:{id:"approval",tool:"file_ops",input:JSON.stringify({op:"write",path:"alpha.txt",text:"ALPHA"})}}}:original(method,args));
+ await f.component.refresh();
+ expect(f.host.textContent).toContain("API needs approval");
+ f.host.querySelector<HTMLButtonElement>('[data-chat-work="allow"]')!.click();await settle();
+ expect(f.rpc).toHaveBeenCalledWith("approval.reply",{id:"approval",allow:true});
+ expect(f.host.querySelector("form")).toBeNull();
+});
+it("does not expose approvals from a worker with mismatched lineage",async()=>{
+ const f=fixture();await settle();const original=f.rpc.getMockImplementation()!;
+ Object.assign(f.goal.tasks[0],{session:"worker",profile:"p",pendingApproval:true});
+ f.rpc.mockImplementation(async(method,args)=>method==="session.get"&&args.id==="worker"?{id:"worker",root:"/other",workGoal:"foreign",progress:{approval:{id:"foreign"}}}:original(method,args));
+ await f.component.refresh();expect(f.host.textContent).toContain("Worker approval scope mismatch");expect(f.host.querySelector('[data-chat-work="allow"]')).toBeNull();
+});

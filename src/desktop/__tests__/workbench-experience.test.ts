@@ -237,3 +237,17 @@ it("keeps restored errors beside the single composer",async()=>{
  (boot.sessions as any[]).push({id:"saved",title:"Saved task",profile:"p"});localStorage.setItem("hades.lastSession","saved");
  try{await mount();await settle();expect(root.querySelector('[role="alert"]')?.textContent).toContain("Run cancelled");expect(root.querySelector("#composer")).toBeTruthy();}finally{boot.sessions.splice(0);}
 });
+
+it("starts from an outcome shortcut without sending or opening a setup form", async()=>{
+ await mount();click('[data-action="conversation-starter"][data-command="team"]');await settle();
+ expect(root.querySelector<HTMLTextAreaElement>("#composer")?.value).toBe("/team ");
+ expect(root.querySelector("#work-goals-host")).toBeNull();expect(root.querySelector("#helm-host")).toBeNull();
+ const methods=(globalThis as any).__TAURI__.core.invoke.mock.calls.map(([,args]:any[])=>args?.cmd?.method);
+ expect(methods).not.toContain("chat.send");expect(methods).not.toContain("work.create");
+});
+it("closes saved activity when another conversation is selected",async()=>{
+ restoredSession={id:"saved",title:"Saved",root:"/project",messages:[]};
+ (boot.sessions as any[]).push({id:"saved",title:"Saved",profile:"p"});
+ try {await mount();click('[data-action="conversation-history"]');await settle();expect(root.querySelector(".conversation-history")).toBeTruthy();click('[data-action="session"][data-id="saved"]');await settle();expect(root.querySelector(".conversation-history")).toBeNull();expect(root.querySelector("#composer")).toBeTruthy();}
+ finally {boot.sessions.splice(0);}
+});

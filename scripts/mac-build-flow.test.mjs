@@ -38,7 +38,7 @@ if(name==='hdiutil'){const src=args[args.indexOf('-srcfolder')+1];if(!fs.existsS
  for(const p of ['dist/helm-ui/index.html','dist/runtime/helm-opencode','dist/runtime/hades-pty','dist/runtime/hades-computer','dist/desktop/sidecar-entry.js','dist/desktop/team-server.js','dist-hades/hades.js','src-tauri/target/debug/hades-desktop','src-tauri/icons/icon.icns','src-tauri/runtime-package.json','third_party/company-os/bundle.json','third_party/company-os/manifest.json'])put(p);
  put('dist-mac/Hades.app/sentinel','original');
  return {root,run(script='build_and_run.sh',args=['--build-only'],overrides={}) {
-  const env={...process.env,PATH:bin+':/usr/bin:/bin',BASH_ENV:join(root,'bash-env'),FLOW_TRACE:join(root,'trace'),HADES_SIGN_IDENTITY:'',HADES_MAUS_SOURCE_APP:join(root,'absent')};
+  const env={...process.env,PATH:bin+':/usr/bin:/bin',BASH_ENV:join(root,'bash-env'),FLOW_TRACE:join(root,'trace'),HADES_SIGN_IDENTITY:'',HADES_BUNDLE_HELM_ENGINES:'1',HADES_MAUS_SOURCE_APP:join(root,'absent')};
   delete env.HADES_APP_OUTPUT;delete env.FLOW_FAIL;
   return spawnSync('/bin/bash',[join(root,'script',script),...args],{cwd:root,env:{...env,...overrides},encoding:'utf8',timeout:20000});
  },trace(){return existsSync(join(root,'trace'))?readFileSync(join(root,'trace'),'utf8').trim().split('\n').filter(Boolean).map(JSON.parse):[];},preserved(){assert.equal(readFileSync(join(root,'dist-mac/Hades.app/sentinel'),'utf8'),'original');}};
@@ -54,9 +54,11 @@ test('release routes signing and archives to same candidate using inert credenti
 
 test('two simultaneous reservations admit only one build',async t=>{
  const f=fixture(t),app=join(f.root,'race/Hades.app');
- const env={...process.env,PATH:join(f.root,'fakebin')+':/usr/bin:/bin',BASH_ENV:join(f.root,'bash-env'),FLOW_TRACE:join(f.root,'trace'),HADES_APP_OUTPUT:app,HADES_SIGN_IDENTITY:'',HADES_MAUS_SOURCE_APP:join(f.root,'absent')};delete env.FLOW_FAIL;
+ const env={...process.env,PATH:join(f.root,'fakebin')+':/usr/bin:/bin',BASH_ENV:join(f.root,'bash-env'),FLOW_TRACE:join(f.root,'trace'),HADES_APP_OUTPUT:app,HADES_SIGN_IDENTITY:'',HADES_BUNDLE_HELM_ENGINES:'1',HADES_MAUS_SOURCE_APP:join(f.root,'absent')};delete env.FLOW_FAIL;
  const start=()=>new Promise((resolve,reject)=>{const child=spawn('/bin/bash',[join(f.root,'script/build_and_run.sh'),'--build-only'],{cwd:f.root,env,stdio:'ignore',timeout:20000});child.on('error',reject);child.on('close',resolve);});
  const statuses=await Promise.all([start(),start()]);assert.equal(statuses.filter(x=>x===0).length,1);
  assert.equal(f.trace().filter(x=>x.name==='npm'&&x.args.includes('desktop:build')).length,1);f.preserved();
  assert.ok(!f.trace().some(x=>['pgrep','kill','open','log'].includes(x.name)));
 });
+
+test('core conversation bundle does not require or package optional engines',t=>{const f=fixture(t),app=successful(f,f.run(undefined,undefined,{HADES_BUNDLE_HELM_ENGINES:'0'}));assert.ok(!f.trace().some(x=>x.name==='node'&&['scripts/package-helm-orca.mjs','scripts/check-helm-provenance.mjs','scripts/stamp-helm-bundle.mjs'].includes(x.args[0])));assert.ok(!existsSync(join(app,'Contents/Resources/helm-opencode')));assert.deepEqual(JSON.parse(readFileSync(join(app,'Contents/Resources/hades-capabilities.json'))),{conversationRuntime:true,bundledHelmEngines:0});});

@@ -17,11 +17,16 @@ else
   APP="${HADES_APP_OUTPUT:-$ROOT/dist-mac/Hades.app}"
 fi
 if [[ "$(uname -s)" != Darwin ]]; then echo "This script builds the macOS application." >&2; exit 1; fi
-node scripts/package-helm-orca.mjs --check
-node scripts/check-helm-provenance.mjs
-if [[ ! -f dist/helm-ui/index.html || ! -f dist/runtime/helm-opencode ]]; then
-  echo "Helm's OpenCode fork is not built. Run npm run helm:build -- --source /path/to/the/helm-integration/fork first." >&2
-  exit 1
+# Hades owns conversation execution. Optional engines are packaged only when
+# explicitly selected, with their full existing provenance checks.
+BUNDLE_ENGINES="${HADES_BUNDLE_HELM_ENGINES:-0}"
+if [[ "$BUNDLE_ENGINES" != 0 && "$BUNDLE_ENGINES" != 1 ]]; then echo "HADES_BUNDLE_HELM_ENGINES must be 0 or 1" >&2; exit 2; fi
+if [[ "$BUNDLE_ENGINES" == 1 ]]; then
+  node scripts/package-helm-orca.mjs --check
+  node scripts/check-helm-provenance.mjs
+  if [[ ! -f dist/helm-ui/index.html || ! -f dist/runtime/helm-opencode ]]; then
+    echo "Build the selected Helm engines before packaging them." >&2; exit 1
+  fi
 fi
 # Reserve the fresh path before compilation; a concurrent claimant must fail.
 if [[ "$MODE" == build ]]; then
@@ -62,8 +67,8 @@ cp third_party/company-os/bundle.json third_party/company-os/manifest.json "$APP
 cp dist-hades/hades.js "$APP/Contents/Resources/hades.js"
 cp dist/desktop/team-server.js "$APP/Contents/Resources/team-server.js"
 node scripts/package-codex-runtime.mjs "$APP/Contents/Resources"
-cp dist/runtime/node "$APP/Contents/Resources/node"
-node scripts/package-helm-orca.mjs --stage dist/helm-orca "$APP/Contents/Resources/helm-orca"
+cp -c dist/runtime/node "$APP/Contents/Resources/node"
+if [[ "$BUNDLE_ENGINES" == 1 ]]; then node scripts/package-helm-orca.mjs --stage dist/helm-orca "$APP/Contents/Resources/helm-orca"; fi
 cp dist/runtime/hades-pty "$APP/Contents/Resources/hades-pty"
 cp dist/runtime/hades-computer "$APP/Contents/Resources/hades-computer"
 MAUS_SOURCE="${HADES_MAUS_SOURCE_APP:-$ROOT/dist/runtime/HadesMaus.app}"
@@ -72,9 +77,14 @@ if [[ -d "$MAUS_SOURCE" ]]; then
 else
   echo "Native Maus is not bundled; configured external Maus MCP remains available. Set HADES_MAUS_SOURCE_APP to include a staged app."
 fi
-cp -c dist/runtime/helm-opencode "$APP/Contents/Resources/helm-opencode"
-rm -rf "$APP/Contents/Resources/helm-ui"
-cp -R dist/helm-ui "$APP/Contents/Resources/helm-ui"
+if [[ "$BUNDLE_ENGINES" == 1 ]]; then
+  cp -c dist/runtime/helm-opencode "$APP/Contents/Resources/helm-opencode"
+  rm -rf "$APP/Contents/Resources/helm-ui"
+  cp -R dist/helm-ui "$APP/Contents/Resources/helm-ui"
+else
+  rm -rf "$APP/Contents/Resources/helm-ui" "$APP/Contents/Resources/helm-orca" "$APP/Contents/Resources/helm-opencode"
+fi
+printf '%s\n' "{\"conversationRuntime\":true,\"bundledHelmEngines\":$BUNDLE_ENGINES}" > "$APP/Contents/Resources/hades-capabilities.json"
 cp src-tauri/icons/icon.icns "$APP/Contents/Resources/Hades.icns"
 # Keep Node package lookup inside the signed bundle, away from protected parent folders.
 cp src-tauri/runtime-package.json "$APP/Contents/Resources/package.json"
@@ -98,13 +108,14 @@ PLIST
 # an unnecessary full-size temporary copy on disk-constrained machines.
 if [[ -n "${HADES_SIGN_IDENTITY:-}" ]]; then
   for binary in codex node hades-pty hades-computer helm-opencode; do
+    [[ -f "$APP/Contents/Resources/$binary" ]] || continue
     if [[ "$binary" == node || "$binary" == helm-opencode ]]; then
       codesign --force --sign "$HADES_SIGN_IDENTITY" --timestamp --options runtime --entitlements src-tauri/runtime-entitlements.plist "$APP/Contents/Resources/$binary"
     else
       codesign --force --sign "$HADES_SIGN_IDENTITY" --timestamp --options runtime "$APP/Contents/Resources/$binary"
     fi
   done
-  node scripts/stamp-helm-bundle.mjs "$APP/Contents/Resources"
+  if [[ "$BUNDLE_ENGINES" == 1 ]]; then node scripts/stamp-helm-bundle.mjs "$APP/Contents/Resources"; fi
   codesign --force --sign "$HADES_SIGN_IDENTITY" --timestamp --options runtime "$APP"
 else
 if ! codesign --verify --strict "$APP/Contents/Resources/codex" 2>/dev/null; then
@@ -113,11 +124,13 @@ fi
 codesign --force --sign - "$APP/Contents/Resources/node"
 codesign --force --sign - "$APP/Contents/Resources/hades-pty"
 codesign --force --sign - "$APP/Contents/Resources/hades-computer"
-codesign --force --sign - "$APP/Contents/Resources/helm-opencode"
-node scripts/stamp-helm-bundle.mjs "$APP/Contents/Resources"
+if [[ "$BUNDLE_ENGINES" == 1 ]]; then
+  codesign --force --sign - "$APP/Contents/Resources/helm-opencode"
+  node scripts/stamp-helm-bundle.mjs "$APP/Contents/Resources"
+fi
 codesign --force --sign - "$APP"
 fi
-node scripts/package-helm-orca.mjs --check "$APP/Contents/Resources/helm-orca"
+if [[ "$BUNDLE_ENGINES" == 1 ]]; then node scripts/package-helm-orca.mjs --check "$APP/Contents/Resources/helm-orca"; fi
 codesign --verify --deep --strict "$APP"
 echo "Built: $APP"
 if [[ "$MODE" == build ]]; then exit 0; fi

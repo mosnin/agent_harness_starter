@@ -200,3 +200,10 @@ Do not re-sign native files after generating the trusted build manifest or silen
 `script/build_and_run.sh --build-only` now chooses a fresh `dist-mac/candidates/candidate.XXXXXX/Hades.app` and never inspects, stops or launches an application. `HADES_APP_OUTPUT` can specify a fresh path; an empty value, existing output (including dangling symlinks), or a destination inside an existing `.app` is refused before build commands. Existing parent symlinks are resolved for the app-ancestor check. The builder atomically reserves the final output directory before compilation, so competing builders cannot claim the same candidate. Failed builds may leave that fresh incomplete candidate for inspection; they do not overwrite the prior default app.
 
 `package_mac.sh` and `release_mac.sh` select and export the same fresh path before building, and archive that exact candidate rather than `dist-mac/Hades.app`. Run/verify/log modes keep their existing app lifecycle behavior. Build-only cannot be combined with a launch mode. This change was shell-syntax checked; actual builds and application control were not performed during implementation.
+
+
+## Conversation-native app packaging
+
+`script/build_and_run.sh --build-only` now builds the core Hades conversation app by default. Coding, task orchestration, inline approvals, changes and browser drafts are accessed from the conversation. OpenCode and Orca are optional execution adapters, not required UI destinations. Set `HADES_BUNDLE_HELM_ENGINES=1` to request a build containing those engines; their existing artifact and provenance checks remain mandatory. A core build does not bundle unchecked engine binaries.
+
+The generated `hades-capabilities.json` records whether optional engines were bundled. The custom build script stages them when explicitly requested; Tauri's mandatory resource list contains only core resources. Core packaging still signs and verifies the app and its helpers. See [conversation redesign evidence](conversation-product-redesign.md) for the installed-app validation and rollback boundary.

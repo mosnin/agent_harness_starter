@@ -1,0 +1,59 @@
+{
+  "conversation": "f6f6c090-a401-480c-8f5a-69b9372d320d",
+  "goal": "acf8641f-8a65-47ce-bb5e-abf72cbff00f",
+  "status": "completed",
+  "reportedTokens": 91351,
+  "tasks": [
+    {
+      "id": "alpha_worker",
+      "status": "completed",
+      "attempts": [
+        {
+          "id": "06500920-4d17-4526-a00f-5c6fc3a334cd",
+          "number": 1,
+          "status": "completed",
+          "startedAt": 1789258440314,
+          "reservedTokens": 75000,
+          "session": "884adad7-a595-439e-8512-dec25fc943c7",
+          "finishedAt": 1789258527275,
+          "tokens": 45927
+        }
+      ],
+      "evidence": [
+        {
+          "path": "hades-conversation-qa/alpha.txt",
+          "sha256": "1921b918b15842c7fdb115078e610263fac85f159c1d8e0ecec3d89a0faa4005",
+          "bytes": 6
+        }
+      ]
+    },
+    {
+      "id": "beta_worker",
+      "status": "completed",
+      "attempts": [
+        {
+          "id": "90ae0b90-925a-48d8-bf06-1074b1d9e495",
+          "number": 1,
+          "status": "completed",
+          "startedAt": 1789258440314,
+          "reservedTokens": 75000,
+          "session": "8ebe353c-e8cf-4930-ad00-d1e6f6568e79",
+          "finishedAt": 1789258532289,
+          "tokens": 45424
+        }
+      ],
+      "evidence": [
+        {
+          "path": "hades-conversation-qa/beta.txt",
+          "sha256": "a0d89cbe67e84a23d7de399463e2e9a6fb702a6c8acaab0dcdf36b32c2656d82",
+          "bytes": 5
+        }
+      ]
+    }
+  ],
+  "installedFiles": {
+    "Contents/MacOS/Hades": "4a58b2239d9b06dd9d781511c090beb259bd2c0b549d82a0295cb82c543d6bbd",
+    "Contents/Resources/sidecar-entry.js": "5b5c024b1a36edeeb502324744503d508d1df63f7fb6ace29cc74ea28b841c00",
+    "Contents/Resources/hades-capabilities.json": "6b5d1c389b8116d35419c66e3997e778b25bb02b0be07522ab6372fa2dfaa0d4"
+  }
+}

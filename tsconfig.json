@@ -19,5 +19,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["third_party/conversation-skills", "node_modules", "convex", "example-app", "dist", "vendor/opencode", "docs/research", ".research"]
+  "exclude": ["third_party/conversation-skills", "node_modules", "convex", "example-app", "dist", "dist-mac", "vendor/opencode", "docs/research", ".research"]
 }
