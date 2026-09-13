@@ -3,6 +3,7 @@ import { createServer, type Server } from "node:http";
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { workResultDigest } from "../core/durable-work";
 import { WorkbenchService } from "../core/workbench-service";
 const roots: string[] = [], services: WorkbenchService[] = [], servers: Server[] = [];
 afterEach(() => { services.splice(0).forEach(s => s.close()); servers.splice(0).forEach(server => { server.closeAllConnections(); server.close(); }); roots.splice(0).forEach(root => rmSync(root, { recursive: true, force: true })); });
@@ -133,4 +134,22 @@ it("child agents cannot recursively delegate or stop their parent even with a st
   expect(events.some(event => event.kind === "desktop.tool" && event.tool === "delegate_work" && event.ok === false && event.output.includes("unknown tool"))).toBe(true);
   expect(events.some(event => event.kind === "desktop.tool" && event.tool === "delegation_stop" && event.ok === false && event.output.includes("cannot stop"))).toBe(true);
   expect(requests.filter(request => currentInput(request).startsWith("Work objective:")).every(request => !request.messages[0].content.includes("Create and start a bounded dependent work plan"))).toBe(true);
+});
+
+it('requires inline approval before accepting read-only team reports in the owning chat',async()=>{
+ let review:any;
+ const {s,session,events}=await setup(request=>{
+  if(/^TOOL_(RESULT|ERROR):/.test(request.messages.at(-1).content))return 'ANSWER: Tool result inspected.';
+  if(currentInput(request).startsWith('Work objective:'))return 'ANSWER: Read-only report verified.';
+  return review?tool('delegation_accept_result',review):tool('delegate_work',{objective:'Read-only research',tasks:[{id:'research',title:'Research',prompt:'Report only',writes:[]}]});
+ });
+ await s.dispatch('chat.send',{id:session.id,input:'Run a read-only team'});await approval(s,events,'delegate_work');await done(s,session.id);
+ await vi.waitFor(async()=>expect((await s.dispatch('work.list',{}) as any[])[0].status).toBe('needs_review'));
+ const goal=(await s.dispatch('work.list',{}) as any[])[0];review={goal:goal.id,summary:'Reviewed the completed read-only report; no file checks claimed.',digest:workResultDigest(goal)};
+ let cursor=events.length;await s.dispatch('chat.send',{id:session.id,input:'Review this result'});
+ await approval(s,events,'delegation_accept_result',false,cursor);await done(s,session.id);
+ expect((await s.dispatch('work.get',{id:goal.id}) as any).status).toBe('needs_review');
+ cursor=events.length;await s.dispatch('chat.send',{id:session.id,input:'Accept the reviewed result'});
+ await approval(s,events,'delegation_accept_result',true,cursor);await done(s,session.id);
+ expect((await s.dispatch('work.get',{id:goal.id}) as any)).toMatchObject({status:'completed',resultReview:{session:session.id,digest:review.digest}});
 });

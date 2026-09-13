@@ -110,3 +110,26 @@ it('discovers only trusted owned plans and worker identity without accepting cal
  expect((await worker.run('delegation_context',{goal:'foreign'})).ok).toBe(false);
  expect(get).toHaveBeenCalledTimes(1);
 });
+
+it('restricts result review to the owning parent with an exact digest',async()=>{
+ const acceptResult=vi.fn(async()=>goal()),f=fixture({acceptResult,ownedGoals:['child']});
+ expect((await f.run('delegation_accept_result',{goal:'foreign',summary:'Checked',digest:'a'.repeat(64)})).ok).toBe(false);
+ expect((await f.run('delegation_accept_result',{goal:'child',summary:'Checked',digest:'bad'})).ok).toBe(false);
+ expect(acceptResult).not.toHaveBeenCalled();
+ expect((await f.run('delegation_accept_result',{goal:'child',summary:'Checked',digest:'a'.repeat(64)})).ok).toBe(true);
+ expect(acceptResult).toHaveBeenCalledWith('child','Checked','a'.repeat(64));
+ expect(fixture({acceptResult,depth:1}).tools.some(t=>t.name==='delegation_accept_result')).toBe(false);
+});
+
+it('exposes report truncation and scoped pages through the exact last character',async()=>{
+ const state=goal();state.tasks[0].answer='a'.repeat(4000)+'FINAL_EVIDENCE';
+ const f=fixture({ownedGoals:['child'],get:async()=>state});
+ const status=JSON.parse((await f.run('delegation_status',{goal:'child'})).output);
+ expect(status.tasks[0]).toMatchObject({answerTruncated:true,answerCharacters:4014});
+ const first=JSON.parse((await f.run('delegation_report',{goal:'child',task:'one'})).output);
+ expect(first.nextOffset).toBe(4000);expect(first.answer).toHaveLength(4000);
+ const last=JSON.parse((await f.run('delegation_report',{goal:'child',task:'one',offset:first.nextOffset})).output);
+ expect(last.answer).toBe('FINAL_EVIDENCE');expect(last.nextOffset).toBeNull();expect(last.resultDigest).toBe(status.resultDigest);
+ expect((await f.run('delegation_report',{goal:'foreign',task:'one'})).ok).toBe(false);
+ expect((await f.run('delegation_report',{goal:'child',task:'foreign'})).ok).toBe(false);
+});

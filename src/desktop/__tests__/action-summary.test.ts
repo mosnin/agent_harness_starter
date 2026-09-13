@@ -20,3 +20,12 @@ it("keeps unknown actions and malformed arguments visible without inventing an e
   expect(document.querySelector("pre")?.textContent).toBe("{not json}");
   expect(document.body.textContent).toContain("unknown");
 });
+
+it("distinguishes peer observations from parent instructions and explains result review",()=>{
+ document.body.innerHTML=actionSummary('delegation_message',JSON.stringify({input:'Observed output'}),{peer:true});
+ expect(document.body.textContent).toContain('Send a peer observation');
+ document.body.innerHTML=actionSummary('delegation_accept_result',JSON.stringify({summary:'Checked both reports',digest:'abc'}));
+ expect(document.querySelector('strong')?.textContent).toBe('Accept reviewed team results');
+ expect(document.querySelector('p:nth-child(2)')?.textContent).toBe('Checked both reports');
+ expect(document.querySelector('details pre')?.textContent).toContain('abc');
+});

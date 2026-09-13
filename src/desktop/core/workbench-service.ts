@@ -2571,6 +2571,7 @@ export class WorkbenchService {
         create: plan => this.work.create(plan, p.id),
         run: goal => this.work.run(goal, p.id),
         resume: goal => this.work.resume(goal, p.id),
+        acceptResult: (goal, summary, digest) => this.work.acceptResult(goal, p.id, summary, digest, id),
         get: goal => this.work.get(goal, workOwner),
         message: (goal, task, message) => lineage.workTask
           ? this.work.peerMessage(goal, workOwner, lineage.workTask, task, message)
@@ -2610,7 +2611,7 @@ export class WorkbenchService {
             });
             if (this.journalFailure) return { ok: false, output: this.journalFailure };
             if (
-              ["plugins_write", "delegate_work", "delegation_message", "delegation_stop", "delegation_resume", "helm_delegate", "helm_orca_start", "helm_orca_stop"].includes(tool.name) ||
+              ["plugins_write", "delegate_work", "delegation_message", "delegation_stop", "delegation_resume", "delegation_accept_result", "helm_delegate", "helm_orca_start", "helm_orca_stop"].includes(tool.name) ||
               tool.name === "computer_action" || tool.name === "maus" ||
               (tool.name === "hades_browser" && BROWSER_TOOL_SPECS.some(spec => spec.name === JSON.parse(value).name && spec.mutating) && !(this.browserRuns.get(id)?.task?.readOnly && READ_ONLY_BROWSER_TOOLS.has(JSON.parse(value).name))) ||
               tool.name.startsWith("mcp_") ||

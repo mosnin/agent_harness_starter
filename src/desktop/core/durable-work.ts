@@ -32,6 +32,13 @@ export interface WorkGoal {
   elapsedMs: number; createdAt: number; updatedAt: number; error?: string; maxConcurrent: number;
   acceptance: WorkOutputCheck[];
   evidence?: WorkOutputEvidence[];
+  resultReview?: { summary: string; digest: string; session: string; at: number };
+}
+/** Binds a conversation review to the actual completed reports and declared scope. */
+export function workResultDigest(goal: WorkGoal): string {
+  return hashWorkAuditSnapshot({id:goal.id,objective:goal.objective,acceptance:goal.acceptance,
+    tasks:goal.tasks.map(task=>({id:task.id,prompt:task.prompt,writes:task.writes,status:task.status,answer:task.answer,
+      acceptance:task.acceptance,evidence:task.evidence,attempts:task.attempts}))});
 }
 export interface WorkExecution {
   goal: string; task: string; profile: string; owner: string; root: string; prompt: string;
@@ -369,6 +376,18 @@ export class DurableWork {
     }, undefined, "work.resumed");
     return this.run(id, profile);
   }
+  /** Called only after the owning conversation approves review of these exact reports. */
+  acceptResult(id: string, profile: string, summary: string, digest: string, session: string) {
+    this.get(id, profile);
+    const review = {summary:clean(summary, "review summary", 8000),digest,session:ident(session),at:this.now()};
+    return this.edit(id, goal => {
+      if (workResultDigest(goal) !== digest) throw new Error("Results changed. Inspect the current reports before accepting them.");
+      if (goal.resultReview && goal.status === "completed") return;
+      if (goal.status !== "needs_review" || this.row(id).owner || this.active.has(id) || this.db.prepare("SELECT 1 FROM work_source_operations WHERE goal=?").get(id)) throw new Error("Wait for all work and source operations to finish before reviewing results.");
+      if (goal.acceptance.length || goal.tasks.some(task => task.acceptance?.length || task.writes === undefined || task.writes.length || task.status !== "completed" || !task.answer?.trim() || task.error || task.messages.some(message=>message.kind!=="peer"))) throw new Error("Conversation review is only for completed read-only reports without pending instructions or file checks.");
+      goal.resultReview = review; goal.status = "completed"; goal.error = undefined;
+    }, undefined, "work.result_reviewed");
+  }
   stop(id: string, profile: string) {
     const current = this.get(id, profile);
     const sourceClaims=this.db.prepare("SELECT id FROM work_source_operations WHERE goal=?").all(id) as Array<{id:string}>;
@@ -413,7 +432,7 @@ export class DurableWork {
         const affected = new Set([task]); let grew = true;
         while (grew) { grew = false; for (const child of g.tasks) if (!affected.has(child.id) && child.dependsOn.some(d => affected.has(d))) { affected.add(child.id); grew = true; } }
         for (const child of g.tasks) if (affected.has(child.id)) { child.status = "queued"; child.evidence = undefined; child.orcaAcceptance=undefined; }
-        g.status = "draft"; g.evidence = undefined;
+        g.status = "draft"; g.evidence = undefined; g.resultReview = undefined;
       }
     }, undefined, "task.steered", task);
   }

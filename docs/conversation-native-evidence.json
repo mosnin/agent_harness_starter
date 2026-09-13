@@ -52,8 +52,8 @@
     }
   ],
   "installedFiles": {
-    "Contents/MacOS/Hades": "4a58b2239d9b06dd9d781511c090beb259bd2c0b549d82a0295cb82c543d6bbd",
-    "Contents/Resources/sidecar-entry.js": "5b5c024b1a36edeeb502324744503d508d1df63f7fb6ace29cc74ea28b841c00",
+    "Contents/MacOS/Hades": "d271ea7f0baaddf07aa6c8cb35899ae43c36c4286c23236a1420b22d4e601e1a",
+    "Contents/Resources/sidecar-entry.js": "ebb8d516229c7993b98cd383baece88467791a2f538a2af016069c69ac77f303",
     "Contents/Resources/hades-capabilities.json": "6b5d1c389b8116d35419c66e3997e778b25bb02b0be07522ab6372fa2dfaa0d4"
   },
   "peerCoordination": {
@@ -175,5 +175,39 @@
     "installedSignature": "codesign --verify --deep --strict passed",
     "sidecarSha256": "d5b4baf25070fd55a9cadfe699e480a5c15d634cc44fb512e2110719593b82a3",
     "workingTreeBoundary": "Installed bundle also contains pre-existing unrelated Motion/external-conversation edits, excluded from this commit."
+  },
+  "resultReviewValidation": {
+    "conversation": "fa790be0-4702-4933-98f2-f68c1e00e4ec",
+    "goal": "6bab36bc-5357-4008-96e1-5c78c5d21f30",
+    "status": "completed",
+    "review": {
+      "summary": "Reviewed both complete, untruncated saved reports and attempt records for this bounded read-only peer-messaging test. Alpha and beta each discovered the other peer via delegation_context {}, each sent exactly one observation (alpha sent ALPHA_READY; beta sent BETA_READY), and each read its inbox exactly once. Beta's actual inbox result contained alpha's ALPHA_READY peer message; alpha's actual inbox result was empty because it read before BETA_READY arrived. Both tasks completed on attempt 1 and neither restarted. Both declared writes:[] and reported no files, shell commands, or edits. Acceptance is limited to this in-plan read-only messaging test; it does not verify external A2A federation or any files.",
+      "digest": "ba9aee2b82034d759aa43924403329cccd945ea56a3f13dea74fa97f070ae848",
+      "session": "fa790be0-4702-4933-98f2-f68c1e00e4ec",
+      "at": 1789267722806
+    },
+    "workerAttempts": [
+      1,
+      1
+    ],
+    "tests": 59,
+    "typecheck": "passed",
+    "nativeBuild": "full GUI and bundled backend rebuilt successfully",
+    "installedSignature": "codesign --verify --deep --strict passed",
+    "nativeObserved": [
+      "Readable Accept reviewed team results approval with collapsed technical details",
+      "Allow once commits review and changes goal to Finished in the same conversation",
+      "Neither worker was restarted; Continue work no longer shown"
+    ],
+    "limitations": [
+      "Human comprehension and enlarged-text/reflow were not tested.",
+      "Peer messaging is internal, not external A2A federation.",
+      "Native Git in Documents remains unverified."
+    ]
+  },
+  "initialInstalledFiles": {
+    "Contents/MacOS/Hades": "4a58b2239d9b06dd9d781511c090beb259bd2c0b549d82a0295cb82c543d6bbd",
+    "Contents/Resources/sidecar-entry.js": "5b5c024b1a36edeeb502324744503d508d1df63f7fb6ace29cc74ea28b841c00",
+    "Contents/Resources/hades-capabilities.json": "6b5d1c389b8116d35419c66e3997e778b25bb02b0be07522ab6372fa2dfaa0d4"
   }
 }

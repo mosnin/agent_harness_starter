@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, wr
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { DurableWork, type WorkExecution } from "../core/durable-work";
+import { DurableWork, workResultDigest, type WorkExecution } from "../core/durable-work";
 
 const homes: string[] = [], workers: DurableWork[] = [];
 afterEach(() => { for (const worker of workers.splice(0)) worker.close(); for (const home of homes.splice(0)) rmSync(home,{recursive:true,force:true}); });
@@ -209,4 +209,25 @@ it('retains parent steering capacity when a completed task has a full peer inbox
  expect(updated.status).toBe('draft');expect(updated.tasks[0].messages).toHaveLength(32);
  expect(updated.tasks[0].messages.at(-1)).toMatchObject({input:'Revise the result'});
  expect(updated.tasks[0].messages[0].input).toContain('Observation 1');
+});
+
+it('accepts exact read-only reports and invalidates the review on parent steering',async()=>{
+ const f=fixture(),g=f.create({tasks:[task('a')],acceptance:[]});f.worker.run(g.id,'owner');const done=await settled(f,g.id);
+ const digest=workResultDigest(done);expect(done.status).toBe('needs_review');
+ expect(()=>f.worker.acceptResult(g.id,'foreign','Verified the report',digest,'parent')).toThrow();
+ expect(()=>f.worker.acceptResult(g.id,'owner','Verified the report','0'.repeat(64),'parent')).toThrow('Results changed');
+ const accepted=f.worker.acceptResult(g.id,'owner','Verified the report; no file checks claimed.',digest,'parent');
+ expect(accepted.status).toBe('completed');expect(accepted.resultReview).toMatchObject({digest,session:'parent'});
+ expect(f.second().get(g.id,'owner').resultReview).toEqual(accepted.resultReview);
+ expect(f.worker.acceptResult(g.id,'owner','Repeated review',digest,'parent').resultReview).toEqual(accepted.resultReview);
+ expect(f.worker.message(g.id,'owner','a','Revise the report').resultReview).toBeUndefined();
+ expect(()=>f.worker.acceptResult(g.id,'owner','Stale acceptance',digest,'parent')).toThrow();
+});
+it('never substitutes report review for coding scope, pending work or configured checks',async()=>{
+ for(const overrides of [{tasks:[{...task('a'),writes:['result.txt']}],acceptance:[]},{tasks:[task('a')],acceptance:[{path:'missing.txt'}]}]){
+  const f=fixture(),g=f.create(overrides);f.worker.run(g.id,'owner');const done=await settled(f,g.id);
+  expect(()=>f.worker.acceptResult(g.id,'owner','Do not skip these checks',workResultDigest(done),'parent')).toThrow();
+ }
+ const f=fixture(),g=f.create({tasks:[task('a')],acceptance:[]});
+ expect(()=>f.worker.acceptResult(g.id,'owner','Not started yet',workResultDigest(g),'parent')).toThrow();
 });

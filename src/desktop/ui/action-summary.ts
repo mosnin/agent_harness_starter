@@ -2,7 +2,7 @@ const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, c => ({ 
 const agents: Record<string, string> = { codex: "Codex", claude: "Claude Code", gemini: "Gemini", opencode: "Helm", grok: "Grok", hades: "Hades" };
 
 /** Explain the proposed effect; the original arguments remain inspectable. */
-export function actionSummary(tool: string, input: unknown): string {
+export function actionSummary(tool: string, input: unknown, context: { peer?: boolean } = {}): string {
   const raw = typeof input === "string" ? input : JSON.stringify(input) ?? "";
   let args: Record<string, any>;
   try {
@@ -22,8 +22,11 @@ export function actionSummary(tool: string, input: unknown): string {
     if (Array.isArray(args.tasks)) body += `<ol>${args.tasks.map((task: any) => `<li>${esc(task?.title ?? task?.prompt ?? "Task")}</li>`).join("")}</ol>`;
     body += '<p class="help">Hades coordinates these tasks and shows their progress in this conversation.</p>';
   } else if (tool === "delegation_message") {
-    title = "Update the task instructions";
+    title = context.peer ? "Send a peer observation" : "Update the task instructions";
     body = `<p>${esc(args.input)}</p>`;
+  } else if (tool === "delegation_accept_result") {
+    title = "Accept reviewed team results";
+    body = `<p>${esc(args.summary)}</p><p class="help">Marks these read-only reports as reviewed in this conversation.</p>`;
   } else if (["delegation_stop", "helm_orca_stop", "helm_cancel"].includes(tool)) {
     title = "Stop the task";
     body = '<p>Request a stop. Saved work remains available for review.</p>';
