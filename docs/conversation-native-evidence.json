@@ -55,5 +55,125 @@
     "Contents/MacOS/Hades": "4a58b2239d9b06dd9d781511c090beb259bd2c0b549d82a0295cb82c543d6bbd",
     "Contents/Resources/sidecar-entry.js": "5b5c024b1a36edeeb502324744503d508d1df63f7fb6ace29cc74ea28b841c00",
     "Contents/Resources/hades-capabilities.json": "6b5d1c389b8116d35419c66e3997e778b25bb02b0be07522ab6372fa2dfaa0d4"
+  },
+  "peerCoordination": {
+    "externalTask": "152e0d8d-727b-4ac6-99ef-c272356fcb35",
+    "conversation": "fa790be0-4702-4933-98f2-f68c1e00e4ec",
+    "goal": "6bab36bc-5357-4008-96e1-5c78c5d21f30",
+    "status": "needs_review",
+    "reason": "Tasks finished without configured output checks. Review their results before accepting the objective.",
+    "reportedTokens": 78227,
+    "maxConcurrent": 2,
+    "tasks": [
+      {
+        "id": "alpha",
+        "session": "575472db-93c1-4a28-8ba9-9ff8dc17cdd5",
+        "status": "completed",
+        "attempts": [
+          {
+            "id": "297f835f-22f1-4e7c-bd24-75fad93e7678",
+            "number": 1,
+            "status": "completed",
+            "startedAt": 1789266902599,
+            "reservedTokens": 75000,
+            "session": "575472db-93c1-4a28-8ba9-9ff8dc17cdd5",
+            "finishedAt": 1789266942905,
+            "tokens": 38872
+          }
+        ],
+        "messages": [
+          {
+            "id": "444e0c3c-34fa-424b-8f60-b0efb675a207",
+            "input": "[From task beta; peer coordination]\nBETA_READY",
+            "at": 1789266951077,
+            "kind": "peer"
+          }
+        ],
+        "tools": [
+          {
+            "name": "delegation_context",
+            "ok": true,
+            "at": 1789266906701
+          },
+          {
+            "name": "delegation_message",
+            "ok": true,
+            "at": 1789266932987
+          },
+          {
+            "name": "delegation_inbox",
+            "ok": true,
+            "at": 1789266935382
+          }
+        ]
+      },
+      {
+        "id": "beta",
+        "session": "917eed60-3b80-4d0c-94ba-4b41cef64998",
+        "status": "completed",
+        "attempts": [
+          {
+            "id": "7a8683e1-ac65-4c9e-a891-2ff8772cbbde",
+            "number": 1,
+            "status": "completed",
+            "startedAt": 1789266902599,
+            "reservedTokens": 75000,
+            "session": "917eed60-3b80-4d0c-94ba-4b41cef64998",
+            "finishedAt": 1789266962392,
+            "tokens": 39355
+          }
+        ],
+        "messages": [
+          {
+            "id": "dd8e87d2-70e3-46fa-b298-99a1aa87f47d",
+            "input": "[From task alpha; peer coordination]\nALPHA_READY",
+            "at": 1789266932986,
+            "kind": "peer"
+          }
+        ],
+        "tools": [
+          {
+            "name": "delegation_context",
+            "ok": true,
+            "at": 1789266906096
+          },
+          {
+            "name": "delegation_message",
+            "ok": true,
+            "at": 1789266951079
+          },
+          {
+            "name": "delegation_inbox",
+            "ok": true,
+            "at": 1789266954854
+          }
+        ]
+      }
+    ],
+    "observations": [
+      "Both workers started at the same millisecond and completed exactly one attempt.",
+      "Beta read ALPHA_READY through delegation_inbox. Alpha read before BETA_READY arrived; the later message persisted without restarting alpha.",
+      "Final rebuilt app reopened the original conversation and both completed worker records. No worker was replayed."
+    ],
+    "acceptanceBoundary": "Real internal peer delivery and discovery, not external A2A protocol federation. No file checks were requested; objective remains needs_review."
+  },
+  "nativeGitDiagnostic": {
+    "documentsTask": "595053eb-c532-472e-88d6-0066a1033f27",
+    "workspaceTask": "196875bf-3e79-42bb-8ac8-8318d4b9ba88",
+    "git": "/Library/Developer/CommandLineTools/usr/bin/git",
+    "documentsRepository": "/Users/preston/Documents/Codex/2026-09-06/hades-repair",
+    "testRepository": "/Users/preston/hades-conversation-qa/native-git-proof",
+    "documentsResult": "Version succeeds; four repository invocations time out at 2500ms across working-directory and detached-process variants.",
+    "testWorkspaceResult": "All five cases succeed in 4-6ms. Newly created disposable repository; no protected project data copied.",
+    "osEvidence": "tccd attributed denied SystemPolicyAllFiles preflight checks to ai.hades.desktop for com.apple.git. This does not establish that Full Disk Access is required.",
+    "remaining": "Resolve scoped Documents access and repeat the actual native repository commit. No permissions were expanded."
+  },
+  "peerValidation": {
+    "tests": 46,
+    "typecheck": "passed",
+    "independentSourceReview": "No remaining blockers in peer-message scope after two review corrections.",
+    "installedSignature": "codesign --verify --deep --strict passed",
+    "sidecarSha256": "d5b4baf25070fd55a9cadfe699e480a5c15d634cc44fb512e2110719593b82a3",
+    "workingTreeBoundary": "Installed bundle also contains pre-existing unrelated Motion/external-conversation edits, excluded from this commit."
   }
 }

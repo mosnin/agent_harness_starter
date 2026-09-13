@@ -2572,8 +2572,9 @@ export class WorkbenchService {
         run: goal => this.work.run(goal, p.id),
         resume: goal => this.work.resume(goal, p.id),
         get: goal => this.work.get(goal, workOwner),
-        message: (goal, task, message) => this.work.message(goal, workOwner, task, lineage.workTask ? `[From task ${lineage.workTask}; peer coordination]
-${message}` : message),
+        message: (goal, task, message) => lineage.workTask
+          ? this.work.peerMessage(goal, workOwner, lineage.workTask, task, message)
+          : this.work.message(goal, workOwner, task, message),
         stop: goal => { if (lineage.workGoal) throw new Error("A child cannot stop its parent plan"); return this.stopWork(goal, p.id); },
       });
       for (const tool of [
@@ -2928,7 +2929,7 @@ ${message}` : message),
     if(review.runId!==run.id||check.runId!==run.id||check.reviewId!==review.id)throw new Error("Source checks belong to another result");
     const reasons:string[]=[];let evidence:ReturnType<typeof verifyWorkOutputs>=[];
     if(goal.status==="running")reasons.push("Stop Work before accepting a task result.");
-    if(task.messages.length)reasons.push("Pending task instructions must be resolved before acceptance.");
+    if(task.messages.some(message=>message.kind!=="peer"))reasons.push("Pending task instructions must be resolved before acceptance.");
     if(review.status!=="applied")reasons.push("Apply the reviewed changes first.");
     if(check.status!=="passed"||!check.after||check.before!==check.after||!check.checks.length||check.results.length!==check.checks.length||check.results.some(r=>r.exitCode!==0||r.error))reasons.push("Run fresh passing checks in the source project.");
     if(!task.acceptance?.length)reasons.push("This task needs configured output checks.");

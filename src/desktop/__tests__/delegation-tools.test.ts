@@ -102,3 +102,11 @@ it("rejects nonviable team budgets before reserving or creating workers", async 
  expect((await f.run("delegate_work",plan)).ok).toBe(true);
  expect(f.scope.create).toHaveBeenCalledWith(expect.objectContaining({maxTokens:150000}));
 });
+it('discovers only trusted owned plans and worker identity without accepting caller IDs', async()=>{
+ const get=vi.fn(async(id:string)=>goal(id));const worker=fixture({depth:1,taskId:'one',ownedGoals:['owned'],get});
+ const result=await worker.run('delegation_context',{});
+ expect(JSON.parse(result.output)).toMatchObject({taskId:'one',goals:[{id:'owned',tasks:[{id:'one'}]}]});
+ expect(get).toHaveBeenCalledWith('owned');
+ expect((await worker.run('delegation_context',{goal:'foreign'})).ok).toBe(false);
+ expect(get).toHaveBeenCalledTimes(1);
+});

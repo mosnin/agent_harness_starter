@@ -76,6 +76,7 @@ export function delegationTools(scope: DelegationScope): Tool[] {
   });
   const target = (value: Record<string, any>) => { keys(value, ["goal"]); return permitted(value.goal); };
   const tools: Tool[] = [
+    make("delegation_context", 'Discover the work plans owned by this conversation, your worker task ID, and peer task IDs/status. Input {}. Use these trusted IDs with status, inbox and messaging tools; do not ask the user to supply them.', value => { keys(value, []); return undefined; }, async () => ({ taskId: scope.taskId ?? null, goals: await Promise.all([...owned].map(async goal => view(await scope.get(goal)))) })),
     make("delegation_status", 'Inspect only a work plan delegated by this conversation. JSON: {"goal":string}. Returns actual status, bounded answers and output-check evidence.', target, async goal => view(await scope.get(goal))),
     make("delegation_wait", 'Wait up to 30 seconds for a delegated plan. JSON: {"goal":string,"seconds"?:1..30}. Returns its current state; timing out does not mean completion.', value => {
       keys(value, ["goal", "seconds"]); return { goal: permitted(value.goal), seconds: integer(value.seconds, 10, 1, 30) };

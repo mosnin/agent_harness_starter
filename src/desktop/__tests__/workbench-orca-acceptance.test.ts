@@ -116,3 +116,14 @@ it('Stop cancels new review work on an already accepted objective without undoin
   expect(f.host.helm.get(f.imported.run.id).status).not.toBe('running');expect(await f.service.dispatch('work.source.status',{})).toEqual([]);
   const goal:any=await f.service.dispatch('work.get',{id:f.goal.id});expect(goal.status).toBe('completed');expect(goal.tasks[0].orcaAcceptance).toBeTruthy();
 },20000);
+
+it('accepts reviewed output with peer observations but rejects unresolved parent steering',async()=>{
+ const f=await fixture(),args=await applied(f);
+ f.host.work.peerMessage(f.goal.id,'default','report','fix','Observed the passing source checks.');
+ expect((await f.service.dispatch('work.orca.acceptance',args) as any).eligible).toBe(true);
+ expect((await f.service.dispatch('work.orca.accept',args) as WorkGoal).tasks[0].status).toBe('completed');
+ f.host.work.message(f.goal.id,'default','fix','Revise the implementation.');
+ const pending:any=await f.service.dispatch('work.orca.acceptance',args);
+ expect(pending.eligible).toBe(false);expect(pending.reasons.join(' ')).toContain('Pending task instructions');
+ await expect(f.service.dispatch('work.orca.accept',args)).rejects.toThrow();
+},20000);

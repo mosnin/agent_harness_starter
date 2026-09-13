@@ -179,3 +179,34 @@ describe("DurableWork real SQLite and filesystem integration",()=>{
   const f=fixture(async()=>({...ok,tokens:NaN})),g=f.create();f.worker.run(g.id,"owner");const done=await settled(f,g.id);expect(done.status).toBe("budget_exhausted");expect(done.tasks[0].error).toContain("valid token usage");expect(done.tokens).toBe(0);expect(done.tasks[0].reservedTokens).toBe(300000);
  });
 });
+
+it('persists peer messages without reopening completed tasks or their checked dependents',async()=>{
+ const f=fixture(),g=f.create({tasks:[task('a'),task('b','b',['a'])]});
+ f.worker.run(g.id,'owner');const done=await settled(f,g.id);expect(done.status).toBe('completed');
+ const messaged=f.worker.peerMessage(g.id,'owner','b','a','Confirmed your result.');
+ expect(messaged.status).toBe('completed');expect(messaged.tasks.map(t=>t.status)).toEqual(['completed','completed']);
+ expect(messaged.evidence).toEqual(done.evidence);expect(messaged.tasks[0].evidence).toEqual(done.tasks[0].evidence);
+ expect(f.second().get(g.id,'owner').tasks[0].messages[0].input).toBe('[From task b; peer coordination]\nConfirmed your result.');
+ expect(()=>f.worker.peerMessage(g.id,'foreign','b','a','bad')).toThrow();
+ expect(()=>f.worker.peerMessage(g.id,'owner','foreign','a','bad')).toThrow();
+ expect(()=>f.worker.peerMessage(g.id,'owner','b','foreign','bad')).toThrow();
+});
+
+it('does not schedule another attempt for peer observations arriving during execution',async()=>{
+ const gate=deferred<Result>();let calls=0;const f=fixture(async()=>{calls++;return gate.promise;});
+ const g=f.create({tasks:[task('a')],maxTokens:10000});f.worker.run(g.id,'owner');
+ for(let i=0;i<20&&calls===0;i++)await new Promise(r=>setTimeout(r,5));
+ f.worker.peerMessage(g.id,'owner','a','a','Observed the expected output.');
+ gate.resolve(ok);const done=await settled(f,g.id);
+ expect(done.status).toBe('completed');expect(calls).toBe(1);expect(done.tasks[0].rounds).toBe(1);
+ expect(done.tasks[0].messages).toMatchObject([{kind:'peer',input:expect.stringContaining('Observed')}]);
+});
+
+it('retains parent steering capacity when a completed task has a full peer inbox',async()=>{
+ const f=fixture(),g=f.create();f.worker.run(g.id,'owner');await settled(f,g.id);
+ for(let i=0;i<32;i++)f.worker.peerMessage(g.id,'owner','a','a',`Observation ${i}`);
+ const updated=f.worker.message(g.id,'owner','a','Revise the result');
+ expect(updated.status).toBe('draft');expect(updated.tasks[0].messages).toHaveLength(32);
+ expect(updated.tasks[0].messages.at(-1)).toMatchObject({input:'Revise the result'});
+ expect(updated.tasks[0].messages[0].input).toContain('Observation 1');
+});
