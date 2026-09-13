@@ -108,7 +108,7 @@ export class ExternalConversations {
           id: session.id,
           profile: record.profile,
           input,
-          maxTokens: 50000,
+          maxTokens: args.browserOnly ? 50000 : 150000,
           maxRuntimeMs: 900000,
           ...(args.browserOnly ? { toolAllowlist: ["hades_browser"] } : {}),
         });
@@ -201,7 +201,7 @@ export class ExternalConversations {
           id: record.session,
           profile: record.profile,
           input,
-          maxTokens: 50000,
+          maxTokens: record.browserOnly ? 50000 : 150000,
           maxRuntimeMs: 900000,
         });
         receipt.state = "started";

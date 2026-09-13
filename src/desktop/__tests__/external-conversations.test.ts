@@ -156,3 +156,13 @@ it("returns an existing continuation receipt even when history is full", async (
     recovered.call({ ...request, requestId: "another" }),
   ).rejects.toThrow("history is full");
 });
+it.each([false, true])("allocates a bounded coding budget and retains the browser budget across continuation: %s", async browserOnly => {
+  const f = fixture();
+  const first: any = await f.service.call({operation:"delegate",requestId:"budget",input:"Work",browserOnly});
+  await f.service.call({operation:"continue",id:first.id,requestId:"next",input:"Finish checks"});
+  const sends=f.rpc.mock.calls.filter(([method])=>method==='chat.send');
+  expect(sends).toHaveLength(2);
+  for(const [,args] of sends) {
+    expect(args.maxTokens).toBe(browserOnly ? 50000 : 150000);
+  }
+});

@@ -83,7 +83,7 @@ import { ConversationalAgent } from "../../hades/repl/agent";
 import { AgentLoop } from "../../hades/agent/loop";
 import { ToolRegistry, type Tool } from "../../hades/agent/tools";
 import { prepareFileOperation } from "../../hades/tools/file-ops";
-import { workspaceTools } from "../../hades/runtime/tools";
+import { conversationWorkspaceTools } from "./conversation-workspace-tools";
 import { connectMcp, type DesktopMcpServer } from "./mcp-stdio";
 import { parseCron, nextFireTime } from "../../hades/schedule/cron";
 import { CodexProvider } from "../../hades/models/codex-provider";
@@ -497,7 +497,7 @@ export class WorkbenchService {
     if (input.model) meta.model = input.model;
     // A delegated built-in agent gets only project tools, not another layer of
     // delegation, browser access, computer control or arbitrary MCP services.
-    const toolAllowlist = workspaceTools(root, profile.shell).names(); meta.toolAllowlist = toolAllowlist; this.save();
+    const toolAllowlist = conversationWorkspaceTools(root, profile.shell).names(); meta.toolAllowlist = toolAllowlist; this.save();
     const abort = () => this.active.get(session.id)?.abort();
     signal.addEventListener("abort", abort, { once: true });
     try {
@@ -644,7 +644,7 @@ export class WorkbenchService {
       throw new Error("This conversation's tool scope cannot be widened. Start a new conversation to choose different capabilities.");
     // Scoped delegation and MCP need explicit child/discovery propagation. Refuse
     // them until that contract exists; do not start unselected MCP processes.
-    const available = new Set(workspaceTools(root, profile.shell).names());
+    const available = new Set(conversationWorkspaceTools(root, profile.shell).names());
     for(const name of ['plugins_list','plugins_read','plugins_record','plugins_write'])available.add(name);
     if(this.companyOs.status(profile.id).enabled)available.add('company_os_read');
     if(this.maus.status().available || this.spatialMcp(profile.id))available.add("maus");
@@ -1323,14 +1323,17 @@ export class WorkbenchService {
             providerReady = readiness.ready; providerMessage = readiness.message;
           } else { providerReady = true; providerMessage = "Provider configured. Availability will be checked when the task starts."; }
         } catch { providerMessage = "Provider readiness could not be checked. Review this profile in Hades Agent."; } finally { clearTimeout(readinessDeadline); }
-        return {protocol:BROWSER_PROTOCOL,connected:this.browserStatus().connected,providerReady,providerMessage,profile:{id:profile.id,name:profile.name,provider:profile.provider,model:profile.model},profiles:this.settings.profiles.map(({id,name,provider,model})=>({id,name,provider,model})),selectedProfileId:this.settings.browser?.profile ?? this.settings.activeProfile,requiresProject:false};
+        return {protocol:BROWSER_PROTOCOL,connected:this.browserStatus().connected,reconnectAllowed:this.settings.browser?.enabled === true,providerReady,providerMessage,profile:{id:profile.id,name:profile.name,provider:profile.provider,model:profile.model},profiles:this.settings.profiles.map(({id,name,provider,model})=>({id,name,provider,model})),selectedProfileId:this.settings.browser?.profile ?? this.settings.activeProfile,requiresProject:false};
       }
       case "browser.status": return this.browserStatus();
       case "browser.pair": {
+        const recovering = a.recover === true;
+        const prior = this.settings.browser;
+        if (recovering && (!prior?.enabled || prior.profile !== a.profile || this.browserStatus().connected)) throw new Error("Browser recovery is no longer available");
         const profile = this.profile(a.profile).id;
         const browserWorkspace = join(this.dataDir,"browser-workspace");
         if (a.root === undefined) mkdirSync(browserWorkspace,{recursive:true,mode:0o700});
-        const root = this.root(a.root ?? browserWorkspace);
+        const root = this.root(recovering ? prior!.root : a.root ?? browserWorkspace);
         const endpoint = validateBrowserEndpoint(text(a.endpoint, 500));
         const token = text(a.token, 512);
         if (!/^[A-Za-z0-9_-]{16,512}$/.test(token)) throw new Error("Invalid pairing token");
@@ -1345,8 +1348,8 @@ export class WorkbenchService {
         this.settings.browser = { endpoint, enabled: a.enabled, profile, root }; this.save();
         return this.browserStatus();
       }
-      case "browser.connect": return this.connectBrowser();
-      case "browser.disconnect": this.disconnectBrowser(); return this.browserStatus();
+      case "browser.connect": if (this.settings.browser) { this.settings.browser.enabled = true; this.save(); } return this.connectBrowser();
+      case "browser.disconnect": if (this.settings.browser) { this.settings.browser.enabled = false; this.save(); } this.disconnectBrowser(); return this.browserStatus();
       case "maintenance.diagnostics": return this.maintenance.diagnostics();
       case "maintenance.list": return this.maintenance.list();
       case "maintenance.create": return this.maintenance.create({ destination: text(a.destination, 4096) });
@@ -1696,7 +1699,7 @@ export class WorkbenchService {
       case "key.set":
         if(a.account==='ecosystem-master')throw new Error('Use the native Plugins unlock action');
         if (a.account === "team-access") this.team.restore(text(a.key, 4096));
-        if (a.account === "hades-browser") this.disconnectBrowser();
+        if (a.account === "hades-browser") { if (this.settings.browser) { this.settings.browser.enabled = false; this.save(); } this.disconnectBrowser(); }
         this.keys.set(text(a.account, 120), text(a.key, 4096));
         if (a.account === "slack-bot" || a.account === "slack-app") this.slack.credentials(this.keys.get("slack-bot") ?? "", this.keys.get("slack-app") ?? "");
         return true;
@@ -2581,7 +2584,7 @@ ${message}` : message),
         ...this.orcaSessionTools(id,p.id,root,controller.signal),
         ...this.helmSessionTools(id, p.id, root, controller.signal),
         ...this.browserTools(id, p.id, root, controller.signal),
-        ...workspaceTools(root, p.shell, controller.signal).list(),
+        ...conversationWorkspaceTools(root, p.shell, controller.signal).list(),
         ...(this.settings.computerEnabled ? this.computer.tools(controller.signal) : []),
         ...((this.maus.status().available || this.spatialMcp(p.id)) ? [this.maus.tool(root,controller.signal,this.spatialMcp(p.id))] : []),
         ...connected.flatMap((c) => c.tools),

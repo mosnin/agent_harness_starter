@@ -18,6 +18,7 @@ async function fixture(mode='flow') {
  s.send(JSON.stringify({id:randomUUID(),protocol:'1.0.0',kind:'response',type:e.type+'.result',at:Date.now(),sessionId:e.sessionId,replyTo:e.id,payload}));});});
  const server=createServer((req,res)=>{let raw='';req.on('data',d=>raw+=d);req.on('end',()=>{const body=JSON.parse(raw);modelRequests.push(body);const index=modelRequests.length-1;
  let content='ANSWER: Completed the browser task.';
+ if(mode==='command'&&index===0)content='TOOL: shell\nINPUT: '+JSON.stringify({cmd:process.execPath,args:['-e',"require('node:fs').writeFileSync('command-proof.txt','approved')"]});
  if(mode==='flow'&&index<3)content='TOOL: hades_browser\nINPUT: '+JSON.stringify(index===0?{name:'browser.listTabs',args:{}}:index===1?{name:'page.snapshot',args:{tabId:'tab'}}:{name:'page.click',args:{tabId:'tab',ref:'s1r1'}});
  if(((mode==='research'||mode==='research-memory')&&index===0)||(mode==='watch'&&index%2===0))content='TOOL: hades_browser\nINPUT: '+JSON.stringify({name:'browser.readPage',args:{tabId:'tab'}});
  if(mode==='research-memory'&&index===1)content='TOOL: hades_browser\nINPUT: '+JSON.stringify({name:'context.write',args:{kind:'note',title:'Research',body:'Observed price'}});
@@ -101,7 +102,7 @@ it('enforces a browser-only tool registry, records its scope, and refuses an uns
 
 it('validates tool scopes before starting work and refuses unknown, duplicate, unavailable and unsupported names',async()=>{
  const f=await fixture('answer');const session:any=await f.service.dispatch('session.new',{root:f.root});
- for(const toolAllowlist of [[],['hades_browser','hades_browser'],['unknown'],['shell'],['delegate_work'],['mcp_unknown'],'hades_browser',[null]])
+ for(const toolAllowlist of [[],['hades_browser','hades_browser'],['unknown'],['computer_action'],['delegate_work'],['mcp_unknown'],'hades_browser',[null]])
   await expect(f.service.dispatch('chat.send',{id:session.id,input:'Work',toolAllowlist})).rejects.toThrow(/Tool scope/);
  expect(f.modelRequests).toHaveLength(0);expect(f.events.some(e=>e.kind==='desktop.started')).toBe(false);expect(f.frames.some(e=>e.type==='task.started')).toBe(false);
 });
@@ -276,4 +277,32 @@ it('defaults browser pairing to a private workspace without replacing existing p
  const system=f.modelRequests[0].messages[0].content;expect(system).toContain('Workspace: '+paired.root);expect(system).toContain('Use attached tab IDs directly');expect(system).toContain('only when the target workspace or tab IDs are unknown');expect(system).toContain('Once the requested facts and source evidence are sufficient, return the final answer directly');
  expect(system).not.toContain('First browser.listWorkspaces');expect(system).not.toContain('Then page.snapshot');
  const explicit:any=await f.service.dispatch('browser.pair',{endpoint:f.endpoint,token:'fixture-explicit-root-token',root:f.root});expect(explicit.root).toBe(realpathSync(f.root));
+});
+it('recovery preserves the configured root and respects an explicit disconnect',async()=>{
+ const f=await fixture('answer');
+ const before=JSON.parse(readFileSync(join(f.data,'desktop.json'),'utf8')).browser;
+ await expect(f.service.dispatch('browser.pair',{endpoint:f.endpoint,token:'fixture-reconnect-token',profile:before.profile,recover:true})).rejects.toThrow('recovery');
+ await f.service.dispatch('browser.disconnect',{});
+ expect(await f.service.dispatch('browser.readiness',{})).toMatchObject({reconnectAllowed:false});
+ await expect(f.service.dispatch('browser.pair',{endpoint:f.endpoint,token:'fixture-reconnect-token',profile:before.profile,recover:true})).rejects.toThrow('recovery');
+ await f.service.dispatch('browser.configure',{...before,enabled:true});
+ await f.service.dispatch('browser.pair',{endpoint:f.endpoint,token:'fixture-reconnect-token',profile:before.profile,recover:true});
+ expect(JSON.parse(readFileSync(join(f.data,'desktop.json'),'utf8')).browser.root).toBe(before.root);
+ expect(await f.service.dispatch('browser.readiness',{})).toMatchObject({reconnectAllowed:true,connected:true});
+});
+
+it.each([false,true])('requires an inline decision before a default-profile command executes: %s',async allow=>{
+ const f=await fixture('command');const session:any=await f.service.dispatch('session.new',{root:f.root});
+ await f.service.dispatch('chat.send',{id:session.id,input:'Run the command',maxTokens:100000});
+ await vi.waitFor(()=>expect(f.events.some(e=>e.kind==='desktop.approval'&&e.tool==='shell')).toBe(true));
+ expect(existsSync(join(f.root,'command-proof.txt'))).toBe(false);
+ const approval=f.events.find(e=>e.kind==='desktop.approval');await f.service.dispatch('approval.reply',{id:approval.id,allow});
+ await vi.waitFor(()=>expect(f.events.some(e=>e.kind==='desktop.done')).toBe(true));
+ expect(existsSync(join(f.root,'command-proof.txt'))).toBe(allow);
+});
+it('does not expose desktop command proposals to a browser-only conversation',async()=>{
+ const f=await fixture('command');f.send('chat.send',{text:'Run a command'});
+ await vi.waitFor(()=>expect(f.frames.some(e=>e.type==='task.finished')).toBe(true));
+ expect(existsSync(join(f.root,'command-proof.txt'))).toBe(false);
+ expect(f.events.some(e=>e.kind==='desktop.approval'&&e.tool==='shell')).toBe(false);
 });

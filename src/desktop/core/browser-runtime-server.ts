@@ -118,7 +118,7 @@ export class BrowserRuntimeServer {
       if (body.profileId !== undefined && (typeof body.profileId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(body.profileId))) {
         this.reply(response,400,{error:"Choose an available Agent profile."}); return;
       }
-      this.reply(response, 200, await this.dispatch("browser.pair", { endpoint: endpoint.href, token: body.token, ...(body.profileId ? {profile:body.profileId} : {}) }));
+      this.reply(response, 200, await this.dispatch("browser.pair", { endpoint: endpoint.href, token: body.token, ...(body.profileId ? {profile:body.profileId} : {}), ...(body.recover === true ? {recover:true} : {}) }));
     }
     finally { this.pairing = false; }
   }
