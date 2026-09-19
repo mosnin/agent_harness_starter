@@ -300,11 +300,11 @@ describe("search + hooks", () => {
       expect(req.questions.window).toBeDefined();
       expect(req.questions.rel_0).toBeDefined();
       expect(req.questions.inj_0).toBeDefined();
+      expect(JSON.stringify(req.state)).not.toMatch(/ignore previous instructions/i);
       const answers: Record<string, JevAnswer> = {};
       for (const [id, q] of Object.entries(req.questions)) {
         if (q.type === "noul") {
-          if (id === "inj_1") answers[id] = noulAns(0.92);
-          else if (id === "src_code" || id.startsWith("inj_")) answers[id] = noulAns(0.2);
+          if (id === "src_code" || id.startsWith("inj_")) answers[id] = noulAns(0.2);
           else answers[id] = noulAns(0.8);
         } else if (q.type === "choice") answers[id] = choiceAns("latest", Object.keys(q.criteria));
         else answers[id] = noulAns(0.5);

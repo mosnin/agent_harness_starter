@@ -180,6 +180,22 @@ function adjustConfidence(
 
 // ── Core detection logic ──────────────────────────────────────────────────────
 
+/** Built-in patterns — used by the guardrail and by Jev's zero-RTT local block. */
+export const DEFAULT_INJECTION_PATTERNS: InjectionPattern[] = INJECTION_PATTERNS;
+
+const DEFAULT_BLOCK_THRESHOLD = 0.85;
+
+/**
+ * True when `text` matches a high-confidence jailbreak / instruction-override
+ * pattern. Screens and search/RAG filters use this so a canned injection
+ * never waits on TypeSafe and never leaves the box.
+ */
+export function hasLocalInjection(text: string, blockThreshold = DEFAULT_BLOCK_THRESHOLD): boolean {
+  if (!text) return false;
+  const result = detectInjection(text, INJECTION_PATTERNS);
+  return result.detected && result.maxConfidence >= blockThreshold;
+}
+
 export function detectInjection(
   input: string,
   patterns: InjectionPattern[]

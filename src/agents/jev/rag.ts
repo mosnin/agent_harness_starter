@@ -5,6 +5,7 @@
  */
 
 import { createJevAsker } from "./client";
+import { hasLocalInjection } from "./inject";
 import { NOUL } from "./policy";
 import { noul } from "./questions";
 import type { JevAsker, JevState } from "./types";
@@ -29,7 +30,7 @@ export async function filterPassages(input: {
   minRelevance?: number;
   maxInjection?: number;
 }): Promise<FilteredPassage[]> {
-  const batch = input.passages.slice(0, 24);
+  const batch = input.passages.slice(0, 24).filter((p) => !hasLocalInjection(p.text));
   if (batch.length === 0) return [];
   const minRelevance = input.minRelevance ?? 0.45;
   const maxInjection = input.maxInjection ?? NOUL.injectionReview;

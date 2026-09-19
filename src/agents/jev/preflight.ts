@@ -14,6 +14,7 @@ import { interpretHeedAnswers } from "./hooks";
 import { CLARIFY_REPLY } from "./ground";
 import { decideUnavailable, NOUL } from "./policy";
 import { choice, noul, score } from "./questions";
+import { hasLocalInjection, localInjectionBlock } from "./inject";
 import { hasSevereSecret, localSecretBlock } from "./redact";
 import {
   interpretModelRoute,
@@ -101,6 +102,23 @@ export async function runPreflight(input: PreflightInput): Promise<PreflightResu
         model: fallback.model,
         tier: fallback.id,
         reason: "leaks-secret-local",
+        node: "model_router",
+      },
+      heed: [],
+      skipGeneration: true,
+    };
+  }
+
+  if (hasLocalInjection(input.message)) {
+    return {
+      asks: 0,
+      screen: localInjectionBlock("screen_external"),
+      routed: {
+        action: "block",
+        value: fallback.id,
+        model: fallback.model,
+        tier: fallback.id,
+        reason: "injection-local",
         node: "model_router",
       },
       heed: [],

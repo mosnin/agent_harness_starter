@@ -8,6 +8,7 @@
 import { createJevAsker } from "./client";
 import { NOUL, noulBand, decideUnavailable } from "./policy";
 import { choice, noul, score } from "./questions";
+import { hasLocalInjection, localInjectionBlock } from "./inject";
 import { hasSevereSecret, localSecretBlock } from "./redact";
 import type { JevAsker, JevState, PolicyDecision } from "./types";
 import { requireChoice, requireNoul, requireScore } from "./validate";
@@ -23,6 +24,9 @@ export interface ScreenInput {
 export async function screenExternal(input: ScreenInput): Promise<PolicyDecision> {
   if (hasSevereSecret(input.content)) {
     return localSecretBlock("screen_external");
+  }
+  if (hasLocalInjection(input.content)) {
+    return localInjectionBlock("screen_external");
   }
   const asker = input.asker ?? createJevAsker();
   const asked = await asker.ask(

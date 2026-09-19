@@ -45,6 +45,7 @@ export {
   SEVERE_SECRET_LABELS,
 } from "./redact";
 export { splitSentences, interpretGrounding, abstainReply, CLARIFY_REPLY } from "./ground";
+export { hasLocalInjection, hasLocalInjectionIn, localInjectionBlock } from "./inject";
 export { screenExternal, screenOutput, verifyCitation, scanMalicious } from "./guardrails";
 export { scoreQuality, rerankResults, compositeScore, scorePage } from "./scoring";
 export { quietAsk, decideCompletion, decideCompaction, classifyCommandFailure, decideBrowserStep, judge } from "./decisions";

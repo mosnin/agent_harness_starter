@@ -15,7 +15,7 @@ export { GuardrailBlockError, GuardrailHumanReviewError };
 export type { GuardrailContext, GuardrailSet, InputGuardrail, OutputGuardrail } from "./types";
 
 // ── Prompt injection / jailbreak detection ────────────────────────────────────
-export { promptInjectionGuardrail, detectInjection, severityOf } from "./injection";
+export { promptInjectionGuardrail, detectInjection, hasLocalInjection, severityOf } from "./injection";
 export type { InjectionDetectorOptions, InjectionPattern, DetectionResult } from "./injection";
 export type { ThreatType, ThreatSeverity, ThreatMatch } from "./injection";
 

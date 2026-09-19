@@ -5,6 +5,7 @@
  */
 
 import { createJevAsker } from "./client";
+import { hasLocalInjection } from "./inject";
 import { NOUL } from "./policy";
 import { choice, noul } from "./questions";
 import type { RankCandidate, RankedCandidate } from "./scoring";
@@ -31,7 +32,12 @@ export async function planAndRerankSearch(input: {
     code: "Repository and diffs",
     news: "Recent news",
   };
-  const batch = input.results.slice(0, 40);
+  const batch = input.results
+    .slice(0, 40)
+    .filter((item) => !hasLocalInjection(item.snippet) && !hasLocalInjection(item.title ?? ""));
+  if (batch.length === 0) {
+    return { window: "anytime", sources: Object.keys(sources), ranked: [], asks: 0 };
+  }
   const asker = input.asker ?? createJevAsker();
   const questions: JevQuestions = {
     window: choice("What time window does `request` need?", {
