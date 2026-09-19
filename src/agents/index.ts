@@ -107,7 +107,7 @@ export { withGuidance, compileGuidance } from "./guidance/index";
 export type { GuidancePluginOptions, GuidanceRule, PolicyBundle, GateResult, GateContext } from "./guidance/index";
 
 // ── Swarm coordinator ─────────────────────────────────────────────────────────
-export { SwarmCoordinator } from "./swarm/coordinator";
+export { SwarmCoordinator, MAX_SWARM_MESSAGES } from "./swarm/coordinator";
 export { majorityVote, weightedAverage } from "./swarm/consensus";
 export type { SwarmTopology, AgentStatus, MessageType, SwarmAgent, SwarmMessage, SwarmTask, SwarmConfig, SwarmStats, Vote, ConsensusResult } from "./swarm/index";
 

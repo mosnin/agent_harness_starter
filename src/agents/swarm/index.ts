@@ -1,4 +1,4 @@
-export { SwarmCoordinator } from "./coordinator";
+export { SwarmCoordinator, MAX_SWARM_MESSAGES } from "./coordinator";
 export { majorityVote, weightedAverage } from "./consensus";
 export type {
   SwarmTopology,

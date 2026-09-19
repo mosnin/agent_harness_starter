@@ -31,15 +31,16 @@ export const get = internalQuery({
 });
 
 export const listByThread = internalQuery({
-  args: { threadId: v.id("agent_threads") },
+  args: { threadId: v.id("agent_threads"), limit: v.optional(v.number()) },
   returns: v.array(runDoc),
-  handler: async (ctx, { threadId }) => {
+  handler: async (ctx, { threadId, limit }) => {
     await requireOwnedThread(ctx, threadId);
+    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : 50;
     return await ctx.db
       .query("agent_runs")
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
       .order("desc")
-      .collect();
+      .take(take);
   },
 });
 

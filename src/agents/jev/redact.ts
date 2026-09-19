@@ -14,7 +14,7 @@ const PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bsk-[A-Za-z0-9_-]{20,}\b/g, label: "API_KEY" },
   { pattern: /\bsk_live_[A-Za-z0-9]{20,}\b/g, label: "API_KEY" },
   { pattern: /\bsk_test_[A-Za-z0-9]{20,}\b/g, label: "API_KEY" },
-  { pattern: /\bghp_[A-Za-z0-9]{36,}\b/g, label: "API_KEY" },
+  { pattern: /\bgh[pours]_[A-Za-z0-9]{36,}\b/g, label: "API_KEY" },
   { pattern: /\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, label: "API_KEY" },
   { pattern: /\bglpat-[A-Za-z0-9_-]{20,}\b/g, label: "API_KEY" },
   { pattern: /\bnpm_[A-Za-z0-9]{20,}\b/g, label: "API_KEY" },

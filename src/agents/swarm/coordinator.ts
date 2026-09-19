@@ -17,6 +17,9 @@ const DEFAULT_CONFIG: Required<Omit<SwarmConfig, "onMessage" | "onAgentJoin" | "
   taskTimeoutMs: 60000,
 };
 
+/** In-memory bus cap. Oldest lines drop first. */
+export const MAX_SWARM_MESSAGES = 200;
+
 export class SwarmCoordinator {
   private config: Required<SwarmConfig>;
   private agents: Map<string, SwarmAgent> = new Map();
@@ -269,14 +272,26 @@ export class SwarmCoordinator {
   // ---------------------------------------------------------------------------
 
   send(msg: Omit<SwarmMessage, "id" | "timestamp">): SwarmMessage {
+    const blocked = screenSwarmTask({
+      description: typeof msg.payload === "string" ? msg.payload : "",
+      payload: msg.payload,
+    });
     const fullMsg: SwarmMessage = {
       ...msg,
+      payload: blocked ? { blocked: blocked.reason } : msg.payload,
       id: randomUUID(),
       timestamp: Date.now(),
     };
     this.messages.push(fullMsg);
+    if (this.messages.length > MAX_SWARM_MESSAGES) {
+      this.messages.splice(0, this.messages.length - MAX_SWARM_MESSAGES);
+    }
     this.config.onMessage?.(fullMsg);
     return fullMsg;
+  }
+
+  getMessages(): SwarmMessage[] {
+    return this.messages.slice();
   }
 
   broadcast(

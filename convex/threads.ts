@@ -56,19 +56,26 @@ export const deleteThread = internalMutation({
   returns: v.null(),
   handler: async (ctx, { threadId }) => {
     await requireOwnedThread(ctx, threadId);
-    const messages = await ctx.db
-      .query("agent_messages")
-      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
-      .collect();
-    for (const message of messages) {
-      await ctx.db.delete(message._id);
+    const page = 64;
+    for (;;) {
+      const messages = await ctx.db
+        .query("agent_messages")
+        .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+        .take(page);
+      if (messages.length === 0) break;
+      for (const message of messages) {
+        await ctx.db.delete(message._id);
+      }
     }
-    const runs = await ctx.db
-      .query("agent_runs")
-      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
-      .collect();
-    for (const run of runs) {
-      await ctx.db.delete(run._id);
+    for (;;) {
+      const runs = await ctx.db
+        .query("agent_runs")
+        .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+        .take(page);
+      if (runs.length === 0) break;
+      for (const run of runs) {
+        await ctx.db.delete(run._id);
+      }
     }
     await ctx.db.delete(threadId);
     return null;

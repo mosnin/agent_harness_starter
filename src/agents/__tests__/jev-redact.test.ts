@@ -227,6 +227,12 @@ describe("zero-RTT secret redaction", () => {
     expect(hasSevereSecret(shop)).toBe(true);
     expect(hasSevereSecret(restricted)).toBe(true);
     expect(hasSevereSecret("xAI keys start with xai")).toBe(false);
+    const githubOauth = ["gho", "a".repeat(36)].join("_");
+    const githubUser = ["ghu", "b".repeat(36)].join("_");
+    expect(hasSevereSecret(githubOauth)).toBe(true);
+    expect(hasSevereSecret(githubUser)).toBe(true);
+    expect(redactSecrets(githubOauth).text).toBe("[API_KEY]");
+    expect(hasSevereSecret("gho tokens exist")).toBe(false);
   });
 
   it("treats SSNs as severe and leaves a date-shaped string alone", () => {
