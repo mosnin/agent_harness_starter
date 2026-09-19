@@ -35,6 +35,7 @@ import { createHadesHarness } from "@/agents/hades/index";
 import { redactSecrets } from "@/agents/jev/redact";
 import { isThreadOwner, messagesForHarness } from "@/agents/lib/thread-history";
 import { config } from "@/agents/lib/config";
+import { clampRequestedTools, oversizeJsonResponse } from "@/agents/lib/request-guard";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 
 // ── Agent registration ─────────────────────────────────────────────────────────
@@ -51,12 +52,14 @@ const bodySchema = z.object({
   message: z.string().min(1).max(32_000),
   threadId: z.string().optional(),
   agentName: z.string().default("research"),
-  tools: z.array(z.string()).optional(),
+  tools: z.array(z.string().max(80)).max(32).optional(),
 });
 
 export async function POST(req: Request) {
   try {
     const user = await auth.requireAuth(req);
+    const oversize = oversizeJsonResponse(req);
+    if (oversize) return oversize;
 
     const body = await req.json().catch(() => {
       throw new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
@@ -95,10 +98,10 @@ export async function POST(req: Request) {
 
     const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName }, user.id);
 
-    // Merge any extra tool names requested for this run
-    const effectiveConfig = tools?.length
-      ? { ...agentConfig, tools: [...(agentConfig.tools ?? []), ...tools] }
-      : agentConfig;
+    const effectiveConfig = {
+      ...agentConfig,
+      tools: clampRequestedTools(agentConfig.tools, tools, agentConfig.skills),
+    };
 
     const harness = config.agentProvider === "hades"
       ? createHadesHarness(effectiveConfig)

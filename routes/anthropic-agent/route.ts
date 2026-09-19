@@ -29,6 +29,7 @@ import { z } from "zod";
 import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
 import { redactSecrets } from "@/agents/jev/redact";
+import { oversizeJsonResponse } from "@/agents/lib/request-guard";
 import { isThreadOwner, messagesForHarness } from "@/agents/lib/thread-history";
 import { sseStream } from "@/agents/lib/utils";
 import { createAnthropicHarness } from "@/agents/providers/anthropic";
@@ -40,12 +41,14 @@ const bodySchema = z.object({
   message: z.string().min(1).max(32_000),
   threadId: z.string().optional(),
   sessionId: z.string().optional(),
-  vaultIds: z.array(z.string()).optional(),
+  vaultIds: z.array(z.string().max(80)).max(16).optional(),
 });
 
 export async function POST(req: Request) {
   try {
     const user = await auth.requireAuth(req);
+    const oversize = oversizeJsonResponse(req);
+    if (oversize) return oversize;
 
     const body = await req.json().catch(() => null);
     const parsed = bodySchema.safeParse(body);

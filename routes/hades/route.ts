@@ -12,6 +12,7 @@ import { db } from "@/agents/db";
 import { sseStream } from "@/agents/lib/utils";
 import { createHadesHarness } from "@/agents/hades/index";
 import { redactSecrets } from "@/agents/jev/redact";
+import { clampRequestedTools, oversizeJsonResponse } from "@/agents/lib/request-guard";
 import { isThreadOwner, messagesForHarness } from "@/agents/lib/thread-history";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 import "@/agents/examples";
@@ -23,12 +24,14 @@ const bodySchema = z.object({
   message: z.string().min(1).max(32_000),
   threadId: z.string().optional(),
   agentName: z.string().default("research"),
-  tools: z.array(z.string()).optional(),
+  tools: z.array(z.string().max(80)).max(32).optional(),
 });
 
 export async function POST(req: Request) {
   try {
     const user = await auth.requireAuth(req);
+    const oversize = oversizeJsonResponse(req);
+    if (oversize) return oversize;
     const body = await req.json().catch(() => {
       throw new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
     });
@@ -55,7 +58,7 @@ export async function POST(req: Request) {
 
     const harness = createHadesHarness({
       ...agentConfig,
-      tools: tools?.length ? [...(agentConfig.tools ?? []), ...tools] : agentConfig.tools,
+      tools: clampRequestedTools(agentConfig.tools, tools, agentConfig.skills),
     });
 
     async function* eventGenerator() {

@@ -208,7 +208,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
 
 ## 3. How a run actually moves
 
-1. **Ingress** — `/api/agent`, `/api/hades`, or `/api/voice`. All require `auth.requireAuth`. Voice clips larger than 8 MiB → `413`. `/api/hades`, `/api/agent`, and `/api/voice` refuse another user's `threadId` (404) and load the last 40 redacted turns so Jev follow-up reuse and compaction actually see the thread. Desktop `chat.send` / `voice.turn` keep the same buffer per `threadId`. `/api/voice` does not echo raw exception text.
+1. **Ingress** — `/api/agent`, `/api/hades`, or `/api/voice`. All require `auth.requireAuth`. Voice clips larger than 8 MiB → `413`. JSON bodies larger than 64 KiB → `413`. Client `tools` may only enable names the agent already has (config + skills); `shell_exec` cannot be added to a research agent. `/api/hades`, `/api/agent`, and `/api/voice` refuse another user's `threadId` (404) and load the last 40 redacted turns so Jev follow-up reuse and compaction actually see the thread. Desktop `chat.send` / `voice.turn` keep the same buffer per `threadId`. `/api/voice` does not echo raw exception text.
 2. **Voice intent** (voice only) — `voiceIntentHint`, then `classifyVoiceIntent`. Execution requires `action === "auto"` **and** `value === "execute_now"` (`shouldExecuteVoice`). Anything else clarifies, cancels, or refuses. Qwen never sees cancelled / unsafe / low-confidence audio.
 3. **`withJev.onBeforeRun`** — **one** System One call (`runPreflight`). Exact greetings still screen; Qwen is skipped with a canned reply only after the screen passes (or when `screenInput: false`).
    - `screenExternal` (injection / secrets / substance). Jev-down → **block**. Injection/secret *review* → HITL error.
@@ -447,6 +447,7 @@ Fixed:
 - `/api/voice` rejects bodies over 8 MiB.
 - Jev HTTP `baseUrl` is env-only (no request-controlled SSRF).
 - `/api/hades` and `/api/voice` use `auth.requireAuth`.
+- `/api/hades`, `/api/agent`, and `/api/anthropic-agent` reject JSON bodies over 64 KiB (`413`) and ignore client `tools` that are not already on the agent (config + skills).
 - `/api/hades`, `/api/agent`, and `/api/anthropic-agent` POST return 404 unless `thread.userId` matches the caller. They load thread history (redacted, last 40) instead of a single-line cold start.
 - `/api/agent/[runId]/approve` and `/cancel` return 404 unless the caller owns the run's thread (`getOwnedRun`).
 - `DELETE /api/threads/[id]` returns 404 unless the caller owns the thread (`getOwnedThread`). `db.deleteThread` is never called on another user's id.
@@ -546,6 +547,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 30 — Client tool allowlist + JSON body cap
+
+`/api/hades` and `/api/agent` appended client `tools` onto the agent and resolved them from the global registry. A caller could enable `shell_exec` / `deploy_prod` on a research agent. Requested names are now intersected with the agent's configured tools and skill bundles. JSON bodies larger than 64 KiB return `413` before parse (same class as the voice 8 MiB cap). `vaultIds` on `/api/anthropic-agent` is capped.
 
 ### Wave 29 — Tool-arg secrets when Auto Mode is off
 

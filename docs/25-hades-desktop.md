@@ -186,6 +186,8 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | Second `chat.send` on the same `threadId` | Harness `messages` include the prior user + assistant turn |
 | `desktop.result` / streamed tokens | API keys in `cap` stdout or Qwen deltas are `[API_KEY]` |
 | `chat.send` with `sk-…` / `AWS_SECRET_*=` | `jev.decision` `leaks-secret-local`, no System One body contains the raw key |
+| HTTP `POST /api/hades` with `tools: ["shell_exec"]` on a research agent | extra tool dropped; only configured / skill tools remain |
+| HTTP JSON body larger than 64 KiB | `413` before parse |
 | `desktop.act export` `{ path: "/etc/passwd" }` | `jev.decision` `target-local`, Cap not called |
 | `desktop.act` write with a pasted `sk-` | `jev.decision` `leaks-secret-local`, Cap not called |
 | `desktop.act` with "ignore previous instructions" | `jev.decision` `injection-local`, Cap not called |
