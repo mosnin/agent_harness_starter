@@ -438,7 +438,7 @@ Fixed:
 - Citation check fail-closed when evidence exists.
 - Browser scrape treats injection/secret *review* as a block (same as ingress).
 - Voice executes only on `auto` + `execute_now`.
-- Failed `shell_exec` classification fail-closed (stderr never reaches Qwen if Jev is down).
+- Failed `shell_exec` classification fail-closed for **unknown** stderr when Jev is down. Canned ENOENT / EACCES / ETIMEDOUT / TypeError are local and reach Qwen. Secrets never do.
 - `jev_*` MCP tools opt-in and auth-gated.
 - `/api/voice` rejects bodies over 8 MiB.
 - Jev HTTP `baseUrl` is env-only (no request-controlled SSRF).

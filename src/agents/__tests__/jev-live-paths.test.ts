@@ -134,8 +134,8 @@ describe("fail-closed security", () => {
     });
     const asker = createJevAsker(client);
     const denied = await classifyCommandFailure({
-      command: "cat secret",
-      output: "cat: secret: Permission denied",
+      command: "cat ./notes.txt",
+      output: "cat: ./notes.txt: Permission denied",
       asker,
     });
     const timeout = await classifyCommandFailure({
