@@ -219,7 +219,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
 4. **`withMemory`** — retrieve, then `filterPassages`. Jev-down → **drop all memories**.
 5. **Qwen generates** and may call tools. When the thread has more than one turn, `core.ts` passes typed `AgentInputItem`s to `run()` (not just the latest user string) so Qwen sees the conversation. `core.ts` drains `pendingPluginEvents` after `onBeforeRun` so the UI sees Jev decisions even before the first token.
 6. **`wrapTools`**
-   - `runToolGate` — Auto Mode + malware + patch + company + `invented_args` in **one** ask. Git-looking commands include git nouls in that same request. Hallucinated paths/URLs → HITL or block. Jev-down → **block**.
+   - `runToolGate` — Auto Mode + malware + patch + company + `invented_args` in **one** ask. Git-looking commands include git nouls in that same request. Hallucinated paths/URLs → HITL or block. Jev-down → **block**. Canned exfil/SSRF targets (`/etc/passwd`, `../.env`, `169.254.169.254`, `file://`) are `target-local` at zero RTT even on "safe read" tools.
    - Every tool result is **redacted** (API keys, tokens, private keys, connection strings) then harvested into `jevEvidence` with no extra Jev call. Search/browser evidence uses the same `mergeEvidence` path — raw secrets never reach Qwen, the compacted thread, memories, or persisted chat.
    - `scanMalicious` on `sandbox_run_code` / `modal_run`.
    - `judgePatch` on `file_patch`.
@@ -267,6 +267,9 @@ All under `src/agents/jev/`:
 | `cache.ts` | LRU + in-flight coalesce of successful asks | desktop prefetch / retries |
 | `compact.ts` | Apply keep/summarize/aggressive to the injected thread | pi-fast-jev-compaction |
 | `toolgate.ts` | One ask for Auto Mode + malware + patch + company + invented args | jev-ultrafast speculative heads |
+| `target.ts` | Zero-RTT exfil path / metadata URL block | safer-with-jev + invented_args |
+| `inject.ts` | Zero-RTT canned jailbreak labels | detectInjection |
+| `destructive.ts` | Zero-RTT wipe / force-git labels | AutoModeMiddleware |
 | `lib/thread-history.ts` | Own-thread check + last-40 redacted turns for the harness | follow-up reuse / compaction |
 | `harvest.ts` | Zero-RTT evidence cards from tool results (secrets stripped) | citation-verifier "code splits" |
 | `redact.ts` | Zero-RTT secret / PII strip before Qwen, memory, desktop, DB | safer-with-jev + guidance `secretsGate` |
@@ -314,11 +317,11 @@ These sit on real hops, not helper-only APIs:
 | `judgePatch` | jev-code verdict on `file_patch` |
 | `approveCompanyAction` | opencompany HITL on deploy / composio / transfer |
 | `verifyCitation` | Block drafts that contradict retrieved evidence (fail-closed) |
-| `browser_*` wrap | One-ask screen + next step (`jevBrowser`); local jailbreak/secret and Jev-down block |
+| `browser_*` wrap | One-ask screen + next step (`jevBrowser`); local jailbreak/secret, Jev-down, and stuck/BLOCKED stop the loop |
 | `AGENT_PROVIDER=hades` | `/api/agent` uses `createHadesHarness` |
 | Agent Chat | Streams `jev_decision`; Voice → `/api/voice` |
 | Desktop sidecar | `createDesktopHost` / `npm run desktop:sidecar`; Jev gates `desktop.act` before `cap` |
-| `runToolGate` | One System One call for Auto Mode + malware + patch + company + invented args |
+| `runToolGate` | One System One call for Auto Mode + malware + patch + company + invented args; local wipe / target labels first |
 | Thread history | Last 40 owned, redacted turns on `/api/hades`, `/api/agent`, and desktop `chat.send` |
 | Tool harvest | Append evidence cards with no extra Jev call |
 | Secret redaction | Strip keys from tool output, evidence, stream, memory, desktop `cap`, persisted threads |
@@ -447,7 +450,8 @@ Fixed:
 - Screens, preflight, postflight, and `classifyCommandFailure` short-circuit on `hasSevereSecret` (`leaks-secret-local`) so a pasted key is a zero-RTT block even when Jev is down. EMAIL is PII-redacted but not a severe block.
 - The same screens, plus search/RAG filters, short-circuit canned jailbreaks with `hasLocalInjection` (`injection-local`) so "ignore previous instructions" / DAN / fake system tags never wait on TypeSafe and never leave the box. Ambiguous injection still goes to Jev.
 - Auto Mode / `runToolGate` short-circuit canned destructive commands as `destructive-local`. Wipes (`rm -rf`, `DROP TABLE`, `dd`, …) block; force-git (`push --force`, `reset --hard`) is HITL. Only `command` / `cmd` / `args` are scanned so a README that mentions those strings is not blocked.
-- Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob).
+- Safe-read tools (`file_read`, `web_search`, …) skipped Jev entirely, so `/etc/passwd`, `../.env`, and `http://169.254.169.254/` never got a screen. `localTargetDecision` now blocks those on path/url keys (`target-local`) at zero RTT, including when Auto Mode is off. A search *query* that mentions `/etc/passwd` is not blocked.
+- Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
@@ -487,7 +491,7 @@ Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev n
 
 ## 13. Files touched (implementation inventory)
 
-**Decision core:** `src/agents/jev/*` (including `browser.ts`)  
+**Decision core:** `src/agents/jev/*` (including `browser.ts`, `target.ts`)  
 **Harness:** `plugins/jev.ts`, `plugins/memory.ts`, `core.ts`, `hades/index.ts`, `orchestrator.ts`, `workflow/index.ts`, `swarm/coordinator.ts`, `lib/thread-history.ts`, `lib/run-owner.ts`  
 **Providers:** `providers/openrouter.ts`, `providers/voice.ts`  
 **Routes:** `routes/hades/route.ts`, `routes/voice/route.ts`, `routes/agent/route.ts`, `routes/anthropic-agent/route.ts`  
@@ -526,6 +530,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 17 — Local-first exfil / SSRF targets
+
+`file_read` and `web_search` are "safe reads" and skipped Auto Mode, so a hallucinated `/etc/passwd`, `../.env`, or cloud-metadata URL never reached Jev. `localTargetDecision` scans path/url-shaped keys only and blocks those strings in process. Search queries that mention the same tokens still pass.
 
 ### Wave 16 — Stop looping on a stuck browser
 

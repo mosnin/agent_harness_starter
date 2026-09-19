@@ -23,6 +23,7 @@ import { createRedactStream, redactSecrets, redactValue, type RedactStream } fro
 import { routeModel, routeSkill } from "../jev/router";
 import { scoreQuality } from "../jev/scoring";
 import { planAndRerankSearch } from "../jev/search";
+import { localTargetDecision } from "../jev/target";
 import { runToolGate } from "../jev/toolgate";
 import { applyCompaction, formatCompactThread, parseCompactStrategy } from "../jev/compact";
 import type { JevAsker, PolicyDecision, SkillRoute } from "../jev/types";
@@ -384,6 +385,11 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                 }
               }
             };
+
+            const localTarget = localTargetDecision(toolInput);
+            if (localTarget) {
+              await enforce(localTarget, "jev_tool_bind");
+            }
 
             if (doAuto || (doMalicious && isCodeTool(def.name)) || (doPatch && isPatchTool(def.name)) || (doCompany && isCompanyTool(def.name))) {
               const gate = await runToolGate({

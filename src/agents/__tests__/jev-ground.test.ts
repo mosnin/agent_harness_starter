@@ -164,6 +164,47 @@ describe("grounding + quiet-ask + tool gate", () => {
     expect(mentioned.asks).toBe(1);
   });
 
+  it("blocks canned exfil paths and metadata URLs without calling Jev", async () => {
+    let calls = 0;
+    const client = createMockJevClient(async () => {
+      calls += 1;
+      throw new Error("network");
+    });
+    const asker = createJevAsker(client);
+    const passwd = await runToolGate({
+      userRequest: "read the config",
+      toolName: "file_read",
+      toolArguments: { path: "/etc/passwd" },
+      asker,
+    });
+    const env = await runToolGate({
+      userRequest: "open the env",
+      toolName: "file_read",
+      toolArguments: { path: "../../.env" },
+      asker,
+    });
+    const meta = await runToolGate({
+      userRequest: "fetch instance identity",
+      toolName: "browser_scrape",
+      toolArguments: { url: "http://169.254.169.254/latest/meta-data" },
+      asker,
+    });
+    const mentioned = await runToolGate({
+      userRequest: "what is /etc/passwd",
+      toolName: "web_search",
+      toolArguments: { query: "what is /etc/passwd on Linux" },
+      asker,
+    });
+    expect(calls).toBe(0);
+    expect(passwd.asks).toBe(0);
+    expect(passwd.decisions[0]?.reason).toBe("target-local");
+    expect(passwd.decisions[0]?.value).toBe("exfil");
+    expect(env.decisions[0]?.reason).toBe("target-local");
+    expect(meta.decisions[0]?.value).toBe("ssrf");
+    expect(mentioned.asks).toBe(0);
+    expect(mentioned.decisions[0]?.reason).toBe("safe-read");
+  });
+
   it("batches auto-mode and malware into one System One call", async () => {
     let calls = 0;
     const client = createMockJevClient((req) => {

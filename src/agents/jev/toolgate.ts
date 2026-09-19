@@ -17,6 +17,7 @@ import { choice, noul, score } from "./questions";
 import { interpretPatchAnswers } from "./symbolic";
 import type { CompanyAction } from "./company";
 import { commandFromToolArgs, localDestructiveDecision } from "./destructive";
+import { localTargetDecision } from "./target";
 import type { JevAnswers, JevAsker, JevQuestions, JevState, PolicyDecision } from "./types";
 
 export interface ToolGateInput {
@@ -72,6 +73,11 @@ function takePrefix(answers: JevAnswers, prefix: string): JevAnswers {
 }
 
 export async function runToolGate(input: ToolGateInput): Promise<ToolGateResult> {
+  const localTarget = localTargetDecision(input.toolArguments);
+  if (localTarget) {
+    return { asks: 0, decisions: [localTarget] };
+  }
+
   if (input.alwaysApprove?.includes(input.toolName)) {
     return {
       asks: 0,

@@ -36,6 +36,11 @@ export {
   localDestructiveBlock,
   localDestructiveDecision,
 } from "./destructive";
+export {
+  collectTargetFields,
+  localTargetBlock,
+  localTargetDecision,
+} from "./target";
 export { applyCompaction, formatCompactThread, parseCompactStrategy, isToolBlob } from "./compact";
 export { harvestToolEvidence, mergeEvidence } from "./harvest";
 export {

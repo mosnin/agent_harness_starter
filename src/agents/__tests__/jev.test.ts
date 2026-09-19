@@ -191,6 +191,23 @@ describe("auto mode + screens", () => {
     expect(decision.reason).toBe("destructive-local");
   });
 
+  it("blocks a safe-read of /etc/passwd without calling Jev", async () => {
+    let called = 0;
+    const client = createMockJevClient(async () => {
+      called += 1;
+      throw new Error("network");
+    });
+    const decision = await assessToolRisk({
+      userRequest: "read the config",
+      toolName: "file_read",
+      toolArguments: { path: "/etc/passwd" },
+      asker: createJevAsker(client),
+    });
+    expect(called).toBe(0);
+    expect(decision.action).toBe("block");
+    expect(decision.reason).toBe("target-local");
+  });
+
   it("auto-approves a routine authorized call", async () => {
     const client = mockFromMap({
       destructive: noulAns(0.02),

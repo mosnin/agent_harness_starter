@@ -8,6 +8,7 @@
 import { IMPACT_LEVELS } from "./catalog";
 import { createJevAsker } from "./client";
 import { commandFromToolArgs, localDestructiveDecision } from "./destructive";
+import { localTargetDecision } from "./target";
 import { interpretGitRisk } from "./hooks";
 import { NOUL, SCORE, decideUnavailable } from "./policy";
 import { noul, score } from "./questions";
@@ -71,6 +72,9 @@ export function isSafeReadTool(toolName: string): boolean {
 }
 
 export async function assessToolRisk(input: AutoModeInput): Promise<PolicyDecision> {
+  const localTarget = localTargetDecision(input.toolArguments);
+  if (localTarget) return localTarget;
+
   if (input.alwaysApprove?.includes(input.toolName)) {
     return {
       action: "review",

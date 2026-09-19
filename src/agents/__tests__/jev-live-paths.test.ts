@@ -154,6 +154,41 @@ describe("fail-closed security", () => {
     await expect(wrapped[0]!.execute({ command: "env" }, {})).rejects.toThrow(/blocked/i);
   });
 
+  it("blocks file_read of /etc/passwd even when Auto Mode is off", async () => {
+    const { z } = await import("zod");
+    let called = 0;
+    const client = createMockJevClient(async () => {
+      called += 1;
+      throw new Error("network");
+    });
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenInput: false,
+      screenOutput: false,
+      routeModel: false,
+      autoMode: false,
+      judgePatch: false,
+      companyOs: false,
+      rerankSearch: false,
+      stopHook: false,
+      compact: false,
+    });
+    const wrapped = await plugin.wrapTools!(
+      [
+        {
+          name: "file_read",
+          description: "Read a file",
+          parameters: z.object({ path: z.string() }),
+          execute: async () => ({ content: "root:x:0:0" }),
+        },
+      ],
+      ctx(),
+      new Map()
+    );
+    await expect(wrapped[0]!.execute({ path: "/etc/passwd" }, {})).rejects.toThrow(/blocked/i);
+    expect(called).toBe(0);
+  });
+
   it("blocks a canned jailbreak on a scraped page without calling Jev", async () => {
     let called = 0;
     const client = createMockJevClient(async () => {
