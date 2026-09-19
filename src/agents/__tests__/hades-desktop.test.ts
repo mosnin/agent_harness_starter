@@ -90,6 +90,39 @@ describe("desktop Jev policy", () => {
     expect(decision.reason).toBe("desktop-read");
   });
 
+  it("blocks a desktop export of /etc/passwd without calling Jev", async () => {
+    let called = 0;
+    const client = createMockJevClient(async () => {
+      called += 1;
+      throw new Error("network");
+    });
+    const decision = await assessDesktopAction({
+      action: "export",
+      args: { path: "/etc/passwd" },
+      asker: createJevAsker(client),
+    });
+    expect(called).toBe(0);
+    expect(decision.action).toBe("block");
+    expect(decision.reason).toBe("target-local");
+    expect(shouldExecuteDesktop(decision)).toBe(false);
+  });
+
+  it("blocks a desktop write that carries a pasted key without calling Jev", async () => {
+    let called = 0;
+    const client = createMockJevClient(async () => {
+      called += 1;
+      throw new Error("network");
+    });
+    const decision = await assessDesktopAction({
+      action: "project_patch",
+      args: { note: "sk-abcdefghijklmnopqrstuvwxyz0123456789" },
+      asker: createJevAsker(client),
+    });
+    expect(called).toBe(0);
+    expect(decision.reason).toBe("leaks-secret-local");
+    expect(decision.node).toBe("desktop_action");
+  });
+
   it("blocks writes when Jev is down", async () => {
     const client = createMockJevClient(async () => {
       throw new Error("network");
@@ -133,6 +166,25 @@ describe("desktop Jev policy", () => {
 });
 
 describe("desktop host", () => {
+  it("does not spawn cap when the export path is an exfil target", async () => {
+    const run = vi.fn();
+    const events: Array<{ type: string; error?: string }> = [];
+    const host = createDesktopHost({
+      harness: stubHarness(),
+      cap: { run },
+      asker: createJevAsker(
+        createMockJevClient(async () => {
+          throw new Error("should not be asked");
+        })
+      ),
+      onEvent: (event) => events.push(event),
+    });
+    await host.handle({ type: "desktop.act", action: "export", args: { path: "../../.env" } });
+    expect(run).not.toHaveBeenCalled();
+    expect(events.some((event) => event.type === "jev.decision")).toBe(true);
+    expect(events.some((event) => event.type === "desktop.result" && event.error === "target-local")).toBe(true);
+  });
+
   it("does not spawn cap when Jev blocks a write", async () => {
     const run = vi.fn();
     const cap: CapRunner = { run };

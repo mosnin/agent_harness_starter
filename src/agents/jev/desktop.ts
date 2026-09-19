@@ -12,6 +12,8 @@
 import { createJevAsker } from "./client";
 import { GATES, decideChoice, decideUnavailable } from "./policy";
 import { choice, noul } from "./questions";
+import { hasSevereSecret, localSecretBlock } from "./redact";
+import { localTargetDecision } from "./target";
 import type { JevAsker, PolicyDecision } from "./types";
 import { requireChoice, requireNoul } from "./validate";
 
@@ -58,6 +60,14 @@ export async function assessDesktopAction(input: {
   asker?: JevAsker;
   signal?: AbortSignal;
 }): Promise<PolicyDecision> {
+  const localTarget = localTargetDecision(input.args);
+  if (localTarget) {
+    return { ...localTarget, node: "desktop_action", value: "block" };
+  }
+  if (hasSevereSecret(input.args) || hasSevereSecret(input.userRequest)) {
+    return localSecretBlock("desktop_action");
+  }
+
   if (isDesktopRead(input.action)) {
     return {
       action: "auto",

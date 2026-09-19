@@ -186,6 +186,8 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | Second `chat.send` on the same `threadId` | Harness `messages` include the prior user + assistant turn |
 | `desktop.result` / streamed tokens | API keys in `cap` stdout or Qwen deltas are `[API_KEY]` |
 | `chat.send` with `sk-…` / `AWS_SECRET_*=` | `jev.decision` `leaks-secret-local`, no System One body contains the raw key |
+| `desktop.act export` `{ path: "/etc/passwd" }` | `jev.decision` `target-local`, Cap not called |
+| `desktop.act` write with a pasted `sk-` | `jev.decision` `leaks-secret-local`, Cap not called |
 | Split `sk-` across two `message.delta` events | neither delta contains the raw key; `message.done` is `[API_KEY]` |
 | `chat.send` with "ignore previous instructions" | `jev.decision` `injection-local`, no System One call |
 | Shell `rm -rf` / `DROP TABLE` | `jev.decision` `destructive-local` block, tool not called |
