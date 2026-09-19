@@ -16,6 +16,7 @@ import { decideUnavailable, NOUL } from "./policy";
 import { choice, noul, score } from "./questions";
 import { interpretPatchAnswers } from "./symbolic";
 import type { CompanyAction } from "./company";
+import { commandFromToolArgs, localDestructiveDecision } from "./destructive";
 import type { JevAnswers, JevAsker, JevQuestions, JevState, PolicyDecision } from "./types";
 
 export interface ToolGateInput {
@@ -81,6 +82,11 @@ export async function runToolGate(input: ToolGateInput): Promise<ToolGateResult>
         node: "auto_mode",
       }],
     };
+  }
+
+  const localDestructive = localDestructiveDecision(commandFromToolArgs(input.toolArguments));
+  if (localDestructive) {
+    return { asks: 0, decisions: [localDestructive] };
   }
 
   const gitLike = looksLikeGit(input.toolName, input.toolArguments);

@@ -7,6 +7,7 @@
 
 import { IMPACT_LEVELS } from "./catalog";
 import { createJevAsker } from "./client";
+import { commandFromToolArgs, localDestructiveDecision } from "./destructive";
 import { interpretGitRisk } from "./hooks";
 import { NOUL, SCORE, decideUnavailable } from "./policy";
 import { noul, score } from "./questions";
@@ -87,6 +88,9 @@ export async function assessToolRisk(input: AutoModeInput): Promise<PolicyDecisi
       node: "auto_mode",
     };
   }
+
+  const localDestructive = localDestructiveDecision(commandFromToolArgs(input.toolArguments));
+  if (localDestructive) return localDestructive;
 
   const asker = input.asker ?? createJevAsker();
   const gitLike = looksLikeGit(input.toolName, input.toolArguments);

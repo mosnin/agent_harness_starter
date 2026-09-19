@@ -188,6 +188,8 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | `chat.send` with `sk-…` / `AWS_SECRET_*=` | `jev.decision` `leaks-secret-local`, no System One body contains the raw key |
 | Split `sk-` across two `message.delta` events | neither delta contains the raw key; `message.done` is `[API_KEY]` |
 | `chat.send` with "ignore previous instructions" | `jev.decision` `injection-local`, no System One call |
+| Shell `rm -rf` / `DROP TABLE` | `jev.decision` `destructive-local` block, tool not called |
+| Shell `git push --force` | `jev.decision` `destructive-local` HITL |
 | Tauri CSP | no `https://api.typesafe.ai` from the webview |
 
 ---

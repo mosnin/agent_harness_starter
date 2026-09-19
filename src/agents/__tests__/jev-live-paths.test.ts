@@ -442,6 +442,7 @@ describe("auto-mode git + plugin events", () => {
     });
     expect(decision.node).toBe("jev_git");
     expect(decision.action).toBe("review");
+    expect(decision.reason).toBe("destructive-local");
   });
 
   it("queues jev_decision events from onBeforeRun", async () => {

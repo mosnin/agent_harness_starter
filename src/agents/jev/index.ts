@@ -30,6 +30,12 @@ export { runPreflight, interpretSkipGeneration, CANNED_REPLIES } from "./preflig
 export { runPostflight } from "./postflight";
 export { assessToolRisk, isSafeReadTool } from "./auto-mode";
 export { runToolGate, interpretInventedArgs } from "./toolgate";
+export {
+  hasDestructiveCommand,
+  commandFromToolArgs,
+  localDestructiveBlock,
+  localDestructiveDecision,
+} from "./destructive";
 export { applyCompaction, formatCompactThread, parseCompactStrategy, isToolBlob } from "./compact";
 export { harvestToolEvidence, mergeEvidence } from "./harvest";
 export {

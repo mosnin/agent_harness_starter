@@ -132,6 +132,38 @@ describe("grounding + quiet-ask + tool gate", () => {
     expect(gate.decisions.some((d) => d.node === "tool_bind" && d.action === "block")).toBe(true);
   });
 
+  it("blocks rm -rf and force-push locally without calling Jev", async () => {
+    let calls = 0;
+    const client = createMockJevClient(() => {
+      calls += 1;
+      return { model: "jev-latest", answers: {} };
+    });
+    const wiped = await runToolGate({
+      userRequest: "list files",
+      toolName: "shell_exec",
+      toolArguments: { command: "rm -rf /" },
+      asker: createJevAsker(client),
+    });
+    const forced = await runToolGate({
+      userRequest: "push my branch",
+      toolName: "shell_exec",
+      toolArguments: { command: "git push --force origin main" },
+      asker: createJevAsker(client),
+    });
+    const mentioned = await runToolGate({
+      userRequest: "write the readme",
+      toolName: "file_write",
+      toolArguments: { path: "README.md", content: "Never run rm -rf / in production." },
+      asker: createJevAsker(client),
+    });
+    expect(calls).toBe(1);
+    expect(wiped.asks).toBe(0);
+    expect(wiped.decisions[0]?.reason).toBe("destructive-local");
+    expect(forced.decisions[0]?.reason).toBe("destructive-local");
+    expect(forced.decisions[0]?.action).toBe("review");
+    expect(mentioned.asks).toBe(1);
+  });
+
   it("batches auto-mode and malware into one System One call", async () => {
     let calls = 0;
     const client = createMockJevClient((req) => {

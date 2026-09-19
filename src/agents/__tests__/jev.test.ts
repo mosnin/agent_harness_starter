@@ -188,7 +188,7 @@ describe("auto mode + screens", () => {
       asker: createJevAsker(client),
     });
     expect(decision.action).toBe("block");
-    expect(decision.reason).toBe("destructive");
+    expect(decision.reason).toBe("destructive-local");
   });
 
   it("auto-approves a routine authorized call", async () => {
