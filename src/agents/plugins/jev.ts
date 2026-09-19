@@ -491,6 +491,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                   action: browsed.step.value,
                   reason: browsed.step.reason,
                   target: browsed.target,
+                  page: browsed.page?.value,
                 };
                 const annotated = redactValue({
                   ...raw,
@@ -498,6 +499,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                     action: browsed.step.value,
                     reason: browsed.step.reason,
                     target: browsed.target,
+                    page: browsed.page?.value,
                     asks: browsed.asks,
                   },
                 });

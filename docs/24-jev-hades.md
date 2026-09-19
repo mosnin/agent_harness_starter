@@ -226,7 +226,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
    - `approveCompanyAction` on deploy / composio / transfer / rotate / prod tools. `deploy_prod`, `wire_transfer`, `delete_account`, `rotate_keys` always HITL.
    - `review` → approval event. `block` → `GuardrailBlockError`.
    - `web_search` → `planAndRerankSearch` in **one** ask (window + sources + relevance + injection). Injected snippets are dropped. Snippets stored as `jevEvidence`. Tool SSE `tool_call` / `tool_result` events are redacted before they leave the harness.
-   - `browser_*` → `screenBrowserPage` in **one** ask (injection / substance / secret + next `action` / `target` / done / stuck). Local jailbreak or secret → zero-RTT block. Jev-down → **block**. Injection/secret *review* → HITL error. Stuck / blocked steps throw `jev_browser_step` so Qwen cannot keep clicking. Surviving pages attach `jevBrowser`; instructions tell Qwen the typed next step (or to stop on DONE / EXTRACT). Harvested into `jevEvidence`.
+   - `browser_*` → `screenBrowserPage` in **one** ask (injection / substance / secret + next `action` / `target` / done / stuck + pagegrade). Local jailbreak or secret → zero-RTT block. Jev-down → **block**. Injection/secret *review* → HITL error. Spam-graded pages block. Poor pages extract instead of click. Stuck / blocked steps throw `jev_browser_step` so Qwen cannot keep clicking. Surviving pages attach `jevBrowser`; instructions tell Qwen the typed next step (or to stop on DONE / EXTRACT). Harvested into `jevEvidence`.
    - Failed `shell_exec` → `classifyCommandFailure`. Secret-leaking stderr is blocked. Canned ENOENT / EACCES / ETIMEDOUT / TypeError are `failure-local` at zero RTT and returned to Qwen with `jevFailure`. Ambiguous stderr + Jev-down → **block**.
 7. **`onAfterRun`** — **one** System One call (`runPostflight`).
    - `screenOutput` — Jev-down → **block**.
@@ -318,7 +318,7 @@ These sit on real hops, not helper-only APIs:
 | `judgePatch` | jev-code verdict on `file_patch` |
 | `approveCompanyAction` | opencompany HITL on deploy / composio / transfer |
 | `verifyCitation` | Block drafts that contradict retrieved evidence (fail-closed) |
-| `browser_*` wrap | One-ask screen + next step (`jevBrowser`); local jailbreak/secret, Jev-down, and stuck/BLOCKED stop the loop |
+| `browser_*` wrap | One-ask screen + next step + pagegrade (`jevBrowser`); local jailbreak/secret, spam, Jev-down, and stuck/BLOCKED stop the loop |
 | `AGENT_PROVIDER=hades` | `/api/agent` uses `createHadesHarness` |
 | Agent Chat | Streams `jev_decision`; Voice → `/api/voice` |
 | Desktop sidecar | `createDesktopHost` / `npm run desktop:sidecar`; local target/secret labels then Jev before `cap` |
@@ -463,7 +463,7 @@ Fixed:
 - Convex `threads` / `messages` / `runs` are internal and require `ctx.auth.getUserIdentity()`. The HTTP adapter calls them with `CONVEX_ADMIN_KEY` acting as the signed-in user. A leaked `CONVEX_URL` cannot spoof `userId`.
 - Memory / Supabase / Prisma adapters hide foreign threads when `userId` is passed (same contract as Convex). Supabase requires `SUPABASE_SERVICE_ROLE_KEY` (never the anon key) and ships RLS so a browser JWT cannot read another user's rows.
 - `python3 -c "open('/etc/passwd')"` / `node -e "require('fs').readFileSync('/etc/passwd')"` is `target-local` at zero RTT. An echo that only mentions those tokens still passes.
-- Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
+- Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Pagegrade (`scorePage`) runs in that same ask: spam trust blocks; a poor grade extracts instead of clicking. Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
@@ -542,6 +542,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 24 — Pagegrade on the browser ask
+
+`scorePage` existed and was unused on the live path. Adding a second hop would have thrown away Jev's parallel-question speed. Clarity / SEO / trust now ride on the existing `screenBrowserPage` ask. Spam trust (`pagegrade-spam`) blocks the scrape; a poor grade turns a CLICK into EXTRACT so Qwen does not follow a junk page.
 
 ### Wave 23 — Adapter ownership + Supabase RLS
 

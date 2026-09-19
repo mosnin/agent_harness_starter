@@ -11,6 +11,7 @@ import { hasLocalInjection, localInjectionBlock } from "./inject";
 import { decideUnavailable } from "./policy";
 import { choice, noul } from "./questions";
 import { hasSevereSecret, localSecretBlock } from "./redact";
+import { interpretPageGrade, pageGradeQuestions } from "./scoring";
 import type { JevAsker, JevQuestions, JevState, PolicyDecision } from "./types";
 
 export interface BrowserElement {
@@ -32,6 +33,7 @@ export interface ScreenBrowserResult {
   asks: number;
   screen: PolicyDecision;
   step: PolicyDecision;
+  page?: PolicyDecision;
   target?: string;
 }
 
@@ -69,6 +71,7 @@ export async function screenBrowserPage(input: ScreenBrowserInput): Promise<Scre
     target: choice("Which element is the target of the next action? Use none if not applicable.", elementCriteria),
     goal_done: noul("Has `task` already been completed on this page?"),
     stuck: noul("Is the agent stuck in a loop or unable to make progress?"),
+    ...pageGradeQuestions(),
   };
 
   const asker = input.asker ?? createJevAsker();
@@ -94,10 +97,30 @@ export async function screenBrowserPage(input: ScreenBrowserInput): Promise<Scre
   }
 
   const target = asked.result.answers.target?.type === "choice" ? asked.result.answers.target.choice : undefined;
+  const screen = interpretScreenAnswers(asked.result.answers, "closed");
+  const page = interpretPageGrade(asked.result.answers);
+  let step = interpretBrowserStep(asked.result.answers);
+  if (page.action === "block") {
+    return {
+      asks: 1,
+      screen: { ...page, node: "screen_external" },
+      step: { ...page, node: "browser_step", value: "BLOCKED" },
+      page,
+    };
+  }
+  if (page.action === "review" && step.value === "CLICK") {
+    step = {
+      action: "auto",
+      value: "EXTRACT",
+      reason: "pagegrade-poor",
+      node: "browser_step",
+    };
+  }
   return {
     asks: 1,
-    screen: interpretScreenAnswers(asked.result.answers, "closed"),
-    step: interpretBrowserStep(asked.result.answers),
+    screen,
+    step,
+    page,
     target: target && target !== "none" && target !== "unknown" ? target : undefined,
   };
 }

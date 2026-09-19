@@ -219,6 +219,22 @@ describe("Jev speed: one RTT", () => {
           const sum = Object.values(probabilities).reduce((a, b) => a + b, 0);
           for (const k of Object.keys(probabilities)) probabilities[k] = (probabilities[k] ?? 0) / sum;
           answers[id] = { type: "choice", choice: pick, probabilities, confidence: 0.94 };
+        } else if (q.type === "score") {
+          const levels = q.criteria;
+          const pick = 2;
+          const probabilities: Record<string, number> = {};
+          levels.forEach((_, i) => {
+            probabilities[String(i)] = i === pick ? 0.8 : 0.2 / Math.max(1, levels.length - 1);
+          });
+          const sum = Object.values(probabilities).reduce((a, b) => a + b, 0);
+          for (const key of Object.keys(probabilities)) probabilities[key] = (probabilities[key] ?? 0) / sum;
+          answers[id] = {
+            type: "score",
+            score: pick,
+            legend: Object.fromEntries(levels.map((level, i) => [String(i), level])),
+            probabilities,
+            confidence: 0.9,
+          };
         } else {
           answers[id] = noulAns(id === "substance" ? 0.85 : 0.08);
         }
@@ -239,6 +255,8 @@ describe("Jev speed: one RTT", () => {
     expect(browsed.step.node).toBe("browser_step");
     expect(browsed.step.value).toBe("CLICK");
     expect(browsed.target).toBe("submit");
+    expect(browsed.page?.node).toBe("pagegrade");
+    expect(browsed.page?.action).toBe("auto");
   });
 });
 

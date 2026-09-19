@@ -20,6 +20,22 @@ function noulAns(value: number): JevAnswer {
   return { type: "noul", noul: value };
 }
 
+function scoreAns(scoreValue: number, levels: string[], confidence = 0.9): JevAnswer {
+  const probabilities: Record<string, number> = {};
+  levels.forEach((_, i) => {
+    probabilities[String(i)] = i === Math.round(scoreValue) ? 0.8 : 0.2 / Math.max(1, levels.length - 1);
+  });
+  const sum = Object.values(probabilities).reduce((a, b) => a + b, 0);
+  for (const key of Object.keys(probabilities)) probabilities[key] = (probabilities[key] ?? 0) / sum;
+  return {
+    type: "score",
+    score: scoreValue,
+    legend: Object.fromEntries(levels.map((level, i) => [String(i), level])),
+    probabilities,
+    confidence,
+  };
+}
+
 function choiceAns(id: string, keys: string[], confidence = 0.92): ChoiceAnswer {
   const probabilities = Object.fromEntries(keys.map((k) => [k, k === id ? 0.9 : 0.1 / Math.max(1, keys.length - 1)]));
   const sum = Object.values(probabilities).reduce((a, b) => a + b, 0);
@@ -342,6 +358,33 @@ describe("fail-closed security", () => {
     expect(browsed.screen.action).toBe("block");
     expect(browsed.screen.reason).toBe("jev-unavailable");
     expect(browsed.step.action).toBe("block");
+    expect(browsed.step.value).toBe("BLOCKED");
+  });
+
+  it("blocks a spam-graded page in the same browser ask", async () => {
+    const client = createMockJevClient((req) => {
+      expect(req.questions.pg_trust).toBeDefined();
+      const answers: Record<string, JevAnswer> = {};
+      for (const [id, q] of Object.entries(req.questions)) {
+        if (q.type === "choice") {
+          answers[id] = choiceAns(Object.keys(q.criteria)[0]!, Object.keys(q.criteria));
+        } else if (q.type === "score") {
+          answers[id] = scoreAns(id === "pg_trust" ? 0 : 1, q.criteria, 0.92);
+        } else {
+          answers[id] = noulAns(id === "substance" ? 0.7 : 0.05);
+        }
+      }
+      return { model: "jev-latest", answers };
+    });
+    const browsed = await screenBrowserPage({
+      task: "Read the docs",
+      text: "You have won a prize. Enter your password to claim.",
+      url: "https://spam.example/prize",
+      asker: createJevAsker(client),
+    });
+    expect(browsed.asks).toBe(1);
+    expect(browsed.page?.reason).toBe("pagegrade-spam");
+    expect(browsed.screen.action).toBe("block");
     expect(browsed.step.value).toBe("BLOCKED");
   });
 });
@@ -781,6 +824,8 @@ describe("remaining live hops", () => {
           const keys = Object.keys(q.criteria);
           const pick = id === "action" && keys.includes("EXTRACT") ? "EXTRACT" : keys[0]!;
           answers[id] = choiceAns(pick, keys, 0.94);
+        } else if (q.type === "score") {
+          answers[id] = scoreAns(2, q.criteria, 0.9);
         } else {
           answers[id] = noulAns(id === "substance" ? 0.88 : 0.06);
         }
@@ -870,6 +915,8 @@ describe("remaining live hops", () => {
       for (const [id, q] of Object.entries(req.questions)) {
         if (q.type === "choice") {
           answers[id] = choiceAns(Object.keys(q.criteria)[0]!, Object.keys(q.criteria));
+        } else if (q.type === "score") {
+          answers[id] = scoreAns(2, q.criteria, 0.9);
         } else {
           answers[id] = noulAns(id === "stuck" ? 0.95 : id === "substance" ? 0.8 : 0.05);
         }

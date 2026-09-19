@@ -198,7 +198,8 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | Shell `ENOENT` / `EACCES` / `ETIMEDOUT` | `jev.decision` `failure-local`, tool result returned with class |
 | Shell `cat /etc/passwd` / `curl 169.254.169.254` | `jev.decision` `target-local` block, tool not called |
 | Shell `python3 -c "open('/etc/passwd')"` | `jev.decision` `target-local` block, tool not called |
-| `browser_scrape` of a normal page | one `jev.decision` pair (`screen_external` + `browser_step`), `jevBrowser` on the tool result |
+| `browser_scrape` of a normal page | one `jev.decision` pair (`screen_external` + `browser_step` + pagegrade), `jevBrowser` on the tool result |
+| `browser_scrape` of a spam-graded page | `pagegrade-spam` block, no click |
 | `browser_scrape` of "ignore previous instructions" | `injection-local`, no System One call |
 | `browser_scrape` of a login wall Jev marks stuck | `jev_browser_step` block, no further clicks |
 | Tauri CSP | no `https://api.typesafe.ai` from the webview |

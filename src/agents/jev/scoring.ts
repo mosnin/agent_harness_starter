@@ -169,6 +169,77 @@ export async function compositeScore(input: {
   return { total: weightSum > 0 ? weighted / weightSum : 0, parts };
 }
 
+export const PAGE_GRADE_DIMENSIONS: CompositeDimension[] = [
+  {
+    id: "clarity",
+    instructions: "How clear is `page_text` for a human reader?",
+    levels: ["Opaque", "Skimmable", "Clear", "Excellent"],
+    weight: 1,
+  },
+  {
+    id: "seo",
+    instructions: "How well does `page_text` match the apparent search intent of `task` / `url`?",
+    levels: ["Off-intent", "Partial", "On-intent", "Authoritative"],
+    weight: 1,
+  },
+  {
+    id: "trust",
+    instructions: "How trustworthy does `page_text` look (spam, phishing, or thin junk vs credible)?",
+    levels: ["Spam", "Thin", "Credible", "Authoritative"],
+    weight: 1,
+  },
+];
+
+export function pageGradeQuestions(prefix = "pg_"): Record<string, ReturnType<typeof score>> {
+  return Object.fromEntries(
+    PAGE_GRADE_DIMENSIONS.map((dim) => [
+      `${prefix}${dim.id}`,
+      score(dim.instructions, dim.levels),
+    ])
+  );
+}
+
+export function interpretPageGrade(
+  answers: import("./types").JevAnswers,
+  prefix = "pg_"
+): PolicyDecision {
+  let weighted = 0;
+  let weightSum = 0;
+  let trustScore = 1;
+  let trustConfidence = 0;
+  for (const dim of PAGE_GRADE_DIMENSIONS) {
+    const answer = requireScore(answers, `${prefix}${dim.id}`);
+    const normalized = answer.score / Math.max(1, dim.levels.length - 1);
+    weighted += normalized * dim.weight;
+    weightSum += dim.weight;
+    if (dim.id === "trust") {
+      trustScore = answer.score;
+      trustConfidence = answer.confidence;
+    }
+  }
+  const total = weightSum > 0 ? weighted / weightSum : 0;
+  if (trustScore === 0 && trustConfidence >= 0.7) {
+    return {
+      action: "block",
+      value: "spam",
+      reason: "pagegrade-spam",
+      node: "pagegrade",
+      probability: total,
+      confidence: trustConfidence,
+      answers,
+    };
+  }
+  const value = total >= 0.66 ? "good" : total >= 0.4 ? "ok" : "poor";
+  return {
+    action: value === "poor" ? "review" : "auto",
+    value,
+    reason: "pagegrade",
+    node: "pagegrade",
+    probability: total,
+    answers,
+  };
+}
+
 export async function scorePage(input: {
   url: string;
   title: string;
@@ -176,22 +247,26 @@ export async function scorePage(input: {
   asker?: JevAsker;
   signal?: AbortSignal;
 }): Promise<PolicyDecision> {
-  const scored = await compositeScore({
-    state: { url: input.url, title: input.title, excerpt: input.excerpt.slice(0, 4000) },
-    dimensions: [
-      { id: "clarity", instructions: "How clear is this page for a human reader?", levels: ["Opaque", "Skimmable", "Clear", "Excellent"], weight: 1 },
-      { id: "seo", instructions: "How well does the page match its apparent search intent?", levels: ["Off-intent", "Partial", "On-intent", "Authoritative"], weight: 1 },
-      { id: "trust", instructions: "How trustworthy does the page look?", levels: ["Spam", "Thin", "Credible", "Authoritative"], weight: 1 },
-    ],
-    asker: input.asker,
-    signal: input.signal,
-  });
-  const value = scored.total >= 0.66 ? "good" : scored.total >= 0.4 ? "ok" : "poor";
-  return {
-    action: value === "poor" ? "review" : "auto",
-    value,
-    reason: "pagegrade",
-    node: "pagegrade",
-    probability: scored.total,
-  };
+  const asker = input.asker ?? createJevAsker();
+  const asked = await asker.ask(
+    {
+      state: {
+        url: input.url,
+        title: input.title,
+        page_text: input.excerpt.slice(0, 4000),
+        task: input.title,
+      },
+      questions: pageGradeQuestions(),
+    },
+    input.signal
+  );
+  if (!asked.ok) {
+    return {
+      action: "review",
+      value: "poor",
+      reason: "jev-unavailable",
+      node: "pagegrade",
+    };
+  }
+  return interpretPageGrade(asked.result.answers);
 }
