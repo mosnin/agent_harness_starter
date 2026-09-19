@@ -289,47 +289,81 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
       ? (ctx.jevThread as Array<{ role: string; content: string }>)
       : input.messages;
     const sdkInput = toAgentInput(thread, userMessage);
+    const runAbort = new AbortController();
+    const onCallerAbort = (): void => {
+      runAbort.abort();
+    };
+    input.signal?.addEventListener("abort", onCallerAbort, { once: true });
 
     try {
       const result = run(agent, sdkInput, {
         stream: true,
         maxTurns: agentConfig.maxTurns ?? 20,
-        signal: input.signal,
+        signal: runAbort.signal,
         context: ctx,
       });
 
-      for await (const event of await result) {
-        // Drain approval-style events queued by tool closures
-        for (const [id, pendingEvent] of pendingEvents) {
-          yield pendingEvent;
-          pendingEvents.delete(id);
-        }
+      let evidenceTakeover = false;
+      try {
+        for await (const event of await result) {
+          // Drain approval-style events queued by tool closures
+          for (const [id, pendingEvent] of pendingEvents) {
+            yield pendingEvent;
+            pendingEvents.delete(id);
+          }
 
-        const agentEvent = mapSdkEvent(event, agentConfig.name);
-        if (!agentEvent) continue;
+          const agentEvent = mapSdkEvent(event, agentConfig.name);
+          if (!agentEvent) continue;
 
-        // Track final output before plugin filtering
-        if (agentEvent.type === "message_done") {
-          finalOutput = agentEvent.content;
-        }
+          // Track final output before plugin filtering
+          if (agentEvent.type === "message_done") {
+            finalOutput = agentEvent.content;
+          }
 
-        // Run onEvent plugin chain
-        let current: AgentEvent | null = agentEvent;
-        for (const plugin of plugins) {
-          if (!current) break;
-          if (plugin.onEvent) {
-            current = await plugin.onEvent(current, pluginCtx);
+          // Run onEvent plugin chain
+          let current: AgentEvent | null = agentEvent;
+          for (const plugin of plugins) {
+            if (!current) break;
+            if (plugin.onEvent) {
+              current = await plugin.onEvent(current, pluginCtx);
+            }
+          }
+          if (current) yield current;
+
+          // Search (or another tool) set a grounded reply — stop paying Qwen.
+          const midReply = typeof ctx.jevDirectReply === "string" ? ctx.jevDirectReply : "";
+          if (midReply) {
+            evidenceTakeover = true;
+            finalOutput = midReply;
+            runAbort.abort();
+            break;
           }
         }
-        if (current) yield current;
+      } catch (err) {
+        const midReply = typeof ctx.jevDirectReply === "string" ? ctx.jevDirectReply : "";
+        if (midReply) {
+          evidenceTakeover = true;
+          finalOutput = midReply;
+        } else {
+          throw err;
+        }
       }
 
-      // Resolve the streaming result for authoritative final output + usage
-      const resolved = await (result as unknown as Promise<{
+      let resolved: {
         finalOutput: string;
         usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
-      }>);
-      finalOutput = resolved.finalOutput ?? finalOutput;
+      } | undefined;
+      if (evidenceTakeover) {
+        yield { type: "message_delta", delta: finalOutput };
+        yield { type: "message_done", content: finalOutput };
+      } else {
+        // Resolve the streaming result for authoritative final output + usage
+        resolved = await (result as unknown as Promise<{
+          finalOutput: string;
+          usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
+        }>);
+        finalOutput = resolved.finalOutput ?? finalOutput;
+      }
 
       // ── onAfterRun: transform / validate final output (REVERSE order) ───────
       // Reverse mirrors the before-hook setup order: last plugin to set up is
@@ -362,7 +396,7 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
       }
 
       // Emit usage event through the onEvent plugin chain
-      const usage = resolved.usage;
+      const usage = resolved?.usage;
       if (usage) {
         let usageEvent: AgentEvent | null = {
           type: "usage",
@@ -394,6 +428,7 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
         ...(agentErr?.remediation ? { remediation: agentErr.remediation } : {}),
       };
     } finally {
+      input.signal?.removeEventListener("abort", onCallerAbort);
       const durationMs = Date.now() - startedAt;
       // onComplete runs in REVERSE order (teardown mirrors setup)
       for (const plugin of [...plugins].reverse()) {

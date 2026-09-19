@@ -21,7 +21,7 @@ Jev is TypeSafe’s **System One** model. It is not a chat model. It does not wr
 
 You get back calibrated answers in roughly 70–500ms. Every question in one request is evaluated **in parallel**. Adding another noul barely changes latency. That is the whole speed story: TypeSafe reports **70–500ms** and up to **~200×** vs an LLM judge on the same structured task. Hades therefore **must not** fire sequential Jev HTTP hops.
 
-`runPreflight` / `runPostflight` / `runToolGate` are one System One call each. Preflight now also asks `needs_clarify` and `is_factual` (quiet-ask). Postflight scores each sentence against `jevEvidence` (citation-verifier). Tool loops batch Auto Mode + malware + patch + company instead of stacking RTTs (ultrafast speculative heads). Exact greetings still **screen** then skip Qwen. Vague asks skip Qwen with a clarify. Ungrounded drafts are **rewritten to an abstain**, not shipped. A circuit breaker fail-fasts after three Jev outages. Hedged fetch (default 200ms) aborts the loser. Identical asks are cached/coalesced for ~20s so desktop `chat.prefetch` makes `chat.send` a cache hit.
+`runPreflight` / `runPostflight` / `runToolGate` are one System One call each. Preflight now also asks `needs_clarify` and `is_factual` (quiet-ask). Postflight scores each sentence against `jevEvidence` (citation-verifier). Tool loops batch Auto Mode + malware + patch + company instead of stacking RTTs (ultrafast speculative heads). Exact greetings still **screen** then skip Qwen. Vague asks skip Qwen with a clarify. A factual lookup whose search ask already picked a `best` snippet (`hasAnswer` + no conflict + `is_factual ≥ 0.7`) sets `jevDirectReply` and **stops the generator** — Qwen does not rewrite a found fact. Ungrounded drafts are **rewritten to an abstain**, not shipped. A circuit breaker fail-fasts after three Jev outages. Hedged fetch (default 200ms) aborts the loser. Identical asks are cached/coalesced for ~20s so desktop `chat.prefetch` makes `chat.send` a cache hit.
 
 The public HTTP contract:
 
@@ -470,10 +470,11 @@ Fixed:
 - Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Pagegrade (`scorePage`) runs in that same ask: spam trust blocks; a poor grade extracts instead of clicking. Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
 - Swarm `completeTaskJev` uses unused `superviseWorker`. A stuck or off-track worker is failed instead of marked done. Jev-down does not accept the work.
 - Search rerank now includes unused `sdeCascade` / `compareTexts` presence questions on the same ask. Material contradiction empties `ranked` and harvests a conflict card so Qwen cannot pick a side. `wrong_fn` on `runToolGate` blocks a tool that does not bind to the user request (`unbound-tool`).
+- Search also asks unused `semanticFind` `best` on that same hop. A factual turn (`is_factual ≥ 0.7`) with `hasAnswer` and a ranked `best` snippet sets `jevEvidenceAnswer` / `jevDirectReply`. Core aborts the remaining Qwen tokens; `onAfterRun` ships the grounded reply and skips postflight.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Standalone `bindFunctionCall` / `sdeCascade` helpers remain for MCP and callers that want a dedicated hop; the live path uses their questions on search / tool-gate.
+Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `judge` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop.
 
 ---
 
@@ -549,6 +550,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 32 — Evidence-answer skip Qwen
+
+`hasAnswer` on the search ask was advisory: Qwen still wrote a reply (and could invent over a found fact) and postflight still ran. Unused `semanticFind` now rides that same ask as `best`. When the turn is factual (`is_factual ≥ 0.7`), there is no contradiction, and `best` is a ranked snippet, the plugin sets `jevDirectReply`. Core aborts the remaining generator tokens. `onAfterRun` ships the redacted snippet (title + source + grounded fields) and does not pay a postflight hop. A coding turn that happens to search still generates — only the `bestId` is attached.
 
 ### Wave 31 — MCP tool calls require auth
 

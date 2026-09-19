@@ -22,7 +22,7 @@ import { runPreflight } from "../jev/preflight";
 import { createRedactStream, hasSevereSecret, localSecretBlock, redactSecrets, redactValue, type RedactStream } from "../jev/redact";
 import { routeModel, routeSkill } from "../jev/router";
 import { scoreQuality } from "../jev/scoring";
-import { planAndRerankSearch } from "../jev/search";
+import { planAndRerankSearch, shouldSkipGenerationForEvidence } from "../jev/search";
 import { localTargetDecision } from "../jev/target";
 import { runToolGate } from "../jev/toolgate";
 import { applyCompaction, formatCompactThread, parseCompactStrategy } from "../jev/compact";
@@ -441,6 +441,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                   conflict: plan.conflict,
                   hasAnswer: plan.hasAnswer,
                   fields: plan.fields,
+                  bestId: plan.bestId,
                 };
                 const reranked = redactValue({
                   ...raw,
@@ -465,6 +466,10 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                       ? card
                       : `${card}\nNo result clearly answers the request. Do not invent the missing fact.`
                   );
+                }
+                if (shouldSkipGenerationForEvidence(ctx.context.jevFactual, plan.evidenceReply)) {
+                  ctx.context.jevEvidenceAnswer = plan.evidenceReply;
+                  ctx.context.jevDirectReply = plan.evidenceReply;
                 }
                 return reranked;
               }
@@ -571,6 +576,11 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
 
     async onAfterRun(finalOutput, ctx) {
       let output = finalOutput;
+      const evidenceAnswer =
+        typeof ctx.context.jevEvidenceAnswer === "string" ? ctx.context.jevEvidenceAnswer : "";
+      if (evidenceAnswer) {
+        return redactSecrets(evidenceAnswer).text;
+      }
       if (ctx.context.jevDirectReply && output === ctx.context.jevDirectReply) {
         return redactSecrets(output).text;
       }

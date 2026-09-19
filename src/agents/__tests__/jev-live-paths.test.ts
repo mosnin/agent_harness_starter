@@ -3,7 +3,7 @@ import { createJevAsker, createMockJevClient } from "../jev/client";
 import { filterPassages } from "../jev/rag";
 import { mapReduceChoice, beamClassify } from "../jev/mapreduce";
 import { semanticFind, extractValue, compareTexts, bindFunctionCall, sdeCascade } from "../jev/extract";
-import { planAndRerankSearch } from "../jev/search";
+import { evidenceAnswerReply, planAndRerankSearch, shouldSkipGenerationForEvidence } from "../jev/search";
 import { stopHook, heedPolicy, assessGitRisk, classifyVoiceIntent } from "../jev/hooks";
 import { createJevSpecialistRouter, jevWhen, jevUntil, pickSwarmAgent } from "../jev/orchestrate";
 import { routeSkill } from "../jev/router";
@@ -578,6 +578,7 @@ describe("search + hooks", () => {
     const client = createMockJevClient((req) => {
       calls += 1;
       expect(req.questions.window).toBeDefined();
+      expect(req.questions.best).toBeDefined();
       expect(req.questions.rel_0).toBeDefined();
       expect(req.questions.inj_0).toBeDefined();
       expect(JSON.stringify(req.state)).not.toMatch(/ignore previous instructions/i);
@@ -586,8 +587,11 @@ describe("search + hooks", () => {
         if (q.type === "noul") {
           if (id === "src_code" || id.startsWith("inj_") || id === "contradicts") answers[id] = noulAns(0.2);
           else answers[id] = noulAns(0.8);
-        } else if (q.type === "choice") answers[id] = choiceAns("latest", Object.keys(q.criteria));
-        else answers[id] = noulAns(0.5);
+        } else if (q.type === "choice") {
+          const keys = Object.keys(q.criteria);
+          const pick = id === "best" && keys.includes("r0") ? "r0" : id === "window" && keys.includes("latest") ? "latest" : keys[0]!;
+          answers[id] = choiceAns(pick, keys);
+        } else answers[id] = noulAns(0.5);
       }
       return { model: "jev-latest", answers };
     });
@@ -619,8 +623,11 @@ describe("search + hooks", () => {
       const answers: Record<string, JevAnswer> = {};
       for (const [id, q] of Object.entries(req.questions)) {
         if (q.type === "noul") answers[id] = noulAns(id === "contradicts" ? 0.91 : 0.8);
-        else if (q.type === "choice") answers[id] = choiceAns("anytime", Object.keys(q.criteria));
-        else answers[id] = noulAns(0.5);
+        else if (q.type === "choice") {
+          const keys = Object.keys(q.criteria);
+          const pick = id === "window" && keys.includes("anytime") ? "anytime" : keys[0]!;
+          answers[id] = choiceAns(pick, keys);
+        } else answers[id] = noulAns(0.5);
       }
       return { model: "jev-latest", answers };
     });
@@ -635,6 +642,42 @@ describe("search + hooks", () => {
     expect(calls).toBe(1);
     expect(plan.conflict).toBe(true);
     expect(plan.ranked).toEqual([]);
+    expect(plan.evidenceReply).toBeUndefined();
+  });
+
+  it("picks a best snippet on the same search ask and builds an evidence reply", async () => {
+    let calls = 0;
+    const client = createMockJevClient((req) => {
+      calls += 1;
+      expect(req.questions.best).toBeDefined();
+      const answers: Record<string, JevAnswer> = {};
+      for (const [id, q] of Object.entries(req.questions)) {
+        if (q.type === "noul") answers[id] = noulAns(id === "contradicts" || id.startsWith("inj_") ? 0.1 : 0.88);
+        else if (q.type === "choice") {
+          const keys = Object.keys(q.criteria);
+          const pick = id === "best" && keys.includes("r0") ? "r0" : keys[0]!;
+          answers[id] = choiceAns(pick, keys);
+        } else answers[id] = noulAns(0.5);
+      }
+      return { model: "jev-latest", answers };
+    });
+    const plan = await planAndRerankSearch({
+      request: "invoice status",
+      results: [
+        { id: "doc-1", title: "Ledger", snippet: "Invoice 12 is paid.", source: "https://ledger.example/12" },
+        { id: "doc-2", title: "Notes", snippet: "Unrelated memo.", source: "https://notes.example" },
+      ],
+      asker: createJevAsker(client),
+    });
+    expect(calls).toBe(1);
+    expect(plan.asks).toBe(1);
+    expect(plan.hasAnswer).toBe(true);
+    expect(plan.bestId).toBe("doc-1");
+    expect(plan.evidenceReply).toMatch(/Invoice 12 is paid/);
+    expect(plan.evidenceReply).toMatch(/ledger\.example/);
+    expect(shouldSkipGenerationForEvidence(0.85, plan.evidenceReply)).toBe(true);
+    expect(shouldSkipGenerationForEvidence(0.2, plan.evidenceReply)).toBe(false);
+    expect(evidenceAnswerReply({ ...plan, conflict: true })).toBeUndefined();
   });
 
   it("fires a stop-hook on a plan-only reply", async () => {
@@ -1147,6 +1190,135 @@ describe("remaining live hops", () => {
     expect(step.action).toBe("auto");
     expect(step.value).toBe("DONE");
     expect(step.reason).toBe("goal-done");
+  });
+});
+
+describe("evidence-answer skip Qwen", () => {
+  it("sets jevDirectReply after a factual search hit", async () => {
+    const { z } = await import("zod");
+    let calls = 0;
+    const client = createMockJevClient((req) => {
+      calls += 1;
+      const answers: Record<string, JevAnswer> = {};
+      for (const [id, q] of Object.entries(req.questions)) {
+        if (q.type === "noul") answers[id] = noulAns(id === "contradicts" || id.startsWith("inj_") ? 0.08 : 0.9);
+        else if (q.type === "choice") {
+          const keys = Object.keys(q.criteria);
+          const pick = id === "best" && keys.includes("r0") ? "r0" : keys[0]!;
+          answers[id] = choiceAns(pick, keys);
+        } else answers[id] = noulAns(0.5);
+      }
+      return { model: "jev-latest", answers };
+    });
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenInput: false,
+      screenOutput: false,
+      routeModel: false,
+      autoMode: false,
+      judgePatch: false,
+      companyOs: false,
+      stopHook: false,
+      compact: false,
+    });
+    const runCtx = ctx();
+    runCtx.context.lastUserMessage = "What is the invoice status?";
+    runCtx.context.jevFactual = 0.88;
+    const wrapped = await plugin.wrapTools!(
+      [
+        {
+          name: "web_search",
+          description: "Search the web",
+          parameters: z.object({ query: z.string() }),
+          execute: async () => ({
+            results: [
+              { title: "Ledger", url: "https://ledger.example/12", content: "Invoice 12 is paid." },
+              { title: "Notes", url: "https://notes.example", content: "Unrelated memo." },
+            ],
+          }),
+        },
+      ],
+      runCtx,
+      new Map()
+    );
+    const output = (await wrapped[0]!.execute({ query: "invoice 12" }, {})) as {
+      jevSearch?: { hasAnswer?: boolean; bestId?: string };
+    };
+    expect(calls).toBe(1);
+    expect(output.jevSearch?.hasAnswer).toBe(true);
+    expect(String(runCtx.context.jevDirectReply)).toMatch(/Invoice 12 is paid/);
+    expect(String(runCtx.context.jevEvidenceAnswer)).toMatch(/Invoice 12 is paid/);
+  });
+
+  it("does not skip Qwen when the turn is not factual", async () => {
+    const { z } = await import("zod");
+    const client = createMockJevClient((req) => {
+      const answers: Record<string, JevAnswer> = {};
+      for (const [id, q] of Object.entries(req.questions)) {
+        if (q.type === "noul") answers[id] = noulAns(id === "contradicts" || id.startsWith("inj_") ? 0.08 : 0.9);
+        else if (q.type === "choice") {
+          const keys = Object.keys(q.criteria);
+          const pick = id === "best" && keys.includes("r0") ? "r0" : keys[0]!;
+          answers[id] = choiceAns(pick, keys);
+        } else answers[id] = noulAns(0.5);
+      }
+      return { model: "jev-latest", answers };
+    });
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenInput: false,
+      screenOutput: false,
+      routeModel: false,
+      autoMode: false,
+      judgePatch: false,
+      companyOs: false,
+      stopHook: false,
+      compact: false,
+    });
+    const runCtx = ctx();
+    runCtx.context.lastUserMessage = "Fix pagination using the docs.";
+    runCtx.context.jevFactual = 0.2;
+    const wrapped = await plugin.wrapTools!(
+      [
+        {
+          name: "web_search",
+          description: "Search the web",
+          parameters: z.object({ query: z.string() }),
+          execute: async () => ({
+            results: [
+              { title: "Docs", url: "https://docs.example/page", content: "Use cursor pagination." },
+              { title: "Blog", url: "https://blog.example", content: "Offset pages are slow." },
+            ],
+          }),
+        },
+      ],
+      runCtx,
+      new Map()
+    );
+    await wrapped[0]!.execute({ query: "pagination" }, {});
+    expect(runCtx.context.jevDirectReply).toBeUndefined();
+    expect(runCtx.context.jevEvidenceAnswer).toBeUndefined();
+  });
+
+  it("onAfterRun ships the evidence answer and skips postflight", async () => {
+    let calls = 0;
+    const client = createMockJevClient(() => {
+      calls += 1;
+      return { model: "jev-latest", answers: {} };
+    });
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenInput: false,
+      screenOutput: true,
+      stopHook: true,
+      compact: false,
+    });
+    const runCtx = ctx();
+    runCtx.context.jevEvidenceAnswer = "From retrieved sources:\nInvoice 12 is paid.";
+    runCtx.context.jevDirectReply = runCtx.context.jevEvidenceAnswer;
+    const output = await plugin.onAfterRun!("Qwen invented that it is unpaid.", runCtx);
+    expect(calls).toBe(0);
+    expect(output).toMatch(/Invoice 12 is paid/);
   });
 });
 

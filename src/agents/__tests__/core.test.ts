@@ -288,6 +288,36 @@ describe("core harness — plugin lifecycle", () => {
     expect(events.find((e) => e.type === "message_delta")).toBeUndefined();
   });
 
+  it("stops the generator when a tool sets jevDirectReply", async () => {
+    setupRun([
+      {
+        type: "run_item_stream_event",
+        item: { type: "tool_call_output_item", output: "hits", callId: "c1" },
+      },
+      { type: "raw_model_stream_event", data: { delta: { content: "invented unpaid" } } },
+      {
+        type: "run_item_stream_event",
+        item: { type: "message_output_item", content: [{ type: "output_text", text: "invented unpaid" }] },
+      },
+    ], "invented unpaid");
+
+    const plugin: HarnessPlugin = {
+      name: "evidence",
+      onEvent: async (event, pluginCtx) => {
+        if (event.type === "tool_result") {
+          pluginCtx.context.jevDirectReply = "From retrieved sources:\nInvoice 12 is paid.";
+        }
+        return event;
+      },
+    };
+
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins: [plugin] });
+    const events = await collect(harness.stream(baseInput));
+    const done = events.find((e): e is Extract<AgentEvent, { type: "done" }> => e.type === "done");
+    expect(done?.finalOutput).toMatch(/Invoice 12 is paid/);
+    expect(events.some((e) => e.type === "message_delta" && "delta" in e && e.delta === "invented unpaid")).toBe(false);
+  });
+
   it("calls onAfterRun and transforms finalOutput", async () => {
     setupRun([], "raw output");
 

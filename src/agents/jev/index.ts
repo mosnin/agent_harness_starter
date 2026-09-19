@@ -82,7 +82,13 @@ export {
   interpretSdeFields,
   searchPresenceQuestions,
 } from "./extract";
-export { planAndRerankSearch, interpretSearchPresence } from "./search";
+export {
+  planAndRerankSearch,
+  interpretSearchPresence,
+  interpretSearchBest,
+  evidenceAnswerReply,
+  shouldSkipGenerationForEvidence,
+} from "./search";
 export { stopHook, heedPolicy, assessGitRisk, classifyVoiceIntent } from "./hooks";
 export {
   assessDesktopAction,
