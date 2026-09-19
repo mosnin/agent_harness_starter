@@ -77,6 +77,8 @@ export {
   retry,
   timeout,
   fallback,
+  jevWhen,
+  jevUntil,
 } from "./workflow/index";
 
 // ── Memory adapter ───────────────────────────────────────────────────────────
@@ -148,6 +150,12 @@ export {
   screenOutput,
   registerJevMcpTools,
   HADES_QWEN_ROUTES,
+  filterPassages,
+  mapReduceChoice,
+  createJevSpecialistRouter,
+  jevWhen,
+  jevUntil,
+  pickSwarmAgent,
 } from "./jev/index";
 export type { JevClient, JevAsker, PolicyDecision, SystemOneResult } from "./jev/index";
 

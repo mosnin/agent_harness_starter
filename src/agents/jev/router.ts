@@ -7,6 +7,7 @@
  */
 
 import { HADES_QWEN_ROUTES, HADES_ROUTE_ORDER, DEFAULT_HADES_SKILLS, COMPLEXITY_LEVELS } from "./catalog";
+import { routeSkillMapReduce } from "./mapreduce";
 import { createJevAsker } from "./client";
 import {
   CACHE_DOWNGRADE_TOKEN_FLOOR,
@@ -205,6 +206,14 @@ export interface SkillRouterInput {
 
 export async function routeSkill(input: SkillRouterInput): Promise<PolicyDecision> {
   const skills = input.skills ?? DEFAULT_HADES_SKILLS;
+  if (skills.length > 8) {
+    return routeSkillMapReduce({
+      message: input.message,
+      skills,
+      asker: input.asker,
+      signal: input.signal,
+    });
+  }
   const asker = input.asker ?? createJevAsker();
   const criteria = Object.fromEntries(skills.map((skill) => [skill.id, skill.description]));
 

@@ -12,4 +12,5 @@
 
 export * from "./research-agent";  // registers "research"
 export * from "./code-agent";      // registers "code"
+export * from "./hades-agent";     // registers "hades"
 // export * from "./your-agent";   // registers "your-agent-name"

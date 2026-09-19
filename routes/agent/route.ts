@@ -31,6 +31,8 @@ import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
 import { sseStream } from "@/agents/lib/utils";
 import { createCustomHarness } from "@/agents/core";
+import { createHadesHarness } from "@/agents/hades/index";
+import { config } from "@/agents/lib/config";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 
 // ── Agent registration ─────────────────────────────────────────────────────────
@@ -95,7 +97,9 @@ export async function POST(req: Request) {
       ? { ...agentConfig, tools: [...(agentConfig.tools ?? []), ...tools] }
       : agentConfig;
 
-    const harness = createCustomHarness(effectiveConfig);
+    const harness = config.agentProvider === "hades"
+      ? createHadesHarness(effectiveConfig)
+      : createCustomHarness(effectiveConfig);
 
     async function* eventGenerator() {
       let finalOutput = "";

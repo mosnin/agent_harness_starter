@@ -7,10 +7,28 @@
 
 import { IMPACT_LEVELS } from "./catalog";
 import { createJevAsker } from "./client";
+import { assessGitRisk } from "./hooks";
 import { NOUL, SCORE, decideUnavailable } from "./policy";
 import { noul, score } from "./questions";
 import type { JevAsker, JevState, PolicyDecision } from "./types";
 import { requireNoul, requireScore } from "./validate";
+
+function looksLikeGit(toolName: string, args: unknown): boolean {
+  if (/git/i.test(toolName)) return true;
+  if (!args || typeof args !== "object") return false;
+  const rec = args as Record<string, unknown>;
+  const command = String(rec.command ?? rec.cmd ?? "");
+  const extra = Array.isArray(rec.args) ? rec.args.map(String).join(" ") : "";
+  return /\bgit\b/i.test(`${command} ${extra}`);
+}
+
+function extractCommand(args: unknown): string {
+  if (!args || typeof args !== "object") return String(args ?? "");
+  const rec = args as Record<string, unknown>;
+  const command = String(rec.command ?? rec.cmd ?? "");
+  const extra = Array.isArray(rec.args) ? rec.args.map(String).join(" ") : "";
+  return `${command} ${extra}`.trim() || JSON.stringify(args).slice(0, 500);
+}
 
 export interface AutoModeInput {
   userRequest: string;
@@ -43,6 +61,16 @@ export async function assessToolRisk(input: AutoModeInput): Promise<PolicyDecisi
   }
 
   const asker = input.asker ?? createJevAsker();
+  if (looksLikeGit(input.toolName, input.toolArguments)) {
+    const git = await assessGitRisk({
+      command: extractCommand(input.toolArguments),
+      userRequest: input.userRequest,
+      asker,
+      signal: input.signal,
+    });
+    if (git.action !== "auto") return git;
+  }
+
   const asked = await asker.ask(
     {
       state: {

@@ -90,3 +90,44 @@ describe("Hades defaults", () => {
     expect(await voiceIntentHint("summarize the last invoice")).toBe("execute_now");
   });
 });
+
+describe("Hades skill routing", () => {
+  it("records a specialist skill on the run context", async () => {
+    const client = createMockJevClient((req) => {
+      const answers: Record<string, JevAnswer> = {};
+      for (const [id, question] of Object.entries(req.questions)) {
+        if (question.type === "noul") answers[id] = noulAns(id === "needs_specialist" ? 0.85 : 0.1);
+        else if (question.type === "choice") {
+          const keys = Object.keys(question.criteria);
+          const pick = keys.includes("research") ? "research" : keys[0];
+          const probabilities = Object.fromEntries(keys.map((k) => [k, k === pick ? 0.9 : 0.1 / Math.max(1, keys.length - 1)]));
+          const sum = Object.values(probabilities).reduce((a, b) => a + b, 0);
+          for (const k of Object.keys(probabilities)) probabilities[k] = (probabilities[k] ?? 0) / sum;
+          answers[id] = { type: "choice", choice: pick, probabilities, confidence: 0.9 };
+        } else {
+          answers[id] = {
+            type: "score",
+            score: 2,
+            legend: Object.fromEntries(question.criteria.map((l, i) => [String(i), l])),
+            probabilities: Object.fromEntries(question.criteria.map((_, i) => [String(i), i === 2 ? 0.8 : 0.2 / Math.max(1, question.criteria.length - 1)])),
+            confidence: 0.8,
+          };
+        }
+      }
+      return { model: "jev-latest", answers };
+    });
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenOutput: false,
+      autoMode: false,
+      stopHook: false,
+      compact: false,
+      skills: [{ id: "research", description: "Web research" }, { id: "code", description: "Code" }],
+    });
+    const runCtx = ctx();
+    await plugin.onBeforeRun!("Find sources on Convex pagination", runCtx, {
+      messages: [{ role: "user", content: "Find sources on Convex pagination" }],
+    });
+    expect(runCtx.context.hadesSkill).toBe("research");
+  });
+});

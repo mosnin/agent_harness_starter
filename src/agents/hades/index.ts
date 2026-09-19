@@ -13,18 +13,28 @@
  */
 
 import { createCustomHarness, type AgentHarness } from "../core";
-import { HADES_QWEN_ROUTES } from "../jev/catalog";
+import { DEFAULT_HADES_SKILLS, HADES_QWEN_ROUTES } from "../jev/catalog";
 import { createJevAsker } from "../jev/client";
+import { classifyVoiceIntent } from "../jev/hooks";
 import { registerJevMcpTools } from "../jev/mcp";
 import { routeModel, type ModelRouterResult } from "../jev/router";
+import type { SkillRoute } from "../jev/types";
 import { withJev, type JevPluginOptions } from "../plugins/jev";
 import { withMemory } from "../plugins/memory";
 import { withObservability } from "../plugins/observability";
 import { withApprovals } from "../plugins/approvals";
 import { configureOpenRouter, defaultHadesModel } from "../providers/openrouter";
-import { synthesizeSpeech, transcribeAudio, type VoiceConfig } from "../providers/voice";
+import { synthesizeSpeech, transcribeAudio, voiceIntentHint, type VoiceConfig } from "../providers/voice";
 import type { AgentConfig, RunInput, RunResult } from "../types";
 import type { JevAsker } from "../jev/types";
+
+function skillsFromConfig(agentConfig: AgentConfig): SkillRoute[] {
+  const named = (agentConfig.skills ?? []).map((id) => {
+    const known = DEFAULT_HADES_SKILLS.find((s) => s.id === id);
+    return known ?? { id, description: `Specialist skill: ${id}` };
+  });
+  return named.length > 0 ? named : DEFAULT_HADES_SKILLS.filter((s) => !s.id.startsWith("__"));
+}
 
 export interface HadesConfig extends AgentConfig {
   jev?: JevPluginOptions;
@@ -61,10 +71,14 @@ export function createHadesHarness(agentConfig: HadesConfig): HadesHarness {
   const has = (name: string) => plugins.some((p) => p.name === name);
 
   if (!has("jev")) {
-    plugins.unshift(withJev({ ...agentConfig.jev, asker }));
+    plugins.unshift(withJev({
+      ...agentConfig.jev,
+      asker,
+      skills: agentConfig.jev?.skills ?? skillsFromConfig(agentConfig),
+    }));
   }
   if (agentConfig.memoryKey && !has("memory")) {
-    plugins.push(withMemory({ key: agentConfig.memoryKey }));
+    plugins.push(withMemory({ key: agentConfig.memoryKey, jevFilter: true, asker }));
   }
   if (agentConfig.requireApprovalFor?.length && !has("approvals")) {
     plugins.push(withApprovals({ requireApprovalFor: agentConfig.requireApprovalFor }));
@@ -88,6 +102,33 @@ export function createHadesHarness(agentConfig: HadesConfig): HadesHarness {
     },
     async voiceTurn(audio, input) {
       const transcript = await transcribeAudio(audio, "audio.webm", agentConfig.voice);
+      const hint = await voiceIntentHint(transcript);
+      let spokenReply: string | undefined;
+      if (hint === "out_of_scope") {
+        spokenReply = "Okay, cancelled.";
+      } else {
+        const intent = await classifyVoiceIntent({ transcript, asker });
+        if (intent.action === "block" || intent.value === "unsafe" || intent.value === "out_of_scope") {
+          spokenReply = intent.value === "out_of_scope" ? "Okay, cancelled." : "I can't do that.";
+        } else if (intent.value === "clarify") {
+          spokenReply = "Could you say that again more specifically?";
+        }
+      }
+      if (spokenReply) {
+        let audio: Buffer | undefined;
+        try {
+          audio = await synthesizeSpeech(spokenReply, agentConfig.voice);
+        } catch {
+          audio = undefined;
+        }
+        return {
+          finalOutput: spokenReply,
+          messages: [{ role: "user", content: transcript }],
+          toolCalls: [],
+          transcript,
+          audio,
+        };
+      }
       const result = await inner.run({
         messages: [{ role: "user", content: transcript }],
         context: { ...(input?.context ?? {}), channel: "voice" },

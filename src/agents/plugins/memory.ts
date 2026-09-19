@@ -11,6 +11,7 @@
  *   });
  */
 
+import type { JevAsker } from "../jev/types";
 import type { HarnessPlugin, PluginRunContext } from "../types";
 
 export interface MemoryPluginOptions {
@@ -23,6 +24,9 @@ export interface MemoryPluginOptions {
   topK?: number;
   /** Max chars of the formatted memory block injected into instructions. Default: 2000. */
   maxLength?: number;
+  /** Drop injected / off-topic memories with Jev before they reach the prompt. */
+  jevFilter?: boolean;
+  asker?: JevAsker;
 }
 
 export function withMemory(opts: MemoryPluginOptions): HarnessPlugin {
@@ -52,7 +56,17 @@ export function withMemory(opts: MemoryPluginOptions): HarnessPlugin {
       const baseKey = ctx.userId ?? opts.key;
       const orgId = ctx.context?.orgId as string | undefined;
       const effectiveKey = orgId ? `org:${orgId}:${baseKey}` : baseKey;
-      const memories = await memory.retrieve(effectiveKey, userMessage, opts.topK ?? 5);
+      let memories = await memory.retrieve(effectiveKey, userMessage, opts.topK ?? 5);
+      if (opts.jevFilter && memories.length > 0) {
+        const { filterPassages } = await import("../jev/rag");
+        const kept = await filterPassages({
+          query: userMessage,
+          passages: memories.map((m) => ({ id: m.id, text: m.content, score: m.score })),
+          asker: opts.asker,
+        });
+        const keepIds = new Set(kept.map((p) => p.id));
+        memories = memories.filter((m) => keepIds.has(m.id));
+      }
       const block = formatMemoriesForPrompt(memories, opts.maxLength ?? 2000);
       return block ? `${instructions}\n\n## Relevant memories\n${block}` : instructions;
     },

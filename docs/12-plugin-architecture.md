@@ -86,9 +86,10 @@ You can also set `requiresApproval: true` on a `ToolDefinition` to apply it glob
 
 Puts TypeSafe Jev on the critical path (LangChain `ModelRouterMiddleware` + `AutoModeMiddleware`):
 
-- **onBeforeRun** — screen the message, then pick a Qwen route
-- **wrapTools** — Auto Mode risk check before every tool; HITL on `review`
-- **onAfterRun** — screen the draft for secrets / policy
+- **onBeforeRun** — screen the message, pick a Qwen route, optional skill route + compaction
+- **wrapTools** — Auto Mode (including git-risk), search rerank, shell-failure classification; HITL on `review`
+- **onAfterRun** — screen the draft, then a limpet-style stop-hook
+- **withMemory({ jevFilter: true })** — drop injected / irrelevant retrieved passages
 
 ```ts
 import { withJev, createHadesHarness } from "@/agents";

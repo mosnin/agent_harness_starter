@@ -4,6 +4,7 @@ export type { WorkflowBuilderConfig } from "./builder";
 
 // ── Step factories ────────────────────────────────────────────────────────────
 export { agentStep, sequential, parallel, branch, loop, delegate, transform, customStep } from "./steps";
+export { jevWhen, jevUntil } from "../jev/orchestrate";
 
 // ── Resilience wrappers ───────────────────────────────────────────────────────
 export {

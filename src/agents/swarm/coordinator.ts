@@ -128,6 +128,33 @@ export class SwarmCoordinator {
     return newTask;
   }
 
+  /**
+   * Same as submitTask, but Jev picks among capable agents when more than one
+   * is eligible. Falls back to selectAgent if Jev abstains.
+   */
+  async submitTaskJev(
+    task: Omit<SwarmTask, "id" | "status" | "createdAt">,
+    asker?: import("../jev/types").JevAsker
+  ): Promise<SwarmTask> {
+    const newTask: SwarmTask = {
+      ...task,
+      id: randomUUID(),
+      status: "pending",
+      createdAt: Date.now(),
+    };
+    this.tasks.set(newTask.id, newTask);
+    this._checkOfflineAgents();
+    const { pickSwarmAgent } = await import("../jev/orchestrate");
+    const picked = await pickSwarmAgent({
+      task: newTask,
+      agents: Array.from(this.agents.values()),
+      asker,
+    });
+    const agent = picked.agent ?? this.selectAgent(newTask);
+    if (agent) return this.assignTask(newTask.id, agent.id);
+    return newTask;
+  }
+
   assignTask(taskId: string, agentId: string): SwarmTask {
     const task = this._requireTask(taskId);
     const agent = this._requireAgent(agentId);

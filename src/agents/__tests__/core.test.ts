@@ -69,6 +69,25 @@ describe("core harness — plugin lifecycle", () => {
     setupRun();
   });
 
+  it("yields pendingPluginEvents queued during onBeforeRun", async () => {
+    const plugin: HarnessPlugin = {
+      name: "queue",
+      async onBeforeRun(msg, pluginCtx) {
+        pluginCtx.context.pendingPluginEvents = [{
+          type: "jev_decision",
+          node: "test",
+          decision: "ok",
+          reason: "queued",
+          action: "auto",
+        }];
+        return msg;
+      },
+    };
+    const harness = createCustomHarness({ name: "Test", instructions: "x", plugins: [plugin] });
+    const events = await collect(harness.stream(baseInput));
+    expect(events.some((e) => e.type === "jev_decision" && "node" in e && e.node === "test")).toBe(true);
+  });
+
   it("runs with no plugins and emits done", async () => {
     const harness = createCustomHarness({ name: "Test", instructions: "be helpful" });
     const events = await collect(harness.stream(baseInput));

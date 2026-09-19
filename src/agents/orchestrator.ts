@@ -31,6 +31,7 @@ import { resolveAgentTools } from "./skills/index";
 import { toOpenAITool } from "./utils";
 import { config } from "./lib/config";
 import { safeEmit } from "./observability/index";
+import type { JevAsker } from "./jev/types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,9 @@ export interface OrchestratorConfig {
     specialists: AgentConfig[],
     ctx?: RunInput["context"]
   ) => Promise<AgentConfig | null>;
+  /** Use Jev to pick a specialist before the LLM router (GodsBoy / notra). */
+  jevRouter?: boolean;
+  jevAsker?: JevAsker;
 }
 
 // ── Triage orchestrator ────────────────────────────────────────────────────────
@@ -90,9 +94,14 @@ export function createOrchestrator(orchConfig: OrchestratorConfig) {
       const runId = randomUUID();
       const userMessage = input.messages.at(-1)?.content ?? "";
 
+      const customRouter = orchConfig.customRouter
+        ?? (orchConfig.jevRouter
+          ? (await import("./jev/orchestrate")).createJevSpecialistRouter({ asker: orchConfig.jevAsker })
+          : undefined);
+
       // Try custom router first
-      if (orchConfig.customRouter) {
-        const target = await orchConfig.customRouter(
+      if (customRouter) {
+        const target = await customRouter(
           userMessage,
           orchConfig.specialists,
           input.context

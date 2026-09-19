@@ -210,6 +210,15 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
       traceparent,
     };
 
+    function drainPluginEvents(): AgentEvent[] {
+      const queued = ctx.pendingPluginEvents;
+      if (!Array.isArray(queued) || queued.length === 0) return [];
+      ctx.pendingPluginEvents = [];
+      return queued.filter((event): event is AgentEvent => {
+        return Boolean(event) && typeof event === "object" && "type" in (event as object);
+      });
+    }
+
     // ── onBeforeRun: transform / validate user message ────────────────────────
     let userMessage = input.messages.at(-1)?.content ?? "";
     for (const plugin of plugins) {
@@ -238,6 +247,8 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
         }
       }
     }
+
+    for (const ev of drainPluginEvents()) yield ev;
 
     const { agent, pendingEvents } = await buildAgent(ctx, pluginCtx, userMessage);
 
@@ -307,6 +318,12 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
             return;
           }
         }
+      }
+
+      for (const ev of drainPluginEvents()) yield ev;
+      for (const [id, pendingEvent] of pendingEvents) {
+        yield pendingEvent;
+        pendingEvents.delete(id);
       }
 
       // Emit usage event through the onEvent plugin chain

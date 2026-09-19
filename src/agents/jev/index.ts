@@ -23,6 +23,13 @@ export { superviseWorker, judgePatch } from "./symbolic";
 export { approveCompanyAction } from "./company";
 export { recordDecision, getJevAudit, clearJevAudit } from "./audit";
 export { registerJevMcpTools } from "./mcp";
+export { filterPassages } from "./rag";
+export { mapReduceChoice, routeSkillMapReduce, beamClassify } from "./mapreduce";
+export { semanticFind, extractValue, compareTexts, bindFunctionCall, sdeCascade } from "./extract";
+export { planAndRerankSearch } from "./search";
+export { stopHook, heedPolicy, assessGitRisk, classifyVoiceIntent } from "./hooks";
+export { createJevSpecialistRouter, jevWhen, jevUntil, pickSwarmAgent } from "./orchestrate";
+export { decisionEvent, queueDecision, drainPendingPluginEvents } from "./events";
 
 export type {
   JsonValue,
@@ -58,3 +65,6 @@ export type { TriageItem, TriageResult } from "./curate";
 export type { GoldCase, NodeCalibration, EvalReport } from "./eval";
 export type { ForemanObservation, ForemanVerdict } from "./symbolic";
 export type { CompanyAction } from "./company";
+export type { Passage, FilteredPassage } from "./rag";
+export type { BoundFunction } from "./extract";
+export type { SearchPlan } from "./search";

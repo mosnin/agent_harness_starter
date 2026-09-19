@@ -121,15 +121,53 @@ if (asked.ok && asked.result.answers.urgent.type === "noul") {
 
 Without `TYPESAFE_API_KEY`, `askJev` returns `{ ok: false, reason: "jev-unconfigured" }`. Routing stays fail-open; security stays fail-closed.
 
+## Live-path integrations
+
+These sit on real harness hops, not just helper libraries:
+
+| Path | What Jev does |
+|---|---|
+| `withMemory({ jevFilter: true })` | Drop injected / irrelevant RAG passages before they reach Qwen |
+| `routeSkill` | Map-reduce over catalogs larger than 8 (GodsBoy / jev-bfs) |
+| `createOrchestrator({ jevRouter: true })` | Pick a specialist before the LLM router |
+| `jevWhen` / `jevUntil` | Workflow branch + loop stop conditions |
+| `SwarmCoordinator.submitTaskJev` | Assign a task among capable agents |
+| `withJev` stop-hook | Limpet-style incomplete-reply check on the draft |
+| `assessToolRisk` | Extra git-risk pass on `git` / `shell_exec` |
+| `web_search` wrap | Intent + source plan, then rerank |
+| `shell_exec` wrap | Classify failures (retry / env / secret leak) |
+| `voiceTurn` | Jev intent (`execute_now` / `clarify` / `out_of_scope` / `unsafe`) |
+| `AGENT_PROVIDER=hades` | Main `/api/agent` uses `createHadesHarness` |
+| Agent Chat | Streams `jev_decision` status + optional OpenAI voice |
+
+```ts
+import { createOrchestrator, createWorkflow, jevWhen, jevUntil } from "@/agents";
+
+const orch = createOrchestrator({
+  routerAgent,
+  specialists: [billing, engineering],
+  jevRouter: true,
+});
+
+const workflow = createWorkflow("review")
+  .add(branch("risk", [
+    { when: jevWhen({ question: "Does this draft need a human reviewer?" }), step: reviewStep },
+  ], autoStep))
+  .add(loop("polish", draftStep, { until: jevUntil({}), maxIterations: 3 }))
+  .build();
+```
+
 ## Voice
 
-OpenAI transcribes, Hades decides and generates, OpenAI speaks:
+OpenAI transcribes, Jev classifies intent, Qwen generates only when the transcript is actionable, OpenAI speaks:
 
 ```ts
 const spoken = await hades.voiceTurn(audioBuffer);
 // spoken.transcript, spoken.finalOutput, spoken.audio
 ```
 
+Ambiguous or cancelled utterances never reach Qwen.
+
 ## MCP
 
-`registerJevMcpTools()` (called by `createHadesHarness`) exposes `jev_screen`, `jev_verify`, `jev_decide`, `jev_rerank`, `jev_quiet_ask`, `jev_auto_mode` on `/api/mcp`.
+`registerJevMcpTools()` (called by `createHadesHarness`) exposes `jev_screen`, `jev_verify`, `jev_decide`, `jev_rerank`, `jev_quiet_ask`, `jev_auto_mode`, plus `jev_find`, `jev_extract`, `jev_compare`, `jev_bind`, `jev_search`, `jev_filter_passages`, `jev_stop`, and `jev_git` on `/api/mcp`.

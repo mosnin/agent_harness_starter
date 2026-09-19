@@ -10,6 +10,10 @@ import { verifyCitation, screenExternal } from "./guardrails";
 import { judge, quietAsk } from "./decisions";
 import { rerankResults } from "./scoring";
 import { createJevAsker } from "./client";
+import { semanticFind, extractValue, compareTexts, bindFunctionCall } from "./extract";
+import { planAndRerankSearch } from "./search";
+import { stopHook, assessGitRisk } from "./hooks";
+import { filterPassages } from "./rag";
 
 export function registerJevMcpTools(): void {
   registerTool({
@@ -100,6 +104,125 @@ export function registerJevMcpTools(): void {
         toolName: input.toolName,
         toolArguments: input.toolArguments,
       });
+    },
+  });
+
+  registerTool({
+    name: "jev_find",
+    description: "Pick the candidate that answers a query (semantic find).",
+    category: "jev",
+    parameters: z.object({
+      query: z.string().min(1),
+      candidates: z.array(z.object({ id: z.string(), text: z.string() })),
+    }),
+    async execute(input) {
+      return semanticFind(input);
+    },
+  });
+
+  registerTool({
+    name: "jev_extract",
+    description: "Extract a closed-set field value from a document.",
+    category: "jev",
+    parameters: z.object({
+      field: z.string().min(1),
+      document: z.string().min(1),
+      candidates: z.array(z.string()).min(2),
+    }),
+    async execute(input) {
+      return extractValue(input);
+    },
+  });
+
+  registerTool({
+    name: "jev_compare",
+    description: "Decide whether two texts assert the same fact, contradict, or differ.",
+    category: "jev",
+    parameters: z.object({
+      left: z.string().min(1),
+      right: z.string().min(1),
+    }),
+    async execute(input) {
+      return compareTexts(input);
+    },
+  });
+
+  registerTool({
+    name: "jev_bind",
+    description: "Bind a request to a function name and closed-set arguments.",
+    category: "jev",
+    parameters: z.object({
+      request: z.string().min(1),
+      functions: z.array(z.object({
+        name: z.string(),
+        description: z.string(),
+        args: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+      })),
+    }),
+    async execute(input) {
+      return bindFunctionCall(input);
+    },
+  });
+
+  registerTool({
+    name: "jev_search",
+    description: "Classify search intent/sources and rerank results.",
+    category: "jev",
+    parameters: z.object({
+      request: z.string().min(1),
+      results: z.array(z.object({
+        id: z.string(),
+        title: z.string().optional(),
+        snippet: z.string(),
+        source: z.string().optional(),
+      })),
+    }),
+    async execute(input) {
+      return planAndRerankSearch(input);
+    },
+  });
+
+  registerTool({
+    name: "jev_filter_passages",
+    description: "Filter RAG passages for relevance and prompt injection.",
+    category: "jev",
+    parameters: z.object({
+      query: z.string().min(1),
+      passages: z.array(z.object({
+        id: z.string(),
+        text: z.string(),
+        score: z.number().optional(),
+      })),
+    }),
+    async execute(input) {
+      return filterPassages(input);
+    },
+  });
+
+  registerTool({
+    name: "jev_stop",
+    description: "Limpet-style stop-hook: did the reply violate a completion rule?",
+    category: "jev",
+    parameters: z.object({
+      goal: z.string().min(1),
+      finalMessage: z.string().min(1),
+      rules: z.array(z.string()).optional(),
+    }),
+    async execute(input) {
+      return stopHook(input);
+    },
+  });
+
+  registerTool({
+    name: "jev_git",
+    description: "Assess a git command for force-push / unrecoverable risk.",
+    category: "jev",
+    parameters: z.object({
+      command: z.string().min(1),
+      userRequest: z.string().min(1),
+    }),
+    async execute(input) {
+      return assessGitRisk(input);
     },
   });
 }
