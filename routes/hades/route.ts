@@ -11,6 +11,7 @@ import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
 import { sseStream } from "@/agents/lib/utils";
 import { createHadesHarness } from "@/agents/hades/index";
+import { redactSecrets } from "@/agents/jev/redact";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 import "@/agents/examples";
 
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
     if (!thread) return Response.json({ error: "Thread not found" }, { status: 404 });
     const resolvedThreadId = thread.id;
 
-    await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: message });
+    await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: redactSecrets(message).text });
     const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName });
 
     const harness = createHadesHarness({
@@ -73,7 +74,11 @@ export async function POST(req: Request) {
         return;
       }
       if (finalOutput) {
-        await db.saveMessage({ threadId: resolvedThreadId, role: "assistant", content: finalOutput });
+        await db.saveMessage({
+          threadId: resolvedThreadId,
+          role: "assistant",
+          content: redactSecrets(finalOutput).text,
+        });
       }
       await db.updateRun(run.id, { status: "completed", completedAt: new Date() });
     }

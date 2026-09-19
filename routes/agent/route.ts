@@ -32,6 +32,7 @@ import { db } from "@/agents/db";
 import { sseStream } from "@/agents/lib/utils";
 import { createCustomHarness } from "@/agents/core";
 import { createHadesHarness } from "@/agents/hades/index";
+import { redactSecrets } from "@/agents/jev/redact";
 import { config } from "@/agents/lib/config";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 
@@ -88,7 +89,7 @@ export async function POST(req: Request) {
 
     const resolvedThreadId = thread.id;
 
-    await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: message });
+    await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: redactSecrets(message).text });
 
     const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName });
 
@@ -123,7 +124,11 @@ export async function POST(req: Request) {
       }
 
       if (finalOutput) {
-        await db.saveMessage({ threadId: resolvedThreadId, role: "assistant", content: finalOutput });
+        await db.saveMessage({
+          threadId: resolvedThreadId,
+          role: "assistant",
+          content: redactSecrets(finalOutput).text,
+        });
       }
       await db.updateRun(run.id, { status: "completed", completedAt: new Date() });
     }

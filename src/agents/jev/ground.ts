@@ -6,6 +6,7 @@
  */
 
 import { NOUL } from "./policy";
+import { redactSecrets } from "./redact";
 import type { JevAnswers, PolicyDecision } from "./types";
 
 export const CLARIFY_REPLY =
@@ -26,7 +27,7 @@ export function looksLikeAbstain(text: string): boolean {
 }
 
 export function abstainReply(evidence: string): string {
-  const snippet = evidence.trim().slice(0, 800);
+  const snippet = redactSecrets(evidence).text.trim().slice(0, 800);
   const body = snippet
     ? `What I can support from this session:\n${snippet}`
     : "No retrieved evidence was attached to this turn.";

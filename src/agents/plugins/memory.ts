@@ -67,7 +67,8 @@ export function withMemory(opts: MemoryPluginOptions): HarnessPlugin {
         const keepIds = new Set(kept.map((p) => p.id));
         memories = memories.filter((m) => keepIds.has(m.id));
       }
-      const block = formatMemoriesForPrompt(memories, opts.maxLength ?? 2000);
+      const { redactSecrets } = await import("../jev/redact");
+      const block = redactSecrets(formatMemoriesForPrompt(memories, opts.maxLength ?? 2000)).text;
       return block ? `${instructions}\n\n## Relevant memories\n${block}` : instructions;
     },
 
@@ -80,8 +81,8 @@ export function withMemory(opts: MemoryPluginOptions): HarnessPlugin {
       const baseKey = ctx.userId ?? opts.key;
       const orgId = ctx.context?.orgId as string | undefined;
       const effectiveKey = orgId ? `org:${orgId}:${baseKey}` : baseKey;
-      // Store the exchange for future retrieval
-      await memory.store(effectiveKey, result.finalOutput).catch(() => {});
+      const { redactSecrets } = await import("../jev/redact");
+      await memory.store(effectiveKey, redactSecrets(result.finalOutput).text).catch(() => {});
     },
   };
 }

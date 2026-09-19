@@ -202,7 +202,7 @@ npx tsc --noEmit
 npx vitest run
 ```
 
-Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `hades-desktop.test.ts`. Core event drain: `core.test.ts` (`pendingPluginEvents`).
+Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `hades-desktop.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`. Core event drain: `core.test.ts` (`pendingPluginEvents`).
 
 ---
 
@@ -220,7 +220,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
 5. **Qwen generates** and may call tools. `core.ts` drains `pendingPluginEvents` after `onBeforeRun` so the UI sees Jev decisions even before the first token.
 6. **`wrapTools`**
    - `runToolGate` — Auto Mode + malware + patch + company in **one** ask. Git-looking commands include git nouls in that same request. Jev-down → **block**.
-   - Every tool result is harvested into `jevEvidence` with no extra Jev call.
+   - Every tool result is **redacted** (API keys, tokens, private keys, connection strings) then harvested into `jevEvidence` with no extra Jev call. Search/browser evidence uses the same `mergeEvidence` path — raw secrets never reach Qwen, the compacted thread, memories, or persisted chat.
    - `scanMalicious` on `sandbox_run_code` / `modal_run`.
    - `judgePatch` on `file_patch`.
    - `approveCompanyAction` on deploy / composio / transfer / rotate / prod tools. `deploy_prod`, `wire_transfer`, `delete_account`, `rotate_keys` always HITL.
@@ -234,7 +234,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
    - `decideCompletion` — advisory (Foreman).
    - `scoreQuality` — advisory (JevSlop).
    - `verifyCitation` against `jevEvidence` — Jev-down or contradiction → **block**.
-   - Sentence-level grounding + `invented_numbers` / `invented_sources` / `needs_abstain`. Ungrounded drafts are replaced with a deterministic abstain (citation-verifier), not a second Qwen pass.
+   - Sentence-level grounding + `invented_numbers` / `invented_sources` / `needs_abstain`. Ungrounded drafts are replaced with a deterministic abstain (citation-verifier), not a second Qwen pass. Abstain snippets and the returned draft are redacted again so a leaked key cannot ride out on the last hop.
 8. **TTS** if this was a voice turn.
 
 ---
@@ -266,7 +266,8 @@ All under `src/agents/jev/`:
 | `cache.ts` | LRU + in-flight coalesce of successful asks | desktop prefetch / retries |
 | `compact.ts` | Apply keep/summarize/aggressive to the injected thread | pi-fast-jev-compaction |
 | `toolgate.ts` | One ask for Auto Mode + malware + patch + company | jev-ultrafast speculative heads |
-| `harvest.ts` | Zero-RTT evidence cards from tool results | citation-verifier "code splits" |
+| `harvest.ts` | Zero-RTT evidence cards from tool results (secrets stripped) | citation-verifier "code splits" |
+| `redact.ts` | Zero-RTT secret / PII strip before Qwen, memory, desktop, DB | safer-with-jev + guidance `secretsGate` |
 | `ground.ts` | Sentence split + abstain rewrite | citation-verifier + pi-quiet-ask |
 | `curate.ts` / `eval.ts` | Triage, labels, Brier / accuracy | jev-curate, calibration repos |
 | `symbolic.ts` | Foreman supervisor, patch verdict | Foreman, jev-code |
@@ -317,6 +318,7 @@ These sit on real hops, not helper-only APIs:
 | Desktop sidecar | `createDesktopHost` / `npm run desktop:sidecar`; Jev gates `desktop.act` before `cap` |
 | `runToolGate` | One System One call for Auto Mode + malware + patch + company |
 | Tool harvest | Append evidence cards with no extra Jev call |
+| Secret redaction | Strip keys from tool output, evidence, stream, memory, desktop `cap`, persisted threads |
 | Postflight grounding | Sentence-level support; ungrounded drafts become an abstain |
 | Quiet-ask | `needs_clarify` skips Qwen instead of guessing |
 
@@ -434,10 +436,11 @@ Fixed:
 - `/api/voice` rejects bodies over 8 MiB.
 - Jev HTTP `baseUrl` is env-only (no request-controlled SSRF).
 - `/api/hades` and `/api/voice` use `auth.requireAuth`.
+- Tool stdout, search/browser evidence, compacted threads, streamed deltas, abstains, memories, desktop `cap` output, and persisted `/api/hades` + `/api/agent` messages are locally redacted (`redactSecrets`) before they reach Qwen or storage. Jev still sees the raw blob on screens / command-failure so it can fail-close on a leak.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): `web_search` snippets are reranked but not run through `screenExternal` (browser scrapes are). Search evidence still goes through `verifyCitation` on the final draft.
+Residual (accepted): `web_search` snippets are reranked but not run through `screenExternal` (browser scrapes are). Search evidence still goes through `verifyCitation` on the final draft. Streaming redaction is per-chunk; a key split across two SSE deltas can leak until `message_done` / `onAfterRun` rewrite it.
 
 ---
 
@@ -479,7 +482,7 @@ Residual (accepted): `web_search` snippets are reranked but not run through `scr
 **Routes:** `routes/hades/route.ts`, `routes/voice/route.ts`, `routes/agent/route.ts`  
 **UI:** `components/AgentChat/index.tsx`  
 **Example:** `src/agents/examples/hades-agent.ts`  
-**Tests:** `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `core.test.ts`  
+**Tests:** `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`, `core.test.ts`  
 **Package:** `package.json` exports `./jev`, `./hades`, `./hades/desktop`; `tsup.config.ts` entries `jev/index`, `hades/index`, `hades/desktop/index`; root barrel `src/agents/index.ts`  
 **Docs / env:** this file, `docs/12-plugin-architecture.md`, `docs/01-integration.md`, `QUICKSTART.md`, `.env.example`, `README.md`
 
@@ -513,6 +516,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
 
+### Wave 7 — Zero-RTT secret redaction
+
+Jev screens drafts, but a key in tool stdout used to land in `jevEvidence` and the next Qwen prompt before postflight. `redactSecrets` now strips keys locally on every Qwen-facing surface: tool results, harvest/merge, compacted threads, streamed deltas, abstains, memory store/retrieve, desktop `cap` output, and persisted `/api/hades` + `/api/agent` messages. Screens and command-failure still see the raw blob so Jev can fail-close.
+
 ---
 
 ## 15. Debug / install sweep (how to prove it is installed)
@@ -530,7 +537,7 @@ Static install checks (already in this tree):
 
 | Artifact | Must exist |
 |---|---|
-| `src/agents/jev/*.ts` | 24 modules listed in §4 |
+| `src/agents/jev/*.ts` | modules listed in §4 including `redact.ts` |
 | `src/agents/hades/index.ts` | `createHadesHarness`, `shouldExecuteVoice` |
 | `src/agents/hades/desktop/` | Sidecar host + IPC + Cap runner |
 | `src/agents/plugins/jev.ts` | `withJev` |

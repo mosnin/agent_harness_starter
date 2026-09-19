@@ -4,19 +4,23 @@
  * Qwen hallucinates when the only facts live in a raw tool blob it can ignore.
  * Harvest appends a short card to `jevEvidence` so postflight can ground the draft.
  * No System One call — this is the citation-verifier "code splits, Jev scores" split.
+ * Secrets are stripped here so the next prompt never sees a leaked key.
  */
+
+import { redactSecrets } from "./redact";
 
 export function harvestToolEvidence(toolName: string, output: unknown): string {
   if (output == null) return "";
-  const text = extractReadable(output);
+  const text = redactSecrets(extractReadable(output)).text;
   if (!text.trim()) return "";
   return `[${toolName}] ${text}`.slice(0, 1500);
 }
 
 export function mergeEvidence(existing: unknown, card: string, max = 8000): string {
-  if (!card) return String(existing ?? "");
-  const prior = String(existing ?? "").trim();
-  return (prior ? `${prior}\n${card}` : card).slice(0, max);
+  const prior = redactSecrets(String(existing ?? "")).text.trim();
+  const next = redactSecrets(card).text.trim();
+  if (!next) return prior;
+  return (prior ? `${prior}\n${next}` : next).slice(0, max);
 }
 
 function extractReadable(output: unknown): string {

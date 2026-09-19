@@ -32,6 +32,7 @@ export { assessToolRisk, isSafeReadTool } from "./auto-mode";
 export { runToolGate } from "./toolgate";
 export { applyCompaction, formatCompactThread, parseCompactStrategy, isToolBlob } from "./compact";
 export { harvestToolEvidence, mergeEvidence } from "./harvest";
+export { redactSecrets, redactValue, createRedactStream } from "./redact";
 export { splitSentences, interpretGrounding, abstainReply, CLARIFY_REPLY } from "./ground";
 export { screenExternal, screenOutput, verifyCitation, scanMalicious } from "./guardrails";
 export { scoreQuality, rerankResults, compositeScore, scorePage } from "./scoring";

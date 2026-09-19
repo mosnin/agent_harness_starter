@@ -21,6 +21,7 @@ import {
   type DesktopCommand,
   type DesktopEvent,
 } from "./contract";
+import { redactSecrets, redactValue } from "../../jev/redact";
 
 export interface DesktopHostOptions {
   /** Existing harness (tests). Otherwise built from {@link agent}. */
@@ -124,7 +125,7 @@ async function runChat(
     if (event.type === "message_done") finalOutput = event.content;
     if (event.type === "done") finalOutput = event.finalOutput;
   }
-  emit({ type: "run.done", finalOutput });
+  emit({ type: "run.done", finalOutput: redactSecrets(finalOutput).text });
 }
 
 async function runVoice(
@@ -134,8 +135,9 @@ async function runVoice(
 ): Promise<void> {
   const audio = Buffer.from(audioBase64, "base64");
   const result = await harness.voiceTurn(audio, { context: { channel: "desktop" } });
-  emit({ type: "message.done", content: result.finalOutput });
-  emit({ type: "run.done", finalOutput: result.finalOutput });
+  const spoken = redactSecrets(result.finalOutput).text;
+  emit({ type: "message.done", content: spoken });
+  emit({ type: "run.done", finalOutput: spoken });
 }
 
 async function runDesktopAct(
@@ -179,25 +181,25 @@ async function runDesktopAct(
     return;
   }
   try {
-    const output = await cap.run(command.action, command.args ?? {});
+    const output = redactValue(await cap.run(command.action, command.args ?? {}));
     emit({ type: "desktop.result", action: command.action, ok: true, output });
   } catch (error) {
     emit({
       type: "desktop.result",
       action: command.action,
       ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: redactSecrets(error instanceof Error ? error.message : String(error)).text,
     });
   }
 }
 
 function forwardAgentEvent(event: AgentEvent, emit: (event: DesktopEvent) => void): void {
   if (event.type === "message_delta") {
-    emit({ type: "message.delta", delta: event.delta });
+    emit({ type: "message.delta", delta: redactSecrets(event.delta).text });
     return;
   }
   if (event.type === "message_done") {
-    emit({ type: "message.done", content: event.content });
+    emit({ type: "message.done", content: redactSecrets(event.content).text });
     return;
   }
   if (event.type === "jev_decision") {

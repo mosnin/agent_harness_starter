@@ -150,6 +150,7 @@ export {
   warmupJev,
   runToolGate,
   harvestToolEvidence,
+  redactSecrets,
   screenExternal,
   screenOutput,
   registerJevMcpTools,

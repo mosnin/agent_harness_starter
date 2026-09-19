@@ -6,6 +6,8 @@
  * speed win. Code drops or heads tool transcripts; Jev only picks the tier.
  */
 
+import { redactSecrets } from "./redact";
+
 export type CompactStrategy = "keep" | "summarize" | "aggressive";
 
 export interface ThreadMessage {
@@ -24,8 +26,12 @@ export function parseCompactStrategy(value: unknown): CompactStrategy {
   return "keep";
 }
 
+function scrub(messages: ThreadMessage[]): ThreadMessage[] {
+  return messages.map((msg) => ({ ...msg, content: redactSecrets(msg.content).text }));
+}
+
 export function applyCompaction(messages: ThreadMessage[], strategy: CompactStrategy): ThreadMessage[] {
-  if (strategy === "keep" || messages.length <= 3) return messages;
+  if (strategy === "keep" || messages.length <= 3) return scrub(messages);
 
   const first = messages[0]!;
   const last = messages[messages.length - 1]!;
@@ -48,12 +54,12 @@ export function applyCompaction(messages: ThreadMessage[], strategy: CompactStra
     content: `[jev compacted ${middle.length} middle turn(s) · ${strategy}]`,
   };
 
-  return [first, note, ...prunedMiddle, ...tail, last];
+  return scrub([first, note, ...prunedMiddle, ...tail, last]);
 }
 
 export function formatCompactThread(messages: ThreadMessage[], maxChars = 3000): string {
   const body = messages
-    .map((msg) => `${msg.role}: ${msg.content}`)
+    .map((msg) => `${msg.role}: ${redactSecrets(msg.content).text}`)
     .join("\n")
     .slice(0, maxChars);
   return body;

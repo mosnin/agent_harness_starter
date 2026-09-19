@@ -18,6 +18,7 @@ import { harvestToolEvidence, mergeEvidence } from "../jev/harvest";
 import { heedPolicy, stopHook } from "../jev/hooks";
 import { runPostflight } from "../jev/postflight";
 import { runPreflight } from "../jev/preflight";
+import { redactSecrets, redactValue } from "../jev/redact";
 import { routeModel, routeSkill } from "../jev/router";
 import { scoreQuality } from "../jev/scoring";
 import { planAndRerankSearch } from "../jev/search";
@@ -286,7 +287,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
 
     onResolveInstructions(instructions, _userMessage, ctx) {
       const extras: string[] = [];
-      const evidence = String(ctx.context.jevEvidence ?? "").trim();
+      const evidence = redactSecrets(String(ctx.context.jevEvidence ?? "")).text.trim();
       if (evidence) extras.push(`## Session evidence\n${evidence.slice(0, 2000)}`);
       const thread = ctx.context.jevThread;
       if (Array.isArray(thread) && thread.length > 1) {
@@ -301,8 +302,17 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
       return extras.length > 0 ? `${instructions}\n\n${extras.join("\n\n")}` : instructions;
     },
 
+    onEvent(event) {
+      if (event.type === "message_delta") {
+        return { ...event, delta: redactSecrets(event.delta).text };
+      }
+      if (event.type === "message_done") {
+        return { ...event, content: redactSecrets(event.content).text };
+      }
+      return event;
+    },
+
     async wrapTools(tools: ToolDefinition[], ctx: PluginRunContext, pending: Map<string, AgentEvent>) {
-      if (!doAuto && !doRerank && !doMalicious && !doPatch && !doCompany) return tools;
       return tools.map((def) => {
         if (def.category === "jev") return def;
         return {
@@ -381,18 +391,14 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
               }
             }
 
-            const output = await def.execute(toolInput, toolCtx);
-            ctx.context.jevEvidence = mergeEvidence(
-              ctx.context.jevEvidence,
-              harvestToolEvidence(def.name, output)
-            );
+            const raw = await def.execute(toolInput, toolCtx);
 
-            if (doRerank && isSearchTool(def.name) && output && typeof output === "object" && "results" in output) {
-              const raw = output as { results: Array<{ title?: string; url?: string; content?: string; snippet?: string }> };
-              if (Array.isArray(raw.results) && raw.results.length > 1) {
+            if (doRerank && isSearchTool(def.name) && raw && typeof raw === "object" && "results" in raw) {
+              const search = raw as { results: Array<{ title?: string; url?: string; content?: string; snippet?: string }> };
+              if (Array.isArray(search.results) && search.results.length > 1) {
                 const plan = await planAndRerankSearch({
                   request: userRequest || String((toolInput as { query?: string }).query ?? ""),
-                  results: raw.results.map((r, i) => ({
+                  results: search.results.map((r, i) => ({
                     id: r.url ?? String(i),
                     title: r.title,
                     snippet: (r.content ?? r.snippet ?? "").slice(0, 400),
@@ -401,8 +407,8 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                   asker,
                   signal: ctx.signal,
                 });
-                const reranked = {
-                  ...output,
+                const reranked = redactValue({
+                  ...raw,
                   results: plan.ranked.map((r) => ({
                     title: r.title,
                     url: r.source ?? r.id,
@@ -410,14 +416,17 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                     score: r.relevance,
                   })),
                   jevSearch: { window: plan.window, sources: plan.sources },
-                };
-                ctx.context.jevEvidence = plan.ranked.map((r) => r.snippet).join("\n").slice(0, 6000);
+                });
+                ctx.context.jevEvidence = mergeEvidence(
+                  ctx.context.jevEvidence,
+                  harvestToolEvidence(def.name, reranked)
+                );
                 return reranked;
               }
             }
 
-            if (isBrowserTool(def.name) && output && typeof output === "object") {
-              const page = output as { text?: string; content?: string; url?: string };
+            if (isBrowserTool(def.name) && raw && typeof raw === "object") {
+              const page = raw as { text?: string; content?: string; url?: string };
               const text = String(page.text ?? page.content ?? "");
               if (text) {
                 const pageScreen = await screenExternal({
@@ -435,12 +444,11 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                     "jev_browser"
                   );
                 }
-                ctx.context.jevEvidence = `${String(ctx.context.jevEvidence ?? "")}\n${text}`.slice(0, 6000);
               }
             }
 
-            if (isShellTool(def.name) && output && typeof output === "object") {
-              const rec = output as { stderr?: string; exitCode?: number; error?: string; stdout?: string };
+            if (isShellTool(def.name) && raw && typeof raw === "object") {
+              const rec = raw as { stderr?: string; exitCode?: number; error?: string; stdout?: string };
               const failed = (rec.exitCode !== undefined && rec.exitCode !== 0) || Boolean(rec.error) || Boolean(rec.stderr);
               if (failed) {
                 const classified = await classifyCommandFailure({
@@ -457,10 +465,20 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                     "jev_command_failure"
                   );
                 }
-                return { ...output, jevFailure: classified };
+                const failedOut = redactValue({ ...raw, jevFailure: classified });
+                ctx.context.jevEvidence = mergeEvidence(
+                  ctx.context.jevEvidence,
+                  harvestToolEvidence(def.name, failedOut)
+                );
+                return failedOut;
               }
             }
 
+            const output = redactValue(raw);
+            ctx.context.jevEvidence = mergeEvidence(
+              ctx.context.jevEvidence,
+              harvestToolEvidence(def.name, output)
+            );
             return output;
           },
         };
@@ -470,7 +488,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
     async onAfterRun(finalOutput, ctx) {
       let output = finalOutput;
       if (ctx.context.jevDirectReply && output === ctx.context.jevDirectReply) {
-        return output;
+        return redactSecrets(output).text;
       }
       if (batch) {
         const started = Date.now();
@@ -525,9 +543,9 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
         }
         if (post.abstain) {
           ctx.context.jevAbstained = true;
-          return post.abstain;
+          return redactSecrets(post.abstain).text;
         }
-        return output;
+        return redactSecrets(output).text;
       }
       if (screenOut) {
         const started = Date.now();
@@ -583,7 +601,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
           }
         }
       }
-      return output;
+      return redactSecrets(output).text;
     },
   };
 }
