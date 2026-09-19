@@ -53,6 +53,9 @@ export async function filterPassages(input: {
     input.signal
   );
 
+  // Fail closed: never inject untrusted memory when Jev cannot score it.
+  if (!asked.ok) return [];
+
   return batch.map((p, i) => {
     const relAns = asked.ok ? asked.result.answers[`rel_${i}`] : undefined;
     const injAns = asked.ok ? asked.result.answers[`inj_${i}`] : undefined;

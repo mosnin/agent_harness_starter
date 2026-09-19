@@ -61,7 +61,9 @@ export function createHadesHarness(agentConfig: HadesConfig): HadesHarness {
   if (!agentConfig.skipProviderSetup) {
     configureOpenRouter();
   }
-  if (agentConfig.registerMcp !== false && !mcpRegistered) {
+  const enableMcp = agentConfig.registerMcp === true
+    || (agentConfig.registerMcp !== false && process.env.HADES_MCP_JEV === "true");
+  if (enableMcp && !mcpRegistered) {
     registerJevMcpTools();
     mcpRegistered = true;
   }

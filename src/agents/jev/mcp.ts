@@ -1,10 +1,13 @@
 /**
  * Jev MCP surface — jev-mcp / decide-mcp style tools.
  * Register into the existing tool registry so /api/mcp exposes them.
+ * Off by default: set HADES_MCP_JEV=true. Each tool requires ctx.userId
+ * unless HADES_MCP_JEV_ANON=true.
  */
 
 import { z } from "zod";
 import { registerTool } from "../tools/registry";
+import type { ToolContext } from "../tools/types";
 import { assessToolRisk } from "./auto-mode";
 import { verifyCitation, screenExternal } from "./guardrails";
 import { judge, quietAsk } from "./decisions";
@@ -15,6 +18,13 @@ import { planAndRerankSearch } from "./search";
 import { stopHook, assessGitRisk } from "./hooks";
 import { filterPassages } from "./rag";
 
+function requireJevMcpAuth(ctx: ToolContext): void {
+  if (process.env.HADES_MCP_JEV_ANON === "true") return;
+  if (!ctx.userId) {
+    throw new Error("jev_* MCP tools require authentication");
+  }
+}
+
 export function registerJevMcpTools(): void {
   registerTool({
     name: "jev_screen",
@@ -24,7 +34,8 @@ export function registerJevMcpTools(): void {
       content: z.string().min(1),
       purpose: z.string().optional(),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return screenExternal({ content: input.content, purpose: input.purpose, asker: createJevAsker() });
     },
   });
@@ -37,7 +48,8 @@ export function registerJevMcpTools(): void {
       claim: z.string().min(1),
       evidence: z.string().min(1),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return verifyCitation(input);
     },
   });
@@ -51,7 +63,8 @@ export function registerJevMcpTools(): void {
       evidence: z.string().min(1),
       candidates: z.record(z.string(), z.string()),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return judge(input);
     },
   });
@@ -69,7 +82,8 @@ export function registerJevMcpTools(): void {
         source: z.string().optional(),
       })),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return rerankResults(input);
     },
   });
@@ -84,7 +98,8 @@ export function registerJevMcpTools(): void {
       userRequest: z.string().min(1),
       facts: z.array(z.string()).optional(),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return quietAsk(input);
     },
   });
@@ -98,7 +113,8 @@ export function registerJevMcpTools(): void {
       toolName: z.string().min(1),
       toolArguments: z.unknown(),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return assessToolRisk({
         userRequest: input.userRequest,
         toolName: input.toolName,
@@ -115,7 +131,8 @@ export function registerJevMcpTools(): void {
       query: z.string().min(1),
       candidates: z.array(z.object({ id: z.string(), text: z.string() })),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return semanticFind(input);
     },
   });
@@ -129,7 +146,8 @@ export function registerJevMcpTools(): void {
       document: z.string().min(1),
       candidates: z.array(z.string()).min(2),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return extractValue(input);
     },
   });
@@ -142,7 +160,8 @@ export function registerJevMcpTools(): void {
       left: z.string().min(1),
       right: z.string().min(1),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return compareTexts(input);
     },
   });
@@ -159,7 +178,8 @@ export function registerJevMcpTools(): void {
         args: z.record(z.string(), z.record(z.string(), z.string())).optional(),
       })),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return bindFunctionCall(input);
     },
   });
@@ -177,7 +197,8 @@ export function registerJevMcpTools(): void {
         source: z.string().optional(),
       })),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return planAndRerankSearch(input);
     },
   });
@@ -194,7 +215,8 @@ export function registerJevMcpTools(): void {
         score: z.number().optional(),
       })),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return filterPassages(input);
     },
   });
@@ -208,7 +230,8 @@ export function registerJevMcpTools(): void {
       finalMessage: z.string().min(1),
       rules: z.array(z.string()).optional(),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return stopHook(input);
     },
   });
@@ -221,7 +244,8 @@ export function registerJevMcpTools(): void {
       command: z.string().min(1),
       userRequest: z.string().min(1),
     }),
-    async execute(input) {
+    async execute(input, ctx) {
+      requireJevMcpAuth(ctx);
       return assessGitRisk(input);
     },
   });

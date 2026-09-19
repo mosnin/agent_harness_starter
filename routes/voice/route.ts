@@ -27,6 +27,10 @@ export async function POST(req: Request) {
       return Response.json({ error: `Unknown agent: "${agentName}"`, available: getAllAgentNames() }, { status: 400 });
     }
 
+    const MAX_VOICE_BYTES = 8 * 1024 * 1024;
+    if (file.size > MAX_VOICE_BYTES) {
+      return Response.json({ error: `Audio exceeds ${MAX_VOICE_BYTES} bytes` }, { status: 413 });
+    }
     const audio = Buffer.from(await file.arrayBuffer());
     const harness = createHadesHarness(agentConfig);
     const result = await harness.voiceTurn(audio, {

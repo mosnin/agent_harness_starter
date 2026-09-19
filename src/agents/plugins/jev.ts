@@ -85,6 +85,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
           purpose: `Hades agent ${ctx.agentName}`,
           asker,
           signal: input.signal,
+          failMode: "closed",
         });
         emit(opts, screened, started, ctx);
         if (screened.action === "block") {

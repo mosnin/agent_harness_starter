@@ -89,7 +89,7 @@ export async function screenOutput(input: OutputScreenInput): Promise<PolicyDeci
     input.signal
   );
 
-  if (!asked.ok) return decideUnavailable("screen_output", "pass", "open");
+  if (!asked.ok) return decideUnavailable("screen_output", "unsafe", "closed");
 
   const answers = asked.result.answers;
   const secret = requireNoul(answers, "secret_leak");
