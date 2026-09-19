@@ -16,7 +16,11 @@ export interface CompanyAction {
   arguments?: unknown;
 }
 
-const ALWAYS_HITL = new Set(["deploy_prod", "wire_transfer", "delete_account", "rotate_keys"]);
+export const ALWAYS_HITL = new Set(["deploy_prod", "wire_transfer", "delete_account", "rotate_keys"]);
+
+export function isAlwaysHitlCompany(actionId: string): boolean {
+  return ALWAYS_HITL.has(actionId);
+}
 
 export async function approveCompanyAction(input: {
   userRequest: string;
@@ -51,10 +55,14 @@ export async function approveCompanyAction(input: {
   );
 
   if (!asked.ok) return decideUnavailable("company_os", input.action.id, "closed");
-  const authorized = requireNoul(asked.result.answers, "authorized");
-  const routine = requireNoul(asked.result.answers, "routine");
+  return interpretCompanyAnswers(asked.result.answers, input.action.id);
+}
+
+export function interpretCompanyAnswers(answers: import("./types").JevAnswers, actionId: string): PolicyDecision {
+  const authorized = requireNoul(answers, "authorized");
+  const routine = requireNoul(answers, "routine");
   if (authorized >= NOUL.authorized && routine >= NOUL.routine) {
-    return { action: "auto", value: input.action.id, reason: "routine-authorized", node: "company_os", answers: asked.result.answers };
+    return { action: "auto", value: actionId, reason: "routine-authorized", node: "company_os", answers };
   }
-  return { action: "review", value: input.action.id, reason: "needs-approval", node: "company_os", answers: asked.result.answers };
+  return { action: "review", value: actionId, reason: "needs-approval", node: "company_os", answers };
 }

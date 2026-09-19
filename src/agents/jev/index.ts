@@ -29,6 +29,9 @@ export { routeModel, routeSkill, routeIntent, detectRouteOverride, isGreeting, i
 export { runPreflight, interpretSkipGeneration, CANNED_REPLIES } from "./preflight";
 export { runPostflight } from "./postflight";
 export { assessToolRisk, isSafeReadTool } from "./auto-mode";
+export { runToolGate } from "./toolgate";
+export { harvestToolEvidence, mergeEvidence } from "./harvest";
+export { splitSentences, interpretGrounding, abstainReply, CLARIFY_REPLY } from "./ground";
 export { screenExternal, screenOutput, verifyCitation, scanMalicious } from "./guardrails";
 export { scoreQuality, rerankResults, compositeScore, scorePage } from "./scoring";
 export { quietAsk, decideCompletion, decideCompaction, classifyCommandFailure, decideBrowserStep, judge } from "./decisions";

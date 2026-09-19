@@ -19,7 +19,9 @@ Jev is TypeSafe’s **System One** model. It is not a chat model. It does not wr
 1. A **state** object — the evidence (user message, tool args, draft, passages, page text, …)
 2. A map of **typed questions**
 
-You get back calibrated answers in roughly 70–500ms. Every question in one request is evaluated **in parallel**. Adding another noul barely changes latency. That is the whole speed story: TypeSafe reports **70–500ms** and up to **~200×** vs an LLM judge on the same structured task. Hades therefore **must not** fire sequential Jev HTTP hops. `runPreflight` / `runPostflight` put screen + route + skill + heed (and output + quality + completion + citations) in **one** System One call each. Exact greetings still **screen** (fail-closed if Jev is down) and then skip Qwen with a canned reply. A circuit breaker fail-fasts after three Jev outages. Hedged fetch (default 200ms) aborts the loser. Identical asks are cached/coalesced for ~20s so desktop `chat.prefetch` makes `chat.send` a cache hit.
+You get back calibrated answers in roughly 70–500ms. Every question in one request is evaluated **in parallel**. Adding another noul barely changes latency. That is the whole speed story: TypeSafe reports **70–500ms** and up to **~200×** vs an LLM judge on the same structured task. Hades therefore **must not** fire sequential Jev HTTP hops.
+
+`runPreflight` / `runPostflight` / `runToolGate` are one System One call each. Preflight now also asks `needs_clarify` and `is_factual` (quiet-ask). Postflight scores each sentence against `jevEvidence` (citation-verifier). Tool loops batch Auto Mode + malware + patch + company instead of stacking RTTs (ultrafast speculative heads). Exact greetings still **screen** then skip Qwen. Vague asks skip Qwen with a clarify. Ungrounded drafts are **rewritten to an abstain**, not shipped. A circuit breaker fail-fasts after three Jev outages. Hedged fetch (default 200ms) aborts the loser. Identical asks are cached/coalesced for ~20s so desktop `chat.prefetch` makes `chat.send` a cache hit.
 
 The public HTTP contract:
 
@@ -212,12 +214,13 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
    - `screenExternal` (injection / secrets / substance). Jev-down → **block**. Injection/secret *review* → HITL error.
    - `routeModel` → `ctx.hadesModel` / `hadesRoute` (Qwen fast / balanced / powerful). Follow-up reuse at `is_followup ≥ 0.55`.
    - `routeSkill` + `heedPolicy` in the same request.
-   - `skip_llm` / `canned` → `ctx.jevDirectReply`; core short-circuits the generator.
+   - `skip_llm` / `canned` / `needs_clarify` → `ctx.jevDirectReply`; core short-circuits the generator. Vague asks get a clarify instead of a guessed essay.
    - Each decision is queued as a `jev_decision` SSE event.
 4. **`withMemory`** — retrieve, then `filterPassages`. Jev-down → **drop all memories**.
 5. **Qwen generates** and may call tools. `core.ts` drains `pendingPluginEvents` after `onBeforeRun` so the UI sees Jev decisions even before the first token.
 6. **`wrapTools`**
-   - `assessToolRisk` (Auto Mode). Git-looking commands get `assessGitRisk` first. Jev-down → **block**.
+   - `runToolGate` — Auto Mode + malware + patch + company in **one** ask. Git-looking commands include git nouls in that same request. Jev-down → **block**.
+   - Every tool result is harvested into `jevEvidence` with no extra Jev call.
    - `scanMalicious` on `sandbox_run_code` / `modal_run`.
    - `judgePatch` on `file_patch`.
    - `approveCompanyAction` on deploy / composio / transfer / rotate / prod tools. `deploy_prod`, `wire_transfer`, `delete_account`, `rotate_keys` always HITL.
@@ -231,6 +234,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
    - `decideCompletion` — advisory (Foreman).
    - `scoreQuality` — advisory (JevSlop).
    - `verifyCitation` against `jevEvidence` — Jev-down or contradiction → **block**.
+   - Sentence-level grounding + `invented_numbers` / `invented_sources` / `needs_abstain`. Ungrounded drafts are replaced with a deterministic abstain (citation-verifier), not a second Qwen pass.
 8. **TTS** if this was a voice turn.
 
 ---
@@ -260,6 +264,9 @@ All under `src/agents/jev/`:
 | `events.ts` | Queue `jev_decision` onto the harness stream | this harness |
 | `preflight.ts` / `postflight.ts` | One System One call per hop (the speed path) | TypeSafe parallel questions |
 | `cache.ts` | LRU + in-flight coalesce of successful asks | desktop prefetch / retries |
+| `toolgate.ts` | One ask for Auto Mode + malware + patch + company | jev-ultrafast speculative heads |
+| `harvest.ts` | Zero-RTT evidence cards from tool results | citation-verifier "code splits" |
+| `ground.ts` | Sentence split + abstain rewrite | citation-verifier + pi-quiet-ask |
 | `curate.ts` / `eval.ts` | Triage, labels, Brier / accuracy | jev-curate, calibration repos |
 | `symbolic.ts` | Foreman supervisor, patch verdict | Foreman, jev-code |
 | `company.ts` | Company-OS action approval | opencompany |
@@ -307,6 +314,10 @@ These sit on real hops, not helper-only APIs:
 | `AGENT_PROVIDER=hades` | `/api/agent` uses `createHadesHarness` |
 | Agent Chat | Streams `jev_decision`; Voice → `/api/voice` |
 | Desktop sidecar | `createDesktopHost` / `npm run desktop:sidecar`; Jev gates `desktop.act` before `cap` |
+| `runToolGate` | One System One call for Auto Mode + malware + patch + company |
+| Tool harvest | Append evidence cards with no extra Jev call |
+| Postflight grounding | Sentence-level support; ungrounded drafts become an abstain |
+| Quiet-ask | `needs_clarify` skips Qwen instead of guessing |
 
 ```ts
 import { createOrchestrator, createWorkflow, jevWhen, jevUntil, branch, loop } from "@/agents";
@@ -332,7 +343,7 @@ const workflow = createWorkflow("review")
 | LangChain | Hades |
 |---|---|
 | `ModelRouterMiddleware({ fast, powerful })` | `routeModel` / `HADES_QWEN_ROUTES` |
-| `AutoModeMiddleware(tools=["bash"])` | `assessToolRisk` inside `wrapTools` |
+| `AutoModeMiddleware(tools=["bash"])` | `runToolGate` inside `wrapTools` |
 | `TypeSafeClassifier.invoke(state, questions)` | `createJevAsker().ask(...)` |
 
 | Route | Default model | When |
@@ -347,13 +358,15 @@ Low-confidence *upgrades* are capped at balanced. Downgrades that would bust a p
 
 People posting Jev timings on X are measuring **structured decisions**, not generation. An LLM judge is 3–15s per hop. Jev is 70–500ms, and every extra noul in the same request is free. Hades keeps that advantage by:
 
-1. **One preflight / one postflight** — never screen then route then skill as separate HTTP hops.
+1. **One preflight / one postflight / one tool-gate** — never screen then route then skill, or Auto Mode then malware then patch, as separate HTTP hops.
 2. **Hedged fetch** — a second request at 200ms; the loser is aborted so a slow tail does not add a full timeout.
 3. **Circuit breaker** — three failures → 8s fail-fast (`jev-circuit-open`). Security still fail-closes; routing fail-opens.
 4. **Ask cache + coalesce** — identical `state + questions` reuse answers for 20s. Desktop `chat.prefetch` while the user types makes send a cache hit.
-5. **Skip Qwen** on exact greetings / thanks after the screen passes (`ctx.jevDirectReply`).
+5. **Skip Qwen** on exact greetings / thanks after the screen passes, and on quiet-ask clarifies (`needs_clarify`).
 6. **Skip Auto Mode** on an allowlist of read-only tools (`file_read`, `web_search`, desktop inspect). Writes still fail-closed.
 7. **Warmup** on `runtime.start` so TLS to `api.typesafe.ai` is already open.
+8. **Zero-RTT harvest** — every tool result becomes an evidence card. Postflight then scores each sentence against that card (citation-verifier). Ungrounded drafts are replaced with an abstain, not a second LLM pass.
+9. **Compaction in preflight** — when the thread is over 55% of the token budget, the same ask picks keep / summarize / aggressive (pi-fast-jev-compaction).
 
 `jev_decision` events carry `latencyMs` and `cached` so the desktop can show the same 70ms badge people are posting.
 

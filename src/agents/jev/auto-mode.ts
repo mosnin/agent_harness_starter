@@ -141,7 +141,14 @@ export async function assessToolRisk(input: AutoModeInput): Promise<PolicyDecisi
     return decideUnavailable("auto_mode", input.toolName, "closed");
   }
 
-  const answers = asked.result.answers;
+  return interpretToolRisk(asked.result.answers, input.toolName, gitLike);
+}
+
+export function interpretToolRisk(
+  answers: import("./types").JevAnswers,
+  toolName: string,
+  gitLike = false
+): PolicyDecision {
   if (gitLike && answers.git_force_push) {
     const git = interpretGitRisk(answers, "git_");
     if (git.action !== "auto") return git;
@@ -154,19 +161,19 @@ export async function assessToolRisk(input: AutoModeInput): Promise<PolicyDecisi
   const routine = requireNoul(answers, "routine");
 
   if (destructive >= NOUL.destructive) {
-    return { action: "block", value: input.toolName, reason: "destructive", node: "auto_mode", answers, probability: destructive };
+    return { action: "block", value: toolName, reason: "destructive", node: "auto_mode", answers, probability: destructive };
   }
   if (exfiltration >= NOUL.exfiltration) {
-    return { action: "block", value: input.toolName, reason: "exfiltration", node: "auto_mode", answers, probability: exfiltration };
+    return { action: "block", value: toolName, reason: "exfiltration", node: "auto_mode", answers, probability: exfiltration };
   }
   if (beyondScope >= NOUL.beyondScope) {
-    return { action: "review", value: input.toolName, reason: "beyond-scope", node: "auto_mode", answers, probability: beyondScope };
+    return { action: "review", value: toolName, reason: "beyond-scope", node: "auto_mode", answers, probability: beyondScope };
   }
   if (impact.score >= SCORE.impactHitl && impact.confidence >= 0.5) {
-    return { action: "review", value: input.toolName, reason: "high-impact", node: "auto_mode", answers, confidence: impact.confidence };
+    return { action: "review", value: toolName, reason: "high-impact", node: "auto_mode", answers, confidence: impact.confidence };
   }
   if (authorized >= NOUL.authorized && routine >= NOUL.routine) {
-    return { action: "auto", value: input.toolName, reason: "routine-authorized", node: "auto_mode", answers };
+    return { action: "auto", value: toolName, reason: "routine-authorized", node: "auto_mode", answers };
   }
-  return { action: "review", value: input.toolName, reason: "not-routine", node: "auto_mode", answers };
+  return { action: "review", value: toolName, reason: "not-routine", node: "auto_mode", answers };
 }

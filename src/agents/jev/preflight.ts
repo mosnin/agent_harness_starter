@@ -11,7 +11,8 @@ import { COMPLEXITY_LEVELS, DEFAULT_HADES_SKILLS, HADES_QWEN_ROUTES } from "./ca
 import { createJevAsker } from "./client";
 import { interpretScreenAnswers } from "./guardrails";
 import { interpretHeedAnswers } from "./hooks";
-import { decideUnavailable } from "./policy";
+import { CLARIFY_REPLY } from "./ground";
+import { decideUnavailable, NOUL } from "./policy";
 import { choice, noul, score } from "./questions";
 import {
   interpretModelRoute,
@@ -60,6 +61,8 @@ export interface PreflightResult {
   answers?: import("./types").JevAnswers;
   cached?: boolean;
   latencyMs?: number;
+  compact?: PolicyDecision;
+  factual?: number;
 }
 
 export async function runPreflight(input: PreflightInput): Promise<PreflightResult> {
@@ -124,7 +127,23 @@ export async function runPreflight(input: PreflightInput): Promise<PreflightResu
       ack: "Okay / got it.",
       need_llm: "A generating model must write the reply.",
     }),
+    needs_clarify: noul(
+      "Is `request` too ambiguous to act on without guessing (missing target, file, or outcome)?"
+    ),
+    is_factual: noul(
+      "Does answering `request` require stating specific facts, numbers, citations, or file contents?"
+    ),
   };
+
+  const tokenLimit = 128_000;
+  const pressure = tokenLimit > 0 ? (input.tokenEstimate ?? 0) / tokenLimit : 0;
+  if (input.compact && pressure >= 0.55) {
+    questions.compact_strategy = score("How aggressively should we compact this conversation?", [
+      "Keep all turns; budget is fine",
+      "Summarize the middle, keep recent turns and facts",
+      "Aggressive summarize; only keep the goal and open blockers",
+    ]);
+  }
 
   if (skills.length > 0 && skills.length <= 8) {
     const skillCriteria = Object.fromEntries([
@@ -194,8 +213,23 @@ export async function runPreflight(input: PreflightInput): Promise<PreflightResu
   const stamp = { latencyMs: asked.latencyMs, cached: asked.cached };
   screen = { ...screen, ...stamp };
   const routedStamped = { ...routed, ...stamp };
+  const factual = answers.is_factual?.type === "noul" ? answers.is_factual.noul : undefined;
+  const compact = interpretCompaction(answers, pressure);
 
-  return { asks: 1, screen, routed: routedStamped, skill, heed, ...skip, answers, ...stamp };
+  return { asks: 1, screen, routed: routedStamped, skill, heed, ...skip, answers, ...stamp, compact, factual };
+}
+
+export function interpretCompaction(
+  answers: import("./types").JevAnswers,
+  pressure: number
+): PolicyDecision | undefined {
+  const scored = answers.compact_strategy;
+  if (scored?.type !== "score") {
+    if (pressure < 0.55) return { action: "auto", value: "keep", reason: "under-budget", node: "compaction" };
+    return undefined;
+  }
+  const value = scored.score < 0.75 ? "keep" : scored.score < 1.5 ? "summarize" : "aggressive";
+  return { action: "auto", value, reason: "jev", node: "compaction", answers };
 }
 
 export function interpretSkipGeneration(
@@ -207,6 +241,10 @@ export function interpretSkipGeneration(
       skipGeneration: true,
       directReply: /thank/i.test(message) ? CANNED_REPLIES.thanks : CANNED_REPLIES.greeting,
     };
+  }
+  const clarify = answers.needs_clarify;
+  if (clarify?.type === "noul" && clarify.noul >= NOUL.clarify) {
+    return { skipGeneration: true, directReply: CLARIFY_REPLY };
   }
   const skip = answers.skip_llm;
   const canned = answers.canned;

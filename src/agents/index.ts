@@ -148,6 +148,8 @@ export {
   runPreflight,
   runPostflight,
   warmupJev,
+  runToolGate,
+  harvestToolEvidence,
   screenExternal,
   screenOutput,
   registerJevMcpTools,

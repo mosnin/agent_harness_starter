@@ -110,14 +110,18 @@ export async function judgePatch(input: {
     input.signal
   );
   if (!asked.ok) return decideUnavailable("jev_code", "request_changes", "review");
-  const verdict = requireChoice(asked.result.answers, "verdict");
-  const security = requireNoul(asked.result.answers, "security");
-  const risk = requireScore(asked.result.answers, "risk");
+  return interpretPatchAnswers(asked.result.answers);
+}
+
+export function interpretPatchAnswers(answers: import("./types").JevAnswers): PolicyDecision {
+  const verdict = requireChoice(answers, "verdict");
+  const security = requireNoul(answers, "security");
+  const risk = requireScore(answers, "risk");
   if (verdict.choice === "block" || security >= 0.65 || risk.score >= 2.5) {
-    return { action: "block", value: "block", reason: "patch-unsafe", node: "jev_code", answers: asked.result.answers };
+    return { action: "block", value: "block", reason: "patch-unsafe", node: "jev_code", answers };
   }
   if (verdict.choice === "request_changes" || verdict.confidence < 0.55) {
-    return { action: "review", value: "request_changes", reason: "patch-needs-work", node: "jev_code", answers: asked.result.answers };
+    return { action: "review", value: "request_changes", reason: "patch-needs-work", node: "jev_code", answers };
   }
-  return { action: "auto", value: "approve_with_nits", reason: "patch-ok", node: "jev_code", answers: asked.result.answers };
+  return { action: "auto", value: "approve_with_nits", reason: "patch-ok", node: "jev_code", answers };
 }

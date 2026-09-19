@@ -49,6 +49,9 @@ export const NOUL = {
   absent: 0.35,
   skillLoad: 0.8,
   stopHook: 0.8,
+  clarify: 0.85,
+  abstain: 0.75,
+  invented: 0.7,
 } as const;
 
 export const SCORE = {

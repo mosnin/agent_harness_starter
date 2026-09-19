@@ -90,8 +90,11 @@ export function createHadesHarness(agentConfig: HadesConfig): HadesHarness {
   }
 
   const model = agentConfig.model ?? defaultHadesModel();
+  const groundingContract =
+    " Grounding contract: treat tool results and jevEvidence as the only facts. Do not invent numbers, citations, file contents, URLs, or outcomes. If the session has no evidence for a claim, say you do not know and ask to look it up. Prefer a short grounded answer over a long guessed one.";
   const inner = createCustomHarness({
     ...agentConfig,
+    instructions: `${agentConfig.instructions}${groundingContract}`,
     model,
     plugins,
   });

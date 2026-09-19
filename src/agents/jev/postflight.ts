@@ -7,6 +7,7 @@
 import { SLOP_LEVELS } from "./catalog";
 import { createJevAsker } from "./client";
 import { interpretCitationAnswers, interpretOutputAnswers } from "./guardrails";
+import { interpretGrounding, splitSentences, type GroundingResult } from "./ground";
 import { interpretStopHook } from "./hooks";
 import { interpretCompletion } from "./decisions";
 import { decideUnavailable } from "./policy";
@@ -31,6 +32,8 @@ export interface PostflightInput {
   completion?: boolean;
   quality?: boolean;
   citations?: boolean;
+  grounding?: boolean;
+  strict?: boolean;
 }
 
 export interface PostflightResult {
@@ -40,6 +43,8 @@ export interface PostflightResult {
   completion?: PolicyDecision;
   quality?: QualityScore;
   citation?: PolicyDecision;
+  grounding?: GroundingResult;
+  abstain?: string;
 }
 
 export async function runPostflight(input: PostflightInput): Promise<PostflightResult> {
@@ -50,6 +55,8 @@ export async function runPostflight(input: PostflightInput): Promise<PostflightR
   const doQuality = input.quality !== false;
   const evidence = (input.evidence ?? "").trim();
   const doCite = input.citations !== false && evidence.length > 0;
+  const doGround = input.grounding !== false;
+  const sentences = doGround ? splitSentences(input.draft) : [];
 
   const questions: JevQuestions = {};
   if (doScreen) {
@@ -80,6 +87,22 @@ export async function runPostflight(input: PostflightInput): Promise<PostflightR
       says_nothing: "The evidence is silent on the claim.",
     });
   }
+  if (doGround) {
+    questions.invented_numbers = noul(
+      "Does `draft` invent specific numbers, dates, or quantities that are not in `evidence`?"
+    );
+    questions.invented_sources = noul(
+      "Does `draft` invent citations, URLs, file paths, or source names that are not in `evidence`?"
+    );
+    questions.needs_abstain = noul(
+      "Should we refuse to ship `draft` because it guesses facts instead of using `evidence` or saying we do not know?"
+    );
+    for (const [i, sentence] of sentences.entries()) {
+      questions[`g${i}`] = noul(
+        `Sentence ${i} of \`sentences\` makes a factual claim that \`evidence\` does not support (invented number, source, or outcome). False if it is a question, hedge, instruction, or clearly supported. Sentence: ${sentence.slice(0, 280)}`
+      );
+    }
+  }
 
   if (Object.keys(questions).length === 0) {
     return {
@@ -94,6 +117,7 @@ export async function runPostflight(input: PostflightInput): Promise<PostflightR
         draft: input.draft.slice(0, 8000),
         user_request: input.userRequest.slice(0, 2000),
         evidence: evidence.slice(0, 6000),
+        sentences,
         rules: STOP_RULES,
       } as JevState,
       questions,
@@ -112,6 +136,14 @@ export async function runPostflight(input: PostflightInput): Promise<PostflightR
   }
 
   const answers = asked.result.answers;
+  const grounding = doGround
+    ? interpretGrounding(answers, {
+        draft: input.draft,
+        evidence,
+        sentences,
+        strict: input.strict,
+      })
+    : undefined;
   return {
     asks: 1,
     screen: doScreen
@@ -121,5 +153,7 @@ export async function runPostflight(input: PostflightInput): Promise<PostflightR
     completion: doCompletion ? interpretCompletion(answers) : undefined,
     quality: doQuality ? interpretQuality(answers) : undefined,
     citation: doCite ? interpretCitationAnswers(answers) : undefined,
+    grounding,
+    abstain: grounding?.abstain,
   };
 }

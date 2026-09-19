@@ -172,10 +172,14 @@ export async function scanMalicious(input: MaliciousScanInput): Promise<PolicyDe
     input.signal
   );
   if (!asked.ok) return decideUnavailable("is_malicious", "unknown", "closed");
-  const hostile = requireNoul(asked.result.answers, "hostile");
-  const risk = requireScore(asked.result.answers, "overall_risk");
+  return interpretMaliciousAnswers(asked.result.answers);
+}
+
+export function interpretMaliciousAnswers(answers: import("./types").JevAnswers): PolicyDecision {
+  const hostile = requireNoul(answers, "hostile");
+  const risk = requireScore(answers, "overall_risk");
   if (hostile >= 0.7 || risk.score >= 1.5) {
-    return { action: "block", value: "malicious", reason: "hostile-code", node: "is_malicious", answers: asked.result.answers };
+    return { action: "block", value: "malicious", reason: "hostile-code", node: "is_malicious", answers, probability: hostile };
   }
-  return { action: "auto", value: "clean", reason: "ordinary", node: "is_malicious", answers: asked.result.answers };
+  return { action: "auto", value: "clean", reason: "ordinary", node: "is_malicious", answers };
 }
