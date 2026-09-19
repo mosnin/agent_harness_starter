@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createJevAsker, createMockJevClient } from "../jev/client";
 import { filterPassages } from "../jev/rag";
 import { mapReduceChoice, beamClassify } from "../jev/mapreduce";
-import { semanticFind, extractValue, compareTexts, bindFunctionCall, sdeCascade } from "../jev/extract";
+import { semanticFind, extractValue, compareTexts, bindFunctionCall, sdeCascade, harvestExtractCandidates } from "../jev/extract";
 import { evidenceAnswerReply, planAndRerankSearch, shouldSkipGenerationForEvidence } from "../jev/search";
 import { stopHook, heedPolicy, assessGitRisk, classifyVoiceIntent } from "../jev/hooks";
 import { createJevSpecialistRouter, jevWhen, jevUntil, pickSwarmAgent } from "../jev/orchestrate";
@@ -439,7 +439,7 @@ describe("RAG filter", () => {
     const client = createMockJevClient((req) => {
       const answers: Record<string, JevAnswer> = {};
       for (const id of Object.keys(req.questions)) {
-        if (id.startsWith("rel_")) answers[id] = noulAns(id === "rel_0" ? 0.9 : 0.1);
+        if (id.startsWith("rel_") || id.startsWith("keep_")) answers[id] = noulAns(id.endsWith("_0") ? 0.9 : 0.1);
         else answers[id] = noulAns(id === "inj_1" ? 0.9 : 0.05);
       }
       return { model: "jev-latest", answers };
@@ -453,6 +453,24 @@ describe("RAG filter", () => {
       asker: createJevAsker(client),
     });
     expect(kept.map((p) => p.id)).toEqual(["a"]);
+  });
+
+  it("drops a relevant passage when curate keep is low", async () => {
+    const client = createMockJevClient((req) => {
+      expect(req.questions.keep_0).toBeDefined();
+      const answers: Record<string, JevAnswer> = {};
+      for (const id of Object.keys(req.questions)) {
+        if (id.startsWith("keep_")) answers[id] = noulAns(0.1);
+        else answers[id] = noulAns(id.startsWith("inj_") ? 0.05 : 0.9);
+      }
+      return { model: "jev-latest", answers };
+    });
+    const kept = await filterPassages({
+      query: "reset password",
+      passages: [{ id: "slop", text: "As an AI language model I cannot say." }],
+      asker: createJevAsker(client),
+    });
+    expect(kept).toEqual([]);
   });
 });
 
@@ -518,6 +536,13 @@ describe("extract / find / compare / bind / sde", () => {
     });
     expect(decision.action).toBe("auto");
     expect(decision.value).toBe("b");
+  });
+
+  it("harvests numbers, dates, and URLs as extract candidates", () => {
+    const tokens = harvestExtractCandidates("Invoice 12 paid on 2024-03-01 at https://ledger.example/12");
+    expect(tokens).toContain("12");
+    expect(tokens).toContain("2024-03-01");
+    expect(tokens.some((t) => t.includes("ledger.example"))).toBe(true);
   });
 
   it("extracts a closed-set value", async () => {
@@ -650,12 +675,18 @@ describe("search + hooks", () => {
     const client = createMockJevClient((req) => {
       calls += 1;
       expect(req.questions.best).toBeDefined();
+      expect(req.questions.value).toBeDefined();
       const answers: Record<string, JevAnswer> = {};
       for (const [id, q] of Object.entries(req.questions)) {
         if (q.type === "noul") answers[id] = noulAns(id === "contradicts" || id.startsWith("inj_") ? 0.1 : 0.88);
         else if (q.type === "choice") {
           const keys = Object.keys(q.criteria);
-          const pick = id === "best" && keys.includes("r0") ? "r0" : keys[0]!;
+          const pick =
+            id === "best" && keys.includes("r0")
+              ? "r0"
+              : id === "value" && keys.includes("12")
+                ? "12"
+                : keys[0]!;
           answers[id] = choiceAns(pick, keys);
         } else answers[id] = noulAns(0.5);
       }
@@ -675,6 +706,8 @@ describe("search + hooks", () => {
     expect(plan.bestId).toBe("doc-1");
     expect(plan.evidenceReply).toMatch(/Invoice 12 is paid/);
     expect(plan.evidenceReply).toMatch(/ledger\.example/);
+    expect(plan.extracted).toBe("12");
+    expect(plan.evidenceReply).toMatch(/Extracted: 12/);
     expect(shouldSkipGenerationForEvidence(0.85, plan.evidenceReply)).toBe(true);
     expect(shouldSkipGenerationForEvidence(0.2, plan.evidenceReply)).toBe(false);
     expect(evidenceAnswerReply({ ...plan, conflict: true })).toBeUndefined();

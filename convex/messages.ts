@@ -19,7 +19,9 @@ export const save = internalMutation({
   returns: messageDoc,
   handler: async (ctx, args) => {
     await requireOwnedThread(ctx, args.threadId);
-    const id = await ctx.db.insert("agent_messages", args);
+    const max = 32_000;
+    const content = args.content.length <= max ? args.content : `${args.content.slice(0, max)}…`;
+    const id = await ctx.db.insert("agent_messages", { ...args, content });
     await ctx.db.patch(args.threadId, { updatedAt: Date.now() });
     const created = await ctx.db.get(id);
     if (!created) {

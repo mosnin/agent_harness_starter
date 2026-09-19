@@ -6,6 +6,7 @@
 const randomUUID = () => globalThis.crypto.randomUUID();
 import type { DbAdapter, AgentThread, AgentMessage, AgentRun } from "./types";
 import { assertOwned, ownedOrNull } from "./owner";
+import { clampStoredContent } from "../lib/thread-history";
 
 export function createMemoryAdapter(): DbAdapter {
   const threads = new Map<string, AgentThread>();
@@ -65,6 +66,7 @@ export function createMemoryAdapter(): DbAdapter {
       requireThread(msg.threadId, userId, "write");
       const message: AgentMessage = {
         ...msg,
+        content: clampStoredContent(msg.content),
         id: randomUUID(),
         createdAt: new Date(),
       };

@@ -301,7 +301,7 @@ These sit on real hops, not helper-only APIs:
 
 | Path | What Jev does |
 |---|---|
-| `withMemory({ jevFilter: true })` | Drop injected / irrelevant RAG passages. Empty set if Jev is down. |
+| `withMemory({ jevFilter: true })` | Drop injected / irrelevant / low-quality RAG passages. Empty set if Jev is down. |
 | `routeSkill` | Map-reduce over catalogs larger than 8 |
 | `createOrchestrator({ jevRouter: true })` | Pick a specialist before the LLM router |
 | `jevWhen` / `jevUntil` | Workflow branch + loop stop |
@@ -309,7 +309,7 @@ These sit on real hops, not helper-only APIs:
 | `SwarmCoordinator.completeTaskJev` | Foreman (`superviseWorker`) accept / continue / escalate before marking done |
 | `stopHook` | Incomplete-reply check (event) |
 | `assessToolRisk` | Extra git-risk pass on `git` / `shell_exec` |
-| `web_search` wrap | Window + sources + rerank + injection in one ask |
+| `web_search` wrap | Window + sources + rerank + injection + SDE + `best` + extract `value` in one ask |
 | `shell_exec` wrap | Classify failures; canned ENOENT/EACCES/timeouts are local; secrets and unknown Jev-down stderr block |
 | `voiceTurn` | Execute only on confident `execute_now` |
 | `heedPolicy` | Lift / narrow standing rules |
@@ -477,10 +477,11 @@ Fixed:
 - `getMessages` used to load a whole thread. Adapters now take `{ limit }` and return the chronological tail. POST harness loads use 40 (`MAX_HARNESS_MESSAGES`). `GET /api/agent` and `GET /api/anthropic-agent` list at most 100 messages (`MAX_LIST_MESSAGES`) and at most 50 threads when `threadId` is omitted.
 - `listThreads` now takes `{ limit }` at the adapter (memory slice, Prisma/Supabase `take`/`limit`, Convex `by_user_and_updated` + `take`). GET routes pass 50 so the store does not load then slice. JSON POSTs (`/api/hades`, `/api/agent`, `/api/anthropic-agent`, `/api/threads`, approve, dev) use `readCappedJson`: a missing or forged `Content-Length` cannot stream past 64 KiB.
 - Voice and MCP POST used to hand the unread `Request` to `formData()` / the MCP transport after a header-only check. `readCappedRequest` now reads at most the cap (8 MiB + 64 KiB for voice, 64 KiB for MCP) and rebuilds the `Request` so those parsers still run. A streamed body without `Content-Length` cannot bypass the limit.
+- Unused `extractValue` now rides the search ask as `value` when snippets contain harvestable numbers, dates, or URLs. A picked value is appended to the evidence reply (`Extracted: …`) on the same RTT. Unused curate `keep` rides the RAG ask: a relevant but low-quality passage is dropped. `saveMessage` clamps content at 32 KiB so a tool dump cannot fill the store.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop. `judge` now rides postflight; the standalone helper remains for MCP. A sentence that only mentions "eyJ" is not a JWT. Unhyphenated 9-digit numbers are not treated as SSNs. `GET /api/threads` returns at most 50 rows. MCP discovery GET stays public.
+Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop. `value` now also rides search when candidates exist. `judge` now rides postflight; the standalone helper remains for MCP. A sentence that only mentions "eyJ" is not a JWT. Unhyphenated 9-digit numbers are not treated as SSNs. `GET /api/threads` returns at most 50 rows. MCP discovery GET stays public.
 
 ---
 
@@ -556,6 +557,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 39 — extractValue on search + curate keep on RAG + store cap
+
+`extractValue` was helper-only. Adding a second hop after search would throw away parallel-question speed. When snippets contain harvestable numbers, dates, or URLs, `value` now rides `planAndRerankSearch`. A determined pick is appended to the evidence reply that can skip Qwen. Curate `keep` rides `filterPassages` on the same RAG ask: relevance without quality is dropped. `saveMessage` (all adapters + Convex) clamps at 32 KiB.
 
 ### Wave 38 — Capped voice and MCP bodies
 

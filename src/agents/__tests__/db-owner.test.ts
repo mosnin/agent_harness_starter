@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createMemoryAdapter } from "../db/memory";
 import { assertOwned, ownedOrNull } from "../db/owner";
+import { MAX_STORED_MESSAGE_CHARS } from "../lib/thread-history";
 
 describe("ownedOrNull / assertOwned", () => {
   it("hides a foreign row and refuses a foreign write", () => {
@@ -58,5 +59,16 @@ describe("memory adapter ownership", () => {
     expect(newest).toHaveLength(2);
     expect((await db.listThreads("u1")).length).toBe(5);
     expect(await db.listThreads("u1", { limit: 0 })).toEqual([]);
+  });
+
+  it("clamps oversized message content before store", async () => {
+    const db = createMemoryAdapter();
+    const thread = await db.createThread("u1", "big");
+    const saved = await db.saveMessage(
+      { threadId: thread.id, role: "user", content: "x".repeat(MAX_STORED_MESSAGE_CHARS + 40) },
+      "u1"
+    );
+    expect(saved.content.length).toBe(MAX_STORED_MESSAGE_CHARS + 1);
+    expect(saved.content.endsWith("…")).toBe(true);
   });
 });

@@ -11,6 +11,13 @@ import { redactSecrets } from "../jev/redact";
 
 export const MAX_HARNESS_MESSAGES = 40;
 export const MAX_MESSAGE_CHARS = 8000;
+export const MAX_STORED_MESSAGE_CHARS = 32_000;
+
+/** Cap a row before it hits the store. Harness reads still slice to 8 KiB. */
+export function clampStoredContent(content: string, max = MAX_STORED_MESSAGE_CHARS): string {
+  if (content.length <= max) return content;
+  return `${content.slice(0, max)}…`;
+}
 
 export interface HarnessMessage {
   role: "user" | "assistant" | "system";

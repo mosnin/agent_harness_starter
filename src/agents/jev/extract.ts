@@ -84,6 +84,49 @@ export async function semanticFind(input: {
   return { action: "review", value: best.choice, reason: "uncertain-exists", node: "jev_find", answers: asked.result.answers };
 }
 
+const EXTRACT_CANDIDATE_MAX = 8;
+
+const EXTRACT_PATTERNS = [
+  /https?:\/\/[^\s<>"']+/gi,
+  /\b\d{4}-\d{2}-\d{2}\b/g,
+  /\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b/g,
+  /\b\d+\.\d+\b/g,
+  /\b[A-Z]{2,10}-\d{2,}\b/g,
+  /\b\d{2,}\b/g,
+];
+
+/** Local candidates so unused `extractValue` can ride the search ask. */
+export function harvestExtractCandidates(text: string): string[] {
+  const found = new Set<string>();
+  for (const pattern of EXTRACT_PATTERNS) {
+    pattern.lastIndex = 0;
+    for (const match of text.matchAll(pattern)) {
+      const token = match[0].replace(/[.,);]+$/g, "").slice(0, 120);
+      if (token && token !== "none") found.add(token);
+      if (found.size >= EXTRACT_CANDIDATE_MAX) break;
+    }
+    if (found.size >= EXTRACT_CANDIDATE_MAX) break;
+  }
+  return [...found].slice(0, EXTRACT_CANDIDATE_MAX);
+}
+
+export function extractValueQuestions(field: string, candidates: string[]): JevQuestions {
+  const unique = [...new Set(candidates.map((c) => c.trim()).filter(Boolean))].slice(0, EXTRACT_CANDIDATE_MAX);
+  if (!unique.includes("none")) unique.push("none");
+  if (unique.length < 2) return {};
+  return {
+    value: choice(`Which candidate is the verbatim ${field} in \`results\`?`, Object.fromEntries(
+      unique.map((c) => [c, c === "none" ? "The results do not contain a verbatim value for this field." : c])
+    )),
+  };
+}
+
+export function interpretExtractedValue(answers: JevAnswers | undefined): string | undefined {
+  const ans = answers?.value;
+  if (ans?.type !== "choice" || !ans.choice || ans.choice === "none") return undefined;
+  return ans.choice;
+}
+
 export async function extractValue(input: {
   field: string;
   document: string;

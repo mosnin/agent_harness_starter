@@ -6,7 +6,14 @@
  */
 
 import { createJevAsker } from "./client";
-import { interpretSdeFields, searchPresenceQuestions, SEARCH_SDE_FIELDS } from "./extract";
+import {
+  extractValueQuestions,
+  harvestExtractCandidates,
+  interpretExtractedValue,
+  interpretSdeFields,
+  searchPresenceQuestions,
+  SEARCH_SDE_FIELDS,
+} from "./extract";
 import { hasLocalInjection } from "./inject";
 import { NOUL } from "./policy";
 import { choice, noul } from "./questions";
@@ -34,6 +41,7 @@ export interface SearchPlan {
   bestSnippet?: string;
   bestSource?: string;
   bestTitle?: string;
+  extracted?: string;
   evidenceReply?: string;
 }
 
@@ -81,6 +89,10 @@ export async function planAndRerankSearch(input: {
       ),
     }),
     ...searchPresenceQuestions(),
+    ...extractValueQuestions(
+      "answer value",
+      harvestExtractCandidates(batch.map((item) => `${item.title ?? ""} ${item.snippet}`).join("\n"))
+    ),
   };
   for (const [id, desc] of Object.entries(sources)) {
     questions[`src_${id}`] = noul(`Should we search ${desc} for \`request\`?`);
@@ -137,7 +149,8 @@ export async function planAndRerankSearch(input: {
           .map(({ injection: _injection, ...item }) => item);
 
   const best = asked.ok ? interpretSearchBest(asked.result.answers, batch, ranked) : emptyBest();
-  const evidenceReply = evidenceAnswerReply({ ...presence, ...best });
+  const extracted = asked.ok ? interpretExtractedValue(asked.result.answers) : undefined;
+  const evidenceReply = evidenceAnswerReply({ ...presence, ...best, extracted });
 
   return {
     window: asked.ok ? requireChoice(asked.result.answers, "window").choice : "anytime",
@@ -146,6 +159,7 @@ export async function planAndRerankSearch(input: {
     asks: 1,
     ...presence,
     ...best,
+    extracted,
     evidenceReply,
   };
 }
@@ -190,7 +204,7 @@ export function interpretSearchBest(
  * factual lookups when `hasAnswer` and `best` agree and there is no conflict.
  */
 export function evidenceAnswerReply(
-  plan: Pick<SearchPlan, "conflict" | "hasAnswer" | "bestId" | "bestSnippet" | "bestSource" | "bestTitle" | "fields">
+  plan: Pick<SearchPlan, "conflict" | "hasAnswer" | "bestId" | "bestSnippet" | "bestSource" | "bestTitle" | "fields" | "extracted">
 ): string | undefined {
   if (plan.conflict || !plan.hasAnswer || !plan.bestId) return undefined;
   const snippet = redactSecrets(plan.bestSnippet ?? "").text.trim().slice(0, 600);
@@ -201,6 +215,8 @@ export function evidenceAnswerReply(
   lines.push(snippet);
   const source = redactSecrets(plan.bestSource ?? "").text.trim();
   if (source) lines.push(`Source: ${source}`);
+  const extracted = redactSecrets(plan.extracted ?? "").text.trim();
+  if (extracted) lines.push(`Extracted: ${extracted}`);
   const present = Object.entries(plan.fields ?? {})
     .filter(([, value]) => value === "present")
     .map(([key]) => key.replace(/^sde_/, ""));

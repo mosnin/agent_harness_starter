@@ -7,6 +7,7 @@
 import type { DbAdapter, AgentThread, AgentMessage, AgentRun } from "../types";
 import { config } from "../../lib/config";
 import { assertOwned, ownedOrNull } from "../owner";
+import { clampStoredContent } from "../../lib/thread-history";
 
 function getClient() {
   const serviceRoleKey = config.db.supabase.serviceRoleKey;
@@ -72,7 +73,7 @@ export const supabaseAdapter: DbAdapter = {
       .insert({
         thread_id: msg.threadId,
         role: msg.role,
-        content: msg.content,
+        content: clampStoredContent(msg.content),
         tool_call_id: msg.toolCallId ?? null,
         tool_name: msg.toolName ?? null,
       })

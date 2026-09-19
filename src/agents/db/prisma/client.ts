@@ -6,6 +6,7 @@
 
 import type { DbAdapter, AgentThread, AgentMessage, AgentRun } from "../types";
 import { assertOwned, ownedOrNull } from "../owner";
+import { clampStoredContent } from "../../lib/thread-history";
 
 function getPrismaClient() {
   const { PrismaClient } = require("@prisma/client");
@@ -77,7 +78,7 @@ export const prismaAdapter: DbAdapter = {
       data: {
         threadId: msg.threadId,
         role: msg.role,
-        content: msg.content,
+        content: clampStoredContent(msg.content),
         toolCallId: msg.toolCallId,
         toolName: msg.toolName,
       },

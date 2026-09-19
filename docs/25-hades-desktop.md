@@ -212,6 +212,9 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | `listThreads` (GET threads / agent / anthropic) | adapter `limit: 50`, not load-then-slice |
 | JSON POST without `Content-Length` above 64 KiB | `413` after a capped read |
 | Voice / MCP POST without `Content-Length` above the cap | `413` after `readCappedRequest`; parsers see a rebuilt body |
+| Factual search with a harvestable number / date / URL | `Extracted:` on the evidence reply, still one ask |
+| RAG passage that is relevant but low-quality | dropped by curate `keep` on the same ask |
+| `saveMessage` content larger than 32 KiB | stored tail is 32 KiB + ellipsis |
 | Shell `git push --force` | `jev.decision` `destructive-local` HITL |
 | Shell `ENOENT` / `EACCES` / `ETIMEDOUT` | `jev.decision` `failure-local`, tool result returned with class |
 | Shell `cat /etc/passwd` / `curl 169.254.169.254` | `jev.decision` `target-local` block, tool not called |

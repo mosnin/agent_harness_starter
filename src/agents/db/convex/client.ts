@@ -9,6 +9,7 @@
 
 import type { DbAdapter, AgentThread, AgentMessage, AgentRun } from "../types";
 import { config } from "../../lib/config";
+import { clampStoredContent } from "../../lib/thread-history";
 import { convexActingIdentity, convexAdminKey } from "./auth";
 import { mapConvexMessage, mapConvexRun, mapConvexThread } from "./map";
 
@@ -76,7 +77,10 @@ export const convexAdapter: DbAdapter = {
 
   async saveMessage(msg, userId) {
     const client = getConvexClient(requireUserId(userId, "saveMessage"));
-    const data = await client.mutation("messages:save", msg);
+    const data = await client.mutation("messages:save", {
+      ...msg,
+      content: clampStoredContent(msg.content),
+    });
     return mapConvexMessage(data as Record<string, unknown>);
   },
 

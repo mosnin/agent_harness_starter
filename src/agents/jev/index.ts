@@ -91,6 +91,9 @@ export {
   sdeFieldQuestions,
   interpretSdeFields,
   searchPresenceQuestions,
+  harvestExtractCandidates,
+  extractValueQuestions,
+  interpretExtractedValue,
 } from "./extract";
 export {
   planAndRerankSearch,
