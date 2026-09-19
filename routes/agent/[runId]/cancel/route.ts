@@ -14,18 +14,22 @@
 import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
 import { cancelRunApprovals } from "@/agents/approvals";
+import { getOwnedRun } from "@/agents/lib/run-owner";
 
 export async function POST(
   req: Request,
   { params }: { params: { runId: string } }
 ) {
   try {
-    await auth.requireAuth(req);
+    const user = await auth.requireAuth(req);
+    const run = await getOwnedRun(db, params.runId, user.id);
+    if (!run) {
+      return Response.json({ error: "Run not found" }, { status: 404 });
+    }
 
     cancelRunApprovals(params.runId);
 
-    const run = await db.getRun(params.runId);
-    if (run && run.status === "running") {
+    if (run.status === "running") {
       await db.updateRun(params.runId, {
         status: "cancelled",
         completedAt: new Date(),

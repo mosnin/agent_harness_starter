@@ -16,6 +16,8 @@
 import { z } from "zod";
 import { auth } from "@/agents/auth";
 import { resolveApproval, getApproval } from "@/agents/approvals";
+import { db } from "@/agents/db";
+import { getOwnedRun } from "@/agents/lib/run-owner";
 
 const bodySchema = z.object({
   approvalId: z.string(),
@@ -27,7 +29,10 @@ export async function POST(
   { params }: { params: { runId: string } }
 ) {
   try {
-    await auth.requireAuth(req);
+    const user = await auth.requireAuth(req);
+    if (!(await getOwnedRun(db, params.runId, user.id))) {
+      return Response.json({ error: "Run not found" }, { status: 404 });
+    }
 
     const body = await req.json().catch(() => null);
     const parsed = bodySchema.safeParse(body);
@@ -37,7 +42,6 @@ export async function POST(
 
     const { approvalId, decision } = parsed.data;
 
-    // Verify approval belongs to this run
     const approval = getApproval(approvalId);
     if (!approval) {
       return Response.json({ error: "Approval not found or already resolved" }, { status: 404 });

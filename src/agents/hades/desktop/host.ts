@@ -21,7 +21,7 @@ import {
   type DesktopCommand,
   type DesktopEvent,
 } from "./contract";
-import { redactSecrets, redactValue } from "../../jev/redact";
+import { createRedactStream, redactSecrets, redactValue, type RedactStream } from "../../jev/redact";
 import { appendHarnessTurn, messagesForHarness, type HarnessMessage } from "../../lib/thread-history";
 
 export interface DesktopHostOptions {
@@ -123,11 +123,12 @@ async function runChat(
   const prior = threads.get(id) ?? [];
   const messages = appendHarnessTurn(prior, { role: "user", content: text });
   let finalOutput = "";
+  const stream = createRedactStream();
   for await (const event of harness.stream({
     messages,
     context: { channel: "desktop", threadId: id },
   })) {
-    forwardAgentEvent(event, emit);
+    forwardAgentEvent(event, emit, stream);
     if (event.type === "message_done") finalOutput = event.content;
     if (event.type === "done") finalOutput = event.finalOutput;
   }
@@ -217,12 +218,17 @@ async function runDesktopAct(
   }
 }
 
-function forwardAgentEvent(event: AgentEvent, emit: (event: DesktopEvent) => void): void {
+function forwardAgentEvent(
+  event: AgentEvent,
+  emit: (event: DesktopEvent) => void,
+  stream?: RedactStream
+): void {
   if (event.type === "message_delta") {
-    emit({ type: "message.delta", delta: redactSecrets(event.delta).text });
+    emit({ type: "message.delta", delta: stream ? stream.push(event.delta) : redactSecrets(event.delta).text });
     return;
   }
   if (event.type === "message_done") {
+    stream?.flush();
     emit({ type: "message.done", content: redactSecrets(event.content).text });
     return;
   }
@@ -245,12 +251,12 @@ function forwardAgentEvent(event: AgentEvent, emit: (event: DesktopEvent) => voi
       runId: event.runId,
       approvalId: event.approvalId,
       toolName: event.toolName,
-      input: event.input,
-      description: event.description,
+      input: redactValue(event.input),
+      description: redactSecrets(event.description).text,
     });
     return;
   }
   if (event.type === "error") {
-    emit({ type: "error", error: event.error, code: event.code });
+    emit({ type: "error", error: redactSecrets(event.error).text, code: event.code });
   }
 }

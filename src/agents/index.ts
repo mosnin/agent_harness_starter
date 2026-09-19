@@ -166,6 +166,7 @@ export type { JevClient, JevAsker, PolicyDecision, SystemOneResult } from "./jev
 
 export { createDesktopHost, runDesktopSidecar, detectDesktopInference } from "./hades/desktop/index";
 export { isThreadOwner, messagesForHarness, appendHarnessTurn, toAgentInput } from "./lib/thread-history";
+export { getOwnedRun } from "./lib/run-owner";
 export type { HarnessMessage, SdkInputItem } from "./lib/thread-history";
 export type { DesktopHost, DesktopCommand, DesktopEvent } from "./hades/desktop/index";
 

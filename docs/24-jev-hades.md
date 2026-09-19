@@ -439,13 +439,15 @@ Fixed:
 - Jev HTTP `baseUrl` is env-only (no request-controlled SSRF).
 - `/api/hades` and `/api/voice` use `auth.requireAuth`.
 - `/api/hades`, `/api/agent`, and `/api/anthropic-agent` POST return 404 unless `thread.userId` matches the caller. They load thread history (redacted, last 40) instead of a single-line cold start.
+- `/api/agent/[runId]/approve` and `/cancel` return 404 unless the caller owns the run's thread (`getOwnedRun`).
+- SSE / desktop `message_delta` events go through `createRedactStream` so a key split across two chunks is held until it can be replaced. `message_done` still rewrites the full text.
 - Tool stdout, search/browser evidence, compacted threads, streamed deltas, abstains, memories, desktop `cap` output, and persisted `/api/hades` + `/api/agent` + `/api/anthropic-agent` messages are locally redacted (`redactSecrets`) before they reach Qwen or storage.
 - System One `state` is sanitized the same way. Severe labels (`API_KEY`, `AWS_KEY`, env-style `*_SECRET=*`, …) force `secret_leak` / `leaks_secret` to 1.0 in code. TypeSafe never receives the raw key.
 - Screens, preflight, postflight, and `classifyCommandFailure` short-circuit on `hasSevereSecret` (`leaks-secret-local`) so a pasted key is a zero-RTT block even when Jev is down. EMAIL is PII-redacted but not a severe block.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): streaming redaction is per-chunk; a key split across two SSE deltas can leak until `message_done` / `onAfterRun` rewrite it. Search injection is scored in the same ask as rerank (not a second `screenExternal` hop). EMAIL is not treated as a severe local block.
+Residual (accepted): Search injection is scored in the same ask as rerank (not a second `screenExternal` hop). EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner).
 
 ---
 
@@ -482,12 +484,12 @@ Residual (accepted): streaming redaction is per-chunk; a key split across two SS
 ## 13. Files touched (implementation inventory)
 
 **Decision core:** `src/agents/jev/*`  
-**Harness:** `plugins/jev.ts`, `plugins/memory.ts`, `core.ts`, `hades/index.ts`, `orchestrator.ts`, `workflow/index.ts`, `swarm/coordinator.ts`  
+**Harness:** `plugins/jev.ts`, `plugins/memory.ts`, `core.ts`, `hades/index.ts`, `orchestrator.ts`, `workflow/index.ts`, `swarm/coordinator.ts`, `lib/thread-history.ts`, `lib/run-owner.ts`  
 **Providers:** `providers/openrouter.ts`, `providers/voice.ts`  
 **Routes:** `routes/hades/route.ts`, `routes/voice/route.ts`, `routes/agent/route.ts`, `routes/anthropic-agent/route.ts`  
 **UI:** `components/AgentChat/index.tsx`  
 **Example:** `src/agents/examples/hades-agent.ts`  
-**Tests:** `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`, `core.test.ts`  
+**Tests:** `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`, `thread-history.test.ts`, `core.test.ts`  
 **Package:** `package.json` exports `./jev`, `./hades`, `./hades/desktop`; `tsup.config.ts` entries `jev/index`, `hades/index`, `hades/desktop/index`; root barrel `src/agents/index.ts`  
 **Docs / env:** this file, `docs/12-plugin-architecture.md`, `docs/01-integration.md`, `QUICKSTART.md`, `.env.example`, `README.md`
 
@@ -520,6 +522,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 12 — Split-key streams + owned approve/cancel
+
+`createRedactStream` existed but live `onEvent` still redacted each SSE delta on its own, so `sk-` + the rest of the key leaked until `message_done`. The plugin and desktop sidecar now hold a 64-character tail per run. Approve / cancel only trusted `runId` after auth; they now load the run's thread and 404 unless the caller owns it. Desktop `approval.required` input and error strings are redacted before they hit the webview.
 
 ### Wave 11 — Secrets never leave for TypeSafe
 

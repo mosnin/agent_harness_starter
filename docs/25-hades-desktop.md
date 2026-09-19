@@ -186,6 +186,7 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | Second `chat.send` on the same `threadId` | Harness `messages` include the prior user + assistant turn |
 | `desktop.result` / streamed tokens | API keys in `cap` stdout or Qwen deltas are `[API_KEY]` |
 | `chat.send` with `sk-…` / `AWS_SECRET_*=` | `jev.decision` `leaks-secret-local`, no System One body contains the raw key |
+| Split `sk-` across two `message.delta` events | neither delta contains the raw key; `message.done` is `[API_KEY]` |
 | Tauri CSP | no `https://api.typesafe.ai` from the webview |
 
 ---

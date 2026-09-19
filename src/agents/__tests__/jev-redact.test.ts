@@ -156,6 +156,26 @@ describe("zero-RTT secret redaction", () => {
     expect(extras).not.toContain(OPENAI_KEY);
     expect(extras).toContain("[API_KEY]");
 
+    const first = await jev.onEvent?.(
+      { type: "message_delta", delta: OPENAI_KEY.slice(0, 12) },
+      runCtx
+    );
+    const second = await jev.onEvent?.(
+      { type: "message_delta", delta: OPENAI_KEY.slice(12) },
+      runCtx
+    );
+    const streamed = `${first && first.type === "message_delta" ? first.delta : ""}${
+      second && second.type === "message_delta" ? second.delta : ""
+    }`;
+    expect(streamed).not.toContain(OPENAI_KEY);
+
+    const done = await jev.onEvent?.(
+      { type: "message_done", content: `use ${OPENAI_KEY}` },
+      runCtx
+    );
+    expect(done && done.type === "message_done" ? done.content : "").not.toContain(OPENAI_KEY);
+    expect(done && done.type === "message_done" ? done.content : "").toContain("[API_KEY]");
+
     const delta = await jev.onEvent?.({ type: "message_delta", delta: `use ${OPENAI_KEY}` }, runCtx);
     expect(delta && delta.type === "message_delta" ? delta.delta : "").not.toContain(OPENAI_KEY);
 

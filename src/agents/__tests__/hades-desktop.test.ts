@@ -232,6 +232,28 @@ describe("desktop host", () => {
     expect(prefetch).toHaveLength(2);
     expect(prefetch[1]?.cached).toBe(true);
   });
+
+  it("does not leak a split API key across desktop message.delta events", async () => {
+    const key = "sk-abcdefghijklmnopqrstuvwxyz0123456789";
+    const harness = stubHarness({
+      async *stream() {
+        yield { type: "message_delta", delta: key.slice(0, 12) };
+        yield { type: "message_delta", delta: key.slice(12) };
+        yield { type: "message_done", content: `token ${key}` };
+        yield { type: "done", finalOutput: `token ${key}` };
+      },
+    });
+    const events: Array<{ type: string; delta?: string; content?: string; finalOutput?: string }> = [];
+    const host = createDesktopHost({
+      harness,
+      onEvent: (event) => events.push(event),
+    });
+    await host.handle({ type: "chat.send", text: "print the key" });
+    const payload = JSON.stringify(events);
+    expect(payload).not.toContain(key);
+    const done = events.find((event) => event.type === "message.done");
+    expect(done?.content).toContain("[API_KEY]");
+  });
 });
 
 describe("desktop sidecar", () => {

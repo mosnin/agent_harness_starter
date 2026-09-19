@@ -18,7 +18,7 @@ import { harvestToolEvidence, mergeEvidence } from "../jev/harvest";
 import { heedPolicy, stopHook } from "../jev/hooks";
 import { runPostflight } from "../jev/postflight";
 import { runPreflight } from "../jev/preflight";
-import { redactSecrets, redactValue } from "../jev/redact";
+import { createRedactStream, redactSecrets, redactValue, type RedactStream } from "../jev/redact";
 import { routeModel, routeSkill } from "../jev/router";
 import { scoreQuality } from "../jev/scoring";
 import { planAndRerankSearch } from "../jev/search";
@@ -302,11 +302,13 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
       return extras.length > 0 ? `${instructions}\n\n${extras.join("\n\n")}` : instructions;
     },
 
-    onEvent(event) {
+    onEvent(event, ctx) {
       if (event.type === "message_delta") {
-        return { ...event, delta: redactSecrets(event.delta).text };
+        return { ...event, delta: streamFor(ctx).push(event.delta) };
       }
       if (event.type === "message_done") {
+        streamFor(ctx).flush();
+        ctx.context.jevRedactStream = undefined;
         return { ...event, content: redactSecrets(event.content).text };
       }
       if (event.type === "tool_result") {
@@ -610,4 +612,14 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
       return redactSecrets(output).text;
     },
   };
+}
+
+function streamFor(ctx: PluginRunContext): RedactStream {
+  const existing = ctx.context.jevRedactStream;
+  if (existing && typeof existing === "object" && "push" in existing && "flush" in existing) {
+    return existing as RedactStream;
+  }
+  const stream = createRedactStream();
+  ctx.context.jevRedactStream = stream;
+  return stream;
 }

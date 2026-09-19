@@ -5,6 +5,7 @@ import {
   messagesForHarness,
   toAgentInput,
 } from "../lib/thread-history";
+import { getOwnedRun } from "../lib/run-owner";
 
 const KEY = "sk-abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -68,5 +69,28 @@ describe("thread history for the harness", () => {
       },
       { type: "message", role: "user", content: [{ type: "input_text", text: "second now" }] },
     ]);
+  });
+
+  it("returns a run only when the caller owns the thread", async () => {
+    const run = {
+      id: "r1",
+      threadId: "t1",
+      status: "running" as const,
+      agentName: "hades",
+      startedAt: new Date(),
+    };
+    const db = {
+      async getRun(id: string) {
+        return id === "r1" ? run : null;
+      },
+      async getThread(id: string) {
+        return id === "t1"
+          ? { id, userId: "u1", createdAt: new Date(), updatedAt: new Date() }
+          : null;
+      },
+    };
+    expect(await getOwnedRun(db, "r1", "u1")).toEqual(run);
+    expect(await getOwnedRun(db, "r1", "u2")).toBeNull();
+    expect(await getOwnedRun(db, "missing", "u1")).toBeNull();
   });
 });
