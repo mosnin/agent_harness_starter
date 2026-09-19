@@ -455,10 +455,10 @@ Fixed:
 - SSE / desktop `message_delta` events go through `createRedactStream` so a key split across two chunks is held until it can be replaced. `message_done` still rewrites the full text.
 - Tool stdout, search/browser evidence, compacted threads, streamed deltas, abstains, memories, desktop `cap` output, and persisted `/api/hades` + `/api/agent` + `/api/anthropic-agent` messages are locally redacted (`redactSecrets`) before they reach Qwen or storage.
 - System One `state` is sanitized the same way. Severe labels (`API_KEY`, `AWS_KEY`, env-style `*_SECRET=*`, …) force `secret_leak` / `leaks_secret` to 1.0 in code. TypeSafe never receives the raw key.
-- Screens, preflight, postflight, `runToolGate`, wrapTools, and `classifyCommandFailure` short-circuit on `hasSevereSecret` (`leaks-secret-local`) so a pasted key is a zero-RTT block even when Jev is down or Auto Mode is off. EMAIL is PII-redacted but not a severe block.
+- Screens, preflight, postflight, `runToolGate`, wrapTools, and `classifyCommandFailure` short-circuit on `hasSevereSecret` (`leaks-secret-local`) so a pasted key is a zero-RTT block even when Jev is down or Auto Mode is off. EMAIL is PII-redacted but not a severe block. JWTs (`eyJ….….…`), GitLab `glpat-`, and Slack `xoxe-` are severe the same way as `sk-` / `ghp_`.
 - The same screens, plus search/RAG filters, short-circuit canned jailbreaks with `hasLocalInjection` (`injection-local`) so "ignore previous instructions" / DAN / fake system tags never wait on TypeSafe and never leave the box. Ambiguous injection still goes to Jev.
 - Auto Mode / `runToolGate` short-circuit canned destructive commands as `destructive-local`. Wipes (`rm -rf`, `DROP TABLE`, `dd`, `curl | bash`, `bash -c "$(curl …)"`) block; force-git (`push --force`, `reset --hard`) is HITL. Only `command` / `cmd` / `args` are scanned so a README that mentions those strings is not blocked.
-- Safe-read tools (`file_read`, `web_search`, …) skipped Jev entirely, so `/etc/passwd`, `../.env`, and `http://169.254.169.254/` never got a screen. `localTargetDecision` now blocks those on path/url keys (`target-local`) at zero RTT, including when Auto Mode is off. A search *query* that mentions `/etc/passwd` is not blocked.
+- Safe-read tools (`file_read`, `web_search`, …) skipped Jev entirely, so `/etc/passwd`, `../.env`, and `http://169.254.169.254/` never got a screen. `localTargetDecision` now blocks those on path/url keys (`target-local`) at zero RTT, including when Auto Mode is off. A search *query* that mentions `/etc/passwd` is not blocked. The same label covers `~/.kube/config`, `~/.git-credentials`, `~/.docker/config.json`, and `~/.pgpass`.
 - Failed shells used to ask Jev (or fail-closed) for every nonzero exit. Canned ENOENT / EACCES / ETIMEDOUT / TypeError are `failure-local` and reach Qwen with a typed class. Unknown stderr still fail-closed when Jev is down. Secrets still `leaks-secret-local`.
 - Desktop writes (`desktop.act`) apply the same local target / secret labels before Cap. An export of `/etc/passwd` or a patch that embeds `sk-` is `target-local` / `leaks-secret-local` at zero RTT.
 - `shell_exec` `cat /etc/passwd` / `curl 169.254.169.254` is `target-local` at zero RTT. Writes and extra reads (`echo x > /etc/passwd`, `cp … ~/.ssh/authorized_keys`, `grep root /etc/passwd`) are the same label. `/var/run/docker.sock` is the same class. An echo that only *mentions* `/etc/passwd` is not blocked.
@@ -467,6 +467,7 @@ Fixed:
 - Memory / Supabase / Prisma adapters hide foreign threads when `userId` is passed (same contract as Convex). Supabase requires `SUPABASE_SERVICE_ROLE_KEY` (never the anon key) and ships RLS so a browser JWT cannot read another user's rows.
 - `python3 -c "open('/etc/passwd')"` / `node -e "require('fs').readFileSync('/etc/passwd')"` is `target-local` at zero RTT. An echo that only mentions those tokens still passes.
 - `echo pwned > /etc/passwd`, `cp notes.txt ~/.ssh/authorized_keys`, and `grep root /etc/passwd` are `target-local` at zero RTT. A warning that only mentions `>` and `/etc/passwd` still passes.
+- `cat ~/.kube/config`, `file_read ~/.git-credentials`, `cat ~/.docker/config.json`, and `echo pwned > ~/.kube/config` are `target-local` at zero RTT. A warning that only mentions those paths still passes. JWTs / `glpat-` / `xoxe-` are `leaks-secret-local`.
 - Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Pagegrade (`scorePage`) runs in that same ask: spam trust blocks; a poor grade extracts instead of clicking. Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
 - Swarm `completeTaskJev` uses unused `superviseWorker`. A stuck or off-track worker is failed instead of marked done. Jev-down does not accept the work.
 - Search rerank now includes unused `sdeCascade` / `compareTexts` presence questions on the same ask. Material contradiction empties `ranked` and harvests a conflict card so Qwen cannot pick a side. `wrong_fn` on `runToolGate` blocks a tool that does not bind to the user request (`unbound-tool`).
@@ -474,7 +475,7 @@ Fixed:
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `judge` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop.
+Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `judge` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop. A sentence that only mentions "eyJ" is not a JWT.
 
 ---
 
@@ -550,6 +551,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 33 — Kube / git / JWT local blocks
+
+`cat /etc/passwd` was `target-local`, but `cat ~/.kube/config`, `~/.git-credentials`, and `~/.docker/config.json` still reached the shell (or waited on Jev). Those paths are the same zero-RTT label, including writes (`echo pwned > ~/.kube/config`). A warning that only *mentions* the path still passes. Pasted JWTs (`eyJ….….…`), GitLab `glpat-`, and Slack `xoxe-` were not in the redact catalog — they now redact and `hasSevereSecret` fail-closes before TypeSafe / Qwen. "JWTs start with eyJ" is not a token.
 
 ### Wave 32 — Evidence-answer skip Qwen
 

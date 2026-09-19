@@ -90,6 +90,41 @@ describe("desktop Jev policy", () => {
     expect(decision.reason).toBe("desktop-read");
   });
 
+  it("blocks a desktop export of ~/.kube/config without calling Jev", async () => {
+    let called = 0;
+    const client = createMockJevClient(async () => {
+      called += 1;
+      throw new Error("network");
+    });
+    const decision = await assessDesktopAction({
+      action: "export",
+      args: { path: "~/.kube/config" },
+      asker: createJevAsker(client),
+    });
+    expect(called).toBe(0);
+    expect(decision.action).toBe("block");
+    expect(decision.reason).toBe("target-local");
+    expect(shouldExecuteDesktop(decision)).toBe(false);
+  });
+
+  it("blocks a desktop write that carries a pasted JWT without calling Jev", async () => {
+    let called = 0;
+    const client = createMockJevClient(async () => {
+      called += 1;
+      throw new Error("network");
+    });
+    const jwt =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+    const decision = await assessDesktopAction({
+      action: "project_patch",
+      args: { note: jwt },
+      asker: createJevAsker(client),
+    });
+    expect(called).toBe(0);
+    expect(decision.reason).toBe("leaks-secret-local");
+    expect(shouldExecuteDesktop(decision)).toBe(false);
+  });
+
   it("blocks a desktop export of /etc/passwd without calling Jev", async () => {
     let called = 0;
     const client = createMockJevClient(async () => {

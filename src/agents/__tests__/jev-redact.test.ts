@@ -198,6 +198,20 @@ describe("zero-RTT secret redaction", () => {
     expect(secretLabels("ada@example.com")).toEqual(["EMAIL"]);
   });
 
+  it("treats JWTs, GitLab PATs, and Slack enterprise tokens as severe", () => {
+    const jwt =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+    const gitlab = "glpat-abcdefghijklmnopqrstuvwxyz012345";
+    const slack = "xoxe-123456789012-abcdefghijklmnopqrstuvwxyz";
+    expect(hasSevereSecret(jwt)).toBe(true);
+    expect(redactSecrets(jwt).text).toBe("[TOKEN]");
+    expect(hasSevereSecret(gitlab)).toBe(true);
+    expect(redactSecrets(gitlab).text).toBe("[API_KEY]");
+    expect(hasSevereSecret(slack)).toBe(true);
+    expect(redactSecrets(slack).text).toBe("[SLACK_TOKEN]");
+    expect(hasSevereSecret("JWTs start with eyJ")).toBe(false);
+  });
+
   it("sanitizes System One state and forces secret_leak after Jev answers", async () => {
     let seen = "";
     const client = createMockJevClient((req) => {

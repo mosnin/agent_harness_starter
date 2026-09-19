@@ -333,6 +333,52 @@ describe("grounding + quiet-ask + tool gate", () => {
     expect(mentioned.asks).toBe(1);
   });
 
+  it("blocks kube / git-credentials / docker config dumps without calling Jev", async () => {
+    let calls = 0;
+    const client = createMockJevClient(async () => {
+      calls += 1;
+      throw new Error("network");
+    });
+    const asker = createJevAsker(client);
+    const kube = await runToolGate({
+      userRequest: "inspect the cluster",
+      toolName: "shell_exec",
+      toolArguments: { command: "cat ~/.kube/config" },
+      asker,
+    });
+    const gitCreds = await runToolGate({
+      userRequest: "debug git auth",
+      toolName: "file_read",
+      toolArguments: { path: "~/.git-credentials" },
+      asker,
+    });
+    const docker = await runToolGate({
+      userRequest: "check the registry login",
+      toolName: "shell_exec",
+      toolArguments: { command: "cat ~/.docker/config.json" },
+      asker,
+    });
+    const redirected = await runToolGate({
+      userRequest: "overwrite kubeconfig",
+      toolName: "shell_exec",
+      toolArguments: { command: "echo pwned > ~/.kube/config" },
+      asker,
+    });
+    const mentioned = await runToolGate({
+      userRequest: "print a warning",
+      toolName: "shell_exec",
+      toolArguments: { command: "echo never open ~/.kube/config" },
+      asker,
+    });
+    expect(calls).toBe(1);
+    expect(kube.asks).toBe(0);
+    expect(kube.decisions[0]?.reason).toBe("target-local");
+    expect(gitCreds.decisions[0]?.reason).toBe("target-local");
+    expect(docker.decisions[0]?.reason).toBe("target-local");
+    expect(redirected.decisions[0]?.reason).toBe("target-local");
+    expect(mentioned.asks).toBe(1);
+  });
+
   it("blocks curl|bash and docker.sock without calling Jev", async () => {
     let calls = 0;
     const client = createMockJevClient(async () => {

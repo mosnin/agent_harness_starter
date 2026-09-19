@@ -197,6 +197,8 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | Shell `rm -rf` / `DROP TABLE` / `curl \| bash` | `jev.decision` `destructive-local` block, tool not called |
 | Shell `curl --unix-socket /var/run/docker.sock` | `jev.decision` `target-local` block, tool not called |
 | `file_read` `/etc/passwd` or `../.env` | `jev.decision` `target-local` block, no System One call |
+| `cat ~/.kube/config` / `~/.git-credentials` / `~/.docker/config.json` | `jev.decision` `target-local` block, no System One call |
+| Pasted JWT / `glpat-` / `xoxe-` | `jev.decision` `leaks-secret-local`, raw token never leaves |
 | `file_write` / shell args that embed `sk-` | `jev.decision` `leaks-secret-local` block, even with Auto Mode off |
 | `browser_scrape` of `169.254.169.254` / `file://` | `jev.decision` `target-local` SSRF block |
 | Shell `git push --force` | `jev.decision` `destructive-local` HITL |
