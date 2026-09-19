@@ -474,10 +474,11 @@ Fixed:
 - Search rerank now includes unused `sdeCascade` / `compareTexts` presence questions on the same ask. Material contradiction empties `ranked` and harvests a conflict card so Qwen cannot pick a side. `wrong_fn` on `runToolGate` blocks a tool that does not bind to the user request (`unbound-tool`).
 - Search also asks unused `semanticFind` `best` on that same hop. A factual turn (`is_factual ≥ 0.7`) with `hasAnswer` and a ranked `best` snippet sets `jevEvidenceAnswer` / `jevDirectReply`. Core aborts the remaining Qwen tokens; `onAfterRun` ships the grounded reply and skips postflight.
 - Unused `judge` now rides the existing postflight ask as `recommendation` when evidence is present. `abstain` replaces the draft (same as grounding); `ask_user` is review. Still one System One call. `GET /api/threads` is capped at 50.
+- `getMessages` used to load a whole thread. Adapters now take `{ limit }` and return the chronological tail. POST harness loads use 40 (`MAX_HARNESS_MESSAGES`). `GET /api/agent` and `GET /api/anthropic-agent` list at most 100 messages (`MAX_LIST_MESSAGES`) and at most 50 threads when `threadId` is omitted.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop. `judge` now rides postflight; the standalone helper remains for MCP. A sentence that only mentions "eyJ" is not a JWT. Unhyphenated 9-digit numbers are not treated as SSNs. `GET /api/threads` returns at most 50 rows.
+Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop. `judge` now rides postflight; the standalone helper remains for MCP. A sentence that only mentions "eyJ" is not a JWT. Unhyphenated 9-digit numbers are not treated as SSNs. `GET /api/threads` returns at most 50 rows. `listThreads` still loads every thread at the adapter, then HTTP slices 50. A JSON body with no `Content-Length` is not byte-capped after the header check.
 
 ---
 
@@ -553,6 +554,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 36 — Cap getMessages and GET message lists
+
+`GET /api/threads` was already 50 rows, but `getMessages` still loaded every message in a thread. A long chat then paid that cost on every POST (Hades / agent / Anthropic / voice) and on `GET /api/agent?threadId=` / `GET /api/anthropic-agent?threadId=`. `DbAdapter.getMessages` now takes `{ limit }` and returns the chronological tail (memory slice, Prisma/Supabase newest-first + reverse, Convex `order("desc").take(limit)`). Harness loads pass `{ limit: 40 }`. GET message dumps pass `{ limit: 100 }` and still run `capListedMessages`. GET without `threadId` uses the same 50-thread cap as `/api/threads`.
 
 ### Wave 35 — Judge on postflight + thread list cap
 

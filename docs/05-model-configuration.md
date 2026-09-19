@@ -203,11 +203,8 @@ For long conversations, trim the message history before passing to the agent:
 
 ```typescript
 // In your API route, before calling the harness:
-const messages = await db.getMessages(threadId);
-
-// Keep last N messages to stay within context limits
 const MAX_HISTORY = 20;
-const trimmedMessages = messages.slice(-MAX_HISTORY);
+const messages = await db.getMessages(threadId, userId, { limit: MAX_HISTORY });
 
 const result = await harness.run({
   messages: trimmedMessages.map(m => ({ role: m.role, content: m.content })),

@@ -206,6 +206,9 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | Voice multipart `Content-Length` above 8 MiB + 64 KiB | `413` before `formData()` |
 | Postflight with evidence and a guessing draft | `jev.decision` `judge-abstain`, abstain shipped, still one ask |
 | `GET /api/threads` | at most 50 threads |
+| `GET /api/agent` / `GET /api/anthropic-agent` without `threadId` | at most 50 threads |
+| `GET /api/agent?threadId=` / `GET /api/anthropic-agent?threadId=` | at most 100 messages (chronological tail) |
+| POST harness history (Hades / agent / Anthropic / voice) | last 40 messages from the adapter |
 | Shell `git push --force` | `jev.decision` `destructive-local` HITL |
 | Shell `ENOENT` / `EACCES` / `ETIMEDOUT` | `jev.decision` `failure-local`, tool result returned with class |
 | Shell `cat /etc/passwd` / `curl 169.254.169.254` | `jev.decision` `target-local` block, tool not called |

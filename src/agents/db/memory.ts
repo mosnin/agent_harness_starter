@@ -71,10 +71,15 @@ export function createMemoryAdapter(): DbAdapter {
       return message;
     },
 
-    async getMessages(threadId, userId) {
+    async getMessages(threadId, userId, opts) {
       const thread = threads.get(threadId);
       if (!ownedOrNull(thread ?? null, thread?.userId, userId)) return [];
-      return messages.get(threadId) ?? [];
+      const rows = messages.get(threadId) ?? [];
+      const limit = opts?.limit;
+      if (limit !== undefined && Number.isFinite(limit) && limit >= 0) {
+        return rows.slice(-limit);
+      }
+      return rows;
     },
 
     async createRun(run, userId) {

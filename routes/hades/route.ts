@@ -13,7 +13,7 @@ import { sseStream } from "@/agents/lib/utils";
 import { createHadesHarness } from "@/agents/hades/index";
 import { redactSecrets } from "@/agents/jev/redact";
 import { clampRequestedTools, oversizeJsonResponse } from "@/agents/lib/request-guard";
-import { isThreadOwner, messagesForHarness } from "@/agents/lib/thread-history";
+import { isThreadOwner, MAX_HARNESS_MESSAGES, messagesForHarness } from "@/agents/lib/thread-history";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 import "@/agents/examples";
 
@@ -53,7 +53,9 @@ export async function POST(req: Request) {
     const resolvedThreadId = thread.id;
 
     await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: redactSecrets(message).text }, user.id);
-    const history = messagesForHarness(await db.getMessages(resolvedThreadId, user.id));
+    const history = messagesForHarness(
+      await db.getMessages(resolvedThreadId, user.id, { limit: MAX_HARNESS_MESSAGES })
+    );
     const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName }, user.id);
 
     const harness = createHadesHarness({

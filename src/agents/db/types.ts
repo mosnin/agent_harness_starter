@@ -45,7 +45,11 @@ export interface DbAdapter {
     msg: Omit<AgentMessage, "id" | "createdAt">,
     userId?: string
   ): Promise<AgentMessage>;
-  getMessages(threadId: string, userId?: string): Promise<AgentMessage[]>;
+  getMessages(
+    threadId: string,
+    userId?: string,
+    opts?: { limit?: number }
+  ): Promise<AgentMessage[]>;
 
   // Runs
   createRun(run: Omit<AgentRun, "id" | "startedAt">, userId?: string): Promise<AgentRun>;

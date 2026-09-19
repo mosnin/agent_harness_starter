@@ -119,7 +119,7 @@ interface DbAdapter {
   listThreads(userId: string): Promise<AgentThread[]>;
   deleteThread(threadId: string, userId?: string): Promise<void>;
   saveMessage(msg: Omit<AgentMessage, "id" | "createdAt">, userId?: string): Promise<AgentMessage>;
-  getMessages(threadId: string, userId?: string): Promise<AgentMessage[]>;
+  getMessages(threadId: string, userId?: string, opts?: { limit?: number }): Promise<AgentMessage[]>;
   createRun(run: Omit<AgentRun, "id" | "startedAt">, userId?: string): Promise<AgentRun>;
   updateRun(runId: string, update: Partial<AgentRun>, userId?: string): Promise<AgentRun>;
   getRun(runId: string, userId?: string): Promise<AgentRun | null>;

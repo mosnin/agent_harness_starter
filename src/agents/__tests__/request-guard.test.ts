@@ -6,8 +6,10 @@ import {
   mcpAnonymousAllowed,
   oversizeJsonResponse,
   capListedThreads,
+  capListedMessages,
   MAX_JSON_BODY_BYTES,
   MAX_LIST_THREADS,
+  MAX_LIST_MESSAGES,
 } from "../lib/request-guard";
 
 defineSkill({
@@ -65,6 +67,14 @@ describe("request-guard", () => {
     const threads = Array.from({ length: MAX_LIST_THREADS + 20 }, (_, i) => ({ id: String(i) }));
     expect(capListedThreads(threads)).toHaveLength(MAX_LIST_THREADS);
     expect(capListedThreads(threads.slice(0, 3))).toHaveLength(3);
+  });
+
+  it("keeps the chronological tail of an unbounded message list", () => {
+    const rows = Array.from({ length: MAX_LIST_MESSAGES + 7 }, (_, i) => ({ id: String(i) }));
+    const capped = capListedMessages(rows);
+    expect(capped).toHaveLength(MAX_LIST_MESSAGES);
+    expect(capped[0]?.id).toBe("7");
+    expect(capped.at(-1)?.id).toBe(String(MAX_LIST_MESSAGES + 6));
   });
 
   it("requires MCP auth unless HADES_MCP_ANON is set", () => {

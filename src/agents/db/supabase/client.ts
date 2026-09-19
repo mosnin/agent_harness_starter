@@ -78,16 +78,22 @@ export const supabaseAdapter: DbAdapter = {
     return rowToMessage(data);
   },
 
-  async getMessages(threadId, userId) {
+  async getMessages(threadId, userId, opts) {
     const thread = await supabaseAdapter.getThread(threadId, userId);
     if (!thread) return [];
-    const { data, error } = await getClient()
+    const limit = opts?.limit;
+    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : undefined;
+    let query = getClient()
       .from("agent_messages")
       .select()
       .eq("thread_id", threadId)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: take === undefined });
+    if (take !== undefined) query = query.limit(take);
+    const { data, error } = await query;
     if (error) throw error;
-    return (data ?? []).map(rowToMessage);
+    const rows = data ?? [];
+    const chronological = take !== undefined ? [...rows].reverse() : rows;
+    return chronological.map(rowToMessage);
   },
 
   async createRun(run, userId) {

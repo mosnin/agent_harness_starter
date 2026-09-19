@@ -82,15 +82,19 @@ export const prismaAdapter: DbAdapter = {
     return dbToMessage(data as Record<string, unknown>);
   },
 
-  async getMessages(threadId, userId) {
+  async getMessages(threadId, userId, opts) {
     const thread = await prismaAdapter.getThread(threadId, userId);
     if (!thread) return [];
     const prisma = getPrismaClient();
+    const limit = opts?.limit;
+    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : undefined;
     const data = await prisma.agentMessage.findMany({
       where: { threadId },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: take !== undefined ? "desc" : "asc" },
+      ...(take !== undefined ? { take } : {}),
     });
-    return data.map((d) => dbToMessage(d as Record<string, unknown>));
+    const chronological = take !== undefined ? [...data].reverse() : data;
+    return chronological.map((d) => dbToMessage(d as Record<string, unknown>));
   },
 
   async createRun(run, userId) {

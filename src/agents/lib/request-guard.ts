@@ -13,9 +13,16 @@ import { getSkill } from "../skills/index";
 export const MAX_JSON_BODY_BYTES = 64 * 1024;
 export const MAX_TOOL_NAMES = 32;
 export const MAX_LIST_THREADS = 50;
+export const MAX_LIST_MESSAGES = 100;
 
 export function capListedThreads<T>(threads: T[], max = MAX_LIST_THREADS): T[] {
   return threads.slice(0, max);
+}
+
+/** Keep the most recent N messages (chronological tail). */
+export function capListedMessages<T>(rows: T[], max = MAX_LIST_MESSAGES): T[] {
+  if (rows.length <= max) return rows;
+  return rows.slice(-max);
 }
 
 /** Local inspectors only. Production MCP tool calls require auth. */

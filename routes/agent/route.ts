@@ -33,9 +33,9 @@ import { sseStream } from "@/agents/lib/utils";
 import { createCustomHarness } from "@/agents/core";
 import { createHadesHarness } from "@/agents/hades/index";
 import { redactSecrets } from "@/agents/jev/redact";
-import { isThreadOwner, messagesForHarness } from "@/agents/lib/thread-history";
+import { isThreadOwner, MAX_HARNESS_MESSAGES, messagesForHarness } from "@/agents/lib/thread-history";
 import { config } from "@/agents/lib/config";
-import { clampRequestedTools, oversizeJsonResponse } from "@/agents/lib/request-guard";
+import { capListedMessages, capListedThreads, clampRequestedTools, MAX_LIST_MESSAGES, oversizeJsonResponse } from "@/agents/lib/request-guard";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 
 // ── Agent registration ─────────────────────────────────────────────────────────
@@ -94,7 +94,9 @@ export async function POST(req: Request) {
     const resolvedThreadId = thread.id;
 
     await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: redactSecrets(message).text }, user.id);
-    const history = messagesForHarness(await db.getMessages(resolvedThreadId, user.id));
+    const history = messagesForHarness(
+      await db.getMessages(resolvedThreadId, user.id, { limit: MAX_HARNESS_MESSAGES })
+    );
 
     const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName }, user.id);
 
@@ -161,7 +163,7 @@ export async function GET(req: Request) {
   const threadId = searchParams.get("threadId");
 
   if (!threadId) {
-    const threads = await db.listThreads(user.id);
+    const threads = capListedThreads(await db.listThreads(user.id));
     return Response.json({ threads });
   }
 
@@ -170,6 +172,6 @@ export async function GET(req: Request) {
     return Response.json({ error: "Thread not found" }, { status: 404 });
   }
 
-  const messages = await db.getMessages(threadId, user.id);
+  const messages = capListedMessages(await db.getMessages(threadId, user.id, { limit: MAX_LIST_MESSAGES }));
   return Response.json({ thread, messages });
 }

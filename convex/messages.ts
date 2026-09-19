@@ -30,13 +30,17 @@ export const save = internalMutation({
 });
 
 export const list = internalQuery({
-  args: { threadId: v.id("agent_threads") },
+  args: { threadId: v.id("agent_threads"), limit: v.optional(v.number()) },
   returns: v.array(messageDoc),
-  handler: async (ctx, { threadId }) => {
+  handler: async (ctx, { threadId, limit }) => {
     await requireOwnedThread(ctx, threadId);
-    return await ctx.db
+    const indexed = ctx.db
       .query("agent_messages")
-      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
-      .collect();
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId));
+    if (limit !== undefined && Number.isFinite(limit) && limit >= 0) {
+      const newest = await indexed.order("desc").take(limit);
+      return newest.reverse();
+    }
+    return await indexed.collect();
   },
 });

@@ -77,9 +77,12 @@ export const convexAdapter: DbAdapter = {
     return mapConvexMessage(data as Record<string, unknown>);
   },
 
-  async getMessages(threadId, userId) {
+  async getMessages(threadId, userId, opts) {
     const client = getConvexClient(requireUserId(userId, "getMessages"));
-    const data = await client.query("messages:list", { threadId });
+    const data = await client.query("messages:list", {
+      threadId,
+      ...(opts?.limit !== undefined ? { limit: opts.limit } : {}),
+    });
     return ((data as unknown[]) ?? []).map((row) =>
       mapConvexMessage(row as Record<string, unknown>)
     );

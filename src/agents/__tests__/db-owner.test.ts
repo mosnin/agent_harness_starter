@@ -37,4 +37,15 @@ describe("memory adapter ownership", () => {
     expect(await db.getThread(mine.id, "u1")).toBeNull();
     expect(await db.getRun(run.id, "u1")).toBeNull();
   });
+
+  it("returns only the most recent N messages when a limit is set", async () => {
+    const db = createMemoryAdapter();
+    const thread = await db.createThread("u1", "long");
+    for (let i = 0; i < 5; i++) {
+      await db.saveMessage({ threadId: thread.id, role: "user", content: `m${i}` }, "u1");
+    }
+    const tail = await db.getMessages(thread.id, "u1", { limit: 2 });
+    expect(tail.map((row) => row.content)).toEqual(["m3", "m4"]);
+    expect((await db.getMessages(thread.id, "u1")).length).toBe(5);
+  });
 });

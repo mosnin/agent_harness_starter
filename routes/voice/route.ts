@@ -11,7 +11,7 @@ import { db } from "@/agents/db";
 import { createHadesHarness } from "@/agents/hades/index";
 import { redactSecrets } from "@/agents/jev/redact";
 import { oversizeJsonResponse } from "@/agents/lib/request-guard";
-import { isThreadOwner, messagesForHarness } from "@/agents/lib/thread-history";
+import { isThreadOwner, MAX_HARNESS_MESSAGES, messagesForHarness } from "@/agents/lib/thread-history";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 import "@/agents/examples";
 
@@ -44,7 +44,9 @@ export async function POST(req: Request) {
     if (!isThreadOwner(thread, user.id)) {
       return Response.json({ error: "Thread not found" }, { status: 404 });
     }
-    const history = messagesForHarness(await db.getMessages(thread.id, user.id));
+    const history = messagesForHarness(
+      await db.getMessages(thread.id, user.id, { limit: MAX_HARNESS_MESSAGES })
+    );
 
     const audio = Buffer.from(await file.arrayBuffer());
     const harness = createHadesHarness(agentConfig);

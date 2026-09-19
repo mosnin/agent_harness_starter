@@ -29,8 +29,8 @@ import { z } from "zod";
 import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
 import { redactSecrets } from "@/agents/jev/redact";
-import { oversizeJsonResponse } from "@/agents/lib/request-guard";
-import { isThreadOwner, messagesForHarness } from "@/agents/lib/thread-history";
+import { capListedMessages, capListedThreads, MAX_LIST_MESSAGES, oversizeJsonResponse } from "@/agents/lib/request-guard";
+import { isThreadOwner, MAX_HARNESS_MESSAGES, messagesForHarness } from "@/agents/lib/thread-history";
 import { sseStream } from "@/agents/lib/utils";
 import { createAnthropicHarness } from "@/agents/providers/anthropic";
 
@@ -73,7 +73,9 @@ export async function POST(req: Request) {
       role: "user",
       content: redactSecrets(message).text,
     }, user.id);
-    const history = messagesForHarness(await db.getMessages(resolvedThreadId, user.id));
+    const history = messagesForHarness(
+      await db.getMessages(resolvedThreadId, user.id, { limit: MAX_HARNESS_MESSAGES })
+    );
 
     const run = await db.createRun({
       threadId: resolvedThreadId,
@@ -149,7 +151,7 @@ export async function GET(req: Request) {
   const threadId = searchParams.get("threadId");
 
   if (!threadId) {
-    const threads = await db.listThreads(user.id);
+    const threads = capListedThreads(await db.listThreads(user.id));
     return Response.json({ threads });
   }
 
@@ -158,6 +160,6 @@ export async function GET(req: Request) {
     return Response.json({ error: "Thread not found" }, { status: 404 });
   }
 
-  const messages = await db.getMessages(threadId, user.id);
+  const messages = capListedMessages(await db.getMessages(threadId, user.id, { limit: MAX_LIST_MESSAGES }));
   return Response.json({ thread, messages });
 }
