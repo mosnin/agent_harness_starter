@@ -29,7 +29,7 @@ export { routeModel, routeSkill, routeIntent, detectRouteOverride, isGreeting, i
 export { runPreflight, interpretSkipGeneration, CANNED_REPLIES } from "./preflight";
 export { runPostflight } from "./postflight";
 export { assessToolRisk, isSafeReadTool } from "./auto-mode";
-export { runToolGate, interpretInventedArgs } from "./toolgate";
+export { runToolGate, interpretInventedArgs, interpretWrongFn } from "./toolgate";
 export {
   hasDestructiveCommand,
   commandFromToolArgs,
@@ -72,8 +72,17 @@ export { recordDecision, getJevAudit, clearJevAudit } from "./audit";
 export { registerJevMcpTools } from "./mcp";
 export { filterPassages } from "./rag";
 export { mapReduceChoice, routeSkillMapReduce, beamClassify } from "./mapreduce";
-export { semanticFind, extractValue, compareTexts, bindFunctionCall, sdeCascade } from "./extract";
-export { planAndRerankSearch } from "./search";
+export {
+  semanticFind,
+  extractValue,
+  compareTexts,
+  bindFunctionCall,
+  sdeCascade,
+  sdeFieldQuestions,
+  interpretSdeFields,
+  searchPresenceQuestions,
+} from "./extract";
+export { planAndRerankSearch, interpretSearchPresence } from "./search";
 export { stopHook, heedPolicy, assessGitRisk, classifyVoiceIntent } from "./hooks";
 export {
   assessDesktopAction,

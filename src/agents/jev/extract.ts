@@ -6,8 +6,47 @@
 import { createJevAsker } from "./client";
 import { GATES, NOUL, decideChoice, decideUnavailable } from "./policy";
 import { choice, noul } from "./questions";
-import type { JevAsker, JevState, PolicyDecision } from "./types";
+import type { JevAnswers, JevAsker, JevQuestions, JevState, PolicyDecision } from "./types";
 import { requireChoice, requireNoul } from "./validate";
+
+export const SDE_PRESENT = 0.7;
+export const SDE_ABSENT = 0.3;
+
+export function sdeFieldQuestions(fields: Record<string, string>): JevQuestions {
+  return Object.fromEntries(
+    Object.entries(fields).map(([key, desc]) => [key, noul(`Does \`document\` clearly contain ${desc}?`)])
+  );
+}
+
+export function interpretSdeFields(
+  answers: JevAnswers | undefined,
+  fieldIds: string[]
+): { values: Record<string, string>; needsReasoning: boolean } {
+  const values: Record<string, string> = {};
+  let needsReasoning = !answers;
+  if (answers) {
+    for (const key of fieldIds) {
+      const ans = answers[key];
+      const present = ans?.type === "noul" ? ans.noul : 0;
+      values[key] = present >= SDE_PRESENT ? "present" : present <= SDE_ABSENT ? "absent" : "uncertain";
+      if (values[key] === "uncertain") needsReasoning = true;
+    }
+  }
+  return { values, needsReasoning };
+}
+
+/** Field-presence questions that ride the search ask (`results`, not `document`). */
+export function searchPresenceQuestions(): JevQuestions {
+  return {
+    has_answer: noul("Does at least one result clearly answer `request`?"),
+    contradicts: noul("Do the results contradict each other on a material fact about `request`?"),
+    sde_number: noul("Do the results clearly contain a specific number, amount, or quantity that answers `request`?"),
+    sde_date: noul("Do the results clearly contain a date or time that answers `request`?"),
+    sde_source: noul("Do the results clearly name a source, URL, or document for `request`?"),
+  };
+}
+
+export const SEARCH_SDE_FIELDS = ["sde_number", "sde_date", "sde_source"] as const;
 
 export async function semanticFind(input: {
   query: string;
@@ -149,22 +188,10 @@ export async function sdeCascade(input: {
   signal?: AbortSignal;
 }): Promise<{ values: Record<string, string>; needsReasoning: boolean }> {
   const asker = input.asker ?? createJevAsker();
-  const questions = Object.fromEntries(
-    Object.entries(input.fields).map(([k, desc]) => [k, noul(`Does \`document\` clearly contain ${desc}?`)])
-  );
+  const questions = sdeFieldQuestions(input.fields);
   const asked = await asker.ask(
     { state: { document: input.document.slice(0, 8000) }, questions },
     input.signal
   );
-  const values: Record<string, string> = {};
-  let needsReasoning = !asked.ok;
-  if (asked.ok) {
-    for (const key of Object.keys(input.fields)) {
-      const ans = asked.result.answers[key];
-      const present = ans?.type === "noul" ? ans.noul : 0;
-      values[key] = present >= 0.7 ? "present" : present <= 0.3 ? "absent" : "uncertain";
-      if (values[key] === "uncertain") needsReasoning = true;
-    }
-  }
-  return { values, needsReasoning };
+  return interpretSdeFields(asked.ok ? asked.result.answers : undefined, Object.keys(input.fields));
 }

@@ -432,6 +432,13 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                   asker,
                   signal: ctx.signal,
                 });
+                const jevSearch = {
+                  window: plan.window,
+                  sources: plan.sources,
+                  conflict: plan.conflict,
+                  hasAnswer: plan.hasAnswer,
+                  fields: plan.fields,
+                };
                 const reranked = redactValue({
                   ...raw,
                   results: plan.ranked.map((r) => ({
@@ -440,12 +447,22 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                     content: r.snippet,
                     score: r.relevance,
                   })),
-                  jevSearch: { window: plan.window, sources: plan.sources },
+                  jevSearch,
                 });
-                ctx.context.jevEvidence = mergeEvidence(
-                  ctx.context.jevEvidence,
-                  harvestToolEvidence(def.name, reranked)
-                );
+                if (plan.conflict) {
+                  ctx.context.jevEvidence = mergeEvidence(
+                    ctx.context.jevEvidence,
+                    "[web_search] Results contradict each other on a material fact. Do not pick a side or invent a resolution."
+                  );
+                } else {
+                  const card = harvestToolEvidence(def.name, reranked);
+                  ctx.context.jevEvidence = mergeEvidence(
+                    ctx.context.jevEvidence,
+                    plan.hasAnswer
+                      ? card
+                      : `${card}\nNo result clearly answers the request. Do not invent the missing fact.`
+                  );
+                }
                 return reranked;
               }
             }

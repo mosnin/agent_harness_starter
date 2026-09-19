@@ -1,10 +1,11 @@
 /**
- * jev-search pipeline: window, sources, rerank, and injection drop
- * in one System One call. Sequential plan-then-rerank was a second RTT
- * on every web_search — the same mistake preflight used to make.
+ * jev-search pipeline: window, sources, rerank, injection drop,
+ * SDE field presence, and contradiction — one System One call.
+ * Sequential plan-then-rerank was a second RTT on every web_search.
  */
 
 import { createJevAsker } from "./client";
+import { interpretSdeFields, searchPresenceQuestions, SEARCH_SDE_FIELDS } from "./extract";
 import { hasLocalInjection } from "./inject";
 import { NOUL } from "./policy";
 import { choice, noul } from "./questions";
@@ -17,6 +18,13 @@ export interface SearchPlan {
   sources: string[];
   ranked: RankedCandidate[];
   asks: number;
+  conflict: boolean;
+  hasAnswer: boolean;
+  fields: Record<string, string>;
+}
+
+function emptyPresence(): Pick<SearchPlan, "conflict" | "hasAnswer" | "fields"> {
+  return { conflict: false, hasAnswer: false, fields: {} };
 }
 
 export async function planAndRerankSearch(input: {
@@ -36,7 +44,7 @@ export async function planAndRerankSearch(input: {
     .slice(0, 40)
     .filter((item) => !hasLocalInjection(item.snippet) && !hasLocalInjection(item.title ?? ""));
   if (batch.length === 0) {
-    return { window: "anytime", sources: Object.keys(sources), ranked: [], asks: 0 };
+    return { window: "anytime", sources: Object.keys(sources), ranked: [], asks: 0, ...emptyPresence() };
   }
   const asker = input.asker ?? createJevAsker();
   const questions: JevQuestions = {
@@ -45,6 +53,7 @@ export async function planAndRerankSearch(input: {
       year: "Last year is enough.",
       anytime: "Timeless / evergreen.",
     }),
+    ...searchPresenceQuestions(),
   };
   for (const [id, desc] of Object.entries(sources)) {
     questions[`src_${id}`] = noul(`Should we search ${desc} for \`request\`?`);
@@ -78,26 +87,46 @@ export async function planAndRerankSearch(input: {
     return ans?.type === "noul" ? ans.noul >= 0.6 : true;
   });
 
+  const presence = asked.ok
+    ? interpretSearchPresence(asked.result.answers)
+    : { ...emptyPresence(), fields: interpretSdeFields(undefined, [...SEARCH_SDE_FIELDS]).values };
+
   const ranked: RankedCandidate[] = !asked.ok
     ? batch.map((item) => ({ ...item, relevance: 0 }))
-    : batch
-        .map((item, i) => {
-          const rel = asked.result.answers[`rel_${i}`];
-          const inj = asked.result.answers[`inj_${i}`];
-          return {
-            ...item,
-            relevance: rel?.type === "noul" ? rel.noul : 0,
-            injection: inj?.type === "noul" ? inj.noul : 0,
-          };
-        })
-        .filter((item) => item.injection < NOUL.injectionBlock)
-        .sort((a, b) => b.relevance - a.relevance)
-        .map(({ injection: _injection, ...item }) => item);
+    : presence.conflict
+      ? []
+      : batch
+          .map((item, i) => {
+            const rel = asked.result.answers[`rel_${i}`];
+            const inj = asked.result.answers[`inj_${i}`];
+            return {
+              ...item,
+              relevance: rel?.type === "noul" ? rel.noul : 0,
+              injection: inj?.type === "noul" ? inj.noul : 0,
+            };
+          })
+          .filter((item) => item.injection < NOUL.injectionBlock)
+          .sort((a, b) => b.relevance - a.relevance)
+          .map(({ injection: _injection, ...item }) => item);
 
   return {
     window: asked.ok ? requireChoice(asked.result.answers, "window").choice : "anytime",
     sources: selected.length > 0 ? selected : Object.keys(sources),
     ranked,
     asks: 1,
+    ...presence,
+  };
+}
+
+export function interpretSearchPresence(answers: import("./types").JevAnswers): Pick<
+  SearchPlan,
+  "conflict" | "hasAnswer" | "fields"
+> {
+  const contradicts = answers.contradicts?.type === "noul" ? answers.contradicts.noul : 0;
+  const hasAnswer = answers.has_answer?.type === "noul" ? answers.has_answer.noul : 0;
+  return {
+    conflict: contradicts >= NOUL.injectionBlock,
+    hasAnswer: hasAnswer >= NOUL.exists,
+    fields: interpretSdeFields(answers, [...SEARCH_SDE_FIELDS]).values,
   };
 }

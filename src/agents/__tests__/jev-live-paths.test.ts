@@ -539,7 +539,7 @@ describe("search + hooks", () => {
       const answers: Record<string, JevAnswer> = {};
       for (const [id, q] of Object.entries(req.questions)) {
         if (q.type === "noul") {
-          if (id === "src_code" || id.startsWith("inj_")) answers[id] = noulAns(0.2);
+          if (id === "src_code" || id.startsWith("inj_") || id === "contradicts") answers[id] = noulAns(0.2);
           else answers[id] = noulAns(0.8);
         } else if (q.type === "choice") answers[id] = choiceAns("latest", Object.keys(q.criteria));
         else answers[id] = noulAns(0.5);
@@ -559,6 +559,37 @@ describe("search + hooks", () => {
     expect(plan.window).toBe("latest");
     expect(plan.sources.includes("code")).toBe(false);
     expect(plan.ranked.map((r) => r.id)).toEqual(["1"]);
+    expect(plan.conflict).toBe(false);
+    expect(plan.hasAnswer).toBe(true);
+    expect(plan.fields.sde_number).toBe("present");
+  });
+
+  it("drops contradictory search hits in the same ask", async () => {
+    let calls = 0;
+    const client = createMockJevClient((req) => {
+      calls += 1;
+      expect(req.questions.has_answer).toBeDefined();
+      expect(req.questions.contradicts).toBeDefined();
+      expect(req.questions.sde_number).toBeDefined();
+      const answers: Record<string, JevAnswer> = {};
+      for (const [id, q] of Object.entries(req.questions)) {
+        if (q.type === "noul") answers[id] = noulAns(id === "contradicts" ? 0.91 : 0.8);
+        else if (q.type === "choice") answers[id] = choiceAns("anytime", Object.keys(q.criteria));
+        else answers[id] = noulAns(0.5);
+      }
+      return { model: "jev-latest", answers };
+    });
+    const plan = await planAndRerankSearch({
+      request: "invoice status",
+      results: [
+        { id: "1", snippet: "Invoice 12 is paid." },
+        { id: "2", snippet: "Invoice 12 is unpaid." },
+      ],
+      asker: createJevAsker(client),
+    });
+    expect(calls).toBe(1);
+    expect(plan.conflict).toBe(true);
+    expect(plan.ranked).toEqual([]);
   });
 
   it("fires a stop-hook on a plan-only reply", async () => {

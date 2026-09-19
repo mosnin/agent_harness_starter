@@ -6,7 +6,7 @@
 import { SLOP_LEVELS } from "./catalog";
 import { createJevAsker } from "./client";
 import { noul, score } from "./questions";
-import type { JevAsker, JevState, PolicyDecision } from "./types";
+import type { JevAsker, JevQuestions, JevState, PolicyDecision } from "./types";
 import { requireNoul, requireScore } from "./validate";
 
 export interface QualityScoreInput {
@@ -190,7 +190,7 @@ export const PAGE_GRADE_DIMENSIONS: CompositeDimension[] = [
   },
 ];
 
-export function pageGradeQuestions(prefix = "pg_"): Record<string, ReturnType<typeof score>> {
+export function pageGradeQuestions(prefix = "pg_"): JevQuestions {
   return Object.fromEntries(
     PAGE_GRADE_DIMENSIONS.map((dim) => [
       `${prefix}${dim.id}`,

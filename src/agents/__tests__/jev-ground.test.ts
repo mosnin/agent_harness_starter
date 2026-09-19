@@ -132,6 +132,27 @@ describe("grounding + quiet-ask + tool gate", () => {
     expect(gate.decisions.some((d) => d.node === "tool_bind" && d.action === "block")).toBe(true);
   });
 
+  it("blocks an unbound tool in the same tool-gate ask", async () => {
+    let calls = 0;
+    const client = createMockJevClient((req) => {
+      calls += 1;
+      expect(req.questions.wrong_fn).toBeDefined();
+      const answers: Record<string, JevAnswer> = {};
+      for (const id of Object.keys(req.questions)) {
+        answers[id] = noulAns(id === "wrong_fn" ? 0.94 : 0.04);
+      }
+      return { model: "jev-latest", answers };
+    });
+    const gate = await runToolGate({
+      userRequest: "read README.md",
+      toolName: "deploy_prod",
+      toolArguments: { target: "prod" },
+      asker: createJevAsker(client),
+    });
+    expect(calls).toBe(1);
+    expect(gate.decisions.some((d) => d.reason === "unbound-tool" && d.action === "block")).toBe(true);
+  });
+
   it("blocks rm -rf and force-push locally without calling Jev", async () => {
     let calls = 0;
     const client = createMockJevClient(() => {

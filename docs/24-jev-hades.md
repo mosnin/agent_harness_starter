@@ -219,13 +219,13 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
 4. **`withMemory`** — retrieve, then `filterPassages`. Jev-down → **drop all memories**.
 5. **Qwen generates** and may call tools. When the thread has more than one turn, `core.ts` passes typed `AgentInputItem`s to `run()` (not just the latest user string) so Qwen sees the conversation. `core.ts` drains `pendingPluginEvents` after `onBeforeRun` so the UI sees Jev decisions even before the first token.
 6. **`wrapTools`**
-   - `runToolGate` — Auto Mode + malware + patch + company + `invented_args` in **one** ask. Git-looking commands include git nouls in that same request. Hallucinated paths/URLs → HITL or block. Jev-down → **block**. Canned exfil/SSRF targets (`/etc/passwd`, `../.env`, `169.254.169.254`, `file://`, `python3 -c open(...)`) are `target-local` at zero RTT even on "safe read" tools.
+   - `runToolGate` — Auto Mode + malware + patch + company + `invented_args` + `wrong_fn` in **one** ask. Git-looking commands include git nouls in that same request. Hallucinated paths/URLs or a tool that does not bind to the request → HITL or block. Jev-down → **block**. Canned exfil/SSRF targets (`/etc/passwd`, `../.env`, `169.254.169.254`, `file://`, `python3 -c open(...)`) are `target-local` at zero RTT even on "safe read" tools.
    - Every tool result is **redacted** (API keys, tokens, private keys, connection strings) then harvested into `jevEvidence` with no extra Jev call. Search/browser evidence uses the same `mergeEvidence` path — raw secrets never reach Qwen, the compacted thread, memories, or persisted chat.
    - `scanMalicious` on `sandbox_run_code` / `modal_run`.
    - `judgePatch` on `file_patch`.
    - `approveCompanyAction` on deploy / composio / transfer / rotate / prod tools. `deploy_prod`, `wire_transfer`, `delete_account`, `rotate_keys` always HITL.
    - `review` → approval event. `block` → `GuardrailBlockError`.
-   - `web_search` → `planAndRerankSearch` in **one** ask (window + sources + relevance + injection). Injected snippets are dropped. Snippets stored as `jevEvidence`. Tool SSE `tool_call` / `tool_result` events are redacted before they leave the harness.
+   - `web_search` → `planAndRerankSearch` in **one** ask (window + sources + relevance + injection + SDE presence + contradiction). Injected snippets are dropped. Results that contradict each other on a material fact are not harvested as facts. Snippets stored as `jevEvidence`. Tool SSE `tool_call` / `tool_result` events are redacted before they leave the harness.
    - `browser_*` → `screenBrowserPage` in **one** ask (injection / substance / secret + next `action` / `target` / done / stuck + pagegrade). Local jailbreak or secret → zero-RTT block. Jev-down → **block**. Injection/secret *review* → HITL error. Spam-graded pages block. Poor pages extract instead of click. Stuck / blocked steps throw `jev_browser_step` so Qwen cannot keep clicking. Surviving pages attach `jevBrowser`; instructions tell Qwen the typed next step (or to stop on DONE / EXTRACT). Harvested into `jevEvidence`.
    - Failed `shell_exec` → `classifyCommandFailure`. Secret-leaking stderr is blocked. Canned ENOENT / EACCES / ETIMEDOUT / TypeError are `failure-local` at zero RTT and returned to Qwen with `jevFailure`. Ambiguous stderr + Jev-down → **block**.
 7. **`onAfterRun`** — **one** System One call (`runPostflight`).
@@ -466,10 +466,11 @@ Fixed:
 - `python3 -c "open('/etc/passwd')"` / `node -e "require('fs').readFileSync('/etc/passwd')"` is `target-local` at zero RTT. An echo that only mentions those tokens still passes.
 - Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Pagegrade (`scorePage`) runs in that same ask: spam trust blocks; a poor grade extracts instead of clicking. Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
 - Swarm `completeTaskJev` uses unused `superviseWorker`. A stuck or off-track worker is failed instead of marked done. Jev-down does not accept the work.
+- Search rerank now includes unused `sdeCascade` / `compareTexts` presence questions on the same ask. Material contradiction empties `ranked` and harvests a conflict card so Qwen cannot pick a side. `wrong_fn` on `runToolGate` blocks a tool that does not bind to the user request (`unbound-tool`).
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman.
+Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Standalone `bindFunctionCall` / `sdeCascade` helpers remain for MCP and callers that want a dedicated hop; the live path uses their questions on search / tool-gate.
 
 ---
 
@@ -544,6 +545,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 26 — Search SDE + unbound-tool bind
+
+`sdeCascade` and `compareTexts` were helper-only. Adding a second hop after search would throw away Jev's parallel-question speed. Field presence (`has_answer`, `sde_number` / `sde_date` / `sde_source`) and a contradiction noul now ride the existing `planAndRerankSearch` ask. Material contradiction (`contradicts ≥ 0.75`) empties `ranked` and harvests a conflict card — Qwen does not treat both sides as facts. A missing answer still returns snippets but tells the model not to invent the fact. `wrong_fn` rides `runToolGate` next to `invented_args`: "read README" + `deploy_prod` is `unbound-tool` in the same RTT.
 
 ### Wave 25 — Foreman on swarm completion
 
