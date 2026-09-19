@@ -19,6 +19,12 @@ export function capListedThreads<T>(threads: T[], max = MAX_LIST_THREADS): T[] {
   return threads.slice(0, max);
 }
 
+/** Adapter default when the caller omits `limit`. Explicit `0` stays 0. */
+export function resolveListLimit(limit: number | undefined, fallback: number): number {
+  if (limit !== undefined && Number.isFinite(limit) && limit >= 0) return limit;
+  return fallback;
+}
+
 /** Keep the most recent N messages (chronological tail). */
 export function capListedMessages<T>(rows: T[], max = MAX_LIST_MESSAGES): T[] {
   if (rows.length <= max) return rows;

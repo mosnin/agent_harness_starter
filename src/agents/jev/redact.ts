@@ -18,6 +18,7 @@ const PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, label: "API_KEY" },
   { pattern: /\bglpat-[A-Za-z0-9_-]{20,}\b/g, label: "API_KEY" },
   { pattern: /\bnpm_[A-Za-z0-9]{20,}\b/g, label: "API_KEY" },
+  { pattern: /\bpypi-[A-Za-z0-9_-]{20,}\b/g, label: "API_KEY" },
   { pattern: /\bhf_[A-Za-z0-9]{20,}\b/g, label: "API_KEY" },
   { pattern: /\bAKIA[A-Z0-9]{16}\b/g, label: "AWS_KEY" },
   { pattern: /\bASIA[A-Z0-9]{16}\b/g, label: "AWS_KEY" },

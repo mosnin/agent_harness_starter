@@ -10,6 +10,7 @@
 import type { DbAdapter, AgentThread, AgentMessage, AgentRun } from "../types";
 import { config } from "../../lib/config";
 import { clampStoredContent } from "../../lib/thread-history";
+import { MAX_LIST_MESSAGES, MAX_LIST_THREADS, resolveListLimit } from "../../lib/request-guard";
 import { convexActingIdentity, convexAdminKey } from "./auth";
 import { mapConvexMessage, mapConvexRun, mapConvexThread } from "./map";
 
@@ -63,7 +64,7 @@ export const convexAdapter: DbAdapter = {
     const client = getConvexClient(userId);
     const data = await client.query("threads:listByUser", {
       userId,
-      ...(opts?.limit !== undefined ? { limit: opts.limit } : {}),
+      limit: resolveListLimit(opts?.limit, MAX_LIST_THREADS),
     });
     return ((data as unknown[]) ?? []).map((row) =>
       mapConvexThread(row as Record<string, unknown>)
@@ -88,7 +89,7 @@ export const convexAdapter: DbAdapter = {
     const client = getConvexClient(requireUserId(userId, "getMessages"));
     const data = await client.query("messages:list", {
       threadId,
-      ...(opts?.limit !== undefined ? { limit: opts.limit } : {}),
+      limit: resolveListLimit(opts?.limit, MAX_LIST_MESSAGES),
     });
     return ((data as unknown[]) ?? []).map((row) =>
       mapConvexMessage(row as Record<string, unknown>)

@@ -8,6 +8,7 @@ import type { DbAdapter, AgentThread, AgentMessage, AgentRun } from "../types";
 import { config } from "../../lib/config";
 import { assertOwned, ownedOrNull } from "../owner";
 import { clampStoredContent } from "../../lib/thread-history";
+import { MAX_LIST_MESSAGES, MAX_LIST_THREADS, resolveListLimit } from "../../lib/request-guard";
 
 function getClient() {
   const serviceRoleKey = config.db.supabase.serviceRoleKey;
@@ -41,14 +42,13 @@ export const supabaseAdapter: DbAdapter = {
   },
 
   async listThreads(userId, opts) {
-    const limit = opts?.limit;
-    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : undefined;
-    let query = getClient()
+    const take = resolveListLimit(opts?.limit, MAX_LIST_THREADS);
+    const query = getClient()
       .from("agent_threads")
       .select()
       .eq("user_id", userId)
-      .order("updated_at", { ascending: false });
-    if (take !== undefined) query = query.limit(take);
+      .order("updated_at", { ascending: false })
+      .limit(take);
     const { data, error } = await query;
     if (error) throw error;
     return (data ?? []).map(rowToThread);
@@ -86,18 +86,15 @@ export const supabaseAdapter: DbAdapter = {
   async getMessages(threadId, userId, opts) {
     const thread = await supabaseAdapter.getThread(threadId, userId);
     if (!thread) return [];
-    const limit = opts?.limit;
-    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : undefined;
-    let query = getClient()
+    const take = resolveListLimit(opts?.limit, MAX_LIST_MESSAGES);
+    const { data, error } = await getClient()
       .from("agent_messages")
       .select()
       .eq("thread_id", threadId)
-      .order("created_at", { ascending: take === undefined });
-    if (take !== undefined) query = query.limit(take);
-    const { data, error } = await query;
+      .order("created_at", { ascending: false })
+      .limit(take);
     if (error) throw error;
-    const rows = data ?? [];
-    const chronological = take !== undefined ? [...rows].reverse() : rows;
+    const chronological = [...(data ?? [])].reverse();
     return chronological.map(rowToMessage);
   },
 

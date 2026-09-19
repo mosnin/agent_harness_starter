@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createMemoryAdapter } from "../db/memory";
 import { assertOwned, ownedOrNull } from "../db/owner";
 import { MAX_STORED_MESSAGE_CHARS } from "../lib/thread-history";
+import { MAX_LIST_MESSAGES, MAX_LIST_THREADS } from "../lib/request-guard";
 
 describe("ownedOrNull / assertOwned", () => {
   it("hides a foreign row and refuses a foreign write", () => {
@@ -59,6 +60,22 @@ describe("memory adapter ownership", () => {
     expect(newest).toHaveLength(2);
     expect((await db.listThreads("u1")).length).toBe(5);
     expect(await db.listThreads("u1", { limit: 0 })).toEqual([]);
+  });
+
+  it("defaults omitted list limits so a store dump cannot grow unbounded", async () => {
+    const db = createMemoryAdapter();
+    for (let i = 0; i < MAX_LIST_THREADS + 3; i += 1) {
+      await db.createThread("u1", `t${i}`);
+    }
+    expect((await db.listThreads("u1")).length).toBe(MAX_LIST_THREADS);
+    const thread = await db.createThread("u2", "long");
+    for (let i = 0; i < MAX_LIST_MESSAGES + 4; i += 1) {
+      await db.saveMessage({ threadId: thread.id, role: "user", content: `m${i}` }, "u2");
+    }
+    const tail = await db.getMessages(thread.id, "u2");
+    expect(tail).toHaveLength(MAX_LIST_MESSAGES);
+    expect(tail[0]?.content).toBe(`m${4}`);
+    expect(tail[tail.length - 1]?.content).toBe(`m${MAX_LIST_MESSAGES + 3}`);
   });
 
   it("clamps oversized message content before store", async () => {

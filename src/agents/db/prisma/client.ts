@@ -7,6 +7,7 @@
 import type { DbAdapter, AgentThread, AgentMessage, AgentRun } from "../types";
 import { assertOwned, ownedOrNull } from "../owner";
 import { clampStoredContent } from "../../lib/thread-history";
+import { MAX_LIST_MESSAGES, MAX_LIST_THREADS, resolveListLimit } from "../../lib/request-guard";
 
 function getPrismaClient() {
   const { PrismaClient } = require("@prisma/client");
@@ -51,12 +52,11 @@ export const prismaAdapter: DbAdapter = {
 
   async listThreads(userId, opts) {
     const prisma = getPrismaClient();
-    const limit = opts?.limit;
-    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : undefined;
+    const take = resolveListLimit(opts?.limit, MAX_LIST_THREADS);
     const data = await prisma.agentThread.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },
-      ...(take !== undefined ? { take } : {}),
+      take,
     });
     return data.map((d) => dbToThread(d as Record<string, unknown>));
   },
@@ -90,14 +90,13 @@ export const prismaAdapter: DbAdapter = {
     const thread = await prismaAdapter.getThread(threadId, userId);
     if (!thread) return [];
     const prisma = getPrismaClient();
-    const limit = opts?.limit;
-    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : undefined;
+    const take = resolveListLimit(opts?.limit, MAX_LIST_MESSAGES);
     const data = await prisma.agentMessage.findMany({
       where: { threadId },
-      orderBy: { createdAt: take !== undefined ? "desc" : "asc" },
-      ...(take !== undefined ? { take } : {}),
+      orderBy: { createdAt: "desc" },
+      take,
     });
-    const chronological = take !== undefined ? [...data].reverse() : data;
+    const chronological = [...data].reverse();
     return chronological.map((d) => dbToMessage(d as Record<string, unknown>));
   },
 

@@ -7,6 +7,7 @@ const randomUUID = () => globalThis.crypto.randomUUID();
 import type { DbAdapter, AgentThread, AgentMessage, AgentRun } from "./types";
 import { assertOwned, ownedOrNull } from "./owner";
 import { clampStoredContent } from "../lib/thread-history";
+import { MAX_LIST_MESSAGES, MAX_LIST_THREADS, resolveListLimit } from "../lib/request-guard";
 
 export function createMemoryAdapter(): DbAdapter {
   const threads = new Map<string, AgentThread>();
@@ -44,11 +45,7 @@ export function createMemoryAdapter(): DbAdapter {
       const rows = Array.from(threads.values())
         .filter((t) => t.userId === userId)
         .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-      const limit = opts?.limit;
-      if (limit !== undefined && Number.isFinite(limit) && limit >= 0) {
-        return rows.slice(0, limit);
-      }
-      return rows;
+      return rows.slice(0, resolveListLimit(opts?.limit, MAX_LIST_THREADS));
     },
 
     async deleteThread(threadId, userId) {
@@ -82,11 +79,8 @@ export function createMemoryAdapter(): DbAdapter {
       const thread = threads.get(threadId);
       if (!ownedOrNull(thread ?? null, thread?.userId, userId)) return [];
       const rows = messages.get(threadId) ?? [];
-      const limit = opts?.limit;
-      if (limit !== undefined && Number.isFinite(limit) && limit >= 0) {
-        return rows.slice(-limit);
-      }
-      return rows;
+      const take = resolveListLimit(opts?.limit, MAX_LIST_MESSAGES);
+      return take === 0 ? [] : rows.slice(-take);
     },
 
     async createRun(run, userId) {

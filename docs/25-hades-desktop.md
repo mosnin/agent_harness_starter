@@ -237,6 +237,8 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | Convex `deleteThread` on a large thread | paged deletes, no unbounded `.collect()` |
 | Convex `runs:listByThread` without `limit` | at most 50 runs |
 | Pasted GitHub `gho_` / `ghu_` / `ghs_` / `ghr_` | `jev.decision` `leaks-secret-local` |
+| Adapter `listThreads` / `getMessages` without `limit` | at most 50 threads / 100 messages |
+| Pasted PyPI `pypi-` token | `jev.decision` `leaks-secret-local` |
 | `web_search` results that contradict each other | empty `ranked`, conflict card in `jevEvidence`, no side picked |
 | Factual `web_search` with a clear `best` snippet | `jevDirectReply` from the snippet, remaining Qwen tokens aborted |
 | Tool that does not bind to the request | `jev.decision` `unbound-tool` HITL or block |

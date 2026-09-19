@@ -9,6 +9,7 @@ import {
   readCappedRequest,
   capListedThreads,
   capListedMessages,
+  resolveListLimit,
   MAX_JSON_BODY_BYTES,
   MAX_LIST_THREADS,
   MAX_LIST_MESSAGES,
@@ -120,6 +121,13 @@ describe("request-guard", () => {
     );
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) expect(parsed.response.status).toBe(400);
+  });
+
+  it("defaults omitted adapter limits and keeps an explicit zero", () => {
+    expect(resolveListLimit(undefined, MAX_LIST_THREADS)).toBe(MAX_LIST_THREADS);
+    expect(resolveListLimit(Number.NaN, MAX_LIST_MESSAGES)).toBe(MAX_LIST_MESSAGES);
+    expect(resolveListLimit(0, MAX_LIST_THREADS)).toBe(0);
+    expect(resolveListLimit(3, MAX_LIST_THREADS)).toBe(3);
   });
 
   it("caps an unbounded thread list", () => {
