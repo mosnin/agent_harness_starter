@@ -338,7 +338,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                   failMode: "closed",
                 });
                 emit(opts, pageScreen, started, ctx);
-                if (pageScreen.action === "block") {
+                if (pageScreen.action === "block" || (pageScreen.action === "review" && (pageScreen.value === "injection" || pageScreen.value === "secret"))) {
                   throw new GuardrailBlockError(
                     `Jev blocked scraped page content (${pageScreen.reason}).`,
                     pageScreen.reason,

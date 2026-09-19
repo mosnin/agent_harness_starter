@@ -126,7 +126,7 @@ export async function verifyCitation(input: CitationCheckInput): Promise<PolicyD
     },
     input.signal
   );
-  if (!asked.ok) return decideUnavailable("citation_verify", "says_nothing", "review");
+  if (!asked.ok) return decideUnavailable("citation_verify", "says_nothing", "closed");
   const answer = requireChoice(asked.result.answers, "support");
   if (answer.choice === "contradicts") {
     return { action: "block", value: "contradicts", reason: "citation-contradicts", node: "citation_verify", answers: asked.result.answers, confidence: answer.confidence };

@@ -1,114 +1,168 @@
-# Hades — Jev theory, install, and everything that was wired
+# 24 — Jev / Hades: theory, install, and everything that shipped
 
 Hades is the Jev-powered preset for this harness. It follows the LangChain pattern from [Building a Harness with Jev](https://www.langchain.com/blog/building-a-harness-with-jev):
 
 > Use an LLM for open-ended reasoning and generation, and Jev for fast, structured decisions along the way.
 
-This document is the install guide and the theory of record for what shipped.
+This is the theory of record, the install guide, and the inventory of every hop that was wired.
 
 ---
 
 ## 1. Theory
 
-### What Jev is
+### What Jev is (and is not)
 
-Jev is TypeSafe’s **System One** model. It is not a chat model. It does not write prose, plans, or tool calls. You send:
+Jev is TypeSafe’s **System One** model. It is not a chat model. It does not write prose, plans, patches, or tool calls. You send:
 
-1. A **state** object (the evidence: user message, tool args, draft, passages, …)
+1. A **state** object — the evidence (user message, tool args, draft, passages, page text, …)
 2. A map of **typed questions**
 
-You get back calibrated answers in ~70–500ms. Every question in one request is evaluated **in parallel**. Adding a noul barely changes latency.
+You get back calibrated answers in roughly 70–500ms. Every question in one request is evaluated **in parallel**. Adding another noul barely changes latency.
 
-Three question types:
+The public HTTP contract:
 
-| Type | Meaning | Answer |
+```
+POST https://api.typesafe.ai/v1/systemone
+Authorization: Bearer $TYPESAFE_API_KEY
+Content-Type: application/json
+
+{
+  "model": "jev-latest",
+  "state": { ... },
+  "questions": { "urgent": { "type": "noul", "instructions": "..." }, ... }
+}
+```
+
+There is no official SDK required. `src/agents/jev/client.ts` speaks this wire format. `createJevAsker().ask()` never throws: it returns `{ ok: true, result }` or `{ ok: false, reason }`. **Code** then decides fail-open vs fail-closed.
+
+### The three question types
+
+| Type | Meaning | Answer shape |
 |---|---|---|
-| `noul` | Probability that a proposition is true (0–1) | `{ type: "noul", noul }` |
-| `choice` | Closed catalog with named criteria | `{ type: "choice", choice, probabilities, confidence }` |
+| `noul` | Probability that a proposition is true, in `[0, 1]` | `{ type: "noul", noul }` |
+| `choice` | Closed catalog. Every option has a criterion. Always include an escape (`other`, `__review__`, `ask_user`). | `{ type: "choice", choice, probabilities, confidence }` |
 | `score` | Ordered Likert / severity scale | `{ type: "score", score, legend, probabilities, confidence }` |
 
-Code owns thresholds. Jev owns the scores. That split is the whole design.
+`noul` / `choice` / `score` builders in `questions.ts` harden instructions so untrusted evidence in `state` is not treated as instructions to Jev.
 
-### Why this is an order of magnitude better than LLM-as-judge
+### Why this is better than LLM-as-judge
 
-An LLM judge is another generator. It can waffle, invert a label, or invent a rubric. Jev cannot generate; it can only fill a typed schema. The harness then applies **gates**:
+An LLM judge is another generator. It can waffle, invert a label, or invent a rubric mid-sentence. Jev cannot generate; it can only fill a typed schema. The harness then applies **gates** (`src/agents/jev/policy.ts`):
 
-- minimum `confidence`
-- minimum `P(chosen option)`
-- minimum margin vs runner-up (`P(winner) − P(second)`)
+| Gate | min confidence | min P(chosen) | min margin |
+|---|---|---|---|
+| `routing` | 0.65 | 0.70 | 0.20 |
+| `classification` | 0.85 | 0.85 | 0.50 |
+| `verification` | 0.80 | 0.80 | 0.20 |
+| `voice` | 0.85 | 0.85 | 0.50 |
+| `quietAskAuto` | 0.90 | 0.90 | 0.20 |
 
-If a gate fails, the action is `review` or `fallback` — never a silent auto-approve on a mushy distribution.
+Margin is `P(winner) − P(runner-up)`. If a gate fails, the action is `review` or `fallback` — never a silent auto-approve on a mushy distribution.
+
+Selected noul thresholds:
+
+| Symbol | Value | Used for |
+|---|---|---|
+| `injectionBlock` | 0.75 | Block jailbreaks |
+| `injectionReview` | 0.25 | HITL / drop untrusted page |
+| `secretLeak` | 0.90 | Block secrets |
+| `destructive` | 0.90 | Auto Mode block |
+| `exfiltration` | 0.70 | Auto Mode block |
+| `beyondScope` | 0.85 | Auto Mode HITL |
+| `followupReuse` | 0.55 | Keep the pinned Qwen route |
+| `finish` | 0.85 | Completion |
+| `stopHook` | 0.80 | Incomplete-reply flag |
 
 ### Fail-open vs fail-closed
+
+This is the most important policy in the install.
 
 | Hop | When Jev is down / unconfigured |
 |---|---|
 | Model / skill routing | **Fail open** — keep the current Qwen route |
-| Input screen, output screen, Auto Mode, RAG filter, git-risk | **Fail closed** — block the hop or drop the data |
-| Stop-hook | **Fail open** — do not discard a finished draft because the hook could not run |
+| Input screen, output screen, Auto Mode, git-risk, RAG filter, citation (when evidence exists), browser page screen, command-failure / stderr | **Fail closed** — block the hop or drop the data |
+| Patch / company-OS / malware (Jev down) | **Fail to HITL or block** — `judgePatch` reviews (HITL); `scanMalicious` and `approveCompanyAction` block |
+| Stop-hook, quality, completion, heedPolicy | **Advisory** — emit `jev_decision`, do not discard the draft |
 | Voice intent | **Fail to clarify** — do not execute |
 
-That is the LangChain + jev-router / jev-judgment contract: routing may be cheap and optimistic; security may not.
+Routing may be cheap and optimistic. Security may not.
 
-### What Qwen and OpenAI are for
+### What each vendor is for
 
-- **Qwen via OpenRouter** — the only component that writes. Fast / balanced / powerful routes.
-- **OpenAI** — Whisper STT and TTS only. Voice never decides.
-- **Jev** — every structured decision on the path.
+| Vendor | Job | Must not do |
+|---|---|---|
+| **Jev (TypeSafe)** | Every structured decision | Write prose |
+| **Qwen via OpenRouter** | Generation and tool use | Make policy |
+| **OpenAI** | Whisper STT + TTS only | Decide or route |
 
 ```
 OpenAI STT ─┐
-User text ──┼─► Jev screen + route ─► Qwen (OpenRouter) ─► Jev Auto Mode on tools
-Tool results┘         │                      │
-                      │                      ▼
-                      └──────────────► Jev output screen ─► OpenAI TTS
+User text ──┼─► Jev screen + route + heed ─► Qwen (OpenRouter) ─► Jev Auto Mode / git / malware / patch / company
+Tool results┘              │                         │
+                           │                         ▼
+                           └──────────► Jev output screen + quality + completion + citations ─► OpenAI TTS
 ```
 
 ---
 
 ## 2. Install
 
-### Environment
+### 2.1 Copy
+
+From this repo into your Next.js app (see [01 — Integration](01-integration.md)):
+
+| This repo | Your app |
+|---|---|
+| `src/agents/jev/` | `src/agents/jev/` |
+| `src/agents/hades/` | `src/agents/hades/` |
+| `src/agents/plugins/jev.ts` | same |
+| `src/agents/providers/openrouter.ts`, `voice.ts` | same |
+| `routes/hades/route.ts` | `src/app/api/hades/route.ts` |
+| `routes/voice/route.ts` | `src/app/api/voice/route.ts` |
+| `routes/agent/route.ts` | `src/app/api/agent/route.ts` (or merge `AGENT_PROVIDER=hades`) |
+| `components/AgentChat/` | `src/components/AgentChat/` |
+| `.env.example` Hades block | `.env.local` |
+
+Package exports already include `@/agents`, `@/agents/jev`, and `@/agents/hades`.
+
+### 2.2 Environment
 
 Copy `.env.example` → `.env.local`:
 
 ```bash
 AGENT_PROVIDER=hades
 
-# Required for decisions
+# Decisions (required for Jev to run; without it, security hops fail closed)
 TYPESAFE_API_KEY=...          # https://typesafe.ai
 JEV_MODEL=jev-latest
 JEV_TIMEOUT_MS=2500
+# TYPESAFE_BASE_URL=https://api.typesafe.ai/v1/systemone   # optional override
 
-# Required for generation
+# Generation (required)
 OPENROUTER_API_KEY=...
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 HADES_MODEL=qwen/qwen-2.5-72b-instruct
 HADES_FAST_MODEL=qwen/qwen3-32b
 HADES_BALANCED_MODEL=qwen/qwen-2.5-72b-instruct
 HADES_POWERFUL_MODEL=qwen/qwen3-235b-a22b
 
-# Required only for voice
+# Voice (required only if you call /api/voice)
 OPENAI_API_KEY=...
 HADES_STT_MODEL=whisper-1
 HADES_TTS_MODEL=gpt-4o-mini-tts
 HADES_TTS_VOICE=alloy
 
-# Optional: expose jev_* on /api/mcp (auth required)
+# MCP jev_* tools — off by default, auth required
 HADES_MCP_JEV=false
+# HADES_MCP_JEV_ANON=true     # only for trusted local inspectors
+
+# Chat UI: point AgentChat at /api/hades
+NEXT_PUBLIC_AGENT_PROVIDER=hades
 ```
 
-Without `TYPESAFE_API_KEY`, `createJevAsker().ask()` returns `{ ok: false, reason: "jev-unconfigured" }`. Routing stays fail-open; screens and Auto Mode stay fail-closed.
+Without `TYPESAFE_API_KEY`, `createJevAsker().ask()` returns `{ ok: false, reason: "jev-unconfigured" }`.
 
-### Drop-in files
-
-| File | Where it goes |
-|---|---|
-| `routes/hades/route.ts` | `app/api/hades/route.ts` |
-| `routes/voice/route.ts` | `app/api/voice/route.ts` |
-| `routes/agent/route.ts` | `app/api/agent/route.ts` (already uses Hades when `AGENT_PROVIDER=hades`) |
-| `components/AgentChat` | any client page |
-
-### One-liner
+### 2.3 One-liner
 
 ```ts
 import { createHadesHarness } from "@/agents";
@@ -125,42 +179,48 @@ const result = await hades.run({
 });
 ```
 
-Or set `AGENT_PROVIDER=hades` and keep calling `/api/agent`. The research / code / hades example agents all run through `createHadesHarness` in that mode.
+Or set `AGENT_PROVIDER=hades` and keep calling `/api/agent`. Example agent name: `"hades"` (`src/agents/examples/hades-agent.ts`).
 
-Registered example: `agentName: "hades"` (`src/agents/examples/hades-agent.ts`).
-
-### Verify the install
+### 2.4 Verify the install
 
 ```bash
 npx tsc --noEmit
 npx vitest run
 ```
 
-Expected: TypeScript clean, full suite green (612+ tests). Jev unit coverage lives in `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, and `jev-live-paths.test.ts`.
+Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`. Core event drain: `core.test.ts` (`pendingPluginEvents`).
 
 ---
 
 ## 3. How a run actually moves
 
-1. **Ingress** — `/api/agent`, `/api/hades`, or `/api/voice` (auth required). Voice clips larger than 8 MiB are rejected (`413`).
-2. **Voice intent** (voice only) — heuristic cancel, then `classifyVoiceIntent`. `unsafe` / `out_of_scope` / `clarify` never reach Qwen.
+1. **Ingress** — `/api/agent`, `/api/hades`, or `/api/voice`. All require `auth.requireAuth`. Voice clips larger than 8 MiB → `413`.
+2. **Voice intent** (voice only) — `voiceIntentHint`, then `classifyVoiceIntent`. Execution requires `action === "auto"` **and** `value === "execute_now"` (`shouldExecuteVoice`). Anything else clarifies, cancels, or refuses. Qwen never sees cancelled / unsafe / low-confidence audio.
 3. **`withJev.onBeforeRun`**
-   - `screenExternal` (injection / secrets / substance). Jev-down → **block**.
-   - Optional `decideCompaction` on long threads.
-   - `routeModel` → `ctx.hadesModel` / `hadesRoute` (Qwen fast/balanced/powerful).
+   - `screenExternal` (injection / secrets / substance). Jev-down → **block**. Injection/secret *review* → HITL error.
+   - `decideCompaction` when the thread has ≥ 8 messages.
+   - `routeModel` → `ctx.hadesModel` / `hadesRoute` (Qwen fast / balanced / powerful). Overrides: `!fast`, `!balanced`, `!powerful`. Follow-up reuse at `is_followup ≥ 0.55`.
    - `routeSkill` (map-reduce if the catalog is > 8).
+   - `heedPolicy` — lift / narrow standing rules. Stored on `ctx.jevPolicyDeltas`.
    - Each decision is queued as a `jev_decision` SSE event.
-4. **`withMemory`** — retrieve, then `filterPassages`. Jev-down → **drop all memories** (no poisoned prompt).
-5. **Qwen generates** and may call tools.
+4. **`withMemory`** — retrieve, then `filterPassages`. Jev-down → **drop all memories**.
+5. **Qwen generates** and may call tools. `core.ts` drains `pendingPluginEvents` after `onBeforeRun` so the UI sees Jev decisions even before the first token.
 6. **`wrapTools`**
    - `assessToolRisk` (Auto Mode). Git-looking commands get `assessGitRisk` first. Jev-down → **block**.
-   - `review` → HITL approval. `block` → `GuardrailBlockError`.
-   - `web_search` results are planned + reranked (`planAndRerankSearch`).
-   - Failed `shell_exec` output is classified (`classifyCommandFailure`); secret-leaking stderr is blocked.
-7. **`onAfterRun`** — `screenOutput` (Jev-down → **block**), then limpet `stopHook` (advisory event).
+   - `scanMalicious` on `sandbox_run_code` / `modal_run`.
+   - `judgePatch` on `file_patch`.
+   - `approveCompanyAction` on deploy / composio / transfer / rotate / prod tools. `deploy_prod`, `wire_transfer`, `delete_account`, `rotate_keys` always HITL.
+   - `review` → approval event. `block` → `GuardrailBlockError`.
+   - `web_search` → `planAndRerankSearch`; snippets stored as `jevEvidence`.
+   - `browser_*` → `screenExternal` on page text. Block **and** injection/secret review. Surviving text appended to `jevEvidence`.
+   - Failed `shell_exec` → `classifyCommandFailure`. Secret-leaking stderr is blocked. Jev-down → **block** (stderr never reaches Qwen).
+7. **`onAfterRun`**
+   - `screenOutput` — Jev-down → **block**.
+   - `stopHook` — advisory (limpet).
+   - `decideCompletion` — advisory (Foreman).
+   - `scoreQuality` — advisory (JevSlop).
+   - `verifyCitation` against `jevEvidence` — Jev-down or contradiction → **block**.
 8. **TTS** if this was a voice turn.
-
-Core (`src/agents/core.ts`) drains `pendingPluginEvents` after `onBeforeRun` and after `onAfterRun`, so the UI sees Jev decisions even when no tool ran.
 
 ---
 
@@ -172,16 +232,16 @@ All under `src/agents/jev/`:
 |---|---|---|
 | `questions.ts` | `noul` / `choice` / `score` builders + hardening | TypeSafe cookbooks |
 | `validate.ts` | Strict answer shape, probability sum, choice ∈ criteria | super-jev / jcm-router |
-| `client.ts` | HTTP `POST https://api.typesafe.ai/v1/systemone`, mock client | official wire format |
-| `policy.ts` | Gates, `NOUL`/`SCORE` thresholds, fail-open/closed | jev-router, jev-judgment |
+| `client.ts` | HTTP System One client + mock that re-validates | official wire format |
+| `policy.ts` | Gates, `NOUL`/`SCORE`, fail-open/closed | jev-router, jev-judgment |
 | `catalog.ts` | Qwen routes + default skills + Likert legends | LangChain ModelRouter |
 | `router.ts` | `routeModel`, `routeSkill`, `routeIntent` | LangChain + jev-router / jcm / notra / GodsBoy |
-| `mapreduce.ts` | Batch Choice over large catalogs, beam tree | jev-bfs, hierarchical classification |
+| `mapreduce.ts` | Batch Choice over large catalogs, beam tree | jev-bfs |
 | `auto-mode.ts` | Destructive / exfil / scope + git pre-pass | AutoModeMiddleware, jev-judgment |
 | `guardrails.ts` | Input/output screens, citations, malware | safer-with-jev, jev-review, is-malicious |
 | `scoring.ts` | Slop / quality / rerank / page grade | JevSlop, jev-search, pagegrade |
 | `decisions.ts` | quiet-ask, completion, compaction, browser step, cmd fail | pi-quiet-ask, limpet, Foreman |
-| `rag.ts` | Passage relevance + injection filter | TypeSafe RAG cookbook, jev-search |
+| `rag.ts` | Passage relevance + injection filter | TypeSafe RAG cookbook |
 | `extract.ts` | find / extract / compare / bind / SDE cascade | jev-mcp cookbooks |
 | `search.ts` | Time window + source nouls + rerank | jev-search |
 | `hooks.ts` | Stop-hook, heed policy, git-risk, voice intent | limpet, pi-heed, jev-git |
@@ -193,11 +253,12 @@ All under `src/agents/jev/`:
 | `audit.ts` | In-process decision log | — |
 | `mcp.ts` | `jev_*` tools (opt-in, auth required) | jev-mcp / decide-mcp |
 
-Plugins / presets:
+Harness glue:
 
 - `src/agents/plugins/jev.ts` — `withJev`
 - `src/agents/plugins/memory.ts` — `jevFilter`
-- `src/agents/hades/index.ts` — `createHadesHarness`
+- `src/agents/hades/index.ts` — `createHadesHarness`, `shouldExecuteVoice`
+- `src/agents/core.ts` — drains `pendingPluginEvents`
 - `src/agents/orchestrator.ts` — `jevRouter: true`
 - `src/agents/workflow` — `jevWhen` / `jevUntil`
 - `src/agents/swarm/coordinator.ts` — `submitTaskJev`
@@ -215,21 +276,21 @@ These sit on real hops, not helper-only APIs:
 | `createOrchestrator({ jevRouter: true })` | Pick a specialist before the LLM router |
 | `jevWhen` / `jevUntil` | Workflow branch + loop stop |
 | `SwarmCoordinator.submitTaskJev` | Assign among capable agents |
-| `withJev` stop-hook | Incomplete-reply check (event only) |
+| `stopHook` | Incomplete-reply check (event) |
 | `assessToolRisk` | Extra git-risk pass on `git` / `shell_exec` |
 | `web_search` wrap | Intent + sources, then rerank |
-| `shell_exec` wrap | Classify failures; block secret leaks |
-| `voiceTurn` | `execute_now` / `clarify` / `out_of_scope` / `unsafe` |
-| `heedPolicy` | Lift / narrow standing rules from the user message |
-| `scoreQuality` | JevSlop quality label on the draft |
-| `decideCompletion` | Foreman-style “are we actually done?” |
+| `shell_exec` wrap | Classify failures; block secret leaks; Jev-down blocks stderr |
+| `voiceTurn` | Execute only on confident `execute_now` |
+| `heedPolicy` | Lift / narrow standing rules |
+| `scoreQuality` | JevSlop label on the draft |
+| `decideCompletion` | Foreman-style “are we done?” |
 | `scanMalicious` | Hostile-code check on sandbox / run_code |
 | `judgePatch` | jev-code verdict on `file_patch` |
-| `approveCompanyAction` | opencompany HITL on deploy / composio / transfer tools |
-| `verifyCitation` | Block drafts that contradict retrieved search/browser evidence |
-| `browser_scrape` wrap | Screen scraped page text for injection (fail-closed) |
+| `approveCompanyAction` | opencompany HITL on deploy / composio / transfer |
+| `verifyCitation` | Block drafts that contradict retrieved evidence (fail-closed) |
+| `browser_*` wrap | Screen scraped page text; review-band injection is blocked |
 | `AGENT_PROVIDER=hades` | `/api/agent` uses `createHadesHarness` |
-| Agent Chat | Streams `jev_decision`; optional Voice button → `/api/voice` |
+| Agent Chat | Streams `jev_decision`; Voice → `/api/voice` |
 
 ```ts
 import { createOrchestrator, createWorkflow, jevWhen, jevUntil, branch, loop } from "@/agents";
@@ -250,16 +311,7 @@ const workflow = createWorkflow("review")
 
 ---
 
-## 6. Middleware mapping (LangChain)
-
-```ts
-import { withJev, createHadesHarness } from "@/agents";
-
-const harness = createHadesHarness({
-  name: "Support",
-  instructions: "...",
-});
-```
+## 6. LangChain mapping + Qwen routes
 
 | LangChain | Hades |
 |---|---|
@@ -267,37 +319,17 @@ const harness = createHadesHarness({
 | `AutoModeMiddleware(tools=["bash"])` | `assessToolRisk` inside `wrapTools` |
 | `TypeSafeClassifier.invoke(state, questions)` | `createJevAsker().ask(...)` |
 
-Default Qwen routes:
-
-| Route | Model | When |
+| Route | Default model | When |
 |---|---|---|
 | `fast` | `qwen/qwen3-32b` | Lookups, extraction, greetings |
 | `balanced` | `qwen/qwen-2.5-72b-instruct` | Typical agent work |
 | `powerful` | `qwen/qwen3-235b-a22b` | Architecture, high-stakes, novel debugging |
 
-Overrides: `!fast`, `!balanced`, `!powerful` in the user message. Follow-ups with `is_followup ≥ 0.55` reuse the pinned route (jcm-router). Low-confidence *upgrades* are capped. Downgrades that would bust a large prompt cache are skipped.
+Low-confidence *upgrades* are capped at balanced. Downgrades that would bust a prompt cache larger than 20k tokens are skipped.
 
 ---
 
-## 7. Question catalog (what we actually ask)
-
-- **Routing** — complexity score, `requires_tools`, `is_followup`, route choice
-- **Skills** — specialist vs `__no_skill__` vs `__review__` + need/review nouls
-- **Guardrails** — injection, substance, secret leak, output policy, citations, malware
-- **Auto Mode** — destructive / exfil / beyond-scope + impact + authorized/routine
-- **Git** — force-push, unrecoverable, authorized
-- **RAG** — per-passage relevance + “instructions to an agent”
-- **Search** — time window, per-source nouls, per-result relevance
-- **Decisions** — quiet-ask, completion, compaction, browser step, command failure
-- **Voice** — execute / clarify / cancel / unsafe
-- **Stop-hook** — plan-instead-of-artifact, missing verification, unearned success
-- **Symbolic** — Foreman supervisor, patch verdict
-- **Company OS** — authorized + routine (`deploy_prod`, transfers, key rotation always HITL)
-- **Curation / eval** — triage, keep/skip, Brier + accuracy
-
----
-
-## 8. Using Jev directly
+## 7. Using Jev directly
 
 ```ts
 import { choice, noul, createJevAsker } from "@/agents";
@@ -315,57 +347,151 @@ if (asked.ok && asked.result.answers.urgent.type === "noul") {
 }
 ```
 
-`createMockJevClient` validates answers against the question map — tests cannot smuggle an illegal choice.
+`createMockJevClient` re-runs `validateResult` — tests cannot smuggle an illegal choice.
 
 ---
 
-## 9. Voice
+## 8. Voice
 
 ```ts
 const spoken = await hades.voiceTurn(audioBuffer);
 // spoken.transcript, spoken.finalOutput, spoken.audio
 ```
 
-Pipeline: OpenAI transcribe → heuristic + Jev intent → (maybe) Hades run → OpenAI speak.
+Pipeline: OpenAI transcribe → heuristic + Jev intent → **only then** Hades run → OpenAI speak.
 
 AgentChat (`agentName="hades"` or `NEXT_PUBLIC_AGENT_PROVIDER=hades`) posts SSE to `/api/hades` and shows `Jev <node>: <action> → <decision>`. The Voice button records via `MediaRecorder` and posts to `/api/voice`.
 
 ---
 
-## 10. MCP
+## 9. MCP
 
-Off by default. Set `HADES_MCP_JEV=true` (or `createHadesHarness({ registerMcp: true })`).
+Off by default. Set `HADES_MCP_JEV=true` or `createHadesHarness({ registerMcp: true })`.
 
 Every `jev_*` tool requires `ctx.userId` unless `HADES_MCP_JEV_ANON=true`.
 
-Tools: `jev_screen`, `jev_verify`, `jev_decide`, `jev_rerank`, `jev_quiet_ask`, `jev_auto_mode`, `jev_find`, `jev_extract`, `jev_compare`, `jev_bind`, `jev_search`, `jev_filter_passages`, `jev_stop`, `jev_git`.
+`jev_screen`, `jev_verify`, `jev_decide`, `jev_rerank`, `jev_quiet_ask`, `jev_auto_mode`, `jev_find`, `jev_extract`, `jev_compare`, `jev_bind`, `jev_search`, `jev_filter_passages`, `jev_stop`, `jev_git`.
 
 ---
 
-## 11. Security notes (from the install sweep)
+## 10. Security sweep (current tree)
 
-Fixed in this tree:
+Fixed:
 
-- Input screen fail-closed when Jev is unavailable (`failMode: "closed"` in `withJev`).
-- Output screen fail-closed (no secret-bearing draft ships because Jev timed out).
-- RAG filter returns `[]` if Jev cannot score passages (blocks indirect injection via memory).
-- Auto Mode was already fail-closed; git force-push is an extra closed hop.
-- `jev_*` MCP tools are opt-in and auth-gated.
+- Input screen fail-closed when Jev is unavailable.
+- Output screen fail-closed.
+- RAG filter returns `[]` if Jev cannot score passages.
+- Auto Mode + git-risk fail-closed.
+- Citation check fail-closed when evidence exists.
+- Browser scrape treats injection/secret *review* as a block (same as ingress).
+- Voice executes only on `auto` + `execute_now`.
+- Failed `shell_exec` classification fail-closed (stderr never reaches Qwen if Jev is down).
+- `jev_*` MCP tools opt-in and auth-gated.
 - `/api/voice` rejects bodies over 8 MiB.
 - Jev HTTP `baseUrl` is env-only (no request-controlled SSRF).
 - `/api/hades` and `/api/voice` use `auth.requireAuth`.
 
-Still true by design: routing fail-open; stop-hook is advisory; `!powerful` only overrides the model, not screens or Auto Mode.
+Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
+
+Residual (accepted): `web_search` snippets are reranked but not run through `screenExternal` (browser scrapes are). Search evidence still goes through `verifyCitation` on the final draft.
 
 ---
 
-## 12. Files touched (implementation inventory)
+## 11. Debug sweep checklist
+
+| Check | How |
+|---|---|
+| Types | `npx tsc --noEmit` |
+| Tests | `npx vitest run` — Jev files listed in §2.4 |
+| Provider switch | `AGENT_PROVIDER=hades` → `routes/agent/route.ts` uses `createHadesHarness` |
+| Exports | `package.json` `./jev` and `./hades`; `tsup.config.ts` entries |
+| Env | `.env.example` Hades / Jev / OpenRouter / voice / MCP block |
+| UI | AgentChat `jev_decision` + Voice when `agentName="hades"` |
+| Docs index | [QUICKSTART.md](../QUICKSTART.md) row 24 |
+
+---
+
+## 12. Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| Every message blocked immediately | Missing `TYPESAFE_API_KEY` (input screen fail-closed) |
+| Tools always HITL / blocked | Jev down (Auto Mode fail-closed) or `alwaysApprove` |
+| Memories never injected | `jevFilter: true` and Jev down (empty set is correct) |
+| Voice always “say that again” | Intent not `auto`/`execute_now`, or Jev unconfigured |
+| No `jev_*` on `/api/mcp` | `HADES_MCP_JEV` is not `true` |
+| SSE has no `jev_decision` | Plugin not installed, or events not drained (need current `core.ts`) |
+| Qwen 401 | Missing `OPENROUTER_API_KEY` |
+| Voice 413 | Audio larger than 8 MiB |
+
+---
+
+## 13. Files touched (implementation inventory)
 
 **Decision core:** `src/agents/jev/*`  
-**Harness:** `src/agents/plugins/jev.ts`, `plugins/memory.ts`, `core.ts`, `hades/index.ts`, `orchestrator.ts`, `workflow/index.ts`, `swarm/coordinator.ts`  
-**Providers:** `src/agents/providers/openrouter.ts`, `providers/voice.ts`  
+**Harness:** `plugins/jev.ts`, `plugins/memory.ts`, `core.ts`, `hades/index.ts`, `orchestrator.ts`, `workflow/index.ts`, `swarm/coordinator.ts`  
+**Providers:** `providers/openrouter.ts`, `providers/voice.ts`  
 **Routes:** `routes/hades/route.ts`, `routes/voice/route.ts`, `routes/agent/route.ts`  
 **UI:** `components/AgentChat/index.tsx`  
 **Example:** `src/agents/examples/hades-agent.ts`  
 **Tests:** `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `core.test.ts`  
-**Docs / env:** this file, `docs/12-plugin-architecture.md`, `.env.example`, `README.md`
+**Package:** `package.json` exports `./jev` and `./hades`; `tsup.config.ts` entries `jev/index`, `hades/index`; root barrel `src/agents/index.ts`  
+**Docs / env:** this file, `docs/12-plugin-architecture.md`, `docs/01-integration.md`, `QUICKSTART.md`, `.env.example`, `README.md`
+
+---
+
+## 14. What was built (wave by wave)
+
+This is the record of the Hades/Jev work, not just the current file list.
+
+### Wave 1 — Decision core + Hades preset
+
+Researched TypeSafe System One (no official SDK) and the LangChain harness post. Built `src/agents/jev/` as an injectable HTTP client (`createJevAsker` never throws) plus a mock that re-validates answers. Policy gates, Qwen route catalog, `withJev` plugin (ModelRouter + Auto Mode + screens), `createHadesHarness`, OpenRouter/Qwen provider, `/api/hades`, tests, package exports.
+
+### Wave 2 — Live hops that were helper-only
+
+Wired unused helpers onto real paths: `jevFilter` on memory RAG, map-reduce skill routing, `createOrchestrator({ jevRouter: true })`, `jevWhen`/`jevUntil`, `SwarmCoordinator.submitTaskJev`, stop-hook, voice STT/TTS + intent, search rerank, `AGENT_PROVIDER=hades`, AgentChat `jev_decision` + Voice.
+
+### Wave 3 — Remaining helpers on tool/draft hops
+
+Quality (JevSlop), completion (Foreman), `heedPolicy`, `scanMalicious`, `judgePatch`, company-OS, citations, browser page screen. Git-risk pre-pass on shell/git tools. Command-failure classification on `shell_exec`.
+
+### Wave 4 — Security remediations
+
+Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure. Browser injection/secret *review* blocks. Voice execute only on `auto` + `execute_now`. MCP `jev_*` opt-in + `userId`. Voice 8 MiB cap. Env-only System One URL.
+
+### Wave 5 — This document + install sweep
+
+`npx tsc --noEmit` and `npx vitest run` as the install check. QUICKSTART row 24. Integration copy map for `/api/hades` and `/api/voice`.
+
+---
+
+## 15. Debug / install sweep (how to prove it is installed)
+
+Run from the repo root:
+
+```bash
+npx tsc --noEmit
+npx vitest run
+```
+
+Expected: TypeScript clean; the Jev suites in `jev.test.ts`, `hades.test.ts`, and `jev-live-paths.test.ts` pass (including fail-closed cases for input, RAG, citations, command-failure, and `shouldExecuteVoice`).
+
+Static install checks (already in this tree):
+
+| Artifact | Must exist |
+|---|---|
+| `src/agents/jev/*.ts` | 24 modules listed in §4 |
+| `src/agents/hades/index.ts` | `createHadesHarness`, `shouldExecuteVoice` |
+| `src/agents/plugins/jev.ts` | `withJev` |
+| `src/agents/providers/openrouter.ts`, `voice.ts` | Qwen + Whisper/TTS |
+| `routes/hades/route.ts`, `routes/voice/route.ts` | Auth-gated ingress |
+| `src/agents/examples/hades-agent.ts` | Registered name `"hades"` |
+| `package.json` `exports["./jev"]`, `exports["./hades"]` | Library consumers |
+| `tsup.config.ts` `jev/index`, `hades/index` | Dist build |
+| `.env.example` Hades block | `AGENT_PROVIDER`, `TYPESAFE_API_KEY`, OpenRouter, voice, MCP |
+| `src/agents/index.ts` | Re-exports `createHadesHarness`, `withJev`, `noul`/`choice`/`score` |
+
+Without `TYPESAFE_API_KEY` the client returns `{ ok: false, reason: "jev-unconfigured" }`. Security hops then block; routing keeps the current Qwen model. That is correct, not a broken install.
+
+Live keys (`TYPESAFE_API_KEY`, `OPENROUTER_API_KEY`, `OPENAI_API_KEY`) are not required for the unit suite — tests use `createMockJevClient`.

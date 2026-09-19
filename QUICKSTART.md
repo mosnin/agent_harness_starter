@@ -323,3 +323,4 @@ See [`src/agents/examples/notion-style/`](src/agents/examples/notion-style/READM
 | [20 — Build a support agent](docs/20-build-a-support-agent.md) | End-to-end: single agent, memory, guardrails, curl test |
 | [21 — Build a multi-agent system](docs/21-build-a-multi-agent-system.md) | Triage router → specialists → workflow pipeline |
 | [22 — Go to production](docs/22-go-to-production.md) | Routing, caching, governance, Redis, deployment |
+| [24 — Jev / Hades](docs/24-jev-hades.md) | Theory, install, every decision hop, security |

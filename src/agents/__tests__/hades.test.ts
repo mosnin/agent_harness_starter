@@ -4,6 +4,7 @@ import { withJev } from "../plugins/jev";
 import { HADES_QWEN_ROUTES } from "../jev/catalog";
 import { defaultHadesModel } from "../providers/openrouter";
 import { voiceIntentHint } from "../providers/voice";
+import { shouldExecuteVoice } from "../hades/index";
 import type { JevAnswer } from "../jev/types";
 import type { PluginRunContext, RunInput } from "../types";
 
@@ -82,6 +83,13 @@ describe("Hades defaults", () => {
   it("ships three Qwen routes for Jev to choose from", () => {
     expect(HADES_QWEN_ROUTES.map((r) => r.id)).toEqual(["fast", "balanced", "powerful"]);
     expect(defaultHadesModel()).toContain("qwen");
+  });
+
+  it("only executes voice on confident auto execute_now", () => {
+    expect(shouldExecuteVoice({ action: "auto", value: "execute_now" })).toBe(true);
+    expect(shouldExecuteVoice({ action: "review", value: "execute_now" })).toBe(false);
+    expect(shouldExecuteVoice({ action: "review", value: "clarify" })).toBe(false);
+    expect(shouldExecuteVoice({ action: "block", value: "unsafe" })).toBe(false);
   });
 
   it("classifies obviously empty voice as clarify", async () => {

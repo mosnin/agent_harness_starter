@@ -8,6 +8,7 @@ import { stopHook, heedPolicy, assessGitRisk, classifyVoiceIntent } from "../jev
 import { createJevSpecialistRouter, jevWhen, jevUntil, pickSwarmAgent } from "../jev/orchestrate";
 import { routeSkill } from "../jev/router";
 import { assessToolRisk } from "../jev/auto-mode";
+import { classifyCommandFailure } from "../jev/decisions";
 import { withJev } from "../plugins/jev";
 import { withMemory } from "../plugins/memory";
 import type { ChoiceAnswer, JevAnswer } from "../jev/types";
@@ -87,6 +88,52 @@ describe("fail-closed security", () => {
     await expect(
       plugin.onBeforeRun!("hello", ctx(), { messages: [{ role: "user", content: "hello" }] })
     ).rejects.toThrow(/blocked/i);
+  });
+
+  it("blocks command-failure classification when Jev is down", async () => {
+    const client = createMockJevClient(async () => {
+      throw new Error("network");
+    });
+    const decision = await classifyCommandFailure({
+      command: "env",
+      output: "AWS_SECRET_ACCESS_KEY=abc",
+      asker: createJevAsker(client),
+    });
+    expect(decision.action).toBe("block");
+    expect(decision.reason).toBe("jev-unavailable");
+    expect(decision.node).toBe("command_failure");
+  });
+
+  it("does not return failed shell stderr when Jev cannot classify it", async () => {
+    const { z } = await import("zod");
+    const client = createMockJevClient(async () => {
+      throw new Error("network");
+    });
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenInput: false,
+      screenOutput: false,
+      routeModel: false,
+      autoMode: false,
+      judgePatch: false,
+      companyOs: false,
+      rerankSearch: false,
+      stopHook: false,
+      compact: false,
+    });
+    const wrapped = await plugin.wrapTools!(
+      [
+        {
+          name: "shell_exec",
+          description: "Run a shell command",
+          parameters: z.object({ command: z.string() }),
+          execute: async () => ({ exitCode: 1, stderr: "AWS_SECRET_ACCESS_KEY=abc" }),
+        },
+      ],
+      ctx(),
+      new Map()
+    );
+    await expect(wrapped[0]!.execute({ command: "env" }, {})).rejects.toThrow(/blocked/i);
   });
 });
 
@@ -457,6 +504,27 @@ describe("remaining live hops", () => {
     });
     const deltas = runCtx.context.jevPolicyDeltas as Array<{ delta: string }>;
     expect(deltas[0]?.delta).toBe("NARROW");
+  });
+
+  it("blocks citation check when Jev is down and evidence exists", async () => {
+    const client = createMockJevClient(async () => {
+      throw new Error("network");
+    });
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenInput: false,
+      screenOutput: false,
+      routeModel: false,
+      autoMode: false,
+      stopHook: false,
+      compact: false,
+      scoreQuality: false,
+      decideCompletion: false,
+      heedPolicy: false,
+    });
+    const runCtx = ctx();
+    runCtx.context.jevEvidence = "The invoice is unpaid.";
+    await expect(plugin.onAfterRun!("The invoice was paid in full.", runCtx)).rejects.toThrow(/blocked/i);
   });
 
   it("blocks a draft that contradicts search evidence", async () => {

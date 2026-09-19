@@ -144,7 +144,7 @@ export async function classifyCommandFailure(input: {
     },
     input.signal
   );
-  if (!asked.ok) return decideUnavailable("command_failure", "environment", "review");
+  if (!asked.ok) return decideUnavailable("command_failure", "environment", "closed");
   const leaks = requireNoul(asked.result.answers, "leaks_secret");
   if (leaks >= NOUL.secretLeak) {
     return { action: "block", value: "secret", reason: "leaks-secret", node: "command_failure", answers: asked.result.answers };

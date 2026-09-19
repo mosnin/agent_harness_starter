@@ -110,9 +110,13 @@ export function createHadesHarness(agentConfig: HadesConfig): HadesHarness {
         spokenReply = "Okay, cancelled.";
       } else {
         const intent = await classifyVoiceIntent({ transcript, asker });
-        if (intent.action === "block" || intent.value === "unsafe" || intent.value === "out_of_scope") {
-          spokenReply = intent.value === "out_of_scope" ? "Okay, cancelled." : "I can't do that.";
-        } else if (intent.value === "clarify") {
+        if (shouldExecuteVoice(intent)) {
+          spokenReply = undefined;
+        } else if (intent.action === "block" || intent.value === "unsafe") {
+          spokenReply = "I can't do that.";
+        } else if (intent.value === "out_of_scope") {
+          spokenReply = "Okay, cancelled.";
+        } else {
           spokenReply = "Could you say that again more specifically?";
         }
       }
@@ -152,3 +156,8 @@ export function createHadesHarness(agentConfig: HadesConfig): HadesHarness {
 export { HADES_QWEN_ROUTES };
 export { withJev } from "../plugins/jev";
 export type { JevPluginOptions } from "../plugins/jev";
+
+/** Voice executes only on a confident Jev auto / execute_now decision. */
+export function shouldExecuteVoice(intent: { action: string; value: unknown }): boolean {
+  return intent.action === "auto" && intent.value === "execute_now";
+}

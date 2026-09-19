@@ -26,6 +26,8 @@ src/db/                         → src/agents/db/
 src/auth/                       → src/agents/auth/
 src/lib/                        → src/agents/lib/       (or merge with your existing lib/)
 routes/agent/route.ts           → src/app/api/agent/route.ts
+routes/hades/route.ts           → src/app/api/hades/route.ts   (Jev + Qwen)
+routes/voice/route.ts           → src/app/api/voice/route.ts   (OpenAI STT/TTS)
 routes/mcp/route.ts             → src/app/api/mcp/route.ts
 routes/threads/route.ts         → src/app/api/threads/route.ts
 components/AgentChat/           → src/components/AgentChat/
