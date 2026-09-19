@@ -227,7 +227,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
    - `review` → approval event. `block` → `GuardrailBlockError`.
    - `web_search` → `planAndRerankSearch` in **one** ask (window + sources + relevance + injection). Injected snippets are dropped. Snippets stored as `jevEvidence`. Tool SSE `tool_call` / `tool_result` events are redacted before they leave the harness.
    - `browser_*` → `screenBrowserPage` in **one** ask (injection / substance / secret + next `action` / `target` / done / stuck). Local jailbreak or secret → zero-RTT block. Jev-down → **block**. Injection/secret *review* → HITL error. Stuck / blocked steps throw `jev_browser_step` so Qwen cannot keep clicking. Surviving pages attach `jevBrowser`; instructions tell Qwen the typed next step (or to stop on DONE / EXTRACT). Harvested into `jevEvidence`.
-   - Failed `shell_exec` → `classifyCommandFailure`. Secret-leaking stderr is blocked. Jev-down → **block** (stderr never reaches Qwen).
+   - Failed `shell_exec` → `classifyCommandFailure`. Secret-leaking stderr is blocked. Canned ENOENT / EACCES / ETIMEDOUT / TypeError are `failure-local` at zero RTT and returned to Qwen with `jevFailure`. Ambiguous stderr + Jev-down → **block**.
 7. **`onAfterRun`** — **one** System One call (`runPostflight`).
    - `screenOutput` — Jev-down → **block**.
    - `stopHook` — advisory (limpet).
@@ -270,6 +270,7 @@ All under `src/agents/jev/`:
 | `target.ts` | Zero-RTT exfil path / metadata URL block | safer-with-jev + invented_args |
 | `inject.ts` | Zero-RTT canned jailbreak labels | detectInjection |
 | `destructive.ts` | Zero-RTT wipe / force-git labels | AutoModeMiddleware |
+| `failure.ts` | Zero-RTT canned shell-error class | classifyCommandFailure |
 | `lib/thread-history.ts` | Own-thread check + last-40 redacted turns for the harness | follow-up reuse / compaction |
 | `harvest.ts` | Zero-RTT evidence cards from tool results (secrets stripped) | citation-verifier "code splits" |
 | `redact.ts` | Zero-RTT secret / PII strip before Qwen, memory, desktop, DB | safer-with-jev + guidance `secretsGate` |
@@ -308,7 +309,7 @@ These sit on real hops, not helper-only APIs:
 | `stopHook` | Incomplete-reply check (event) |
 | `assessToolRisk` | Extra git-risk pass on `git` / `shell_exec` |
 | `web_search` wrap | Window + sources + rerank + injection in one ask |
-| `shell_exec` wrap | Classify failures; block secret leaks; Jev-down blocks stderr |
+| `shell_exec` wrap | Classify failures; canned ENOENT/EACCES/timeouts are local; secrets and unknown Jev-down stderr block |
 | `voiceTurn` | Execute only on confident `execute_now` |
 | `heedPolicy` | Lift / narrow standing rules |
 | `scoreQuality` | JevSlop label on the draft |
@@ -451,6 +452,7 @@ Fixed:
 - The same screens, plus search/RAG filters, short-circuit canned jailbreaks with `hasLocalInjection` (`injection-local`) so "ignore previous instructions" / DAN / fake system tags never wait on TypeSafe and never leave the box. Ambiguous injection still goes to Jev.
 - Auto Mode / `runToolGate` short-circuit canned destructive commands as `destructive-local`. Wipes (`rm -rf`, `DROP TABLE`, `dd`, …) block; force-git (`push --force`, `reset --hard`) is HITL. Only `command` / `cmd` / `args` are scanned so a README that mentions those strings is not blocked.
 - Safe-read tools (`file_read`, `web_search`, …) skipped Jev entirely, so `/etc/passwd`, `../.env`, and `http://169.254.169.254/` never got a screen. `localTargetDecision` now blocks those on path/url keys (`target-local`) at zero RTT, including when Auto Mode is off. A search *query* that mentions `/etc/passwd` is not blocked.
+- Failed shells used to ask Jev (or fail-closed) for every nonzero exit. Canned ENOENT / EACCES / ETIMEDOUT / TypeError are `failure-local` and reach Qwen with a typed class. Unknown stderr still fail-closed when Jev is down. Secrets still `leaks-secret-local`.
 - Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
@@ -491,7 +493,7 @@ Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev n
 
 ## 13. Files touched (implementation inventory)
 
-**Decision core:** `src/agents/jev/*` (including `browser.ts`, `target.ts`)  
+**Decision core:** `src/agents/jev/*` (including `browser.ts`, `target.ts`, `failure.ts`)  
 **Harness:** `plugins/jev.ts`, `plugins/memory.ts`, `core.ts`, `hades/index.ts`, `orchestrator.ts`, `workflow/index.ts`, `swarm/coordinator.ts`, `lib/thread-history.ts`, `lib/run-owner.ts`  
 **Providers:** `providers/openrouter.ts`, `providers/voice.ts`  
 **Routes:** `routes/hades/route.ts`, `routes/voice/route.ts`, `routes/agent/route.ts`, `routes/anthropic-agent/route.ts`  
@@ -530,6 +532,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 18 — Local-first command-failure class
+
+Every failed `shell_exec` paid a Jev hop, and Jev-down blocked even a missing fixture (`ENOENT`). `localFailureDecision` now labels permission / transient / environment / code_bug / user_error from the stderr string. Qwen sees `jevFailure` and can retry or fix. Ambiguous stderr still fail-closed when Jev is down; secrets still never leave.
 
 ### Wave 17 — Local-first exfil / SSRF targets
 

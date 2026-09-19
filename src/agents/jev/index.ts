@@ -41,6 +41,8 @@ export {
   localTargetBlock,
   localTargetDecision,
 } from "./target";
+export { localFailureDecision } from "./failure";
+export type { FailureClass } from "./failure";
 export { applyCompaction, formatCompactThread, parseCompactStrategy, isToolBlob } from "./compact";
 export { harvestToolEvidence, mergeEvidence } from "./harvest";
 export {

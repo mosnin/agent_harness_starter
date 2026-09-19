@@ -108,13 +108,59 @@ describe("fail-closed security", () => {
     expect(decision.node).toBe("command_failure");
   });
 
-  it("blocks command-failure classification when Jev is down", async () => {
+  it("classifies ENOENT locally without calling Jev", async () => {
+    let called = 0;
     const client = createMockJevClient(async () => {
+      called += 1;
       throw new Error("network");
     });
     const decision = await classifyCommandFailure({
       command: "npm test",
       output: "Error: ENOENT /tmp/missing-fixture.json",
+      asker: createJevAsker(client),
+    });
+    expect(called).toBe(0);
+    expect(decision.action).toBe("auto");
+    expect(decision.value).toBe("environment");
+    expect(decision.reason).toBe("failure-local");
+    expect(decision.node).toBe("command_failure");
+  });
+
+  it("classifies permission and transient failures locally", async () => {
+    let called = 0;
+    const client = createMockJevClient(async () => {
+      called += 1;
+      throw new Error("network");
+    });
+    const asker = createJevAsker(client);
+    const denied = await classifyCommandFailure({
+      command: "cat secret",
+      output: "cat: secret: Permission denied",
+      asker,
+    });
+    const timeout = await classifyCommandFailure({
+      command: "curl https://api.example",
+      output: "Error: ETIMEDOUT connecting to api.example",
+      asker,
+    });
+    const typed = await classifyCommandFailure({
+      command: "node app.js",
+      output: "TypeError: Cannot read properties of undefined (reading 'id')",
+      asker,
+    });
+    expect(called).toBe(0);
+    expect(denied.value).toBe("permission");
+    expect(timeout.value).toBe("transient");
+    expect(typed.value).toBe("code_bug");
+  });
+
+  it("blocks unknown command-failure classification when Jev is down", async () => {
+    const client = createMockJevClient(async () => {
+      throw new Error("network");
+    });
+    const decision = await classifyCommandFailure({
+      command: "custom-bin",
+      output: "weird internal status 77 from the fixture runner",
       asker: createJevAsker(client),
     });
     expect(decision.action).toBe("block");
@@ -152,6 +198,47 @@ describe("fail-closed security", () => {
       new Map()
     );
     await expect(wrapped[0]!.execute({ command: "env" }, {})).rejects.toThrow(/blocked/i);
+  });
+
+  it("returns canned shell failures to Qwen when Jev is down", async () => {
+    const { z } = await import("zod");
+    let called = 0;
+    const client = createMockJevClient(async () => {
+      called += 1;
+      throw new Error("network");
+    });
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenInput: false,
+      screenOutput: false,
+      routeModel: false,
+      autoMode: false,
+      judgePatch: false,
+      companyOs: false,
+      rerankSearch: false,
+      stopHook: false,
+      compact: false,
+    });
+    const wrapped = await plugin.wrapTools!(
+      [
+        {
+          name: "shell_exec",
+          description: "Run a shell command",
+          parameters: z.object({ command: z.string() }),
+          execute: async () => ({ exitCode: 1, stderr: "Error: ENOENT /tmp/missing-fixture.json" }),
+        },
+      ],
+      ctx(),
+      new Map()
+    );
+    const output = (await wrapped[0]!.execute({ command: "npm test" }, {})) as {
+      jevFailure?: { value?: string; reason?: string };
+      stderr?: string;
+    };
+    expect(called).toBe(0);
+    expect(output.stderr).toMatch(/ENOENT/);
+    expect(output.jevFailure?.value).toBe("environment");
+    expect(output.jevFailure?.reason).toBe("failure-local");
   });
 
   it("blocks file_read of /etc/passwd even when Auto Mode is off", async () => {

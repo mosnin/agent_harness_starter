@@ -7,6 +7,7 @@
 import { createJevAsker } from "./client";
 import { GATES, NOUL, decideChoice, decideUnavailable, passesGate } from "./policy";
 import { choice, noul, score } from "./questions";
+import { localFailureDecision } from "./failure";
 import { hasSevereSecret, localSecretBlock } from "./redact";
 import type { JevAsker, JevState, PolicyDecision } from "./types";
 import { requireChoice, requireNoul, requireScore } from "./validate";
@@ -134,6 +135,8 @@ export async function classifyCommandFailure(input: {
   if (hasSevereSecret(input.output) || hasSevereSecret(input.command)) {
     return localSecretBlock("command_failure");
   }
+  const local = localFailureDecision(input.output);
+  if (local) return local;
   const asker = input.asker ?? createJevAsker();
   const asked = await asker.ask(
     {
