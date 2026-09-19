@@ -324,3 +324,4 @@ See [`src/agents/examples/notion-style/`](src/agents/examples/notion-style/READM
 | [21 — Build a multi-agent system](docs/21-build-a-multi-agent-system.md) | Triage router → specialists → workflow pipeline |
 | [22 — Go to production](docs/22-go-to-production.md) | Routing, caching, governance, Redis, deployment |
 | [24 — Jev / Hades](docs/24-jev-hades.md) | Theory, install, every decision hop, security |
+| [25 — Hades desktop](docs/25-hades-desktop.md) | Tauri sidecar, Jev desktop writes, Hades Cut |

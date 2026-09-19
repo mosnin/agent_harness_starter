@@ -24,6 +24,7 @@ export default defineConfig({
     "codex/index":         "src/agents/codex/index.ts",
     "jev/index":           "src/agents/jev/index.ts",
     "hades/index":         "src/agents/hades/index.ts",
+    "hades/desktop/index": "src/agents/hades/desktop/index.ts",
     "runtime":             "src/agents/runtime.ts",
   },
   format: ["esm", "cjs"],

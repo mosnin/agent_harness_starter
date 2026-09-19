@@ -40,6 +40,7 @@ export const DEFAULT_HADES_SKILLS: SkillRoute[] = [
   { id: "support", description: "Customer support, billing, account, and policy questions." },
   { id: "browser", description: "Operate a live browser: click, type, extract, navigate." },
   { id: "ops", description: "Git, deploy, infra, and company-OS actions." },
+  { id: "desktop", description: "Hades desktop capture, project edit, and local export on this machine." },
   { id: "__no_skill__", description: "The request can be answered without a specialist skill." },
   { id: "__review__", description: "Ambiguous or high-risk — a human or supervisor should review." },
 ];

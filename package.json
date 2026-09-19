@@ -102,6 +102,11 @@
       "import": "./dist/hades/index.mjs",
       "require": "./dist/hades/index.js",
       "types": "./dist/hades/index.d.ts"
+    },
+    "./hades/desktop": {
+      "import": "./dist/hades/desktop/index.mjs",
+      "require": "./dist/hades/desktop/index.js",
+      "types": "./dist/hades/desktop/index.d.ts"
     }
   },
   "files": [
@@ -124,7 +129,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "desktop:sidecar": "npx tsx src/agents/hades/desktop/sidecar-entry.ts"
   },
   "peerDependencies": {
     "@openai/agents": ">=0.0.1",

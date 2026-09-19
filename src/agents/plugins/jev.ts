@@ -90,7 +90,7 @@ function isCodeTool(name: string): boolean {
 }
 
 function isPatchTool(name: string): boolean {
-  return /patch|apply_diff|apply_edit/i.test(name);
+  return /file_patch|apply_diff|apply_edit/i.test(name);
 }
 
 function isCompanyTool(name: string): boolean {

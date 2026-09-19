@@ -28,6 +28,14 @@ export { mapReduceChoice, routeSkillMapReduce, beamClassify } from "./mapreduce"
 export { semanticFind, extractValue, compareTexts, bindFunctionCall, sdeCascade } from "./extract";
 export { planAndRerankSearch } from "./search";
 export { stopHook, heedPolicy, assessGitRisk, classifyVoiceIntent } from "./hooks";
+export {
+  assessDesktopAction,
+  shouldExecuteDesktop,
+  isDesktopAction,
+  isDesktopWrite,
+  DESKTOP_WRITE_ACTIONS,
+  DESKTOP_READ_ACTIONS,
+} from "./desktop";
 export { createJevSpecialistRouter, jevWhen, jevUntil, pickSwarmAgent } from "./orchestrate";
 export { decisionEvent, queueDecision, drainPendingPluginEvents } from "./events";
 
@@ -68,3 +76,4 @@ export type { CompanyAction } from "./company";
 export type { Passage, FilteredPassage } from "./rag";
 export type { BoundFunction } from "./extract";
 export type { SearchPlan } from "./search";
+export type { DesktopAction, DesktopWriteAction, DesktopReadAction } from "./desktop";

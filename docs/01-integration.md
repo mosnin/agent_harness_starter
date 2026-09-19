@@ -28,6 +28,7 @@ src/lib/                        → src/agents/lib/       (or merge with your ex
 routes/agent/route.ts           → src/app/api/agent/route.ts
 routes/hades/route.ts           → src/app/api/hades/route.ts   (Jev + Qwen)
 routes/voice/route.ts           → src/app/api/voice/route.ts   (OpenAI STT/TTS)
+src/agents/hades/desktop/       → desktop sidecar (Tauri stdin/stdout, not an HTTP route)
 routes/mcp/route.ts             → src/app/api/mcp/route.ts
 routes/threads/route.ts         → src/app/api/threads/route.ts
 components/AgentChat/           → src/components/AgentChat/

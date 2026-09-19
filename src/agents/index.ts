@@ -157,6 +157,9 @@ export {
 } from "./jev/index";
 export type { JevClient, JevAsker, PolicyDecision, SystemOneResult } from "./jev/index";
 
+export { createDesktopHost, runDesktopSidecar, detectDesktopInference } from "./hades/desktop/index";
+export type { DesktopHost, DesktopCommand, DesktopEvent } from "./hades/desktop/index";
+
 export { configureOpenRouter, generateWithQwen, transcribeAudio, synthesizeSpeech } from "./providers/index";
 
 // ── Codex / AGENTS.md adapter ─────────────────────────────────────────────────

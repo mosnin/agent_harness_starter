@@ -6,6 +6,8 @@ Hades is the Jev-powered preset for this harness. It follows the LangChain patte
 
 This is the theory of record, the install guide, and the inventory of every hop that was wired.
 
+Hades the product is a **desktop application**. This package is the harness that application attaches to (Tauri sidecar + optional Hades Cut `cap` binary). HTTP routes are the other surface. See [25 — Hades desktop](25-hades-desktop.md).
+
 ---
 
 ## 1. Theory
@@ -84,6 +86,8 @@ This is the most important policy in the install.
 | Patch / company-OS / malware (Jev down) | **Fail to HITL or block** — `judgePatch` reviews (HITL); `scanMalicious` and `approveCompanyAction` block |
 | Stop-hook, quality, completion, heedPolicy | **Advisory** — emit `jev_decision`, do not discard the draft |
 | Voice intent | **Fail to clarify** — do not execute |
+| Desktop inspect (`targets`, project get) | **Fail open** |
+| Desktop writes (record, patch, export) | **Fail closed** — `cap` is not spawned |
 
 Routing may be cheap and optimistic. Security may not.
 
@@ -96,8 +100,14 @@ Routing may be cheap and optimistic. Security may not.
 | **OpenAI** | Whisper STT + TTS only | Decide or route |
 
 ```
+Tauri window ── hades_command ──► Node sidecar (this package)
+     ▲                                    │
+     └── hades_event ◄── Jev + Qwen ──────┤
+                                          ▼
+                                 desktop.act / cap (Hades Cut)
+
 OpenAI STT ─┐
-User text ──┼─► Jev screen + route + heed ─► Qwen (OpenRouter) ─► Jev Auto Mode / git / malware / patch / company
+User text ──┼─► Jev screen + route + heed ─► Qwen (OpenRouter) ─► Jev Auto Mode / git / malware / patch / company / desktop
 Tool results┘              │                         │
                            │                         ▼
                            └──────────► Jev output screen + quality + completion + citations ─► OpenAI TTS
@@ -188,7 +198,7 @@ npx tsc --noEmit
 npx vitest run
 ```
 
-Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`. Core event drain: `core.test.ts` (`pendingPluginEvents`).
+Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `hades-desktop.test.ts`. Core event drain: `core.test.ts` (`pendingPluginEvents`).
 
 ---
 
@@ -258,6 +268,8 @@ Harness glue:
 - `src/agents/plugins/jev.ts` — `withJev`
 - `src/agents/plugins/memory.ts` — `jevFilter`
 - `src/agents/hades/index.ts` — `createHadesHarness`, `shouldExecuteVoice`
+- `src/agents/hades/desktop/` — Tauri sidecar host, IPC contract, Cap runner
+- `src/agents/jev/desktop.ts` — desktop write/read policy (`shouldExecuteDesktop`)
 - `src/agents/core.ts` — drains `pendingPluginEvents`
 - `src/agents/orchestrator.ts` — `jevRouter: true`
 - `src/agents/workflow` — `jevWhen` / `jevUntil`
@@ -291,6 +303,7 @@ These sit on real hops, not helper-only APIs:
 | `browser_*` wrap | Screen scraped page text; review-band injection is blocked |
 | `AGENT_PROVIDER=hades` | `/api/agent` uses `createHadesHarness` |
 | Agent Chat | Streams `jev_decision`; Voice → `/api/voice` |
+| Desktop sidecar | `createDesktopHost` / `npm run desktop:sidecar`; Jev gates `desktop.act` before `cap` |
 
 ```ts
 import { createOrchestrator, createWorkflow, jevWhen, jevUntil, branch, loop } from "@/agents";
@@ -407,7 +420,8 @@ Residual (accepted): `web_search` snippets are reranked but not run through `scr
 | Exports | `package.json` `./jev` and `./hades`; `tsup.config.ts` entries |
 | Env | `.env.example` Hades / Jev / OpenRouter / voice / MCP block |
 | UI | AgentChat `jev_decision` + Voice when `agentName="hades"` |
-| Docs index | [QUICKSTART.md](../QUICKSTART.md) row 24 |
+| Docs index | [QUICKSTART.md](../QUICKSTART.md) rows 24–25 |
+| Desktop sidecar | `npm run desktop:sidecar`; tests in `hades-desktop.test.ts` |
 
 ---
 
@@ -435,7 +449,7 @@ Residual (accepted): `web_search` snippets are reranked but not run through `scr
 **UI:** `components/AgentChat/index.tsx`  
 **Example:** `src/agents/examples/hades-agent.ts`  
 **Tests:** `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `core.test.ts`  
-**Package:** `package.json` exports `./jev` and `./hades`; `tsup.config.ts` entries `jev/index`, `hades/index`; root barrel `src/agents/index.ts`  
+**Package:** `package.json` exports `./jev`, `./hades`, `./hades/desktop`; `tsup.config.ts` entries `jev/index`, `hades/index`, `hades/desktop/index`; root barrel `src/agents/index.ts`  
 **Docs / env:** this file, `docs/12-plugin-architecture.md`, `docs/01-integration.md`, `QUICKSTART.md`, `.env.example`, `README.md`
 
 ---
@@ -464,6 +478,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 
 `npx tsc --noEmit` and `npx vitest run` as the install check. QUICKSTART row 24. Integration copy map for `/api/hades` and `/api/voice`.
 
+### Wave 6 — Desktop attachment
+
+The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
 ---
 
 ## 15. Debug / install sweep (how to prove it is installed)
@@ -475,7 +493,7 @@ npx tsc --noEmit
 npx vitest run
 ```
 
-Expected: TypeScript clean; the Jev suites in `jev.test.ts`, `hades.test.ts`, and `jev-live-paths.test.ts` pass (including fail-closed cases for input, RAG, citations, command-failure, and `shouldExecuteVoice`).
+Expected: TypeScript clean; the Jev suites in `jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, and `hades-desktop.test.ts` pass (including fail-closed cases for input, RAG, citations, command-failure, voice, and desktop writes).
 
 Static install checks (already in this tree):
 
@@ -483,6 +501,7 @@ Static install checks (already in this tree):
 |---|---|
 | `src/agents/jev/*.ts` | 24 modules listed in §4 |
 | `src/agents/hades/index.ts` | `createHadesHarness`, `shouldExecuteVoice` |
+| `src/agents/hades/desktop/` | Sidecar host + IPC + Cap runner |
 | `src/agents/plugins/jev.ts` | `withJev` |
 | `src/agents/providers/openrouter.ts`, `voice.ts` | Qwen + Whisper/TTS |
 | `routes/hades/route.ts`, `routes/voice/route.ts` | Auth-gated ingress |
