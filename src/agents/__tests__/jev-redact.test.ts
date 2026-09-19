@@ -144,7 +144,7 @@ describe("zero-RTT secret redaction", () => {
       runCtx,
       new Map()
     );
-    const output = (await wrapped[0]!.execute({ path: ".env" }, {})) as { content: string };
+    const output = (await wrapped[0]!.execute({ path: "notes.txt" }, {})) as { content: string };
     expect(output.content).not.toContain(OPENAI_KEY);
     expect(output.content).toContain("[API_KEY]");
     expect(String(runCtx.context.jevEvidence)).not.toContain(OPENAI_KEY);
