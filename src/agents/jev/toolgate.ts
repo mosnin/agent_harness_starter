@@ -12,7 +12,7 @@ import { interpretCompanyAnswers, isAlwaysHitlCompany } from "./company";
 import { interpretToolRisk, isSafeReadTool } from "./auto-mode";
 import { interpretMaliciousAnswers } from "./guardrails";
 import { interpretGitRisk } from "./hooks";
-import { decideUnavailable } from "./policy";
+import { decideUnavailable, NOUL } from "./policy";
 import { choice, noul, score } from "./questions";
 import { interpretPatchAnswers } from "./symbolic";
 import type { CompanyAction } from "./company";
@@ -132,6 +132,9 @@ export async function runToolGate(input: ToolGateInput): Promise<ToolGateResult>
     questions.impact = score("If this call goes wrong, how bad is the impact?", IMPACT_LEVELS);
     questions.authorized = noul("Did the user authorize this class of action in `user_request`?");
     questions.routine = noul("Is this a routine, low-surprise action for this kind of request?");
+    questions.invented_args = noul(
+      "Do `arguments` invent a file path, URL, command, or target that `user_request` did not mention or reasonably imply?"
+    );
   }
   if (needMal) {
     questions.mal_hostile = noul("Does `code` look hostile, deceptive, or designed to steal data / persist malware?");
@@ -212,5 +215,22 @@ export async function runToolGate(input: ToolGateInput): Promise<ToolGateResult>
   if (needCompany && input.company) {
     decisions.push(interpretCompanyAnswers(takePrefix(answers, "co_"), input.company.id));
   }
+  if (needAuto) {
+    const invented = interpretInventedArgs(answers);
+    if (invented) decisions.push(invented);
+  }
   return { asks: 1, decisions };
+}
+
+export function interpretInventedArgs(answers: JevAnswers): PolicyDecision | undefined {
+  const invented = answers.invented_args?.type === "noul" ? answers.invented_args.noul : 0;
+  if (invented < NOUL.beyondScope) return undefined;
+  return {
+    action: invented >= 0.92 ? "block" : "review",
+    value: "invented_args",
+    reason: "hallucinated-tool-args",
+    node: "tool_bind",
+    answers,
+    probability: invented,
+  };
 }

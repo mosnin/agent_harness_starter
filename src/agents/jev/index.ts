@@ -29,7 +29,7 @@ export { routeModel, routeSkill, routeIntent, detectRouteOverride, isGreeting, i
 export { runPreflight, interpretSkipGeneration, CANNED_REPLIES } from "./preflight";
 export { runPostflight } from "./postflight";
 export { assessToolRisk, isSafeReadTool } from "./auto-mode";
-export { runToolGate } from "./toolgate";
+export { runToolGate, interpretInventedArgs } from "./toolgate";
 export { applyCompaction, formatCompactThread, parseCompactStrategy, isToolBlob } from "./compact";
 export { harvestToolEvidence, mergeEvidence } from "./harvest";
 export { redactSecrets, redactValue, createRedactStream } from "./redact";

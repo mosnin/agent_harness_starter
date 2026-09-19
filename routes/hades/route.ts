@@ -12,6 +12,7 @@ import { db } from "@/agents/db";
 import { sseStream } from "@/agents/lib/utils";
 import { createHadesHarness } from "@/agents/hades/index";
 import { redactSecrets } from "@/agents/jev/redact";
+import { isThreadOwner, messagesForHarness } from "@/agents/lib/thread-history";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 import "@/agents/examples";
 
@@ -43,10 +44,13 @@ export async function POST(req: Request) {
     }
 
     const thread = threadId ? await db.getThread(threadId) : await db.createThread(user.id);
-    if (!thread) return Response.json({ error: "Thread not found" }, { status: 404 });
+    if (!isThreadOwner(thread, user.id)) {
+      return Response.json({ error: "Thread not found" }, { status: 404 });
+    }
     const resolvedThreadId = thread.id;
 
     await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: redactSecrets(message).text });
+    const history = messagesForHarness(await db.getMessages(resolvedThreadId));
     const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName });
 
     const harness = createHadesHarness({
@@ -58,7 +62,7 @@ export async function POST(req: Request) {
       let finalOutput = "";
       try {
         const stream = harness.stream({
-          messages: [{ role: "user", content: message }],
+          messages: history.length > 0 ? history : [{ role: "user", content: message }],
           context: { userId: user.id, request: req, lastUserMessage: message },
           signal: req.signal,
         });

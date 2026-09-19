@@ -22,6 +22,7 @@ import {
   type DesktopEvent,
 } from "./contract";
 import { redactSecrets, redactValue } from "../../jev/redact";
+import { appendHarnessTurn, messagesForHarness, type HarnessMessage } from "../../lib/thread-history";
 
 export interface DesktopHostOptions {
   /** Existing harness (tests). Otherwise built from {@link agent}. */
@@ -52,6 +53,7 @@ export function createDesktopHost(options: DesktopHostOptions = {}): DesktopHost
       ...options.agent,
     });
   const cap = options.cap ?? createCapRunner();
+  const threads = new Map<string, HarnessMessage[]>();
   const emit = (event: DesktopEvent) => {
     options.onEvent?.(event);
   };
@@ -69,7 +71,7 @@ export function createDesktopHost(options: DesktopHostOptions = {}): DesktopHost
           await runPrefetch(command.text, asker, emit);
           return;
         case "chat.send":
-          await runChat(harness, command.text, command.threadId, emit);
+          await runChat(harness, command.text, command.threadId, threads, emit);
           return;
         case "voice.turn":
           await runVoice(harness, command.audioBase64, emit);
@@ -114,18 +116,24 @@ async function runChat(
   harness: HadesHarness,
   text: string,
   threadId: string | undefined,
+  threads: Map<string, HarnessMessage[]>,
   emit: (event: DesktopEvent) => void
 ): Promise<void> {
+  const id = threadId?.trim() || "default";
+  const prior = threads.get(id) ?? [];
+  const messages = appendHarnessTurn(prior, { role: "user", content: text });
   let finalOutput = "";
   for await (const event of harness.stream({
-    messages: [{ role: "user", content: text }],
-    context: { channel: "desktop", threadId },
+    messages,
+    context: { channel: "desktop", threadId: id },
   })) {
     forwardAgentEvent(event, emit);
     if (event.type === "message_done") finalOutput = event.content;
     if (event.type === "done") finalOutput = event.finalOutput;
   }
-  emit({ type: "run.done", finalOutput: redactSecrets(finalOutput).text });
+  const spoken = redactSecrets(finalOutput).text;
+  threads.set(id, messagesForHarness([...messages, { role: "assistant", content: spoken }]));
+  emit({ type: "run.done", finalOutput: spoken });
 }
 
 async function runVoice(

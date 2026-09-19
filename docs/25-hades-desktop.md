@@ -106,7 +106,7 @@ import { createDesktopHost } from "@/agents/hades/desktop";
 |---|---|---|
 | `runtime.start` | — | Emit `runtime.ready` + inference, then `jev.timing` warmup |
 | `chat.prefetch` | `text` | Run `runPreflight` into the ask cache (no Qwen) |
-| `chat.send` | `text`, `threadId?` | Jev screen/route → Qwen stream (cache hit if prefetched) |
+| `chat.send` | `text`, `threadId?` | Replay that thread's last 40 turns, then Jev screen/route → Qwen (cache hit if prefetched) |
 | `voice.turn` | `audioBase64` | Same execute gate as `/api/voice` (`auto` + `execute_now`) |
 | `desktop.act` | `action`, `args?` | Jev desktop policy, then `cap` |
 | `approval.respond` | `approvalId`, `approved` | HITL for review-band tools |
@@ -183,6 +183,7 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | `desktop.act record_start` without `TYPESAFE_API_KEY` | `jev.decision` block, Cap runner not called |
 | `desktop.act targets` | `desktop.result.ok === true` (read) |
 | `chat.send` | `jev.decision` then tokens |
+| Second `chat.send` on the same `threadId` | Harness `messages` include the prior user + assistant turn |
 | `desktop.result` / streamed tokens | API keys in `cap` stdout or Qwen deltas are `[API_KEY]` |
 | Tauri CSP | no `https://api.typesafe.ai` from the webview |
 

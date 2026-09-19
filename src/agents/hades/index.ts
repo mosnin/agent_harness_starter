@@ -159,6 +159,8 @@ export function createHadesHarness(agentConfig: HadesConfig): HadesHarness {
 export { HADES_QWEN_ROUTES };
 export { withJev } from "../plugins/jev";
 export type { JevPluginOptions } from "../plugins/jev";
+export { isThreadOwner, messagesForHarness, appendHarnessTurn } from "../lib/thread-history";
+export type { HarnessMessage } from "../lib/thread-history";
 
 /** Voice executes only on a confident Jev auto / execute_now decision. */
 export function shouldExecuteVoice(intent: { action: string; value: unknown }): boolean {

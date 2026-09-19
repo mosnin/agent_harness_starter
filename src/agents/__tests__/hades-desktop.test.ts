@@ -173,6 +173,23 @@ describe("desktop host", () => {
     ]);
   });
 
+  it("replays the desktop thread so follow-ups are not cold starts", async () => {
+    const seen: string[][] = [];
+    const harness = stubHarness({
+      async *stream(input) {
+        seen.push(input.messages.map((m) => m.content));
+        yield { type: "done", finalOutput: `echo:${input.messages.at(-1)?.content}` };
+      },
+    });
+    const host = createDesktopHost({ harness, onEvent: () => undefined });
+    await host.handle({ type: "chat.send", text: "first", threadId: "t1" });
+    await host.handle({ type: "chat.send", text: "second", threadId: "t1" });
+    await host.handle({ type: "chat.send", text: "other", threadId: "t2" });
+    expect(seen[0]).toEqual(["first"]);
+    expect(seen[1]).toEqual(["first", "echo:first", "second"]);
+    expect(seen[2]).toEqual(["other"]);
+  });
+
   it("forwards Jev decisions from a chat turn onto the IPC stream", async () => {
     const events: string[] = [];
     const host = createDesktopHost({

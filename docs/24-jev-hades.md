@@ -202,13 +202,13 @@ npx tsc --noEmit
 npx vitest run
 ```
 
-Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `hades-desktop.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`. Core event drain: `core.test.ts` (`pendingPluginEvents`).
+Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `hades-desktop.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`, `thread-history.test.ts`. Core event drain: `core.test.ts` (`pendingPluginEvents`).
 
 ---
 
 ## 3. How a run actually moves
 
-1. **Ingress** — `/api/agent`, `/api/hades`, or `/api/voice`. All require `auth.requireAuth`. Voice clips larger than 8 MiB → `413`.
+1. **Ingress** — `/api/agent`, `/api/hades`, or `/api/voice`. All require `auth.requireAuth`. Voice clips larger than 8 MiB → `413`. `/api/hades` and `/api/agent` refuse another user's `threadId` (404) and load the last 40 redacted turns so Jev follow-up reuse and compaction actually see the thread. Desktop `chat.send` keeps the same buffer per `threadId`.
 2. **Voice intent** (voice only) — `voiceIntentHint`, then `classifyVoiceIntent`. Execution requires `action === "auto"` **and** `value === "execute_now"` (`shouldExecuteVoice`). Anything else clarifies, cancels, or refuses. Qwen never sees cancelled / unsafe / low-confidence audio.
 3. **`withJev.onBeforeRun`** — **one** System One call (`runPreflight`). Exact greetings still screen; Qwen is skipped with a canned reply only after the screen passes (or when `screenInput: false`).
    - `screenExternal` (injection / secrets / substance). Jev-down → **block**. Injection/secret *review* → HITL error.
@@ -219,7 +219,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
 4. **`withMemory`** — retrieve, then `filterPassages`. Jev-down → **drop all memories**.
 5. **Qwen generates** and may call tools. `core.ts` drains `pendingPluginEvents` after `onBeforeRun` so the UI sees Jev decisions even before the first token.
 6. **`wrapTools`**
-   - `runToolGate` — Auto Mode + malware + patch + company in **one** ask. Git-looking commands include git nouls in that same request. Jev-down → **block**.
+   - `runToolGate` — Auto Mode + malware + patch + company + `invented_args` in **one** ask. Git-looking commands include git nouls in that same request. Hallucinated paths/URLs → HITL or block. Jev-down → **block**.
    - Every tool result is **redacted** (API keys, tokens, private keys, connection strings) then harvested into `jevEvidence` with no extra Jev call. Search/browser evidence uses the same `mergeEvidence` path — raw secrets never reach Qwen, the compacted thread, memories, or persisted chat.
    - `scanMalicious` on `sandbox_run_code` / `modal_run`.
    - `judgePatch` on `file_patch`.
@@ -265,7 +265,8 @@ All under `src/agents/jev/`:
 | `preflight.ts` / `postflight.ts` | One System One call per hop (the speed path) | TypeSafe parallel questions |
 | `cache.ts` | LRU + in-flight coalesce of successful asks | desktop prefetch / retries |
 | `compact.ts` | Apply keep/summarize/aggressive to the injected thread | pi-fast-jev-compaction |
-| `toolgate.ts` | One ask for Auto Mode + malware + patch + company | jev-ultrafast speculative heads |
+| `toolgate.ts` | One ask for Auto Mode + malware + patch + company + invented args | jev-ultrafast speculative heads |
+| `lib/thread-history.ts` | Own-thread check + last-40 redacted turns for the harness | follow-up reuse / compaction |
 | `harvest.ts` | Zero-RTT evidence cards from tool results (secrets stripped) | citation-verifier "code splits" |
 | `redact.ts` | Zero-RTT secret / PII strip before Qwen, memory, desktop, DB | safer-with-jev + guidance `secretsGate` |
 | `ground.ts` | Sentence split + abstain rewrite | citation-verifier + pi-quiet-ask |
@@ -316,7 +317,8 @@ These sit on real hops, not helper-only APIs:
 | `AGENT_PROVIDER=hades` | `/api/agent` uses `createHadesHarness` |
 | Agent Chat | Streams `jev_decision`; Voice → `/api/voice` |
 | Desktop sidecar | `createDesktopHost` / `npm run desktop:sidecar`; Jev gates `desktop.act` before `cap` |
-| `runToolGate` | One System One call for Auto Mode + malware + patch + company |
+| `runToolGate` | One System One call for Auto Mode + malware + patch + company + invented args |
+| Thread history | Last 40 owned, redacted turns on `/api/hades`, `/api/agent`, and desktop `chat.send` |
 | Tool harvest | Append evidence cards with no extra Jev call |
 | Secret redaction | Strip keys from tool output, evidence, stream, memory, desktop `cap`, persisted threads |
 | Postflight grounding | Sentence-level support; ungrounded drafts become an abstain |
@@ -436,6 +438,7 @@ Fixed:
 - `/api/voice` rejects bodies over 8 MiB.
 - Jev HTTP `baseUrl` is env-only (no request-controlled SSRF).
 - `/api/hades` and `/api/voice` use `auth.requireAuth`.
+- `/api/hades` and `/api/agent` POST return 404 unless `thread.userId` matches the caller. They load thread history (redacted, last 40) instead of a single-line cold start.
 - Tool stdout, search/browser evidence, compacted threads, streamed deltas, abstains, memories, desktop `cap` output, and persisted `/api/hades` + `/api/agent` messages are locally redacted (`redactSecrets`) before they reach Qwen or storage. Jev still sees the raw blob on screens / command-failure so it can fail-close on a leak.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
@@ -515,6 +518,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 8 — Thread continuity + invented tool args
+
+`/api/hades`, `/api/agent`, and desktop `chat.send` were one-line cold starts. Jev `is_followup` never saw the previous reply, compaction had nothing to prune, and Qwen re-solved every turn. Ingress now refuses another user's thread and loads the last 40 redacted turns. The same tool-gate ask also scores `invented_args` so a hallucinated path/URL is HITL or blocked without a second RTT.
 
 ### Wave 7 — Zero-RTT secret redaction
 
