@@ -222,6 +222,21 @@ describe("grounding + quiet-ask + tool gate", () => {
     expect(passwd.decisions[0]?.value).toBe("exfil");
     expect(env.decisions[0]?.reason).toBe("target-local");
     expect(meta.decisions[0]?.value).toBe("ssrf");
+    const ecs = await runToolGate({
+      userRequest: "fetch task identity",
+      toolName: "browser_scrape",
+      toolArguments: { url: "http://169.254.170.2/v2/metadata" },
+      asker,
+    });
+    const kube = await runToolGate({
+      userRequest: "hit the cluster API",
+      toolName: "browser_scrape",
+      toolArguments: { url: "https://kubernetes.default.svc/api" },
+      asker,
+    });
+    expect(ecs.decisions[0]?.value).toBe("ssrf");
+    expect(ecs.asks).toBe(0);
+    expect(kube.decisions[0]?.value).toBe("ssrf");
     expect(mentioned.asks).toBe(0);
     expect(mentioned.decisions[0]?.reason).toBe("safe-read");
   });

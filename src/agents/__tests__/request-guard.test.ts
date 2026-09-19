@@ -41,6 +41,19 @@ describe("request-guard", () => {
     expect(res?.status).toBe(413);
   });
 
+  it("rejects an oversized voice body before form parse", () => {
+    const max = 8 * 1024 * 1024 + 64 * 1024;
+    const res = oversizeJsonResponse(
+      new Request("http://local/api/voice", {
+        method: "POST",
+        headers: { "content-length": String(max + 1) },
+        body: "x",
+      }),
+      max
+    );
+    expect(res?.status).toBe(413);
+  });
+
   it("does not reject a missing Content-Length", () => {
     const res = oversizeJsonResponse(new Request("http://local/api/hades", { method: "POST", body: "{}" }));
     expect(res).toBeNull();

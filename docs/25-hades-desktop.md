@@ -201,6 +201,9 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | Pasted JWT / `glpat-` / `xoxe-` | `jev.decision` `leaks-secret-local`, raw token never leaves |
 | `file_write` / shell args that embed `sk-` | `jev.decision` `leaks-secret-local` block, even with Auto Mode off |
 | `browser_scrape` of `169.254.169.254` / `file://` | `jev.decision` `target-local` SSRF block |
+| `browser_scrape` of `169.254.170.2` / `kubernetes.default.svc` | `jev.decision` `target-local` SSRF block |
+| Pasted SSN `NNN-NN-NNNN` | `jev.decision` `leaks-secret-local`, raw digits never leave |
+| Voice multipart `Content-Length` above 8 MiB + 64 KiB | `413` before `formData()` |
 | Shell `git push --force` | `jev.decision` `destructive-local` HITL |
 | Shell `ENOENT` / `EACCES` / `ETIMEDOUT` | `jev.decision` `failure-local`, tool result returned with class |
 | Shell `cat /etc/passwd` / `curl 169.254.169.254` | `jev.decision` `target-local` block, tool not called |

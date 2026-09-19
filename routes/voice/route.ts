@@ -10,6 +10,7 @@ import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
 import { createHadesHarness } from "@/agents/hades/index";
 import { redactSecrets } from "@/agents/jev/redact";
+import { oversizeJsonResponse } from "@/agents/lib/request-guard";
 import { isThreadOwner, messagesForHarness } from "@/agents/lib/thread-history";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 import "@/agents/examples";
@@ -20,6 +21,9 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
     const user = await auth.requireAuth(req);
+    const MAX_VOICE_BYTES = 8 * 1024 * 1024;
+    const oversize = oversizeJsonResponse(req, MAX_VOICE_BYTES + 64 * 1024);
+    if (oversize) return oversize;
     const form = await req.formData();
     const file = form.get("audio");
     if (!(file instanceof Blob)) {
@@ -31,7 +35,6 @@ export async function POST(req: Request) {
       return Response.json({ error: `Unknown agent: "${agentName}"`, available: getAllAgentNames() }, { status: 400 });
     }
 
-    const MAX_VOICE_BYTES = 8 * 1024 * 1024;
     if (file.size > MAX_VOICE_BYTES) {
       return Response.json({ error: `Audio exceeds ${MAX_VOICE_BYTES} bytes` }, { status: 413 });
     }

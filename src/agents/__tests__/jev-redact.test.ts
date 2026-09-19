@@ -212,6 +212,12 @@ describe("zero-RTT secret redaction", () => {
     expect(hasSevereSecret("JWTs start with eyJ")).toBe(false);
   });
 
+  it("treats SSNs as severe and leaves a date-shaped string alone", () => {
+    expect(hasSevereSecret("SSN 123-45-6789")).toBe(true);
+    expect(redactSecrets("SSN 123-45-6789").text).toBe("SSN [SSN]");
+    expect(hasSevereSecret("filed on 2024-01-15")).toBe(false);
+  });
+
   it("sanitizes System One state and forces secret_leak after Jev answers", async () => {
     let seen = "";
     const client = createMockJevClient((req) => {

@@ -34,7 +34,7 @@ const SECRET_FILE =
 const UNIX_EXFIL =
   /(?:^|[\\/])(?:etc[\\/](?:passwd|shadow|sudoers)|proc[\\/]self[\\/]environ|\.ssh[\\/]|\.aws[\\/]|\.kube[\\/]|var[\\/]run[\\/]docker\.sock|docker\.sock)/i;
 const METADATA_HOST =
-  /169\.254\.169\.254|metadata\.google\.internal|metadata\.internal|fd00:ec2::254/i;
+  /169\.254\.169\.254|169\.254\.170\.2|100\.100\.100\.200|metadata\.google\.internal|metadata\.internal|fd00:ec2::254|kubernetes\.default\.svc/i;
 const FILE_SCHEME = /^file:/i;
 
 const READ_OR_FETCH =

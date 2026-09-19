@@ -27,6 +27,7 @@ const PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\b(?:postgres|mysql|mongodb|redis|amqp):\/\/[^\s]+:[^\s]+@[^\s]+/gi, label: "CONNECTION_STRING" },
   { pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, label: "EMAIL" },
   { pattern: /\b(?:\d{4}[- ]?){3}\d{4}\b/g, label: "CREDIT_CARD" },
+  { pattern: /\b\d{3}-\d{2}-\d{4}\b/g, label: "SSN" },
   { pattern: /\bpassword\s*[=:]\s*[^\s]{8,}/gi, label: "PASSWORD" },
   { pattern: /\bsecret\s*[=:]\s*[^\s]{8,}/gi, label: "SECRET" },
   { pattern: /\btoken\s*[=:]\s*[^\s]{20,}/gi, label: "TOKEN" },
@@ -36,7 +37,7 @@ const PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   },
 ];
 
-/** Labels that fail-close locally. EMAIL is PII but not a credential dump. */
+/** Labels that fail-close locally. EMAIL is PII but not a credential dump. SSN is. */
 export const SEVERE_SECRET_LABELS = new Set([
   "API_KEY",
   "AWS_KEY",
@@ -44,6 +45,7 @@ export const SEVERE_SECRET_LABELS = new Set([
   "PRIVATE_KEY",
   "CONNECTION_STRING",
   "CREDIT_CARD",
+  "SSN",
   "PASSWORD",
   "SECRET",
   "TOKEN",
