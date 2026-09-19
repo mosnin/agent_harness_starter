@@ -549,7 +549,7 @@ Every failed `shell_exec` paid a Jev hop, and Jev-down blocked even a missing fi
 
 ### Wave 17 — Local-first exfil / SSRF targets
 
-`file_read` and `web_search` are "safe reads" and skipped Auto Mode, so a hallucinated `/etc/passwd`, `../.env`, or cloud-metadata URL never reached Jev. `localTargetDecision` scans path/url-shaped keys only and blocks those strings in process. Search queries that mention the same tokens still pass.
+`file_read` and `web_search` are "safe reads" and skipped Auto Mode, so a hallucinated `/etc/passwd`, `../.env`, or cloud-metadata URL never reached Jev. `localTargetDecision` scans path/url-shaped keys and blocks those strings in process. Search queries that mention the same tokens still pass. Wave 20 also scans `command` / `cmd` / `args`.
 
 ### Wave 16 — Stop looping on a stuck browser
 
