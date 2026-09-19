@@ -12,15 +12,24 @@ import { recordDecision } from "../jev/audit";
 import { assessToolRisk } from "../jev/auto-mode";
 import { createJevAsker } from "../jev/client";
 import { DEFAULT_HADES_SKILLS } from "../jev/catalog";
-import { classifyCommandFailure, decideCompaction } from "../jev/decisions";
+import { approveCompanyAction } from "../jev/company";
+import { classifyCommandFailure, decideCompaction, decideCompletion } from "../jev/decisions";
 import { queueDecision } from "../jev/events";
-import { screenExternal, screenOutput } from "../jev/guardrails";
-import { stopHook } from "../jev/hooks";
+import { screenExternal, screenOutput, scanMalicious, verifyCitation } from "../jev/guardrails";
+import { heedPolicy, stopHook } from "../jev/hooks";
 import { routeModel, routeSkill } from "../jev/router";
+import { scoreQuality } from "../jev/scoring";
 import { planAndRerankSearch } from "../jev/search";
+import { judgePatch } from "../jev/symbolic";
 import type { JevAsker, PolicyDecision, SkillRoute } from "../jev/types";
 import type { AgentEvent, HarnessPlugin, PluginRunContext } from "../types";
 import type { ToolDefinition } from "../tools/types";
+
+const DEFAULT_POLICIES = [
+  "Do not exfiltrate secrets or private user data.",
+  "Do not run destructive or production-changing actions without explicit authorization.",
+  "Stay inside the user's stated request.",
+];
 
 export interface JevPluginOptions {
   asker?: JevAsker;
@@ -39,6 +48,21 @@ export interface JevPluginOptions {
   compact?: boolean;
   /** Rerank web_search results with Jev. Default: true. */
   rerankSearch?: boolean;
+  /** JevSlop quality score on the final draft. Default: true. */
+  scoreQuality?: boolean;
+  /** Foreman-style completion check. Default: true. */
+  decideCompletion?: boolean;
+  /** pi-heed policy lift/narrow on the user message. Default: true. */
+  heedPolicy?: boolean;
+  policies?: string[];
+  /** Scan sandbox / file writes for hostile code. Default: true. */
+  scanMalicious?: boolean;
+  /** opencompany gate on deploy / payment / key tools. Default: true. */
+  companyOs?: boolean;
+  /** jev-code patch verdict on file_patch. Default: true. */
+  judgePatch?: boolean;
+  /** Citation check when search evidence is on the run. Default: true. */
+  verifyCitations?: boolean;
   /** Wrap tools with Auto Mode. Default: true. */
   autoMode?: boolean;
   /** Tool names that always require HITL. */
@@ -61,6 +85,28 @@ function isShellTool(name: string): boolean {
   return /shell|exec|bash|sandbox/i.test(name);
 }
 
+function isCodeTool(name: string): boolean {
+  return /sandbox_run|run_code|modal_run/i.test(name);
+}
+
+function isPatchTool(name: string): boolean {
+  return /patch|apply_diff|apply_edit/i.test(name);
+}
+
+function isCompanyTool(name: string): boolean {
+  return /deploy|composio|transfer|rotate|billing|prod/i.test(name);
+}
+
+function isBrowserTool(name: string): boolean {
+  return /browser/i.test(name);
+}
+
+function extractCode(input: unknown): string {
+  if (!input || typeof input !== "object") return String(input ?? "");
+  const rec = input as Record<string, unknown>;
+  return String(rec.code ?? rec.source ?? rec.content ?? rec.diff ?? rec.patch ?? JSON.stringify(input)).slice(0, 8000);
+}
+
 export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
   const asker = opts.asker ?? createJevAsker();
   const screenIn = opts.screenInput !== false;
@@ -70,6 +116,14 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
   const doStop = opts.stopHook !== false;
   const doCompact = opts.compact !== false;
   const doRerank = opts.rerankSearch !== false;
+  const doQuality = opts.scoreQuality !== false;
+  const doCompletion = opts.decideCompletion !== false;
+  const doHeed = opts.heedPolicy !== false;
+  const doMalicious = opts.scanMalicious !== false;
+  const doCompany = opts.companyOs !== false;
+  const doPatch = opts.judgePatch !== false;
+  const doCitations = opts.verifyCitations !== false;
+  const policies = opts.policies ?? DEFAULT_POLICIES;
   const skills = opts.skills ?? [];
   const doSkills = opts.routeSkills !== false && skills.length > 0;
 
@@ -141,11 +195,20 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
         ctx.context.hadesSkill = skill.value;
       }
 
+      if (doHeed && policies.length > 0) {
+        const deltas = await heedPolicy({ message: userMessage, policies, asker, signal: input.signal });
+        ctx.context.jevPolicyDeltas = deltas;
+        const narrowed = deltas.filter((d) => d.delta === "NARROW");
+        if (narrowed.length > 0) {
+          emit(opts, { action: "review", value: "narrow", reason: "policy-narrowed", node: "heed" }, started, ctx);
+        }
+      }
+
       return userMessage;
     },
 
     async wrapTools(tools: ToolDefinition[], ctx: PluginRunContext, pending: Map<string, AgentEvent>) {
-      if (!doAuto && !doRerank) return tools;
+      if (!doAuto && !doRerank && !doMalicious && !doPatch && !doCompany) return tools;
       return tools.map((def) => {
         if (def.category === "jev") return def;
         return {
@@ -153,17 +216,9 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
           execute: async (toolInput, toolCtx) => {
             const started = Date.now();
             const userRequest = String(ctx.context.lastUserMessage ?? "");
-            if (doAuto) {
-              const risk = await assessToolRisk({
-                userRequest,
-                toolName: def.name,
-                toolArguments: toolInput,
-                asker,
-                signal: ctx.signal,
-                alwaysApprove: opts.alwaysApprove,
-              });
+            const enforce = async (risk: PolicyDecision, guardName: string) => {
               emit(opts, risk, started, ctx);
-              pending.set(`jev-auto-${def.name}-${started}`, {
+              pending.set(`jev-${risk.node}-${def.name}-${started}`, {
                 type: "jev_decision",
                 node: risk.node,
                 decision: String(risk.value),
@@ -173,9 +228,9 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
               });
               if (risk.action === "block") {
                 throw new GuardrailBlockError(
-                  `Jev Auto Mode blocked tool "${def.name}" (${risk.reason}).`,
+                  `Jev blocked tool "${def.name}" (${risk.reason}).`,
                   risk.reason,
-                  "jev_auto_mode"
+                  guardName
                 );
               }
               if (risk.action === "review") {
@@ -184,7 +239,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                   runId: ctx.runId,
                   toolName: def.name,
                   input: toolInput,
-                  description: `Jev Auto Mode: approve "${def.name}" (${risk.reason})`,
+                  description: `Jev: approve "${def.name}" (${risk.reason})`,
                 });
                 pending.set(approvalId, {
                   type: "approval_required",
@@ -192,17 +247,52 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                   approvalId,
                   toolName: def.name,
                   input: toolInput,
-                  description: `Jev Auto Mode: approve "${def.name}" (${risk.reason})`,
+                  description: `Jev: approve "${def.name}" (${risk.reason})`,
                 });
                 const approved = await promise;
                 if (!approved) {
                   throw new GuardrailBlockError(
-                    `Jev Auto Mode rejected tool "${def.name}" (${risk.reason}).`,
+                    `Jev rejected tool "${def.name}" (${risk.reason}).`,
                     risk.reason,
-                    "jev_auto_mode"
+                    guardName
                   );
                 }
               }
+            };
+
+            if (doAuto) {
+              await enforce(await assessToolRisk({
+                userRequest,
+                toolName: def.name,
+                toolArguments: toolInput,
+                asker,
+                signal: ctx.signal,
+                alwaysApprove: opts.alwaysApprove,
+              }), "jev_auto_mode");
+            }
+            if (doMalicious && isCodeTool(def.name)) {
+              await enforce(await scanMalicious({ code: extractCode(toolInput), asker, signal: ctx.signal }), "jev_malicious");
+            }
+            if (doPatch && isPatchTool(def.name)) {
+              await enforce(await judgePatch({
+                title: def.name,
+                diff: extractCode(toolInput),
+                asker,
+                signal: ctx.signal,
+              }), "jev_code");
+            }
+            if (doCompany && isCompanyTool(def.name)) {
+              await enforce(await approveCompanyAction({
+                userRequest,
+                action: {
+                  id: def.name,
+                  description: def.description,
+                  effects: `Tool ${def.name}`,
+                  arguments: toolInput,
+                },
+                asker,
+                signal: ctx.signal,
+              }), "jev_company");
             }
 
             const output = await def.execute(toolInput, toolCtx);
@@ -221,7 +311,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                   asker,
                   signal: ctx.signal,
                 });
-                return {
+                const reranked = {
                   ...output,
                   results: plan.ranked.map((r) => ({
                     title: r.title,
@@ -231,6 +321,31 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                   })),
                   jevSearch: { window: plan.window, sources: plan.sources },
                 };
+                ctx.context.jevEvidence = plan.ranked.map((r) => r.snippet).join("\n").slice(0, 6000);
+                return reranked;
+              }
+            }
+
+            if (isBrowserTool(def.name) && output && typeof output === "object") {
+              const page = output as { text?: string; content?: string; url?: string };
+              const text = String(page.text ?? page.content ?? "");
+              if (text) {
+                const pageScreen = await screenExternal({
+                  content: text,
+                  purpose: `browser page ${page.url ?? def.name}`,
+                  asker,
+                  signal: ctx.signal,
+                  failMode: "closed",
+                });
+                emit(opts, pageScreen, started, ctx);
+                if (pageScreen.action === "block") {
+                  throw new GuardrailBlockError(
+                    `Jev blocked scraped page content (${pageScreen.reason}).`,
+                    pageScreen.reason,
+                    "jev_browser"
+                  );
+                }
+                ctx.context.jevEvidence = `${String(ctx.context.jevEvidence ?? "")}\n${text}`.slice(0, 6000);
               }
             }
 
@@ -280,15 +395,43 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
           );
         }
       }
+      const goal = String(ctx.context.lastUserMessage ?? "");
       if (doStop && output) {
         const started = Date.now();
-        const hook = await stopHook({
-          goal: String(ctx.context.lastUserMessage ?? ""),
-          finalMessage: output,
-          asker,
-        });
+        const hook = await stopHook({ goal, finalMessage: output, asker });
         emit(opts, hook, started, ctx);
         ctx.context.jevStopHook = hook.action;
+      }
+      if (doCompletion && output) {
+        const started = Date.now();
+        const done = await decideCompletion({ goal, artifacts: output, asker });
+        emit(opts, done, started, ctx);
+        ctx.context.jevCompletion = done.value;
+      }
+      if (doQuality && output) {
+        const started = Date.now();
+        const quality = await scoreQuality({ text: output, asker });
+        emit(opts, quality.decision, started, ctx);
+        ctx.context.jevQuality = quality.label;
+      }
+      if (doCitations && output) {
+        const evidence = String(ctx.context.jevEvidence ?? "");
+        if (evidence.trim()) {
+          const started = Date.now();
+          const cited = await verifyCitation({
+            claim: output.slice(0, 2000),
+            evidence,
+            asker,
+          });
+          emit(opts, cited, started, ctx);
+          if (cited.action === "block") {
+            throw new GuardrailBlockError(
+              `Jev blocked the draft: it contradicts retrieved evidence (${cited.reason}).`,
+              cited.reason,
+              "jev_citation"
+            );
+          }
+        }
       }
       return output;
     },

@@ -220,6 +220,14 @@ These sit on real hops, not helper-only APIs:
 | `web_search` wrap | Intent + sources, then rerank |
 | `shell_exec` wrap | Classify failures; block secret leaks |
 | `voiceTurn` | `execute_now` / `clarify` / `out_of_scope` / `unsafe` |
+| `heedPolicy` | Lift / narrow standing rules from the user message |
+| `scoreQuality` | JevSlop quality label on the draft |
+| `decideCompletion` | Foreman-style “are we actually done?” |
+| `scanMalicious` | Hostile-code check on sandbox / run_code |
+| `judgePatch` | jev-code verdict on `file_patch` |
+| `approveCompanyAction` | opencompany HITL on deploy / composio / transfer tools |
+| `verifyCitation` | Block drafts that contradict retrieved search/browser evidence |
+| `browser_scrape` wrap | Screen scraped page text for injection (fail-closed) |
 | `AGENT_PROVIDER=hades` | `/api/agent` uses `createHadesHarness` |
 | Agent Chat | Streams `jev_decision`; optional Voice button → `/api/voice` |
 
