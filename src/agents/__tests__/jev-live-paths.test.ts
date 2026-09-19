@@ -292,6 +292,51 @@ describe("fail-closed security", () => {
     expect(called).toBe(0);
   });
 
+  it("blocks a file_write that embeds a raw key even when Auto Mode is off", async () => {
+    const { z } = await import("zod");
+    let called = 0;
+    let executed = 0;
+    const client = createMockJevClient(async () => {
+      called += 1;
+      throw new Error("network");
+    });
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenInput: false,
+      screenOutput: false,
+      routeModel: false,
+      autoMode: false,
+      judgePatch: false,
+      companyOs: false,
+      rerankSearch: false,
+      stopHook: false,
+      compact: false,
+    });
+    const wrapped = await plugin.wrapTools!(
+      [
+        {
+          name: "file_write",
+          description: "Write a file",
+          parameters: z.object({ path: z.string(), content: z.string() }),
+          execute: async () => {
+            executed += 1;
+            return { ok: true };
+          },
+        },
+      ],
+      ctx(),
+      new Map()
+    );
+    await expect(
+      wrapped[0]!.execute(
+        { path: "notes.txt", content: "sk-abcdefghijklmnopqrstuvwxyz0123456789" },
+        {}
+      )
+    ).rejects.toThrow(/blocked/i);
+    expect(called).toBe(0);
+    expect(executed).toBe(0);
+  });
+
   it("blocks shell_exec cat /etc/passwd even when Auto Mode is off", async () => {
     const { z } = await import("zod");
     let called = 0;

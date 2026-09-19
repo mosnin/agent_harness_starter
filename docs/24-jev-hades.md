@@ -453,7 +453,7 @@ Fixed:
 - SSE / desktop `message_delta` events go through `createRedactStream` so a key split across two chunks is held until it can be replaced. `message_done` still rewrites the full text.
 - Tool stdout, search/browser evidence, compacted threads, streamed deltas, abstains, memories, desktop `cap` output, and persisted `/api/hades` + `/api/agent` + `/api/anthropic-agent` messages are locally redacted (`redactSecrets`) before they reach Qwen or storage.
 - System One `state` is sanitized the same way. Severe labels (`API_KEY`, `AWS_KEY`, env-style `*_SECRET=*`, …) force `secret_leak` / `leaks_secret` to 1.0 in code. TypeSafe never receives the raw key.
-- Screens, preflight, postflight, and `classifyCommandFailure` short-circuit on `hasSevereSecret` (`leaks-secret-local`) so a pasted key is a zero-RTT block even when Jev is down. EMAIL is PII-redacted but not a severe block.
+- Screens, preflight, postflight, `runToolGate`, wrapTools, and `classifyCommandFailure` short-circuit on `hasSevereSecret` (`leaks-secret-local`) so a pasted key is a zero-RTT block even when Jev is down or Auto Mode is off. EMAIL is PII-redacted but not a severe block.
 - The same screens, plus search/RAG filters, short-circuit canned jailbreaks with `hasLocalInjection` (`injection-local`) so "ignore previous instructions" / DAN / fake system tags never wait on TypeSafe and never leave the box. Ambiguous injection still goes to Jev.
 - Auto Mode / `runToolGate` short-circuit canned destructive commands as `destructive-local`. Wipes (`rm -rf`, `DROP TABLE`, `dd`, `curl | bash`, `bash -c "$(curl …)"`) block; force-git (`push --force`, `reset --hard`) is HITL. Only `command` / `cmd` / `args` are scanned so a README that mentions those strings is not blocked.
 - Safe-read tools (`file_read`, `web_search`, …) skipped Jev entirely, so `/etc/passwd`, `../.env`, and `http://169.254.169.254/` never got a screen. `localTargetDecision` now blocks those on path/url keys (`target-local`) at zero RTT, including when Auto Mode is off. A search *query* that mentions `/etc/passwd` is not blocked.
@@ -546,6 +546,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 29 — Tool-arg secrets when Auto Mode is off
+
+Desktop writes already blocked a pasted `sk-` before Cap. HTTP `file_write` / `shell_exec` did not: with Auto Mode off the gate was skipped, so a key in `content` / `command` reached disk. `hasSevereSecret` now runs in `wrapTools` and `runToolGate` (before `alwaysApprove`). The tool does not execute. A note that only mentions "API key" still goes to Jev.
 
 ### Wave 28 — Remote-exec pipes and docker.sock
 

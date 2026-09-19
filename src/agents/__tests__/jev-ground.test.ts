@@ -372,6 +372,31 @@ describe("grounding + quiet-ask + tool gate", () => {
     expect(mentioned.asks).toBe(1);
   });
 
+  it("blocks a tool argument that embeds a raw key without calling Jev", async () => {
+    let calls = 0;
+    const client = createMockJevClient(async () => {
+      calls += 1;
+      throw new Error("network");
+    });
+    const asker = createJevAsker(client);
+    const written = await runToolGate({
+      userRequest: "save the note",
+      toolName: "file_write",
+      toolArguments: { path: "notes.txt", content: "sk-abcdefghijklmnopqrstuvwxyz0123456789" },
+      asker,
+    });
+    const mentioned = await runToolGate({
+      userRequest: "save the note",
+      toolName: "file_write",
+      toolArguments: { path: "notes.txt", content: "store the API key in the vault" },
+      asker,
+    });
+    expect(calls).toBe(1);
+    expect(written.asks).toBe(0);
+    expect(written.decisions[0]?.reason).toBe("leaks-secret-local");
+    expect(mentioned.asks).toBe(1);
+  });
+
   it("batches auto-mode and malware into one System One call", async () => {
     let calls = 0;
     const client = createMockJevClient((req) => {

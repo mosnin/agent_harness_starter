@@ -19,7 +19,7 @@ import { harvestToolEvidence, mergeEvidence } from "../jev/harvest";
 import { heedPolicy, stopHook } from "../jev/hooks";
 import { runPostflight } from "../jev/postflight";
 import { runPreflight } from "../jev/preflight";
-import { createRedactStream, redactSecrets, redactValue, type RedactStream } from "../jev/redact";
+import { createRedactStream, hasSevereSecret, localSecretBlock, redactSecrets, redactValue, type RedactStream } from "../jev/redact";
 import { routeModel, routeSkill } from "../jev/router";
 import { scoreQuality } from "../jev/scoring";
 import { planAndRerankSearch } from "../jev/search";
@@ -389,6 +389,9 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
             const localTarget = localTargetDecision(toolInput);
             if (localTarget) {
               await enforce(localTarget, "jev_tool_bind");
+            }
+            if (hasSevereSecret(toolInput) || hasSevereSecret(userRequest)) {
+              await enforce(localSecretBlock("tool_bind"), "jev_tool_bind");
             }
 
             if (doAuto || (doMalicious && isCodeTool(def.name)) || (doPatch && isPatchTool(def.name)) || (doCompany && isCompanyTool(def.name))) {

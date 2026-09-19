@@ -17,6 +17,7 @@ import { choice, noul, score } from "./questions";
 import { interpretPatchAnswers } from "./symbolic";
 import type { CompanyAction } from "./company";
 import { commandFromToolArgs, localDestructiveDecision } from "./destructive";
+import { hasSevereSecret, localSecretBlock } from "./redact";
 import { localTargetDecision } from "./target";
 import type { JevAnswers, JevAsker, JevQuestions, JevState, PolicyDecision } from "./types";
 
@@ -76,6 +77,10 @@ export async function runToolGate(input: ToolGateInput): Promise<ToolGateResult>
   const localTarget = localTargetDecision(input.toolArguments);
   if (localTarget) {
     return { asks: 0, decisions: [localTarget] };
+  }
+
+  if (hasSevereSecret(input.toolArguments) || hasSevereSecret(input.userRequest)) {
+    return { asks: 0, decisions: [localSecretBlock("tool_bind")] };
   }
 
   if (input.alwaysApprove?.includes(input.toolName)) {
