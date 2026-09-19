@@ -28,6 +28,7 @@ import { resolveAgentTools } from "./skills/index";
 import { toOpenAITool } from "./utils";
 import { config } from "./lib/config";
 import { AgentError } from "./errors/index";
+import { toAgentInput } from "./lib/thread-history";
 
 // Auto-detect serverless environments and warn about in-memory state.
 // Fires once per process startup; developers don't need to call validateRuntime().
@@ -284,9 +285,13 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
 
     let finalOutput = "";
     let runError: Error | undefined;
+    const thread = Array.isArray(ctx.jevThread)
+      ? (ctx.jevThread as Array<{ role: string; content: string }>)
+      : input.messages;
+    const sdkInput = toAgentInput(thread, userMessage);
 
     try {
-      const result = run(agent, userMessage, {
+      const result = run(agent, sdkInput, {
         stream: true,
         maxTurns: agentConfig.maxTurns ?? 20,
         signal: input.signal,

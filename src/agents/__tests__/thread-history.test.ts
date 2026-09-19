@@ -3,6 +3,7 @@ import {
   appendHarnessTurn,
   isThreadOwner,
   messagesForHarness,
+  toAgentInput,
 } from "../lib/thread-history";
 
 const KEY = "sk-abcdefghijklmnopqrstuvwxyz0123456789";
@@ -41,5 +42,31 @@ describe("thread history for the harness", () => {
     const next = appendHarnessTurn(prior, { role: "user", content: "newest" });
     expect(next).toHaveLength(40);
     expect(next.at(-1)?.content).toBe("newest");
+  });
+
+  it("keeps a single-turn SDK input as a string", () => {
+    expect(toAgentInput([{ role: "user", content: "hi" }], "hi")).toBe("hi");
+  });
+
+  it("passes prior turns as typed Agent items so Qwen sees the thread", () => {
+    const input = toAgentInput(
+      [
+        { role: "user", content: "first" },
+        { role: "assistant", content: "ok" },
+        { role: "user", content: "second" },
+      ],
+      "second now"
+    );
+    expect(Array.isArray(input)).toBe(true);
+    expect(input).toEqual([
+      { type: "message", role: "user", content: [{ type: "input_text", text: "first" }] },
+      {
+        type: "message",
+        role: "assistant",
+        status: "completed",
+        content: [{ type: "output_text", text: "ok" }],
+      },
+      { type: "message", role: "user", content: [{ type: "input_text", text: "second now" }] },
+    ]);
   });
 });

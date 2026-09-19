@@ -107,7 +107,7 @@ import { createDesktopHost } from "@/agents/hades/desktop";
 | `runtime.start` | — | Emit `runtime.ready` + inference, then `jev.timing` warmup |
 | `chat.prefetch` | `text` | Run `runPreflight` into the ask cache (no Qwen) |
 | `chat.send` | `text`, `threadId?` | Replay that thread's last 40 turns, then Jev screen/route → Qwen (cache hit if prefetched) |
-| `voice.turn` | `audioBase64` | Same execute gate as `/api/voice` (`auto` + `execute_now`) |
+| `voice.turn` | `audioBase64`, `threadId?` | Same execute gate as `/api/voice`; replays that thread so follow-ups are not cold starts |
 | `desktop.act` | `action`, `args?` | Jev desktop policy, then `cap` |
 | `approval.respond` | `approvalId`, `approved` | HITL for review-band tools |
 

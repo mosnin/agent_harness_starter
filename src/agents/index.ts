@@ -165,8 +165,8 @@ export {
 export type { JevClient, JevAsker, PolicyDecision, SystemOneResult } from "./jev/index";
 
 export { createDesktopHost, runDesktopSidecar, detectDesktopInference } from "./hades/desktop/index";
-export { isThreadOwner, messagesForHarness, appendHarnessTurn } from "./lib/thread-history";
-export type { HarnessMessage } from "./lib/thread-history";
+export { isThreadOwner, messagesForHarness, appendHarnessTurn, toAgentInput } from "./lib/thread-history";
+export type { HarnessMessage, SdkInputItem } from "./lib/thread-history";
 export type { DesktopHost, DesktopCommand, DesktopEvent } from "./hades/desktop/index";
 
 export { configureOpenRouter, generateWithQwen, transcribeAudio, synthesizeSpeech } from "./providers/index";

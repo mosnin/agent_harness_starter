@@ -41,7 +41,7 @@ export type DesktopCommand =
   | { type: "runtime.start" }
   | { type: "chat.prefetch"; text: string }
   | { type: "chat.send"; text: string; threadId?: string }
-  | { type: "voice.turn"; audioBase64: string; mimeType?: string }
+  | { type: "voice.turn"; audioBase64: string; mimeType?: string; threadId?: string }
   | { type: "desktop.act"; action: string; args?: Record<string, unknown>; userRequest?: string }
   | { type: "approval.respond"; approvalId: string; approved: boolean };
 

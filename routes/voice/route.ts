@@ -2,11 +2,15 @@
  * DROP THIS FILE INTO: your-app/src/app/api/voice/route.ts
  *
  * Hades voice turn: OpenAI STT → Jev/Qwen loop → OpenAI TTS.
- * Accepts multipart/form-data with an `audio` file and optional `agentName`.
+ * Accepts multipart/form-data with an `audio` file and optional `agentName`,
+ * `threadId`.
  */
 
 import { auth } from "@/agents/auth";
+import { db } from "@/agents/db";
 import { createHadesHarness } from "@/agents/hades/index";
+import { redactSecrets } from "@/agents/jev/redact";
+import { isThreadOwner, messagesForHarness } from "@/agents/lib/thread-history";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 import "@/agents/examples";
 
@@ -31,21 +35,37 @@ export async function POST(req: Request) {
     if (file.size > MAX_VOICE_BYTES) {
       return Response.json({ error: `Audio exceeds ${MAX_VOICE_BYTES} bytes` }, { status: 413 });
     }
+
+    const threadId = String(form.get("threadId") ?? "").trim();
+    const thread = threadId ? await db.getThread(threadId) : await db.createThread(user.id);
+    if (!isThreadOwner(thread, user.id)) {
+      return Response.json({ error: "Thread not found" }, { status: 404 });
+    }
+    const history = messagesForHarness(await db.getMessages(thread.id));
+
     const audio = Buffer.from(await file.arrayBuffer());
     const harness = createHadesHarness(agentConfig);
     const result = await harness.voiceTurn(audio, {
-      context: { userId: user.id, channel: "voice" },
+      messages: history,
+      context: { userId: user.id, channel: "voice", threadId: thread.id },
       signal: req.signal,
     });
 
+    const transcript = redactSecrets(result.transcript).text;
+    const finalOutput = redactSecrets(result.finalOutput).text;
+    await db.saveMessage({ threadId: thread.id, role: "user", content: transcript });
+    if (finalOutput) {
+      await db.saveMessage({ threadId: thread.id, role: "assistant", content: finalOutput });
+    }
+
     return Response.json({
-      transcript: result.transcript,
-      finalOutput: result.finalOutput,
+      transcript,
+      finalOutput,
+      threadId: thread.id,
       audioBase64: result.audio ? result.audio.toString("base64") : null,
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
     console.error("[/api/voice]", err);
-    return Response.json({ error: msg }, { status: 500 });
+    return Response.json({ error: "Voice turn failed" }, { status: 500 });
   }
 }

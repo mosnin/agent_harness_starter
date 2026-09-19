@@ -208,7 +208,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
 
 ## 3. How a run actually moves
 
-1. **Ingress** — `/api/agent`, `/api/hades`, or `/api/voice`. All require `auth.requireAuth`. Voice clips larger than 8 MiB → `413`. `/api/hades` and `/api/agent` refuse another user's `threadId` (404) and load the last 40 redacted turns so Jev follow-up reuse and compaction actually see the thread. Desktop `chat.send` keeps the same buffer per `threadId`.
+1. **Ingress** — `/api/agent`, `/api/hades`, or `/api/voice`. All require `auth.requireAuth`. Voice clips larger than 8 MiB → `413`. `/api/hades`, `/api/agent`, and `/api/voice` refuse another user's `threadId` (404) and load the last 40 redacted turns so Jev follow-up reuse and compaction actually see the thread. Desktop `chat.send` / `voice.turn` keep the same buffer per `threadId`. `/api/voice` does not echo raw exception text.
 2. **Voice intent** (voice only) — `voiceIntentHint`, then `classifyVoiceIntent`. Execution requires `action === "auto"` **and** `value === "execute_now"` (`shouldExecuteVoice`). Anything else clarifies, cancels, or refuses. Qwen never sees cancelled / unsafe / low-confidence audio.
 3. **`withJev.onBeforeRun`** — **one** System One call (`runPreflight`). Exact greetings still screen; Qwen is skipped with a canned reply only after the screen passes (or when `screenInput: false`).
    - `screenExternal` (injection / secrets / substance). Jev-down → **block**. Injection/secret *review* → HITL error.
@@ -217,7 +217,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
    - `skip_llm` / `canned` / `needs_clarify` → `ctx.jevDirectReply`; core short-circuits the generator. Vague asks get a clarify instead of a guessed essay.
    - Each decision is queued as a `jev_decision` SSE event.
 4. **`withMemory`** — retrieve, then `filterPassages`. Jev-down → **drop all memories**.
-5. **Qwen generates** and may call tools. `core.ts` drains `pendingPluginEvents` after `onBeforeRun` so the UI sees Jev decisions even before the first token.
+5. **Qwen generates** and may call tools. When the thread has more than one turn, `core.ts` passes typed `AgentInputItem`s to `run()` (not just the latest user string) so Qwen sees the conversation. `core.ts` drains `pendingPluginEvents` after `onBeforeRun` so the UI sees Jev decisions even before the first token.
 6. **`wrapTools`**
    - `runToolGate` — Auto Mode + malware + patch + company + `invented_args` in **one** ask. Git-looking commands include git nouls in that same request. Hallucinated paths/URLs → HITL or block. Jev-down → **block**.
    - Every tool result is **redacted** (API keys, tokens, private keys, connection strings) then harvested into `jevEvidence` with no extra Jev call. Search/browser evidence uses the same `mergeEvidence` path — raw secrets never reach Qwen, the compacted thread, memories, or persisted chat.
@@ -518,6 +518,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 10 — Qwen sees the thread; voice shares it
+
+Loading history into `input.messages` was not enough: `run(agent, userMessage)` still sent Qwen a single string. Core now converts the compacted thread to `AgentInputItem[]`. Voice (`/api/voice` + desktop `voice.turn`) uses the same owned thread, persists the turn, and returns a generic error if the pipeline throws.
 
 ### Wave 9 — One-RTT search + redacted tool events
 

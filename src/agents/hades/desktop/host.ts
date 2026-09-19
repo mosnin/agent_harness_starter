@@ -74,7 +74,7 @@ export function createDesktopHost(options: DesktopHostOptions = {}): DesktopHost
           await runChat(harness, command.text, command.threadId, threads, emit);
           return;
         case "voice.turn":
-          await runVoice(harness, command.audioBase64, emit);
+          await runVoice(harness, command.audioBase64, command.threadId, threads, emit);
           return;
         case "desktop.act":
           await runDesktopAct(command, asker, cap, emit);
@@ -139,11 +139,27 @@ async function runChat(
 async function runVoice(
   harness: HadesHarness,
   audioBase64: string,
+  threadId: string | undefined,
+  threads: Map<string, HarnessMessage[]>,
   emit: (event: DesktopEvent) => void
 ): Promise<void> {
+  const id = threadId?.trim() || "default";
+  const prior = threads.get(id) ?? [];
   const audio = Buffer.from(audioBase64, "base64");
-  const result = await harness.voiceTurn(audio, { context: { channel: "desktop" } });
+  const result = await harness.voiceTurn(audio, {
+    messages: prior,
+    context: { channel: "desktop", threadId: id },
+  });
   const spoken = redactSecrets(result.finalOutput).text;
+  const transcript = redactSecrets(result.transcript).text;
+  threads.set(
+    id,
+    messagesForHarness([
+      ...prior,
+      { role: "user", content: transcript },
+      { role: "assistant", content: spoken },
+    ])
+  );
   emit({ type: "message.done", content: spoken });
   emit({ type: "run.done", finalOutput: spoken });
 }

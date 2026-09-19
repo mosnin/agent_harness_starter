@@ -45,3 +45,38 @@ export function appendHarnessTurn(
 ): HarnessMessage[] {
   return messagesForHarness([...prior, turn]);
 }
+
+/**
+ * OpenAI Agents `run()` accepts a string or AgentInputItem[].
+ * A single latest-user string is a cold start. When we have prior turns,
+ * pass them as typed items so Qwen sees the conversation, not a stuffed
+ * system-prompt appendix.
+ */
+export type SdkInputItem =
+  | { type: "message"; role: "user"; content: Array<{ type: "input_text"; text: string }> }
+  | { type: "message"; role: "assistant"; status: "completed"; content: Array<{ type: "output_text"; text: string }> }
+  | { type: "message"; role: "system"; content: string };
+
+export function toAgentInput(
+  messages: Array<{ role: string; content: string }>,
+  latestUser: string
+): string | SdkInputItem[] {
+  if (messages.length <= 1) return latestUser;
+  const items: SdkInputItem[] = [];
+  for (const msg of messages.slice(0, -1)) {
+    if (msg.role === "user") {
+      items.push({ type: "message", role: "user", content: [{ type: "input_text", text: msg.content }] });
+    } else if (msg.role === "assistant") {
+      items.push({
+        type: "message",
+        role: "assistant",
+        status: "completed",
+        content: [{ type: "output_text", text: msg.content }],
+      });
+    } else if (msg.role === "system") {
+      items.push({ type: "message", role: "system", content: msg.content });
+    }
+  }
+  items.push({ type: "message", role: "user", content: [{ type: "input_text", text: latestUser }] });
+  return items;
+}

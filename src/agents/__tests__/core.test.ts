@@ -160,6 +160,23 @@ describe("core harness — plugin lifecycle", () => {
     expect(runMock).toHaveBeenCalledWith(expect.anything(), "hello A B", expect.anything());
   });
 
+  it("passes prior turns to the SDK instead of a single user string", async () => {
+    const harness = createCustomHarness({ name: "Test", instructions: "x" });
+    await collect(
+      harness.stream({
+        messages: [
+          { role: "user", content: "first" },
+          { role: "assistant", content: "ok" },
+          { role: "user", content: "second" },
+        ],
+      })
+    );
+    const input = runMock.mock.calls[0]?.[1];
+    expect(Array.isArray(input)).toBe(true);
+    expect(JSON.stringify(input)).toContain("first");
+    expect(JSON.stringify(input)).toContain("second");
+  });
+
   it("blocks the run and emits error+done when onBeforeRun throws", async () => {
     const plugin: HarnessPlugin = {
       name: "blocker",

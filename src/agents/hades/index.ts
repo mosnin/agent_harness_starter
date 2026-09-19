@@ -47,7 +47,7 @@ export interface HadesConfig extends AgentConfig {
 
 export interface HadesHarness extends AgentHarness {
   route(message: string, currentRoute?: string): Promise<ModelRouterResult>;
-  voiceTurn(audio: Buffer | Uint8Array, input?: Omit<RunInput, "messages">): Promise<HadesVoiceResult>;
+  voiceTurn(audio: Buffer | Uint8Array, input?: Partial<RunInput>): Promise<HadesVoiceResult>;
 }
 
 export interface HadesVoiceResult extends RunResult {
@@ -138,8 +138,10 @@ export function createHadesHarness(agentConfig: HadesConfig): HadesHarness {
           audio,
         };
       }
+      const prior = (input?.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant" || m.role === "system");
+      const messages = [...prior, { role: "user" as const, content: transcript }];
       const result = await inner.run({
-        messages: [{ role: "user", content: transcript }],
+        messages,
         context: { ...(input?.context ?? {}), channel: "voice" },
         signal: input?.signal,
       });
@@ -159,8 +161,8 @@ export function createHadesHarness(agentConfig: HadesConfig): HadesHarness {
 export { HADES_QWEN_ROUTES };
 export { withJev } from "../plugins/jev";
 export type { JevPluginOptions } from "../plugins/jev";
-export { isThreadOwner, messagesForHarness, appendHarnessTurn } from "../lib/thread-history";
-export type { HarnessMessage } from "../lib/thread-history";
+export { isThreadOwner, messagesForHarness, appendHarnessTurn, toAgentInput } from "../lib/thread-history";
+export type { HarnessMessage, SdkInputItem } from "../lib/thread-history";
 
 /** Voice executes only on a confident Jev auto / execute_now decision. */
 export function shouldExecuteVoice(intent: { action: string; value: unknown }): boolean {
