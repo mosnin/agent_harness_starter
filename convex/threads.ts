@@ -42,22 +42,12 @@ export const listByUser = internalQuery({
     if (userId !== subject) {
       throw new Error("Unauthorized");
     }
-    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : undefined;
-    if (take !== undefined) {
-      return await ctx.db
-        .query("agent_threads")
-        .withIndex("by_user_and_updated", (q) => q.eq("userId", subject))
-        .order("desc")
-        .take(take);
-    }
-    const rows = await ctx.db
+    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : 50;
+    return await ctx.db
       .query("agent_threads")
-      .withIndex("by_user", (q) => q.eq("userId", subject))
-      .collect();
-    return rows.sort(
-      (a, b) =>
-        (b.updatedAt ?? b._creationTime) - (a.updatedAt ?? a._creationTime)
-    );
+      .withIndex("by_user_and_updated", (q) => q.eq("userId", subject))
+      .order("desc")
+      .take(take);
   },
 });
 

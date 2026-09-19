@@ -228,6 +228,10 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | `browser_scrape` of a normal page | one `jev.decision` pair (`screen_external` + `browser_step` + pagegrade), `jevBrowser` on the tool result |
 | `browser_scrape` of a spam-graded page | `pagegrade-spam` block, no click |
 | Swarm `completeTaskJev` on a stuck worker | task `failed`, not `done` |
+| Swarm `submitTask` / `submitTaskJev` with a canned jailbreak or `AWS_SECRET_*=` | task `failed` (`injection-local` / `leaks-secret-local`), no worker assigned |
+| Swarm assign among 2–8 agents with `needs_human ≥ 0.7` | task `failed` (`needs-human`), no `selectAgent` fallback |
+| Swarm task that only mentions credentials / jailbreaks | still assigns |
+| Convex `messages:list` / `threads:listByUser` without `limit` | at most 100 messages / 50 threads |
 | `web_search` results that contradict each other | empty `ranked`, conflict card in `jevEvidence`, no side picked |
 | Factual `web_search` with a clear `best` snippet | `jevDirectReply` from the snippet, remaining Qwen tokens aborted |
 | Tool that does not bind to the request | `jev.decision` `unbound-tool` HITL or block |

@@ -471,6 +471,7 @@ Fixed:
 - An SSN (`123-45-6789`) is `[SSN]` and `leaks-secret-local`. `2024-01-15` is not. ECS `169.254.170.2`, Alibaba `100.100.100.200`, and `kubernetes.default.svc` are `target-local` SSRF. `/api/voice` rejects an oversized `Content-Length` before parse.
 - Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Pagegrade (`scorePage`) runs in that same ask: spam trust blocks; a poor grade extracts instead of clicking. Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
 - Swarm `completeTaskJev` uses unused `superviseWorker`. A stuck or off-track worker is failed instead of marked done. Jev-down does not accept the work.
+- Swarm `submitTask` / `submitTaskJev` / `pickSwarmAgent` screen jailbreak and secret payloads at zero RTT (`injection-local` / `leaks-secret-local`) and fail the task — they do not fall back to `selectAgent`. A mention of credentials or jailbreaks still assigns. The 2–8 agent assign ask now rides unused triage `needs_human` / `urgency`; `needs_human ≥ 0.7` is review, no worker. Convex `messages:list` and `threads:listByUser` always `take` (100 / 50) so a missing adapter `limit` cannot `.collect()` the table.
 - Search rerank now includes unused `sdeCascade` / `compareTexts` presence questions on the same ask. Material contradiction empties `ranked` and harvests a conflict card so Qwen cannot pick a side. `wrong_fn` on `runToolGate` blocks a tool that does not bind to the user request (`unbound-tool`).
 - Search also asks unused `semanticFind` `best` on that same hop. A factual turn (`is_factual ≥ 0.7`) with `hasAnswer` and a ranked `best` snippet sets `jevEvidenceAnswer` / `jevDirectReply`. Core aborts the remaining Qwen tokens; `onAfterRun` ships the grounded reply and skips postflight.
 - Unused `judge` now rides the existing postflight ask as `recommendation` when evidence is present. `abstain` replaces the draft (same as grounding); `ask_user` is review. Still one System One call. `GET /api/threads` is capped at 50.
@@ -482,7 +483,7 @@ Fixed:
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop. `value` now also rides search when candidates exist. `judge` now rides postflight; the standalone helper remains for MCP. A sentence that only mentions "eyJ" or "xai" is not a token. Unhyphenated 9-digit numbers are not treated as SSNs. `GET /api/threads` returns at most 50 rows. MCP discovery GET stays public.
+Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop. `value` now also rides search when candidates exist. `judge` now rides postflight; the standalone helper remains for MCP. `needs_human` now rides the 2–8 swarm assign ask; the standalone `triageItems` helper remains. A sentence that only mentions "eyJ" or "xai" is not a token. Unhyphenated 9-digit numbers are not treated as SSNs. `GET /api/threads` returns at most 50 rows. Convex list internals default to the same caps. MCP discovery GET stays public. Do not add a Jev hop for a single capable swarm agent (that path stays zero-RTT).
 
 ---
 
@@ -558,6 +559,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 41 — Screen swarm tasks + triage on assign + Convex list defaults
+
+A jailbreak or key dump submitted as a swarm task used to assign to a worker (`submitTask` / `submitTaskJev` → `selectAgent`). `screenSwarmTask` now fail-closes those at zero RTT. `submitTaskJev` does not fall back to `selectAgent` after a refuse. Unused `triageItems` `needs_human` / `urgency` ride the existing 2–8 agent assign ask — one RTT, no extra hop. Convex `messages:list` and `threads:listByUser` always `take` (default 100 / 50) so omitting `limit` cannot scan the table.
 
 ### Wave 40 — Desktop body caps + STS/webhook keys + Windows SAM
 

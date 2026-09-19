@@ -39,10 +39,8 @@ export const list = internalQuery({
     const indexed = ctx.db
       .query("agent_messages")
       .withIndex("by_thread", (q) => q.eq("threadId", threadId));
-    if (limit !== undefined && Number.isFinite(limit) && limit >= 0) {
-      const newest = await indexed.order("desc").take(limit);
-      return newest.reverse();
-    }
-    return await indexed.collect();
+    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : 100;
+    const newest = await indexed.order("desc").take(take);
+    return newest.reverse();
   },
 });

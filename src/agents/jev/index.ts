@@ -111,7 +111,7 @@ export {
   DESKTOP_WRITE_ACTIONS,
   DESKTOP_READ_ACTIONS,
 } from "./desktop";
-export { createJevSpecialistRouter, jevWhen, jevUntil, pickSwarmAgent } from "./orchestrate";
+export { createJevSpecialistRouter, jevWhen, jevUntil, pickSwarmAgent, screenSwarmTask } from "./orchestrate";
 export { decisionEvent, queueDecision, drainPendingPluginEvents } from "./events";
 
 export type {

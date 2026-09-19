@@ -6,13 +6,29 @@
 import type { AgentConfig, RunInput } from "../types";
 import type { StepCondition, WorkflowContext } from "../workflow/types";
 import type { SwarmAgent, SwarmTask } from "../swarm/types";
+import { URGENCY_LEVELS } from "./catalog";
 import { createJevAsker } from "./client";
-import { NOUL } from "./policy";
-import { noul } from "./questions";
+import { hasLocalInjection, hasLocalInjectionIn, localInjectionBlock } from "./inject";
+import { GATES, NOUL, decideChoice, decideUnavailable } from "./policy";
+import { choice, noul, score } from "./questions";
 import { mapReduceChoice } from "./mapreduce";
+import { hasSevereSecret, localSecretBlock } from "./redact";
 import { routeIntent } from "./router";
 import type { JevAsker, PolicyDecision } from "./types";
-import { requireNoul } from "./validate";
+import { requireChoice, requireNoul } from "./validate";
+
+/** Zero-RTT refuse: do not hand a jailbreak or key dump to a worker. */
+export function screenSwarmTask(
+  task: Pick<SwarmTask, "description"> & { payload?: unknown }
+): PolicyDecision | null {
+  if (hasSevereSecret(task.description) || hasSevereSecret(task.payload)) {
+    return localSecretBlock("swarm_assign");
+  }
+  if (hasLocalInjection(task.description) || hasLocalInjectionIn(task.payload)) {
+    return localInjectionBlock("swarm_assign");
+  }
+  return null;
+}
 
 export function createJevSpecialistRouter(opts: { asker?: JevAsker } = {}) {
   return async (
@@ -88,7 +104,9 @@ export function jevUntil(input: {
 }
 
 export async function pickSwarmAgent(input: {
-  task: Pick<SwarmTask, "description" | "requiredCapabilities" | "priority">;
+  task: Pick<SwarmTask, "description" | "requiredCapabilities" | "priority"> & {
+    payload?: unknown;
+  };
   agents: SwarmAgent[];
   asker?: JevAsker;
 }): Promise<{ agent?: SwarmAgent; decision: PolicyDecision }> {
@@ -98,6 +116,10 @@ export async function pickSwarmAgent(input: {
       a.status !== "error" &&
       input.task.requiredCapabilities.every((cap) => a.capabilities.includes(cap))
   );
+  const blocked = screenSwarmTask(input.task);
+  if (blocked) {
+    return { decision: blocked };
+  }
   if (capable.length === 0) {
     return {
       decision: { action: "review", value: "", reason: "no-capable-agent", node: "swarm_assign" },
@@ -116,6 +138,47 @@ export async function pickSwarmAgent(input: {
       `${a.name} (load ${a.load.toFixed(2)}, caps: ${a.capabilities.join(", ")})`,
     ])
   );
+
+  if (capable.length <= 8) {
+    const asker = input.asker ?? createJevAsker();
+    const asked = await asker.ask({
+      state: {
+        task: input.task.description.slice(0, 2000),
+        required: input.task.requiredCapabilities,
+        priority: input.task.priority,
+      },
+      questions: {
+        pick: choice("Which agent should take `task` given load and capabilities?", {
+          ...options,
+          __none__: "None of these agents should take this task.",
+        }),
+        needs_human: noul("Does `task` need a human rather than a worker?"),
+        urgency: score("How urgent is `task`?", URGENCY_LEVELS),
+      },
+    });
+    if (!asked.ok) {
+      return { decision: decideUnavailable("swarm_assign", "__none__", "review") };
+    }
+    const needsHuman = requireNoul(asked.result.answers, "needs_human");
+    if (needsHuman >= 0.7) {
+      return {
+        decision: {
+          action: "review",
+          value: "__none__",
+          reason: "needs-human",
+          node: "swarm_assign",
+          answers: asked.result.answers,
+        },
+      };
+    }
+    const decision = {
+      ...decideChoice("swarm_assign", requireChoice(asked.result.answers, "pick"), GATES.routing, "__none__"),
+      answers: asked.result.answers,
+    };
+    const agent = capable.find((a) => a.id === decision.value);
+    return { agent, decision };
+  }
+
   const decision = await mapReduceChoice({
     node: "swarm_assign",
     instructions: "Which agent should take `task` given load and capabilities?",

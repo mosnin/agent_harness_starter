@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { screenSwarmTask } from "../jev/orchestrate";
 import type {
   SwarmAgent,
   SwarmConfig,
@@ -118,6 +119,10 @@ export class SwarmCoordinator {
     };
 
     this.tasks.set(newTask.id, newTask);
+    const blocked = screenSwarmTask(newTask);
+    if (blocked) {
+      return this.failTask(newTask.id, blocked.reason);
+    }
 
     // Auto-assign if a suitable agent is available
     const agent = this.selectAgent(newTask);
@@ -145,11 +150,23 @@ export class SwarmCoordinator {
     this.tasks.set(newTask.id, newTask);
     this._checkOfflineAgents();
     const { pickSwarmAgent } = await import("../jev/orchestrate");
+    const blocked = screenSwarmTask(newTask);
+    if (blocked) {
+      return this.failTask(newTask.id, blocked.reason);
+    }
     const picked = await pickSwarmAgent({
       task: newTask,
       agents: Array.from(this.agents.values()),
       asker,
     });
+    if (
+      picked.decision.action === "block" ||
+      picked.decision.reason === "needs-human" ||
+      picked.decision.reason === "injection-local" ||
+      picked.decision.reason === "leaks-secret-local"
+    ) {
+      return this.failTask(newTask.id, picked.decision.reason);
+    }
     const agent = picked.agent ?? this.selectAgent(newTask);
     if (agent) return this.assignTask(newTask.id, agent.id);
     return newTask;

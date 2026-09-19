@@ -162,6 +162,7 @@ export {
   jevWhen,
   jevUntil,
   pickSwarmAgent,
+  screenSwarmTask,
 } from "./jev/index";
 export type { JevClient, JevAsker, PolicyDecision, SystemOneResult } from "./jev/index";
 
