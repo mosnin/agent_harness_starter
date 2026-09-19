@@ -501,6 +501,7 @@ Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev n
 | Memories never injected | `jevFilter: true` and Jev down (empty set is correct) |
 | Voice always “say that again” | Intent not `auto`/`execute_now`, or Jev unconfigured |
 | No `jev_*` on `/api/mcp` | `HADES_MCP_JEV` is not `true` |
+| `/api/mcp` 401 on tool calls | Missing auth; set `HADES_MCP_ANON=true` only for a trusted local inspector |
 | SSE has no `jev_decision` | Plugin not installed, or events not drained (need current `core.ts`) |
 | Qwen 401 | Missing `OPENROUTER_API_KEY` |
 | Voice 413 | Audio larger than 8 MiB |

@@ -223,7 +223,7 @@ This means:
 
 ### Securing your MCP endpoint
 
-For internal use, add authentication to `/api/mcp`:
+Tool calls on `/api/mcp` require `auth.requireAuth` unless `HADES_MCP_ANON=true` (local inspector only). Discovery GET stays public. To use a shared secret instead:
 
 ```typescript
 // routes/mcp/route.ts

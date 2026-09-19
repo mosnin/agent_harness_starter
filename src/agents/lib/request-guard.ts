@@ -14,7 +14,7 @@ export const MAX_JSON_BODY_BYTES = 64 * 1024;
 export const MAX_TOOL_NAMES = 32;
 
 /** Local inspectors only. Production MCP tool calls require auth. */
-export function mcpAnonymousAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+export function mcpAnonymousAllowed(env: Record<string, string | undefined> = process.env): boolean {
   return env.HADES_MCP_ANON === "true";
 }
 
