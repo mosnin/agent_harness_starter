@@ -294,6 +294,45 @@ describe("grounding + quiet-ask + tool gate", () => {
     expect(mentioned.asks).toBe(1);
   });
 
+  it("blocks writes and grep against secret paths without calling Jev", async () => {
+    let calls = 0;
+    const client = createMockJevClient(async () => {
+      calls += 1;
+      throw new Error("network");
+    });
+    const asker = createJevAsker(client);
+    const redirected = await runToolGate({
+      userRequest: "save the output",
+      toolName: "shell_exec",
+      toolArguments: { command: "echo pwned > /etc/passwd" },
+      asker,
+    });
+    const copied = await runToolGate({
+      userRequest: "install a key",
+      toolName: "shell_exec",
+      toolArguments: { command: "cp notes.txt ~/.ssh/authorized_keys" },
+      asker,
+    });
+    const grepped = await runToolGate({
+      userRequest: "find the root line",
+      toolName: "shell_exec",
+      toolArguments: { command: "grep root /etc/passwd" },
+      asker,
+    });
+    const mentioned = await runToolGate({
+      userRequest: "print a warning",
+      toolName: "shell_exec",
+      toolArguments: { command: "echo never use > with /etc/passwd" },
+      asker,
+    });
+    expect(calls).toBe(1);
+    expect(redirected.asks).toBe(0);
+    expect(redirected.decisions[0]?.reason).toBe("target-local");
+    expect(copied.decisions[0]?.reason).toBe("target-local");
+    expect(grepped.decisions[0]?.reason).toBe("target-local");
+    expect(mentioned.asks).toBe(1);
+  });
+
   it("batches auto-mode and malware into one System One call", async () => {
     let calls = 0;
     const client = createMockJevClient((req) => {

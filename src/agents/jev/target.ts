@@ -7,6 +7,8 @@
  * also skipped the label. Interpreter one-liners (`python -c open(...)`)
  * are the same class. Those strings do not need a 70–500ms hop.
  * Search queries and echo/README mentions are not blocked.
+ * Write verbs and redirects to those same paths (`tee`, `cp`, `>`)
+ * are the same class — overwriting a secret file does not need Jev.
  */
 
 import { commandFromToolArgs } from "./destructive";
@@ -36,7 +38,10 @@ const METADATA_HOST =
 const FILE_SCHEME = /^file:/i;
 
 const READ_OR_FETCH =
-  /\b(?:cat|less|more|head|tail|nl|od|xxd|hexdump|strings|curl|wget|scp|rsync)\b/i;
+  /\b(?:cat|less|more|head|tail|nl|od|xxd|hexdump|strings|curl|wget|scp|rsync|grep|egrep|fgrep|awk|sed|cut|sort|uniq|rg|bat|dd)\b/i;
+const WRITE_VERB = /\b(?:cp|mv|tee|install|chmod|chown|chattr|ln|dd)\b/i;
+const REDIRECT_TO_SECRET =
+  /(?:^|[\s;|&])(?:>>?|2>>?|&>>?)\s*(?:["']?)(?:~\/|\/)?(?:etc[\\/](?:passwd|shadow|sudoers)|(?:\.\.\/)*\.env(?:\.[A-Za-z0-9._-]+)?|\.npmrc|\.netrc|\.ssh|\.aws|id_rsa|id_ed25519|authorized_keys)/i;
 const INTERPRETER_EVAL =
   /\b(?:python3?|node(?:js)?|ruby|perl|php)\b[\s\S]{0,120}(?:\s-[ce]\b|\bopen\s*\(|\breadFile(?:Sync)?\s*\(|\brequire\s*\(|\bFile\.open\s*\()/i;
 const FILE_IN_COMMAND = /\bfile:\/\//i;
@@ -76,7 +81,10 @@ export function classifyCommandTarget(command: string): PolicyDecision | null {
     return localTargetBlock("ssrf");
   }
   const readsSecret = UNIX_EXFIL.test(command) || SECRET_FILE.test(command);
-  if (READ_OR_FETCH.test(command) && readsSecret) {
+  if (readsSecret && (READ_OR_FETCH.test(command) || WRITE_VERB.test(command))) {
+    return localTargetBlock("exfil");
+  }
+  if (REDIRECT_TO_SECRET.test(command)) {
     return localTargetBlock("exfil");
   }
   if (INTERPRETER_EVAL.test(command) && readsSecret) {

@@ -459,11 +459,12 @@ Fixed:
 - Safe-read tools (`file_read`, `web_search`, …) skipped Jev entirely, so `/etc/passwd`, `../.env`, and `http://169.254.169.254/` never got a screen. `localTargetDecision` now blocks those on path/url keys (`target-local`) at zero RTT, including when Auto Mode is off. A search *query* that mentions `/etc/passwd` is not blocked.
 - Failed shells used to ask Jev (or fail-closed) for every nonzero exit. Canned ENOENT / EACCES / ETIMEDOUT / TypeError are `failure-local` and reach Qwen with a typed class. Unknown stderr still fail-closed when Jev is down. Secrets still `leaks-secret-local`.
 - Desktop writes (`desktop.act`) apply the same local target / secret labels before Cap. An export of `/etc/passwd` or a patch that embeds `sk-` is `target-local` / `leaks-secret-local` at zero RTT.
-- `shell_exec` `cat /etc/passwd` / `curl 169.254.169.254` is `target-local` at zero RTT. An echo that only *mentions* `/etc/passwd` is not blocked.
+- `shell_exec` `cat /etc/passwd` / `curl 169.254.169.254` is `target-local` at zero RTT. Writes and extra reads (`echo x > /etc/passwd`, `cp … ~/.ssh/authorized_keys`, `grep root /etc/passwd`) are the same label. An echo that only *mentions* `/etc/passwd` is not blocked.
 - Desktop writes with a canned jailbreak in `userRequest` / args are `injection-local`. `DELETE /api/threads/[id]` 404s unless the caller owns the thread (`getOwnedThread`).
 - Convex `threads` / `messages` / `runs` are internal and require `ctx.auth.getUserIdentity()`. The HTTP adapter calls them with `CONVEX_ADMIN_KEY` acting as the signed-in user. A leaked `CONVEX_URL` cannot spoof `userId`.
 - Memory / Supabase / Prisma adapters hide foreign threads when `userId` is passed (same contract as Convex). Supabase requires `SUPABASE_SERVICE_ROLE_KEY` (never the anon key) and ships RLS so a browser JWT cannot read another user's rows.
 - `python3 -c "open('/etc/passwd')"` / `node -e "require('fs').readFileSync('/etc/passwd')"` is `target-local` at zero RTT. An echo that only mentions those tokens still passes.
+- `echo pwned > /etc/passwd`, `cp notes.txt ~/.ssh/authorized_keys`, and `grep root /etc/passwd` are `target-local` at zero RTT. A warning that only mentions `>` and `/etc/passwd` still passes.
 - Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Pagegrade (`scorePage`) runs in that same ask: spam trust blocks; a poor grade extracts instead of clicking. Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
 - Swarm `completeTaskJev` uses unused `superviseWorker`. A stuck or off-track worker is failed instead of marked done. Jev-down does not accept the work.
 - Search rerank now includes unused `sdeCascade` / `compareTexts` presence questions on the same ask. Material contradiction empties `ranked` and harvests a conflict card so Qwen cannot pick a side. `wrong_fn` on `runToolGate` blocks a tool that does not bind to the user request (`unbound-tool`).
@@ -545,6 +546,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 27 — Secret-path writes and grep
+
+`cat /etc/passwd` was `target-local`, but `echo pwned > /etc/passwd`, `cp … ~/.ssh/authorized_keys`, and `grep root /etc/passwd` still reached the shell (or waited on Jev). Write verbs, redirects whose destination is a secret path, and extra read verbs (`grep` / `sed` / `awk` / `dd`) now share that zero-RTT label. A warning that only *mentions* `>` and `/etc/passwd` still passes.
 
 ### Wave 26 — Search SDE + unbound-tool bind
 
