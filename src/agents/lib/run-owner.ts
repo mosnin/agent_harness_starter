@@ -5,8 +5,17 @@
  * ownership the same way ingress does.
  */
 
-import type { AgentRun, DbAdapter } from "../db/types";
+import type { AgentRun, AgentThread, DbAdapter } from "../db/types";
 import { isThreadOwner } from "./thread-history";
+
+export async function getOwnedThread(
+  database: Pick<DbAdapter, "getThread">,
+  threadId: string,
+  userId: string
+): Promise<AgentThread | null> {
+  const thread = await database.getThread(threadId);
+  return isThreadOwner(thread, userId) ? thread : null;
+}
 
 export async function getOwnedRun(
   database: Pick<DbAdapter, "getRun" | "getThread">,

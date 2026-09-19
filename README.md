@@ -277,6 +277,7 @@ agent_harness_starter/
 │   ├── agent/route.ts         # POST /api/agent — streaming SSE endpoint
 │   ├── mcp/route.ts           # GET+POST /api/mcp — MCP server
 │   ├── threads/route.ts       # GET/POST /api/threads
+│   ├── threads/[id]/route.ts  # DELETE /api/threads/[id] (owner only)
 │   └── composio/connect/route.ts  # GET /api/composio/connect
 │
 ├── components/                # Copy to: your-project/src/components/

@@ -1,7 +1,7 @@
 /**
  * GET  /api/threads         — list threads for authenticated user
  * POST /api/threads         — create a new thread
- * DELETE /api/threads/:id   — delete a thread
+ * DELETE /api/threads/[id]  — delete an owned thread (see ./[id]/route.ts)
  */
 
 import { z } from "zod";

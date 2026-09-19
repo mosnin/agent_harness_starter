@@ -12,6 +12,7 @@
 import { createJevAsker } from "./client";
 import { GATES, decideChoice, decideUnavailable } from "./policy";
 import { choice, noul } from "./questions";
+import { hasLocalInjection, hasLocalInjectionIn, localInjectionBlock } from "./inject";
 import { hasSevereSecret, localSecretBlock } from "./redact";
 import { localTargetDecision } from "./target";
 import type { JevAsker, PolicyDecision } from "./types";
@@ -66,6 +67,9 @@ export async function assessDesktopAction(input: {
   }
   if (hasSevereSecret(input.args) || hasSevereSecret(input.userRequest)) {
     return localSecretBlock("desktop_action");
+  }
+  if (hasLocalInjection(input.userRequest ?? "") || hasLocalInjectionIn(input.args)) {
+    return localInjectionBlock("desktop_action");
   }
 
   if (isDesktopRead(input.action)) {

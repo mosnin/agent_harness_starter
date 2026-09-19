@@ -31,6 +31,7 @@ routes/voice/route.ts           → src/app/api/voice/route.ts   (OpenAI STT/TTS
 src/agents/hades/desktop/       → desktop sidecar (Tauri stdin/stdout, not an HTTP route)
 routes/mcp/route.ts             → src/app/api/mcp/route.ts
 routes/threads/route.ts         → src/app/api/threads/route.ts
+routes/threads/[id]/route.ts    → src/app/api/threads/[id]/route.ts
 components/AgentChat/           → src/components/AgentChat/
 components/AgentStatus/         → src/components/AgentStatus/
 ```

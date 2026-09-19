@@ -445,6 +445,7 @@ Fixed:
 - `/api/hades` and `/api/voice` use `auth.requireAuth`.
 - `/api/hades`, `/api/agent`, and `/api/anthropic-agent` POST return 404 unless `thread.userId` matches the caller. They load thread history (redacted, last 40) instead of a single-line cold start.
 - `/api/agent/[runId]/approve` and `/cancel` return 404 unless the caller owns the run's thread (`getOwnedRun`).
+- `DELETE /api/threads/[id]` returns 404 unless the caller owns the thread (`getOwnedThread`). `db.deleteThread` is never called on another user's id.
 - SSE / desktop `message_delta` events go through `createRedactStream` so a key split across two chunks is held until it can be replaced. `message_done` still rewrites the full text.
 - Tool stdout, search/browser evidence, compacted threads, streamed deltas, abstains, memories, desktop `cap` output, and persisted `/api/hades` + `/api/agent` + `/api/anthropic-agent` messages are locally redacted (`redactSecrets`) before they reach Qwen or storage.
 - System One `state` is sanitized the same way. Severe labels (`API_KEY`, `AWS_KEY`, env-style `*_SECRET=*`, …) force `secret_leak` / `leaks_secret` to 1.0 in code. TypeSafe never receives the raw key.
@@ -455,6 +456,7 @@ Fixed:
 - Failed shells used to ask Jev (or fail-closed) for every nonzero exit. Canned ENOENT / EACCES / ETIMEDOUT / TypeError are `failure-local` and reach Qwen with a typed class. Unknown stderr still fail-closed when Jev is down. Secrets still `leaks-secret-local`.
 - Desktop writes (`desktop.act`) apply the same local target / secret labels before Cap. An export of `/etc/passwd` or a patch that embeds `sk-` is `target-local` / `leaks-secret-local` at zero RTT.
 - `shell_exec` `cat /etc/passwd` / `curl 169.254.169.254` is `target-local` at zero RTT. An echo that only *mentions* `/etc/passwd` is not blocked.
+- Desktop writes with a canned jailbreak in `userRequest` / args are `injection-local`. `DELETE /api/threads/[id]` 404s unless the caller owns the thread (`getOwnedThread`).
 - Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
@@ -498,7 +500,7 @@ Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev n
 **Decision core:** `src/agents/jev/*` (including `browser.ts`, `target.ts`, `failure.ts`)  
 **Harness:** `plugins/jev.ts`, `plugins/memory.ts`, `core.ts`, `hades/index.ts`, `orchestrator.ts`, `workflow/index.ts`, `swarm/coordinator.ts`, `lib/thread-history.ts`, `lib/run-owner.ts`  
 **Providers:** `providers/openrouter.ts`, `providers/voice.ts`  
-**Routes:** `routes/hades/route.ts`, `routes/voice/route.ts`, `routes/agent/route.ts`, `routes/anthropic-agent/route.ts`  
+**Routes:** `routes/hades/route.ts`, `routes/voice/route.ts`, `routes/agent/route.ts`, `routes/anthropic-agent/route.ts`, `routes/threads/route.ts`, `routes/threads/[id]/route.ts`  
 **UI:** `components/AgentChat/index.tsx`  
 **Example:** `src/agents/examples/hades-agent.ts`  
 **Tests:** `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`, `thread-history.test.ts`, `core.test.ts`  
@@ -534,6 +536,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 21 — Desktop jailbreak + owned thread delete
+
+`desktop.act` still asked Jev after a canned "ignore previous instructions" in `userRequest` / args. That is now `injection-local` at zero RTT; Cap does not start. `/api/threads` advertised `DELETE /:id` but the route did not exist, and `db.deleteThread` has no owner check. `DELETE /api/threads/[id]` now 404s unless `getOwnedThread` matches the caller.
 
 ### Wave 20 — Command-line exfil / SSRF
 
