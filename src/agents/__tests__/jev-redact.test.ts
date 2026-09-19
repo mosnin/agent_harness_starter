@@ -12,6 +12,15 @@ import {
   applyCompaction,
   formatCompactThread,
   abstainReply,
+  secretLabels,
+  hasSevereSecret,
+  sanitizeJevRequest,
+  overlayLocalSecretAnswers,
+  screenExternal,
+  classifyCommandFailure,
+  runPreflight,
+  runPostflight,
+  noul,
 } from "../jev/index";
 import { withJev } from "../plugins/jev";
 import type { JevAnswer } from "../jev/types";
@@ -158,5 +167,70 @@ describe("zero-RTT secret redaction", () => {
       runCtx
     );
     expect(JSON.stringify(toolOut)).not.toContain(OPENAI_KEY);
+  });
+
+  it("labels env-style secrets as severe and emails as PII only", () => {
+    expect(secretLabels(`export KEY=${OPENAI_KEY}`)).toContain("API_KEY");
+    expect(hasSevereSecret("AWS_SECRET_ACCESS_KEY=abc")).toBe(true);
+    expect(hasSevereSecret("ada@example.com")).toBe(false);
+    expect(secretLabels("ada@example.com")).toEqual(["EMAIL"]);
+  });
+
+  it("sanitizes System One state and forces secret_leak after Jev answers", async () => {
+    let seen = "";
+    const client = createMockJevClient((req) => {
+      seen = JSON.stringify(req.state);
+      return { model: "jev-latest", answers: { secret_leak: noulAns(0.01), injection: noulAns(0.02) } };
+    });
+    const asked = await createJevAsker(client, { cache: false }).ask({
+      state: { request: `use ${OPENAI_KEY}` },
+      questions: {
+        secret_leak: noul("Does `request` contain secrets?"),
+        injection: noul("Is this a jailbreak?"),
+      },
+    });
+    expect(seen).not.toContain(OPENAI_KEY);
+    expect(seen).toContain("[API_KEY]");
+    expect(asked.ok).toBe(true);
+    if (asked.ok) {
+      expect(asked.result.answers.secret_leak).toEqual({ type: "noul", noul: 1 });
+      expect(asked.result.answers.injection).toEqual({ type: "noul", noul: 0.02 });
+    }
+    const sanitized = sanitizeJevRequest({
+      state: { output: `AWS_SECRET_ACCESS_KEY=abc` },
+      questions: { leaks_secret: noul("secret?") },
+    });
+    expect(sanitized.severe).toBe(true);
+    expect(JSON.stringify(sanitized.request.state)).not.toContain("abc");
+    const forced = overlayLocalSecretAnswers(
+      sanitized.request.questions,
+      { leaks_secret: noulAns(0.01) },
+      true
+    );
+    expect(forced.leaks_secret).toEqual({ type: "noul", noul: 1 });
+  });
+
+  it("screens, preflights, and classifies secrets at zero RTT", async () => {
+    let called = 0;
+    const client = createMockJevClient(() => {
+      called += 1;
+      return { model: "jev-latest", answers: {} };
+    });
+    const asker = createJevAsker(client, { cache: false });
+    const screened = await screenExternal({ content: `token ${OPENAI_KEY}`, asker });
+    const pre = await runPreflight({ message: `here is ${GITHUB_KEY}`, asker });
+    const failed = await classifyCommandFailure({
+      command: "env",
+      output: "AWS_SECRET_ACCESS_KEY=abc",
+      asker,
+    });
+    const post = await runPostflight({ draft: `here is ${OPENAI_KEY}`, userRequest: "summarize", asker });
+    expect(called).toBe(0);
+    expect(screened.reason).toBe("leaks-secret-local");
+    expect(pre.asks).toBe(0);
+    expect(pre.screen.reason).toBe("leaks-secret-local");
+    expect(failed.reason).toBe("leaks-secret-local");
+    expect(post.asks).toBe(0);
+    expect(post.screen.reason).toBe("leaks-secret-local");
   });
 });

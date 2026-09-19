@@ -8,6 +8,7 @@
 import { createJevAsker } from "./client";
 import { NOUL, noulBand, decideUnavailable } from "./policy";
 import { choice, noul, score } from "./questions";
+import { hasSevereSecret, localSecretBlock } from "./redact";
 import type { JevAsker, JevState, PolicyDecision } from "./types";
 import { requireChoice, requireNoul, requireScore } from "./validate";
 
@@ -20,6 +21,9 @@ export interface ScreenInput {
 }
 
 export async function screenExternal(input: ScreenInput): Promise<PolicyDecision> {
+  if (hasSevereSecret(input.content)) {
+    return localSecretBlock("screen_external");
+  }
   const asker = input.asker ?? createJevAsker();
   const asked = await asker.ask(
     {
@@ -78,6 +82,9 @@ export interface OutputScreenInput {
 }
 
 export async function screenOutput(input: OutputScreenInput): Promise<PolicyDecision> {
+  if (hasSevereSecret(input.draft) || hasSevereSecret(input.userRequest)) {
+    return localSecretBlock("screen_output");
+  }
   const asker = input.asker ?? createJevAsker();
   const asked = await asker.ask(
     {

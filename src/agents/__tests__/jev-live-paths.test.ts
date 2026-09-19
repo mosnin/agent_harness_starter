@@ -90,13 +90,30 @@ describe("fail-closed security", () => {
     ).rejects.toThrow(/blocked/i);
   });
 
-  it("blocks command-failure classification when Jev is down", async () => {
+  it("blocks command-failure secrets locally without calling Jev", async () => {
+    let called = 0;
     const client = createMockJevClient(async () => {
+      called += 1;
       throw new Error("network");
     });
     const decision = await classifyCommandFailure({
       command: "env",
       output: "AWS_SECRET_ACCESS_KEY=abc",
+      asker: createJevAsker(client),
+    });
+    expect(called).toBe(0);
+    expect(decision.action).toBe("block");
+    expect(decision.reason).toBe("leaks-secret-local");
+    expect(decision.node).toBe("command_failure");
+  });
+
+  it("blocks command-failure classification when Jev is down", async () => {
+    const client = createMockJevClient(async () => {
+      throw new Error("network");
+    });
+    const decision = await classifyCommandFailure({
+      command: "npm test",
+      output: "Error: ENOENT /tmp/missing-fixture.json",
       asker: createJevAsker(client),
     });
     expect(decision.action).toBe("block");

@@ -32,7 +32,18 @@ export { assessToolRisk, isSafeReadTool } from "./auto-mode";
 export { runToolGate, interpretInventedArgs } from "./toolgate";
 export { applyCompaction, formatCompactThread, parseCompactStrategy, isToolBlob } from "./compact";
 export { harvestToolEvidence, mergeEvidence } from "./harvest";
-export { redactSecrets, redactValue, createRedactStream } from "./redact";
+export {
+  redactSecrets,
+  redactValue,
+  createRedactStream,
+  secretLabels,
+  collectSecretLabels,
+  hasSevereSecret,
+  localSecretBlock,
+  overlayLocalSecretAnswers,
+  sanitizeJevRequest,
+  SEVERE_SECRET_LABELS,
+} from "./redact";
 export { splitSentences, interpretGrounding, abstainReply, CLARIFY_REPLY } from "./ground";
 export { screenExternal, screenOutput, verifyCitation, scanMalicious } from "./guardrails";
 export { scoreQuality, rerankResults, compositeScore, scorePage } from "./scoring";

@@ -10,6 +10,7 @@
  */
 
 import { resetJevAskCache, wrapAskerWithCache } from "./cache";
+import { overlayLocalSecretAnswers, sanitizeJevRequest } from "./redact";
 import type {
   JevAskResult,
   JevAsker,
@@ -106,10 +107,11 @@ export function createJevClient(config: JevClientConfig = {}): JevClient {
         throw new JevUnavailableError("Jev circuit open");
       }
 
+      const { request: clean } = sanitizeJevRequest(request);
       const body = JSON.stringify({
-        model: request.model ?? model,
-        state: request.state,
-        questions: request.questions,
+        model: clean.model ?? model,
+        state: clean.state,
+        questions: clean.questions,
       });
 
       let lastError: Error = new JevUnavailableError("Jev request failed");
@@ -147,7 +149,7 @@ export function createJevClient(config: JevClientConfig = {}): JevClient {
 }
 
 export function createJevAsker(client?: JevClient, options: JevAskerOptions = {}): JevAsker {
-  const inner: JevAsker = {
+  const transport: JevAsker = {
     async ask(request: SystemOneRequest, signal?: AbortSignal): Promise<JevAskResult> {
       if (!client && isJevCircuitOpen()) {
         return { ok: false, reason: "jev-circuit-open" };
@@ -170,7 +172,21 @@ export function createJevAsker(client?: JevClient, options: JevAskerOptions = {}
       }
     },
   };
-  return options.cache === false ? inner : wrapAskerWithCache(inner);
+  const cached = options.cache === false ? transport : wrapAskerWithCache(transport);
+  return {
+    async ask(request: SystemOneRequest, signal?: AbortSignal): Promise<JevAskResult> {
+      const { request: clean, severe } = sanitizeJevRequest(request);
+      const asked = await cached.ask(clean, signal);
+      if (!asked.ok || !severe) return asked;
+      return {
+        ...asked,
+        result: {
+          ...asked.result,
+          answers: overlayLocalSecretAnswers(clean.questions, asked.result.answers, true),
+        },
+      };
+    },
+  };
 }
 
 /** Tiny System One ping so TLS + HTTP/2 are warm before the first user turn. */

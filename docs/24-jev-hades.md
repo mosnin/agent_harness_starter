@@ -438,12 +438,14 @@ Fixed:
 - `/api/voice` rejects bodies over 8 MiB.
 - Jev HTTP `baseUrl` is env-only (no request-controlled SSRF).
 - `/api/hades` and `/api/voice` use `auth.requireAuth`.
-- `/api/hades` and `/api/agent` POST return 404 unless `thread.userId` matches the caller. They load thread history (redacted, last 40) instead of a single-line cold start.
-- Tool stdout, search/browser evidence, compacted threads, streamed deltas, abstains, memories, desktop `cap` output, and persisted `/api/hades` + `/api/agent` messages are locally redacted (`redactSecrets`) before they reach Qwen or storage. Jev still sees the raw blob on screens / command-failure so it can fail-close on a leak.
+- `/api/hades`, `/api/agent`, and `/api/anthropic-agent` POST return 404 unless `thread.userId` matches the caller. They load thread history (redacted, last 40) instead of a single-line cold start.
+- Tool stdout, search/browser evidence, compacted threads, streamed deltas, abstains, memories, desktop `cap` output, and persisted `/api/hades` + `/api/agent` + `/api/anthropic-agent` messages are locally redacted (`redactSecrets`) before they reach Qwen or storage.
+- System One `state` is sanitized the same way. Severe labels (`API_KEY`, `AWS_KEY`, env-style `*_SECRET=*`, …) force `secret_leak` / `leaks_secret` to 1.0 in code. TypeSafe never receives the raw key.
+- Screens, preflight, postflight, and `classifyCommandFailure` short-circuit on `hasSevereSecret` (`leaks-secret-local`) so a pasted key is a zero-RTT block even when Jev is down. EMAIL is PII-redacted but not a severe block.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): streaming redaction is per-chunk; a key split across two SSE deltas can leak until `message_done` / `onAfterRun` rewrite it. Search injection is scored in the same ask as rerank (not a second `screenExternal` hop).
+Residual (accepted): streaming redaction is per-chunk; a key split across two SSE deltas can leak until `message_done` / `onAfterRun` rewrite it. Search injection is scored in the same ask as rerank (not a second `screenExternal` hop). EMAIL is not treated as a severe local block.
 
 ---
 
@@ -482,7 +484,7 @@ Residual (accepted): streaming redaction is per-chunk; a key split across two SS
 **Decision core:** `src/agents/jev/*`  
 **Harness:** `plugins/jev.ts`, `plugins/memory.ts`, `core.ts`, `hades/index.ts`, `orchestrator.ts`, `workflow/index.ts`, `swarm/coordinator.ts`  
 **Providers:** `providers/openrouter.ts`, `providers/voice.ts`  
-**Routes:** `routes/hades/route.ts`, `routes/voice/route.ts`, `routes/agent/route.ts`  
+**Routes:** `routes/hades/route.ts`, `routes/voice/route.ts`, `routes/agent/route.ts`, `routes/anthropic-agent/route.ts`  
 **UI:** `components/AgentChat/index.tsx`  
 **Example:** `src/agents/examples/hades-agent.ts`  
 **Tests:** `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`, `core.test.ts`  
@@ -519,6 +521,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
 
+### Wave 11 — Secrets never leave for TypeSafe
+
+Qwen-facing redaction still left raw keys in System One `state` (user text, stderr, page blobs) so Jev could score `secret_leak`. That shipped credentials to TypeSafe and, when Jev was down, only failed closed after a wasted hop. `sanitizeJevRequest` now redacts every payload; `hasSevereSecret` blocks screens / preflight / postflight / command-failure locally (`leaks-secret-local`); the asker overlays `secret_leak` / `leaks_secret` = 1.0 if a severe label was present. `/api/anthropic-agent` now matches Hades: owner check, redacted persistence, last-40 history.
+
 ### Wave 10 — Qwen sees the thread; voice shares it
 
 Loading history into `input.messages` was not enough: `run(agent, userMessage)` still sent Qwen a single string. Core now converts the compacted thread to `AgentInputItem[]`. Voice (`/api/voice` + desktop `voice.turn`) uses the same owned thread, persists the turn, and returns a generic error if the pipeline throws.
@@ -533,7 +539,7 @@ Loading history into `input.messages` was not enough: `run(agent, userMessage)` 
 
 ### Wave 7 — Zero-RTT secret redaction
 
-Jev screens drafts, but a key in tool stdout used to land in `jevEvidence` and the next Qwen prompt before postflight. `redactSecrets` now strips keys locally on every Qwen-facing surface: tool results, harvest/merge, compacted threads, streamed deltas, abstains, memory store/retrieve, desktop `cap` output, and persisted `/api/hades` + `/api/agent` messages. Screens and command-failure still see the raw blob so Jev can fail-close.
+Jev screens drafts, but a key in tool stdout used to land in `jevEvidence` and the next Qwen prompt before postflight. `redactSecrets` now strips keys locally on every Qwen-facing surface: tool results, harvest/merge, compacted threads, streamed deltas, abstains, memory store/retrieve, desktop `cap` output, and persisted `/api/hades` + `/api/agent` messages. Wave 11 also sanitizes System One `state` and blocks severe secrets in code before the hop.
 
 ---
 

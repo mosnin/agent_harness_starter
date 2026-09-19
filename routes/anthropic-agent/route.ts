@@ -28,6 +28,8 @@
 import { z } from "zod";
 import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
+import { redactSecrets } from "@/agents/jev/redact";
+import { isThreadOwner, messagesForHarness } from "@/agents/lib/thread-history";
 import { sseStream } from "@/agents/lib/utils";
 import { createAnthropicHarness } from "@/agents/providers/anthropic";
 
@@ -57,13 +59,18 @@ export async function POST(req: Request) {
       ? await db.getThread(threadId)
       : await db.createThread(user.id);
 
-    if (!thread) {
+    if (!isThreadOwner(thread, user.id)) {
       return Response.json({ error: "Thread not found" }, { status: 404 });
     }
 
     const resolvedThreadId = thread.id;
 
-    await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: message });
+    await db.saveMessage({
+      threadId: resolvedThreadId,
+      role: "user",
+      content: redactSecrets(message).text,
+    });
+    const history = messagesForHarness(await db.getMessages(resolvedThreadId));
 
     const run = await db.createRun({
       threadId: resolvedThreadId,
@@ -81,7 +88,7 @@ export async function POST(req: Request) {
       let finalOutput = "";
       try {
         const stream = harness.stream({
-          messages: [{ role: "user", content: message }],
+          messages: history.length > 0 ? history : [{ role: "user", content: message }],
           context: { userId: user.id },
           signal: req.signal,
         });
@@ -97,14 +104,18 @@ export async function POST(req: Request) {
           if (event.type === "done") finalOutput = event.finalOutput;
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = redactSecrets(err instanceof Error ? err.message : String(err)).text;
         yield JSON.stringify({ type: "error", error: msg });
         await db.updateRun(run.id, { status: "failed", error: msg, completedAt: new Date() });
         return;
       }
 
       if (finalOutput) {
-        await db.saveMessage({ threadId: resolvedThreadId, role: "assistant", content: finalOutput });
+        await db.saveMessage({
+          threadId: resolvedThreadId,
+          role: "assistant",
+          content: redactSecrets(finalOutput).text,
+        });
       }
       await db.updateRun(run.id, { status: "completed", completedAt: new Date() });
     }

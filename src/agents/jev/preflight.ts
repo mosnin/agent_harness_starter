@@ -14,6 +14,7 @@ import { interpretHeedAnswers } from "./hooks";
 import { CLARIFY_REPLY } from "./ground";
 import { decideUnavailable, NOUL } from "./policy";
 import { choice, noul, score } from "./questions";
+import { hasSevereSecret, localSecretBlock } from "./redact";
 import {
   interpretModelRoute,
   interpretSkillRoute,
@@ -87,6 +88,23 @@ export async function runPreflight(input: PreflightInput): Promise<PreflightResu
       heed: [],
       skipGeneration: true,
       directReply: canned,
+    };
+  }
+
+  if (hasSevereSecret(input.message)) {
+    return {
+      asks: 0,
+      screen: localSecretBlock("screen_external"),
+      routed: {
+        action: "block",
+        value: fallback.id,
+        model: fallback.model,
+        tier: fallback.id,
+        reason: "leaks-secret-local",
+        node: "model_router",
+      },
+      heed: [],
+      skipGeneration: true,
     };
   }
 

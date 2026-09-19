@@ -12,6 +12,7 @@ import { interpretStopHook } from "./hooks";
 import { interpretCompletion } from "./decisions";
 import { decideUnavailable } from "./policy";
 import { choice, noul, score } from "./questions";
+import { hasSevereSecret, localSecretBlock } from "./redact";
 import { interpretQuality, type QualityScore } from "./scoring";
 import type { JevAsker, JevQuestions, JevState, PolicyDecision } from "./types";
 
@@ -48,8 +49,11 @@ export interface PostflightResult {
 }
 
 export async function runPostflight(input: PostflightInput): Promise<PostflightResult> {
-  const asker = input.asker ?? createJevAsker();
   const doScreen = input.screenOutput !== false;
+  if (doScreen && (hasSevereSecret(input.draft) || hasSevereSecret(input.userRequest))) {
+    return { asks: 0, screen: localSecretBlock("screen_output") };
+  }
+  const asker = input.asker ?? createJevAsker();
   const doStop = input.stopHook !== false;
   const doCompletion = input.completion !== false;
   const doQuality = input.quality !== false;

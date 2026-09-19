@@ -46,7 +46,7 @@ ANTHROPIC_ENVIRONMENT_ID=env_...
 
 ### 4. Add the route
 
-Copy `routes/anthropic-agent/route.ts` to `src/app/api/anthropic-agent/route.ts`.
+Copy `routes/anthropic-agent/route.ts` to `src/app/api/anthropic-agent/route.ts`. The route requires the caller to own the thread, persists redacted messages, and loads the last 40 turns — same ownership + history contract as `/api/hades`.
 
 ---
 

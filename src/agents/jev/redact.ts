@@ -1,10 +1,14 @@
 /**
- * Zero-RTT secret / PII redaction before anything reaches Qwen.
+ * Zero-RTT secret / PII redaction before anything reaches Qwen or TypeSafe.
  *
  * Harvest, compact threads, and tool results used to copy stdout into
- * jevEvidence and the system prompt. Jev screens drafts, but a leaked key
- * in a tool blob never waited for postflight. Code redacts first.
+ * jevEvidence and the system prompt. System One `state` used to leave the
+ * box with the same keys so Jev could score `secret_leak`. Code now redacts
+ * first, labels locally, and forces those nouls — TypeSafe never sees the
+ * raw blob.
  */
+
+import type { JevAnswers, JevQuestions, JevState, PolicyDecision, SystemOneRequest } from "./types";
 
 const PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bsk-[A-Za-z0-9_-]{20,}\b/g, label: "API_KEY" },
@@ -24,7 +28,32 @@ const PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bpassword\s*[=:]\s*[^\s]{8,}/gi, label: "PASSWORD" },
   { pattern: /\bsecret\s*[=:]\s*[^\s]{8,}/gi, label: "SECRET" },
   { pattern: /\btoken\s*[=:]\s*[^\s]{20,}/gi, label: "TOKEN" },
+  {
+    pattern: /\b[A-Z][A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|API[_-]?KEY)[A-Z0-9_]*\s*[=:]\s*(?!\[[A-Z_]+\])\S+/g,
+    label: "SECRET",
+  },
 ];
+
+/** Labels that fail-close locally. EMAIL is PII but not a credential dump. */
+export const SEVERE_SECRET_LABELS = new Set([
+  "API_KEY",
+  "AWS_KEY",
+  "SLACK_TOKEN",
+  "PRIVATE_KEY",
+  "CONNECTION_STRING",
+  "CREDIT_CARD",
+  "PASSWORD",
+  "SECRET",
+  "TOKEN",
+]);
+
+const SECRET_NOUL_IDS = new Set(["secret_leak", "leaks_secret"]);
+
+export interface SanitizeJevRequest {
+  request: SystemOneRequest;
+  labels: string[];
+  severe: boolean;
+}
 
 export function redactSecrets(text: string): { text: string; redacted: boolean } {
   let next = text;
@@ -55,6 +84,74 @@ export function redactValue(value: unknown, depth = 0): unknown {
     return out;
   }
   return value;
+}
+
+export function secretLabels(text: string): string[] {
+  const found = new Set<string>();
+  for (const { pattern, label } of PATTERNS) {
+    pattern.lastIndex = 0;
+    if (pattern.test(text)) found.add(label);
+    pattern.lastIndex = 0;
+  }
+  return [...found];
+}
+
+export function collectSecretLabels(value: unknown, depth = 0): string[] {
+  const found = new Set<string>();
+  walkLabels(value, depth, found);
+  return [...found];
+}
+
+function walkLabels(value: unknown, depth: number, found: Set<string>): void {
+  if (depth > 6 || value == null) return;
+  if (typeof value === "string") {
+    for (const label of secretLabels(value)) found.add(label);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) walkLabels(item, depth + 1, found);
+    return;
+  }
+  if (typeof value === "object") {
+    for (const child of Object.values(value as Record<string, unknown>)) {
+      walkLabels(child, depth + 1, found);
+    }
+  }
+}
+
+export function hasSevereSecret(value: unknown): boolean {
+  return collectSecretLabels(value).some((label) => SEVERE_SECRET_LABELS.has(label));
+}
+
+export function localSecretBlock(node: string): PolicyDecision {
+  return { action: "block", value: "secret", reason: "leaks-secret-local", node };
+}
+
+export function overlayLocalSecretAnswers(
+  questions: JevQuestions,
+  answers: JevAnswers,
+  severe: boolean
+): JevAnswers {
+  if (!severe) return answers;
+  const next = { ...answers };
+  for (const [id, question] of Object.entries(questions)) {
+    if (question.type === "noul" && SECRET_NOUL_IDS.has(id)) {
+      next[id] = { type: "noul", noul: 1 };
+    }
+  }
+  return next;
+}
+
+export function sanitizeJevRequest(request: SystemOneRequest): SanitizeJevRequest {
+  const labels = collectSecretLabels(request.state);
+  return {
+    request: {
+      ...request,
+      state: redactValue(request.state) as JevState,
+    },
+    labels,
+    severe: labels.some((label) => SEVERE_SECRET_LABELS.has(label)),
+  };
 }
 
 export interface RedactStream {
