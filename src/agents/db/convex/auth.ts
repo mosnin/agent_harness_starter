@@ -54,10 +54,9 @@ export function requireOwnedSubject(
   }
 }
 
-export function convexAdminKey(env: {
-  CONVEX_ADMIN_KEY?: string;
-  CONVEX_DEPLOY_KEY?: string;
-} = process.env): string | undefined {
+export function convexAdminKey(
+  env: Record<string, string | undefined> = process.env
+): string | undefined {
   const key = env.CONVEX_ADMIN_KEY || env.CONVEX_DEPLOY_KEY;
   return key?.trim() || undefined;
 }
