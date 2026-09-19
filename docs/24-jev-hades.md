@@ -448,6 +448,7 @@ Fixed:
 - Jev HTTP `baseUrl` is env-only (no request-controlled SSRF).
 - `/api/hades` and `/api/voice` use `auth.requireAuth`.
 - `/api/hades`, `/api/agent`, and `/api/anthropic-agent` reject JSON bodies over 64 KiB (`413`) and ignore client `tools` that are not already on the agent (config + skills).
+- `/api/mcp` tool execution (POST and SSE GET) requires auth unless `HADES_MCP_ANON=true`. Discovery JSON GET stays public. `POST /api/threads` rejects oversized JSON and caps title length.
 - `/api/hades`, `/api/agent`, and `/api/anthropic-agent` POST return 404 unless `thread.userId` matches the caller. They load thread history (redacted, last 40) instead of a single-line cold start.
 - `/api/agent/[runId]/approve` and `/cancel` return 404 unless the caller owns the run's thread (`getOwnedRun`).
 - `DELETE /api/threads/[id]` returns 404 unless the caller owns the thread (`getOwnedThread`). `db.deleteThread` is never called on another user's id.
@@ -547,6 +548,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 31 — MCP tool calls require auth
+
+`/api/mcp` exposed every registered tool (`shell_exec`, `file_write`, …) with non-fatal auth. Unauthenticated callers got a working server and no `userId`. Tool execution now requires `auth.requireAuth` unless `HADES_MCP_ANON=true` (local inspector). Discovery GET without `Accept: text/event-stream` stays public. `POST /api/threads` uses the same 64 KiB cap and a 200-character title.
 
 ### Wave 30 — Client tool allowlist + JSON body cap
 

@@ -7,6 +7,7 @@
 import { z } from "zod";
 import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
+import { oversizeJsonResponse } from "@/agents/lib/request-guard";
 
 export async function GET(req: Request) {
   const user = await auth.requireAuth(req);
@@ -16,8 +17,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const user = await auth.requireAuth(req);
+  const oversize = oversizeJsonResponse(req);
+  if (oversize) return oversize;
   const body = await req.json().catch(() => ({}));
-  const title = z.string().optional().parse((body as Record<string, unknown>).title);
+  const title = z.string().max(200).optional().parse((body as Record<string, unknown>).title);
   const thread = await db.createThread(user.id, title);
   return Response.json({ thread }, { status: 201 });
 }

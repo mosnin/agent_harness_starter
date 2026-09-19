@@ -275,8 +275,7 @@ export const config = {
     // ... your existing protected routes ...
     "/api/agent/:path*",
     "/api/threads/:path*",
-    // Leave /api/mcp unprotected if you want external MCP client access,
-    // or add a Bearer token check in routes/mcp/route.ts
+    "/api/mcp/:path*", // tool calls require auth unless HADES_MCP_ANON=true
   ],
 };
 ```

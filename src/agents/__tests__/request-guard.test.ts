@@ -3,6 +3,7 @@ import { defineSkill } from "../skills/index";
 import {
   allowedToolNames,
   clampRequestedTools,
+  mcpAnonymousAllowed,
   oversizeJsonResponse,
   MAX_JSON_BODY_BYTES,
 } from "../lib/request-guard";
@@ -43,5 +44,11 @@ describe("request-guard", () => {
   it("does not reject a missing Content-Length", () => {
     const res = oversizeJsonResponse(new Request("http://local/api/hades", { method: "POST", body: "{}" }));
     expect(res).toBeNull();
+  });
+
+  it("requires MCP auth unless HADES_MCP_ANON is set", () => {
+    expect(mcpAnonymousAllowed({})).toBe(false);
+    expect(mcpAnonymousAllowed({ HADES_MCP_ANON: "true" })).toBe(true);
+    expect(mcpAnonymousAllowed({ HADES_MCP_ANON: "false" })).toBe(false);
   });
 });

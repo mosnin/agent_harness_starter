@@ -188,6 +188,7 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | `chat.send` with `sk-…` / `AWS_SECRET_*=` | `jev.decision` `leaks-secret-local`, no System One body contains the raw key |
 | HTTP `POST /api/hades` with `tools: ["shell_exec"]` on a research agent | extra tool dropped; only configured / skill tools remain |
 | HTTP JSON body larger than 64 KiB | `413` before parse |
+| Unauthenticated `POST /api/mcp` | `401` unless `HADES_MCP_ANON=true` |
 | `desktop.act export` `{ path: "/etc/passwd" }` | `jev.decision` `target-local`, Cap not called |
 | `desktop.act` write with a pasted `sk-` | `jev.decision` `leaks-secret-local`, Cap not called |
 | `desktop.act` with "ignore previous instructions" | `jev.decision` `injection-local`, Cap not called |
