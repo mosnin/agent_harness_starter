@@ -54,12 +54,10 @@ export async function filterPassages(input: {
   );
 
   return batch.map((p, i) => {
-    const rel = asked.ok && asked.result.answers[`rel_${i}`]?.type === "noul"
-      ? asked.result.answers[`rel_${i}`].noul
-      : p.score ?? 0.5;
-    const inj = asked.ok && asked.result.answers[`inj_${i}`]?.type === "noul"
-      ? asked.result.answers[`inj_${i}`].noul
-      : 0;
+    const relAns = asked.ok ? asked.result.answers[`rel_${i}`] : undefined;
+    const injAns = asked.ok ? asked.result.answers[`inj_${i}`] : undefined;
+    const rel = relAns?.type === "noul" ? relAns.noul : p.score ?? 0.5;
+    const inj = injAns?.type === "noul" ? injAns.noul : 0;
     return {
       ...p,
       relevance: rel,

@@ -77,8 +77,6 @@ export {
   retry,
   timeout,
   fallback,
-  jevWhen,
-  jevUntil,
 } from "./workflow/index";
 
 // ── Memory adapter ───────────────────────────────────────────────────────────
