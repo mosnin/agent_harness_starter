@@ -202,7 +202,7 @@ npx tsc --noEmit
 npx vitest run
 ```
 
-Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `hades-desktop.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`, `thread-history.test.ts`. Core event drain: `core.test.ts` (`pendingPluginEvents`).
+Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `hades-desktop.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`, `thread-history.test.ts`, `convex-auth.test.ts`. Core event drain: `core.test.ts` (`pendingPluginEvents`).
 
 ---
 
@@ -219,7 +219,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
 4. **`withMemory`** — retrieve, then `filterPassages`. Jev-down → **drop all memories**.
 5. **Qwen generates** and may call tools. When the thread has more than one turn, `core.ts` passes typed `AgentInputItem`s to `run()` (not just the latest user string) so Qwen sees the conversation. `core.ts` drains `pendingPluginEvents` after `onBeforeRun` so the UI sees Jev decisions even before the first token.
 6. **`wrapTools`**
-   - `runToolGate` — Auto Mode + malware + patch + company + `invented_args` in **one** ask. Git-looking commands include git nouls in that same request. Hallucinated paths/URLs → HITL or block. Jev-down → **block**. Canned exfil/SSRF targets (`/etc/passwd`, `../.env`, `169.254.169.254`, `file://`) are `target-local` at zero RTT even on "safe read" tools.
+   - `runToolGate` — Auto Mode + malware + patch + company + `invented_args` in **one** ask. Git-looking commands include git nouls in that same request. Hallucinated paths/URLs → HITL or block. Jev-down → **block**. Canned exfil/SSRF targets (`/etc/passwd`, `../.env`, `169.254.169.254`, `file://`, `python3 -c open(...)`) are `target-local` at zero RTT even on "safe read" tools.
    - Every tool result is **redacted** (API keys, tokens, private keys, connection strings) then harvested into `jevEvidence` with no extra Jev call. Search/browser evidence uses the same `mergeEvidence` path — raw secrets never reach Qwen, the compacted thread, memories, or persisted chat.
    - `scanMalicious` on `sandbox_run_code` / `modal_run`.
    - `judgePatch` on `file_patch`.
@@ -325,6 +325,7 @@ These sit on real hops, not helper-only APIs:
 | `runToolGate` | One System One call for Auto Mode + malware + patch + company + invented args; local wipe / target labels first |
 | Thread history | Last 40 owned, redacted turns on `/api/hades`, `/api/agent`, and desktop `chat.send` |
 | `DELETE /api/threads/[id]` | 404 unless `getOwnedThread` matches the caller |
+| Convex `agent_*` | Internal functions + identity/ownership; adapter acts as the HTTP user |
 | Tool harvest | Append evidence cards with no extra Jev call |
 | Secret redaction | Strip keys from tool output, evidence, stream, memory, desktop `cap`, persisted threads |
 | Postflight grounding | Sentence-level support; ungrounded drafts become an abstain |
@@ -458,6 +459,8 @@ Fixed:
 - Desktop writes (`desktop.act`) apply the same local target / secret labels before Cap. An export of `/etc/passwd` or a patch that embeds `sk-` is `target-local` / `leaks-secret-local` at zero RTT.
 - `shell_exec` `cat /etc/passwd` / `curl 169.254.169.254` is `target-local` at zero RTT. An echo that only *mentions* `/etc/passwd` is not blocked.
 - Desktop writes with a canned jailbreak in `userRequest` / args are `injection-local`. `DELETE /api/threads/[id]` 404s unless the caller owns the thread (`getOwnedThread`).
+- Convex `threads` / `messages` / `runs` are internal and require `ctx.auth.getUserIdentity()`. The HTTP adapter calls them with `CONVEX_ADMIN_KEY` acting as the signed-in user. A leaked `CONVEX_URL` cannot spoof `userId`.
+- `python3 -c "open('/etc/passwd')"` / `node -e "require('fs').readFileSync('/etc/passwd')"` is `target-local` at zero RTT. An echo that only mentions those tokens still passes.
 - Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
@@ -504,7 +507,7 @@ Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev n
 **Routes:** `routes/hades/route.ts`, `routes/voice/route.ts`, `routes/agent/route.ts`, `routes/anthropic-agent/route.ts`, `routes/threads/route.ts`, `routes/threads/[id]/route.ts`  
 **UI:** `components/AgentChat/index.tsx`  
 **Example:** `src/agents/examples/hades-agent.ts`  
-**Tests:** `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`, `thread-history.test.ts`, `core.test.ts`  
+**Tests:** `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.test.ts`, `jev-speed.test.ts`, `jev-ground.test.ts`, `jev-redact.test.ts`, `thread-history.test.ts`, `convex-auth.test.ts`, `core.test.ts`  
 **Package:** `package.json` exports `./jev`, `./hades`, `./hades/desktop`; `tsup.config.ts` entries `jev/index`, `hades/index`, `hades/desktop/index`; root barrel `src/agents/index.ts`  
 **Docs / env:** this file, `docs/12-plugin-architecture.md`, `docs/01-integration.md`, `QUICKSTART.md`, `.env.example`, `README.md`
 
@@ -537,6 +540,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 22 — Convex identity + interpreter exfil
+
+HTTP ownership checks did not protect the Convex deployment. `threads.create` / `get` / `listByUser` / `deleteThread` (and messages / runs) took a spoofable `userId` with no `ctx.auth.getUserIdentity()`. Those functions are now **internal**, require an identity, and refuse rows the subject does not own. The HTTP adapter calls them with `CONVEX_ADMIN_KEY` (or `CONVEX_DEPLOY_KEY`) acting as the signed-in user and maps `_id` → `id`. Delete cascades messages and runs. `python3 -c "open('/etc/passwd')"` is `target-local` the same way `cat /etc/passwd` is.
 
 ### Wave 21 — Desktop jailbreak + owned thread delete
 

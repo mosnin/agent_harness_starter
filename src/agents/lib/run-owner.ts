@@ -13,7 +13,7 @@ export async function getOwnedThread(
   threadId: string,
   userId: string
 ): Promise<AgentThread | null> {
-  const thread = await database.getThread(threadId);
+  const thread = await database.getThread(threadId, userId);
   return isThreadOwner(thread, userId) ? thread : null;
 }
 
@@ -22,8 +22,8 @@ export async function getOwnedRun(
   runId: string,
   userId: string
 ): Promise<AgentRun | null> {
-  const run = await database.getRun(runId);
+  const run = await database.getRun(runId, userId);
   if (!run) return null;
-  const thread = await database.getThread(run.threadId);
+  const thread = await database.getThread(run.threadId, userId);
   return isThreadOwner(thread, userId) ? run : null;
 }

@@ -1,7 +1,9 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
+import { requireOwnedThread } from "./lib/auth";
+import { messageDoc } from "./lib/validators";
 
-export const save = mutation({
+export const save = internalMutation({
   args: {
     threadId: v.id("agent_threads"),
     role: v.union(
@@ -14,17 +16,27 @@ export const save = mutation({
     toolCallId: v.optional(v.string()),
     toolName: v.optional(v.string()),
   },
+  returns: messageDoc,
   handler: async (ctx, args) => {
+    await requireOwnedThread(ctx, args.threadId);
     const id = await ctx.db.insert("agent_messages", args);
-    return ctx.db.get(id);
+    await ctx.db.patch(args.threadId, { updatedAt: Date.now() });
+    const created = await ctx.db.get(id);
+    if (!created) {
+      throw new Error("Message not found");
+    }
+    return created;
   },
 });
 
-export const list = query({
+export const list = internalQuery({
   args: { threadId: v.id("agent_threads") },
-  handler: async (ctx, { threadId }) =>
-    ctx.db
+  returns: v.array(messageDoc),
+  handler: async (ctx, { threadId }) => {
+    await requireOwnedThread(ctx, threadId);
+    return await ctx.db
       .query("agent_messages")
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
-      .collect(),
+      .collect();
+  },
 });

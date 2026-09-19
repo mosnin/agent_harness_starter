@@ -36,16 +36,19 @@ export interface AgentRun {
 export interface DbAdapter {
   // Threads
   createThread(userId: string, title?: string): Promise<AgentThread>;
-  getThread(threadId: string): Promise<AgentThread | null>;
+  getThread(threadId: string, userId?: string): Promise<AgentThread | null>;
   listThreads(userId: string): Promise<AgentThread[]>;
-  deleteThread(threadId: string): Promise<void>;
+  deleteThread(threadId: string, userId?: string): Promise<void>;
 
   // Messages
-  saveMessage(msg: Omit<AgentMessage, "id" | "createdAt">): Promise<AgentMessage>;
-  getMessages(threadId: string): Promise<AgentMessage[]>;
+  saveMessage(
+    msg: Omit<AgentMessage, "id" | "createdAt">,
+    userId?: string
+  ): Promise<AgentMessage>;
+  getMessages(threadId: string, userId?: string): Promise<AgentMessage[]>;
 
   // Runs
-  createRun(run: Omit<AgentRun, "id" | "startedAt">): Promise<AgentRun>;
-  updateRun(runId: string, update: Partial<AgentRun>): Promise<AgentRun>;
-  getRun(runId: string): Promise<AgentRun | null>;
+  createRun(run: Omit<AgentRun, "id" | "startedAt">, userId?: string): Promise<AgentRun>;
+  updateRun(runId: string, update: Partial<AgentRun>, userId?: string): Promise<AgentRun>;
+  getRun(runId: string, userId?: string): Promise<AgentRun | null>;
 }

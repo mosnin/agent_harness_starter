@@ -43,15 +43,15 @@ export async function POST(req: Request) {
       return Response.json({ error: `Unknown agent: "${agentName}"`, available: getAllAgentNames() }, { status: 400 });
     }
 
-    const thread = threadId ? await db.getThread(threadId) : await db.createThread(user.id);
+    const thread = threadId ? await db.getThread(threadId, user.id) : await db.createThread(user.id);
     if (!isThreadOwner(thread, user.id)) {
       return Response.json({ error: "Thread not found" }, { status: 404 });
     }
     const resolvedThreadId = thread.id;
 
-    await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: redactSecrets(message).text });
-    const history = messagesForHarness(await db.getMessages(resolvedThreadId));
-    const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName });
+    await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: redactSecrets(message).text }, user.id);
+    const history = messagesForHarness(await db.getMessages(resolvedThreadId, user.id));
+    const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName }, user.id);
 
     const harness = createHadesHarness({
       ...agentConfig,
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         yield JSON.stringify({ type: "error", error: msg });
-        await db.updateRun(run.id, { status: "failed", error: msg, completedAt: new Date() });
+        await db.updateRun(run.id, { status: "failed", error: msg, completedAt: new Date() }, user.id);
         return;
       }
       if (finalOutput) {
@@ -82,9 +82,9 @@ export async function POST(req: Request) {
           threadId: resolvedThreadId,
           role: "assistant",
           content: redactSecrets(finalOutput).text,
-        });
+        }, user.id);
       }
-      await db.updateRun(run.id, { status: "completed", completedAt: new Date() });
+      await db.updateRun(run.id, { status: "completed", completedAt: new Date() }, user.id);
     }
 
     return new Response(sseStream(eventGenerator()), {

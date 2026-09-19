@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     }
 
     const thread = threadId
-      ? await db.getThread(threadId)
+      ? await db.getThread(threadId, user.id)
       : await db.createThread(user.id);
 
     if (!isThreadOwner(thread, user.id)) {
@@ -90,10 +90,10 @@ export async function POST(req: Request) {
 
     const resolvedThreadId = thread.id;
 
-    await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: redactSecrets(message).text });
-    const history = messagesForHarness(await db.getMessages(resolvedThreadId));
+    await db.saveMessage({ threadId: resolvedThreadId, role: "user", content: redactSecrets(message).text }, user.id);
+    const history = messagesForHarness(await db.getMessages(resolvedThreadId, user.id));
 
-    const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName });
+    const run = await db.createRun({ threadId: resolvedThreadId, status: "running", agentName }, user.id);
 
     // Merge any extra tool names requested for this run
     const effectiveConfig = tools?.length
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         yield JSON.stringify({ type: "error", error: msg });
-        await db.updateRun(run.id, { status: "failed", error: msg, completedAt: new Date() });
+        await db.updateRun(run.id, { status: "failed", error: msg, completedAt: new Date() }, user.id);
         return;
       }
 
@@ -130,9 +130,9 @@ export async function POST(req: Request) {
           threadId: resolvedThreadId,
           role: "assistant",
           content: redactSecrets(finalOutput).text,
-        });
+        }, user.id);
       }
-      await db.updateRun(run.id, { status: "completed", completedAt: new Date() });
+      await db.updateRun(run.id, { status: "completed", completedAt: new Date() }, user.id);
     }
 
     return new Response(sseStream(eventGenerator()), {
@@ -162,11 +162,11 @@ export async function GET(req: Request) {
     return Response.json({ threads });
   }
 
-  const thread = await db.getThread(threadId);
+  const thread = await db.getThread(threadId, user.id);
   if (!thread || thread.userId !== user.id) {
     return Response.json({ error: "Thread not found" }, { status: 404 });
   }
 
-  const messages = await db.getMessages(threadId);
+  const messages = await db.getMessages(threadId, user.id);
   return Response.json({ thread, messages });
 }

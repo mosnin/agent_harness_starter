@@ -169,7 +169,7 @@ Quick version:
 
 For Prisma: add the models from `prisma/schema.prisma` into your existing schema file, then run `npx prisma db push`.
 
-For Convex: copy `convex/schema.ts` additions into your schema and run `npx convex dev`.
+For Convex: copy `convex/schema.ts` additions plus `convex/threads.ts`, `convex/messages.ts`, `convex/runs.ts`, and `convex/lib/` into your Convex app. Set `CONVEX_ADMIN_KEY` (or `CONVEX_DEPLOY_KEY`) on the Next.js server. Run `npx convex dev`. Functions are internal and refuse rows the caller does not own.
 
 ---
 

@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       for await (const event of stream) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         if (event.type === "done") {
-          await db.saveMessage({ threadId: thread.id, role: "assistant", content: event.finalOutput });
+          await db.saveMessage({ threadId: thread.id, role: "assistant", content: event.finalOutput }, user.id);
         }
       }
       controller.close();

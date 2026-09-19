@@ -238,6 +238,41 @@ describe("grounding + quiet-ask + tool gate", () => {
     expect(mentioned.asks).toBe(1);
   });
 
+  it("blocks python -c open('/etc/passwd') without calling Jev", async () => {
+    let calls = 0;
+    const client = createMockJevClient(async () => {
+      calls += 1;
+      throw new Error("network");
+    });
+    const asker = createJevAsker(client);
+    const dumped = await runToolGate({
+      userRequest: "inspect the host",
+      toolName: "shell_exec",
+      toolArguments: { command: "python3 -c \"open('/etc/passwd').read()\"" },
+      asker,
+    });
+    const nodeRead = await runToolGate({
+      userRequest: "inspect the host",
+      toolName: "shell_exec",
+      toolArguments: {
+        command: "node -e \"require('fs').readFileSync('/etc/passwd')\"",
+      },
+      asker,
+    });
+    const mentioned = await runToolGate({
+      userRequest: "print a warning",
+      toolName: "shell_exec",
+      toolArguments: { command: "echo do not python /etc/passwd" },
+      asker,
+    });
+    expect(calls).toBe(1);
+    expect(dumped.asks).toBe(0);
+    expect(dumped.decisions[0]?.reason).toBe("target-local");
+    expect(dumped.decisions[0]?.value).toBe("exfil");
+    expect(nodeRead.decisions[0]?.reason).toBe("target-local");
+    expect(mentioned.asks).toBe(1);
+  });
+
   it("batches auto-mode and malware into one System One call", async () => {
     let calls = 0;
     const client = createMockJevClient((req) => {

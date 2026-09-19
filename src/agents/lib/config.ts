@@ -92,6 +92,8 @@ export const config = {
     convex: {
       // CONVEX_URL is preferred; NEXT_PUBLIC_CONVEX_URL accepted as fallback for Next.js projects.
       url: optional("CONVEX_URL") || optional("NEXT_PUBLIC_CONVEX_URL"),
+      // Server-only. The adapter acts as the HTTP user; URL-only callers cannot.
+      adminKey: optional("CONVEX_ADMIN_KEY") || optional("CONVEX_DEPLOY_KEY"),
     },
     prisma: {
       url: optional("DATABASE_URL"),

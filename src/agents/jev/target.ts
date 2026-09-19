@@ -4,7 +4,8 @@
  * `file_read` and `web_search` skip Auto Mode as "safe reads", so
  * `../.env`, `/etc/passwd`, and `http://169.254.169.254/` never reached
  * Jev. `shell_exec` only scanned path/url keys, so `cat /etc/passwd`
- * also skipped the label. Those strings do not need a 70–500ms hop.
+ * also skipped the label. Interpreter one-liners (`python -c open(...)`)
+ * are the same class. Those strings do not need a 70–500ms hop.
  * Search queries and echo/README mentions are not blocked.
  */
 
@@ -36,6 +37,8 @@ const FILE_SCHEME = /^file:/i;
 
 const READ_OR_FETCH =
   /\b(?:cat|less|more|head|tail|nl|od|xxd|hexdump|strings|curl|wget|scp|rsync)\b/i;
+const INTERPRETER_EVAL =
+  /\b(?:python3?|node(?:js)?|ruby|perl|php)\b[\s\S]{0,120}(?:\s-[ce]\b|\bopen\s*\(|\breadFile(?:Sync)?\s*\(|\brequire\s*\(|\bFile\.open\s*\()/i;
 const FILE_IN_COMMAND = /\bfile:\/\//i;
 
 export interface TargetHit {
@@ -72,8 +75,11 @@ export function classifyCommandTarget(command: string): PolicyDecision | null {
   if (METADATA_HOST.test(command) || FILE_IN_COMMAND.test(command)) {
     return localTargetBlock("ssrf");
   }
-  if (!READ_OR_FETCH.test(command)) return null;
-  if (UNIX_EXFIL.test(command) || SECRET_FILE.test(command)) {
+  const readsSecret = UNIX_EXFIL.test(command) || SECRET_FILE.test(command);
+  if (READ_OR_FETCH.test(command) && readsSecret) {
+    return localTargetBlock("exfil");
+  }
+  if (INTERPRETER_EVAL.test(command) && readsSecret) {
     return localTargetBlock("exfil");
   }
   return null;

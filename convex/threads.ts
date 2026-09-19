@@ -1,29 +1,78 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
+import { loadOwnedThread, requireIdentity, requireOwnedThread } from "./lib/auth";
+import { threadDoc } from "./lib/validators";
 
-export const create = mutation({
+export const create = internalMutation({
   args: { userId: v.string(), title: v.optional(v.string()) },
+  returns: threadDoc,
   handler: async (ctx, { userId, title }) => {
-    const id = await ctx.db.insert("agent_threads", { userId, title });
-    return ctx.db.get(id);
+    const subject = await requireIdentity(ctx);
+    if (userId !== subject) {
+      throw new Error("Unauthorized");
+    }
+    const now = Date.now();
+    const id = await ctx.db.insert("agent_threads", {
+      userId: subject,
+      title,
+      updatedAt: now,
+    });
+    const created = await ctx.db.get(id);
+    if (!created) {
+      throw new Error("Thread not found");
+    }
+    return created;
   },
 });
 
-export const get = query({
+export const get = internalQuery({
   args: { threadId: v.id("agent_threads") },
-  handler: async (ctx, { threadId }) => ctx.db.get(threadId),
+  returns: v.union(threadDoc, v.null()),
+  handler: async (ctx, { threadId }) => {
+    const { thread } = await loadOwnedThread(ctx, threadId);
+    return thread;
+  },
 });
 
-export const listByUser = query({
+export const listByUser = internalQuery({
   args: { userId: v.string() },
-  handler: async (ctx, { userId }) =>
-    ctx.db
+  returns: v.array(threadDoc),
+  handler: async (ctx, { userId }) => {
+    const subject = await requireIdentity(ctx);
+    if (userId !== subject) {
+      throw new Error("Unauthorized");
+    }
+    const rows = await ctx.db
       .query("agent_threads")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect(),
+      .withIndex("by_user", (q) => q.eq("userId", subject))
+      .collect();
+    return rows.sort(
+      (a, b) =>
+        (b.updatedAt ?? b._creationTime) - (a.updatedAt ?? a._creationTime)
+    );
+  },
 });
 
-export const deleteThread = mutation({
+export const deleteThread = internalMutation({
   args: { threadId: v.id("agent_threads") },
-  handler: async (ctx, { threadId }) => ctx.db.delete(threadId),
+  returns: v.null(),
+  handler: async (ctx, { threadId }) => {
+    await requireOwnedThread(ctx, threadId);
+    const messages = await ctx.db
+      .query("agent_messages")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .collect();
+    for (const message of messages) {
+      await ctx.db.delete(message._id);
+    }
+    const runs = await ctx.db
+      .query("agent_runs")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .collect();
+    for (const run of runs) {
+      await ctx.db.delete(run._id);
+    }
+    await ctx.db.delete(threadId);
+    return null;
+  },
 });

@@ -178,6 +178,8 @@ MODAL_TOKEN_SECRET=as-...
     CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
 ```
 
+The Next.js server also needs `CONVEX_ADMIN_KEY` or `CONVEX_DEPLOY_KEY` at runtime. Thread / message / run functions are internal; the HTTP adapter acts as the signed-in user. Do not put that key in `NEXT_PUBLIC_*`.
+
 ---
 
 ## Secrets management

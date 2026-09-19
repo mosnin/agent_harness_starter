@@ -115,16 +115,18 @@ The `DbAdapter` interface stores agent threads, messages, and run history alongs
 ```typescript
 interface DbAdapter {
   createThread(userId: string, title?: string): Promise<AgentThread>;
-  getThread(threadId: string): Promise<AgentThread | null>;
+  getThread(threadId: string, userId?: string): Promise<AgentThread | null>;
   listThreads(userId: string): Promise<AgentThread[]>;
-  deleteThread(threadId: string): Promise<void>;
-  saveMessage(msg: Omit<AgentMessage, "id" | "createdAt">): Promise<AgentMessage>;
-  getMessages(threadId: string): Promise<AgentMessage[]>;
-  createRun(run: Omit<AgentRun, "id" | "startedAt">): Promise<AgentRun>;
-  updateRun(runId: string, update: Partial<AgentRun>): Promise<AgentRun>;
-  getRun(runId: string): Promise<AgentRun | null>;
+  deleteThread(threadId: string, userId?: string): Promise<void>;
+  saveMessage(msg: Omit<AgentMessage, "id" | "createdAt">, userId?: string): Promise<AgentMessage>;
+  getMessages(threadId: string, userId?: string): Promise<AgentMessage[]>;
+  createRun(run: Omit<AgentRun, "id" | "startedAt">, userId?: string): Promise<AgentRun>;
+  updateRun(runId: string, update: Partial<AgentRun>, userId?: string): Promise<AgentRun>;
+  getRun(runId: string, userId?: string): Promise<AgentRun | null>;
 }
 ```
+
+`userId` on get/delete/save/update is optional for in-memory / Supabase / Prisma. The Convex adapter **requires** it: functions are internal and act as that user.
 
 ### You already use Supabase
 
@@ -192,7 +194,9 @@ The Prisma adapter reuses your existing `PrismaClient` singleton — no new DB c
 
 ### You already use Convex
 
-Copy the table definitions from `convex/schema.ts` into your existing Convex schema. Copy `convex/threads.ts`, `convex/messages.ts` to your `convex/` directory. Run `npx convex dev`.
+Copy the table definitions from `convex/schema.ts` into your existing Convex schema. Copy `convex/threads.ts`, `convex/messages.ts`, `convex/runs.ts`, and `convex/lib/` to your `convex/` directory. Set `CONVEX_ADMIN_KEY` (or `CONVEX_DEPLOY_KEY`) on the Next.js server — never in the browser. Run `npx convex dev`.
+
+Thread / message / run functions are **internal**. They require `ctx.auth.getUserIdentity()` and refuse rows the subject does not own. The HTTP adapter calls them with `setAdminAuth` acting as the signed-in user. A leaked `CONVEX_URL` alone cannot create, list, or delete threads.
 
 ### You use a completely different database (MongoDB, DynamoDB, etc.)
 

@@ -19,7 +19,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     if (!thread) {
       return Response.json({ error: "Thread not found" }, { status: 404 });
     }
-    await db.deleteThread(params.id);
+    await db.deleteThread(params.id, user.id);
     return Response.json({ success: true, threadId: params.id });
   } catch (err) {
     if (err instanceof Response) throw err;

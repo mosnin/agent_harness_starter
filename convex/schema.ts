@@ -10,6 +10,7 @@ export default defineSchema({
   agent_threads: defineTable({
     userId: v.string(),
     title: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"]),
 

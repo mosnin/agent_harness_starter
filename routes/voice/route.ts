@@ -37,11 +37,11 @@ export async function POST(req: Request) {
     }
 
     const threadId = String(form.get("threadId") ?? "").trim();
-    const thread = threadId ? await db.getThread(threadId) : await db.createThread(user.id);
+    const thread = threadId ? await db.getThread(threadId, user.id) : await db.createThread(user.id);
     if (!isThreadOwner(thread, user.id)) {
       return Response.json({ error: "Thread not found" }, { status: 404 });
     }
-    const history = messagesForHarness(await db.getMessages(thread.id));
+    const history = messagesForHarness(await db.getMessages(thread.id, user.id));
 
     const audio = Buffer.from(await file.arrayBuffer());
     const harness = createHadesHarness(agentConfig);
@@ -53,9 +53,9 @@ export async function POST(req: Request) {
 
     const transcript = redactSecrets(result.transcript).text;
     const finalOutput = redactSecrets(result.finalOutput).text;
-    await db.saveMessage({ threadId: thread.id, role: "user", content: transcript });
+    await db.saveMessage({ threadId: thread.id, role: "user", content: transcript }, user.id);
     if (finalOutput) {
-      await db.saveMessage({ threadId: thread.id, role: "assistant", content: finalOutput });
+      await db.saveMessage({ threadId: thread.id, role: "assistant", content: finalOutput }, user.id);
     }
 
     return Response.json({

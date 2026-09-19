@@ -33,7 +33,7 @@ export async function POST(
       await db.updateRun(params.runId, {
         status: "cancelled",
         completedAt: new Date(),
-      });
+      }, user.id);
     }
 
     return Response.json({ success: true, runId: params.runId });
