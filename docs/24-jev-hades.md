@@ -226,7 +226,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
    - `approveCompanyAction` on deploy / composio / transfer / rotate / prod tools. `deploy_prod`, `wire_transfer`, `delete_account`, `rotate_keys` always HITL.
    - `review` → approval event. `block` → `GuardrailBlockError`.
    - `web_search` → `planAndRerankSearch` in **one** ask (window + sources + relevance + injection). Injected snippets are dropped. Snippets stored as `jevEvidence`. Tool SSE `tool_call` / `tool_result` events are redacted before they leave the harness.
-   - `browser_*` → `screenBrowserPage` in **one** ask (injection / substance / secret + next `action` / `target` / done / stuck). Local jailbreak or secret → zero-RTT block. Jev-down → **block**. Injection/secret *review* → HITL error. Surviving pages attach `jevBrowser` and are harvested into `jevEvidence`.
+   - `browser_*` → `screenBrowserPage` in **one** ask (injection / substance / secret + next `action` / `target` / done / stuck). Local jailbreak or secret → zero-RTT block. Jev-down → **block**. Injection/secret *review* → HITL error. Stuck / blocked steps throw `jev_browser_step` so Qwen cannot keep clicking. Surviving pages attach `jevBrowser`; instructions tell Qwen the typed next step (or to stop on DONE / EXTRACT). Harvested into `jevEvidence`.
    - Failed `shell_exec` → `classifyCommandFailure`. Secret-leaking stderr is blocked. Jev-down → **block** (stderr never reaches Qwen).
 7. **`onAfterRun`** — **one** System One call (`runPostflight`).
    - `screenOutput` — Jev-down → **block**.
@@ -526,6 +526,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 16 — Stop looping on a stuck browser
+
+`jevBrowser` was advisory. Qwen could still click a login wall after Jev said `stuck` / `BLOCKED`. Those steps now throw `jev_browser_step`. DONE / EXTRACT / CLICK are written into the instruction extras so the next generation uses the typed step instead of inventing a control.
 
 ### Wave 15 — One-ask browser screen + next step
 

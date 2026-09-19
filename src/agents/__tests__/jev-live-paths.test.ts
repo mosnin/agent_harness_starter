@@ -706,6 +706,60 @@ describe("remaining live hops", () => {
     expect(calls).toBe(0);
   });
 
+  it("stops the loop when Jev says the browser is stuck", async () => {
+    const { z } = await import("zod");
+    const client = createMockJevClient((req) => {
+      const answers: Record<string, JevAnswer> = {};
+      for (const [id, q] of Object.entries(req.questions)) {
+        if (q.type === "choice") {
+          answers[id] = choiceAns(Object.keys(q.criteria)[0]!, Object.keys(q.criteria));
+        } else {
+          answers[id] = noulAns(id === "stuck" ? 0.95 : id === "substance" ? 0.8 : 0.05);
+        }
+      }
+      return { model: "jev-latest", answers };
+    });
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenInput: false,
+      screenOutput: false,
+      routeModel: false,
+      autoMode: false,
+      judgePatch: false,
+      companyOs: false,
+      rerankSearch: false,
+      stopHook: false,
+      compact: false,
+    });
+    const wrapped = await plugin.wrapTools!(
+      [
+        {
+          name: "browser_scrape",
+          description: "Scrape a page",
+          parameters: z.object({ url: z.string() }),
+          execute: async () => ({ text: "Please log in to continue." }),
+        },
+      ],
+      ctx(),
+      new Map()
+    );
+    await expect(wrapped[0]!.execute({ url: "https://app.example/login" }, {})).rejects.toThrow(/browser step/i);
+  });
+
+  it("tells Qwen to stop clicking after a DONE scrape", async () => {
+    const plugin = withJev({
+      screenInput: false,
+      screenOutput: false,
+      routeModel: false,
+      autoMode: false,
+    });
+    const runCtx = ctx();
+    runCtx.context.jevBrowser = { action: "DONE" };
+    const extras = plugin.onResolveInstructions!("Base.", "done?", runCtx);
+    expect(extras).toMatch(/browser task is done/i);
+    expect(extras).toMatch(/Do not click/);
+  });
+
   it("marks a finished page as DONE without a second hop", () => {
     const answers = {
       goal_done: noulAns(0.92),

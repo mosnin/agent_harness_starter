@@ -192,6 +192,7 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | Shell `git push --force` | `jev.decision` `destructive-local` HITL |
 | `browser_scrape` of a normal page | one `jev.decision` pair (`screen_external` + `browser_step`), `jevBrowser` on the tool result |
 | `browser_scrape` of "ignore previous instructions" | `injection-local`, no System One call |
+| `browser_scrape` of a login wall Jev marks stuck | `jev_browser_step` block, no further clicks |
 | Tauri CSP | no `https://api.typesafe.ai` from the webview |
 
 ---

@@ -300,6 +300,16 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
       }
       const route = typeof ctx.context.hadesRoute === "string" ? ctx.context.hadesRoute : "";
       if (route) extras.push(`You are on the ${route} Qwen route. Stay terse.`);
+      const browser = ctx.context.jevBrowser as { action?: string; target?: string } | undefined;
+      if (browser?.action === "DONE") {
+        extras.push("Jev says the browser task is done. Do not click or navigate further. Answer from the extracted page.");
+      } else if (browser?.action === "EXTRACT") {
+        extras.push("Jev says extract the visible page and stop acting. Do not click.");
+      } else if (browser?.action && browser.action !== "BLOCKED") {
+        extras.push(
+          `Jev next browser step: ${browser.action}${browser.target ? ` on ${browser.target}` : ""}. Do not invent a different control.`
+        );
+      }
       return extras.length > 0 ? `${instructions}\n\n${extras.join("\n\n")}` : instructions;
     },
 
@@ -464,6 +474,18 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                     "jev_browser"
                   );
                 }
+                if (browsed.step.action === "block" || browsed.step.reason === "stuck") {
+                  throw new GuardrailBlockError(
+                    `Jev blocked the browser step (${browsed.step.reason}).`,
+                    browsed.step.reason,
+                    "jev_browser_step"
+                  );
+                }
+                ctx.context.jevBrowser = {
+                  action: browsed.step.value,
+                  reason: browsed.step.reason,
+                  target: browsed.target,
+                };
                 const annotated = redactValue({
                   ...raw,
                   jevBrowser: {
