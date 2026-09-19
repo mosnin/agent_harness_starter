@@ -38,6 +38,7 @@ export {
 } from "./destructive";
 export {
   collectTargetFields,
+  classifyCommandTarget,
   localTargetBlock,
   localTargetDecision,
 } from "./target";

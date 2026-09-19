@@ -3,11 +3,12 @@
  *
  * `file_read` and `web_search` skip Auto Mode as "safe reads", so
  * `../.env`, `/etc/passwd`, and `http://169.254.169.254/` never reached
- * Jev. Those strings do not need a 70–500ms hop. Only path/url-shaped
- * keys are scanned so a search query that *mentions* /etc/passwd is not
- * blocked.
+ * Jev. `shell_exec` only scanned path/url keys, so `cat /etc/passwd`
+ * also skipped the label. Those strings do not need a 70–500ms hop.
+ * Search queries and echo/README mentions are not blocked.
  */
 
+import { commandFromToolArgs } from "./destructive";
 import type { PolicyDecision } from "./types";
 
 const PATH_KEYS = new Set([
@@ -32,6 +33,10 @@ const UNIX_EXFIL =
 const METADATA_HOST =
   /169\.254\.169\.254|metadata\.google\.internal|metadata\.internal|fd00:ec2::254/i;
 const FILE_SCHEME = /^file:/i;
+
+const READ_OR_FETCH =
+  /\b(?:cat|less|more|head|tail|nl|od|xxd|hexdump|strings|curl|wget|scp|rsync)\b/i;
+const FILE_IN_COMMAND = /\bfile:\/\//i;
 
 export interface TargetHit {
   key: string;
@@ -62,6 +67,18 @@ export function localTargetBlock(value: "exfil" | "ssrf" = "exfil"): PolicyDecis
   return { action: "block", value, reason: "target-local", node: "tool_bind" };
 }
 
+export function classifyCommandTarget(command: string): PolicyDecision | null {
+  if (!command) return null;
+  if (METADATA_HOST.test(command) || FILE_IN_COMMAND.test(command)) {
+    return localTargetBlock("ssrf");
+  }
+  if (!READ_OR_FETCH.test(command)) return null;
+  if (UNIX_EXFIL.test(command) || SECRET_FILE.test(command)) {
+    return localTargetBlock("exfil");
+  }
+  return null;
+}
+
 export function localTargetDecision(args: unknown): PolicyDecision | null {
   for (const hit of collectTargetFields(args)) {
     if (hit.kind === "path") {
@@ -78,5 +95,5 @@ export function localTargetDecision(args: unknown): PolicyDecision | null {
       }
     }
   }
-  return null;
+  return classifyCommandTarget(commandFromToolArgs(args));
 }

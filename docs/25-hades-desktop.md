@@ -195,6 +195,7 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | `browser_scrape` of `169.254.169.254` / `file://` | `jev.decision` `target-local` SSRF block |
 | Shell `git push --force` | `jev.decision` `destructive-local` HITL |
 | Shell `ENOENT` / `EACCES` / `ETIMEDOUT` | `jev.decision` `failure-local`, tool result returned with class |
+| Shell `cat /etc/passwd` / `curl 169.254.169.254` | `jev.decision` `target-local` block, tool not called |
 | `browser_scrape` of a normal page | one `jev.decision` pair (`screen_external` + `browser_step`), `jevBrowser` on the tool result |
 | `browser_scrape` of "ignore previous instructions" | `injection-local`, no System One call |
 | `browser_scrape` of a login wall Jev marks stuck | `jev_browser_step` block, no further clicks |

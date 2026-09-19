@@ -454,6 +454,7 @@ Fixed:
 - Safe-read tools (`file_read`, `web_search`, …) skipped Jev entirely, so `/etc/passwd`, `../.env`, and `http://169.254.169.254/` never got a screen. `localTargetDecision` now blocks those on path/url keys (`target-local`) at zero RTT, including when Auto Mode is off. A search *query* that mentions `/etc/passwd` is not blocked.
 - Failed shells used to ask Jev (or fail-closed) for every nonzero exit. Canned ENOENT / EACCES / ETIMEDOUT / TypeError are `failure-local` and reach Qwen with a typed class. Unknown stderr still fail-closed when Jev is down. Secrets still `leaks-secret-local`.
 - Desktop writes (`desktop.act`) apply the same local target / secret labels before Cap. An export of `/etc/passwd` or a patch that embeds `sk-` is `target-local` / `leaks-secret-local` at zero RTT.
+- `shell_exec` `cat /etc/passwd` / `curl 169.254.169.254` is `target-local` at zero RTT. An echo that only *mentions* `/etc/passwd` is not blocked.
 - Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
@@ -533,6 +534,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 20 — Command-line exfil / SSRF
+
+`localTargetDecision` only scanned path/url keys, so `shell_exec { command: "cat /etc/passwd" }` and `curl 169.254.169.254` skipped the label. Those strings are now classified from `command` / `cmd` / `args` when a read/fetch verb is present. `echo` / README mentions still pass.
 
 ### Wave 19 — Desktop local target + secret labels
 
