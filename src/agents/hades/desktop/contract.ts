@@ -128,7 +128,20 @@ export function encodeDesktopMessage(value: DesktopCommand | DesktopEvent): stri
   return `${JSON.stringify(value)}\n`;
 }
 
+export const MAX_DESKTOP_VOICE_BYTES = 8 * 1024 * 1024;
+export const MAX_DESKTOP_CHAT_CHARS = 32_000;
+/** Base64 of 8 MiB + 64 KiB, plus NDJSON wrapper slack. */
+export const MAX_DESKTOP_LINE_CHARS = Math.ceil((MAX_DESKTOP_VOICE_BYTES + 64 * 1024) * (4 / 3)) + 256;
+
+export function desktopVoiceOversize(audioBase64: string): boolean {
+  if (audioBase64.length > MAX_DESKTOP_LINE_CHARS) return true;
+  return (audioBase64.length * 3) / 4 > MAX_DESKTOP_VOICE_BYTES + 64 * 1024;
+}
+
 export function decodeDesktopCommand(line: string): DesktopCommand {
+  if (line.length > MAX_DESKTOP_LINE_CHARS) {
+    throw new Error("desktop command exceeds size cap");
+  }
   const parsed: unknown = JSON.parse(line);
   if (!isDesktopCommand(parsed)) {
     throw new Error("Invalid desktop command");
@@ -138,6 +151,20 @@ export function decodeDesktopCommand(line: string): DesktopCommand {
     (!parsed.text || typeof parsed.text !== "string")
   ) {
     throw new Error(`${parsed.type} requires text`);
+  }
+  if (
+    (parsed.type === "chat.send" || parsed.type === "chat.prefetch") &&
+    parsed.text.length > MAX_DESKTOP_CHAT_CHARS
+  ) {
+    throw new Error(`${parsed.type} text exceeds ${MAX_DESKTOP_CHAT_CHARS} characters`);
+  }
+  if (parsed.type === "voice.turn") {
+    if (!parsed.audioBase64 || typeof parsed.audioBase64 !== "string") {
+      throw new Error("voice.turn requires audioBase64");
+    }
+    if (desktopVoiceOversize(parsed.audioBase64)) {
+      throw new Error("voice.turn audio exceeds size cap");
+    }
   }
   if (parsed.type === "desktop.act" && (!parsed.action || typeof parsed.action !== "string")) {
     throw new Error("desktop.act requires action");

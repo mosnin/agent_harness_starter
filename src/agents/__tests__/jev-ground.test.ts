@@ -432,6 +432,39 @@ describe("grounding + quiet-ask + tool gate", () => {
     expect(mentioned.asks).toBe(1);
   });
 
+  it("blocks Windows SAM / NTUSER dumps without calling Jev", async () => {
+    let calls = 0;
+    const client = createMockJevClient(async () => {
+      calls += 1;
+      throw new Error("network");
+    });
+    const asker = createJevAsker(client);
+    const sam = await runToolGate({
+      userRequest: "inspect the box",
+      toolName: "file_read",
+      toolArguments: { path: "C:\\Windows\\System32\\config\\SAM" },
+      asker,
+    });
+    const dumped = await runToolGate({
+      userRequest: "inspect the profile",
+      toolName: "shell_exec",
+      toolArguments: { command: "Get-Content C:\\Users\\ada\\NTUSER.DAT" },
+      asker,
+    });
+    const mentioned = await runToolGate({
+      userRequest: "print a warning",
+      toolName: "shell_exec",
+      toolArguments: { command: "echo never open NTUSER.DAT" },
+      asker,
+    });
+    expect(calls).toBe(1);
+    expect(sam.asks).toBe(0);
+    expect(sam.decisions[0]?.reason).toBe("target-local");
+    expect(dumped.asks).toBe(0);
+    expect(dumped.decisions[0]?.reason).toBe("target-local");
+    expect(mentioned.asks).toBe(1);
+  });
+
   it("blocks curl|bash and docker.sock without calling Jev", async () => {
     let calls = 0;
     const client = createMockJevClient(async () => {

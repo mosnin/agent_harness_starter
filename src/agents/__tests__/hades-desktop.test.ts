@@ -11,6 +11,10 @@ import {
   encodeDesktopMessage,
   detectDesktopInference,
   runDesktopSidecar,
+  readCappedLines,
+  desktopVoiceOversize,
+  MAX_DESKTOP_CHAT_CHARS,
+  MAX_DESKTOP_LINE_CHARS,
   type CapRunner,
 } from "../hades/desktop/index";
 import type { HadesHarness } from "../hades/index";
@@ -74,6 +78,14 @@ describe("desktop inference + wire", () => {
   it("round-trips commands and events", () => {
     const line = encodeDesktopMessage({ type: "desktop.act", action: "targets" });
     expect(decodeDesktopCommand(line.trim()).type).toBe("desktop.act");
+  });
+
+  it("rejects oversized chat text and voice payloads", () => {
+    expect(() =>
+      decodeDesktopCommand(JSON.stringify({ type: "chat.send", text: "x".repeat(MAX_DESKTOP_CHAT_CHARS + 1) }))
+    ).toThrow(/text exceeds/);
+    expect(() => decodeDesktopCommand("x".repeat(MAX_DESKTOP_LINE_CHARS + 1))).toThrow(/size cap/);
+    expect(desktopVoiceOversize("A".repeat(12 * 1024 * 1024))).toBe(true);
   });
 });
 
@@ -237,6 +249,18 @@ describe("desktop host", () => {
     expect(events.some((event) => event.type === "desktop.result" && event.error === "target-local")).toBe(true);
   });
 
+  it("rejects an oversized voice.turn without calling the harness", async () => {
+    const voiceTurn = vi.fn();
+    const events: Array<{ type: string; code?: string }> = [];
+    const host = createDesktopHost({
+      harness: stubHarness({ voiceTurn }),
+      onEvent: (event) => events.push(event),
+    });
+    await host.handle({ type: "voice.turn", audioBase64: "A".repeat(12 * 1024 * 1024) });
+    expect(voiceTurn).not.toHaveBeenCalled();
+    expect(events.some((event) => event.type === "error" && event.code === "voice-oversize")).toBe(true);
+  });
+
   it("does not spawn cap when Jev blocks a write", async () => {
     const run = vi.fn();
     const cap: CapRunner = { run };
@@ -376,5 +400,14 @@ describe("desktop sidecar", () => {
       harness: stubHarness(),
     });
     expect(written).toContain("runtime.ready");
+  });
+
+  it("drops a line that grows past the cap before JSON.parse", async () => {
+    await expect(async () => {
+      const lines = readCappedLines(Readable.from(["abcdefghij"]), 8);
+      for await (const _ of lines) {
+        /* consume */
+      }
+    }).rejects.toThrow(/size cap/);
   });
 });

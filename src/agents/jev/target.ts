@@ -30,18 +30,18 @@ const URL_KEYS = new Set(["url", "uri", "href", "endpoint", "host", "hostname"])
 
 const TRAVERSAL = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
 const SECRET_FILE =
-  /(?:^|[\\/])(?:\.env(?:\.[A-Za-z0-9._-]+)?|\.npmrc|\.netrc|\.git-credentials|\.pgpass|\.kube(?:[\\/]config)?|\.docker[\\/]config\.json|id_rsa|id_ed25519|id_ecdsa|authorized_keys)(?:$|[\\/])/i;
+  /(?:^|[\\/])(?:\.env(?:\.[A-Za-z0-9._-]+)?|\.npmrc|\.netrc|\.git-credentials|\.pgpass|\.kube(?:[\\/]config)?|\.docker[\\/]config\.json|id_rsa|id_ed25519|id_ecdsa|authorized_keys|NTUSER\.DAT|System32[\\/]config[\\/]SAM|AppData[\\/]Roaming[\\/](?:gnupg|\.aws))(?:$|[\\/])/i;
 const UNIX_EXFIL =
-  /(?:^|[\\/])(?:etc[\\/](?:passwd|shadow|sudoers)|proc[\\/]self[\\/]environ|\.ssh[\\/]|\.aws[\\/]|\.kube[\\/]|var[\\/]run[\\/]docker\.sock|docker\.sock)/i;
+  /(?:^|[\\/])(?:etc[\\/](?:passwd|shadow|sudoers)|proc[\\/]self[\\/]environ|\.ssh[\\/]|\.aws[\\/]|\.kube[\\/]|var[\\/]run[\\/]docker\.sock|docker\.sock|Windows[\\/]System32[\\/]config[\\/]SAM|AppData[\\/]Roaming[\\/](?:gnupg|\.aws)|NTUSER\.DAT)/i;
 const METADATA_HOST =
   /169\.254\.169\.254|169\.254\.170\.2|100\.100\.100\.200|metadata\.google\.internal|metadata\.internal|fd00:ec2::254|kubernetes\.default\.svc/i;
 const FILE_SCHEME = /^file:/i;
 
 const READ_OR_FETCH =
-  /\b(?:cat|less|more|head|tail|nl|od|xxd|hexdump|strings|curl|wget|scp|rsync|grep|egrep|fgrep|awk|sed|cut|sort|uniq|rg|bat|dd)\b/i;
+  /\b(?:cat|less|more|head|tail|nl|od|xxd|hexdump|strings|curl|wget|scp|rsync|grep|egrep|fgrep|awk|sed|cut|sort|uniq|rg|bat|dd|Get-Content)\b/i;
 const WRITE_VERB = /\b(?:cp|mv|tee|install|chmod|chown|chattr|ln|dd)\b/i;
 const REDIRECT_TO_SECRET =
-  /(?:^|[\s;|&])(?:>>?|2>>?|&>>?)\s*(?:["']?)(?:~\/|\/)?(?:etc[\\/](?:passwd|shadow|sudoers)|(?:\.\.\/)*\.env(?:\.[A-Za-z0-9._-]+)?|\.npmrc|\.netrc|\.ssh|\.aws|\.kube|\.git-credentials|\.docker[\\/]config\.json|\.pgpass|id_rsa|id_ed25519|id_ecdsa|authorized_keys)/i;
+  /(?:^|[\s;|&])(?:>>?|2>>?|&>>?)\s*(?:["']?)(?:~\/|\/)?(?:etc[\\/](?:passwd|shadow|sudoers)|(?:\.\.\/)*\.env(?:\.[A-Za-z0-9._-]+)?|\.npmrc|\.netrc|\.ssh|\.aws|\.kube|\.git-credentials|\.docker[\\/]config\.json|\.pgpass|id_rsa|id_ed25519|id_ecdsa|authorized_keys|NTUSER\.DAT|System32[\\/]config[\\/]SAM)/i;
 const INTERPRETER_EVAL =
   /\b(?:python3?|node(?:js)?|ruby|perl|php)\b[\s\S]{0,120}(?:\s-[ce]\b|\bopen\s*\(|\breadFile(?:Sync)?\s*\(|\brequire\s*\(|\bFile\.open\s*\()/i;
 const FILE_IN_COMMAND = /\bfile:\/\//i;

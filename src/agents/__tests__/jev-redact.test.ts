@@ -212,6 +212,23 @@ describe("zero-RTT secret redaction", () => {
     expect(hasSevereSecret("JWTs start with eyJ")).toBe(false);
   });
 
+  it("treats STS, Stripe webhook, xAI, DO, Shopify, and restricted Stripe keys as severe", () => {
+    const sts = "ASIAIOSFODNN7EXAMPLE";
+    const webhook = "whsec_abcdefghijklmnopqrstuvwxyz012345";
+    const xai = "xai-abcdefghijklmnopqrstuvwxyz012345";
+    const doppler = "dop_v1_abcdefghijklmnopqrstuvwxyz0123";
+    const shop = "shpat_abcdefghijklmnopqrstuvwxyz0123";
+    const restricted = ["rk", "live", "a".repeat(24)].join("_");
+    expect(hasSevereSecret(sts)).toBe(true);
+    expect(redactSecrets(sts).text).toBe("[AWS_KEY]");
+    expect(hasSevereSecret(webhook)).toBe(true);
+    expect(hasSevereSecret(xai)).toBe(true);
+    expect(hasSevereSecret(doppler)).toBe(true);
+    expect(hasSevereSecret(shop)).toBe(true);
+    expect(hasSevereSecret(restricted)).toBe(true);
+    expect(hasSevereSecret("xAI keys start with xai")).toBe(false);
+  });
+
   it("treats SSNs as severe and leaves a date-shaped string alone", () => {
     expect(hasSevereSecret("SSN 123-45-6789")).toBe(true);
     expect(redactSecrets("SSN 123-45-6789").text).toBe("SSN [SSN]");

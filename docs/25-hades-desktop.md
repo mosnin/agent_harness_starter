@@ -215,6 +215,11 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | Factual search with a harvestable number / date / URL | `Extracted:` on the evidence reply, still one ask |
 | RAG passage that is relevant but low-quality | dropped by curate `keep` on the same ask |
 | `saveMessage` content larger than 32 KiB | stored tail is 32 KiB + ellipsis |
+| Desktop `voice.turn` base64 above 8 MiB | `error` `voice-oversize`, harness not called |
+| Desktop `chat.send` text above 32k | decode throws; sidecar emits `error` |
+| Sidecar NDJSON line above the voice cap | dropped before `JSON.parse` |
+| Pasted `ASIA…` / `whsec_` / `xai-` / `shpat_` | `jev.decision` `leaks-secret-local` |
+| Desktop export / `Get-Content` of `SAM` / `NTUSER.DAT` | `target-local`, Cap not called |
 | Shell `git push --force` | `jev.decision` `destructive-local` HITL |
 | Shell `ENOENT` / `EACCES` / `ETIMEDOUT` | `jev.decision` `failure-local`, tool result returned with class |
 | Shell `cat /etc/passwd` / `curl 169.254.169.254` | `jev.decision` `target-local` block, tool not called |

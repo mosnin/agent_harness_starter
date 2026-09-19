@@ -18,6 +18,8 @@ import type { AgentEvent } from "../../types";
 import { createCapRunner, type CapRunner } from "./cap";
 import {
   detectDesktopInference,
+  desktopVoiceOversize,
+  MAX_DESKTOP_VOICE_BYTES,
   type DesktopCommand,
   type DesktopEvent,
 } from "./contract";
@@ -146,7 +148,15 @@ async function runVoice(
 ): Promise<void> {
   const id = threadId?.trim() || "default";
   const prior = threads.get(id) ?? [];
+  if (desktopVoiceOversize(audioBase64)) {
+    emit({ type: "error", error: "voice.turn audio exceeds size cap", code: "voice-oversize" });
+    return;
+  }
   const audio = Buffer.from(audioBase64, "base64");
+  if (audio.byteLength > MAX_DESKTOP_VOICE_BYTES) {
+    emit({ type: "error", error: "voice.turn audio exceeds size cap", code: "voice-oversize" });
+    return;
+  }
   const result = await harness.voiceTurn(audio, {
     messages: prior,
     context: { channel: "desktop", threadId: id },
