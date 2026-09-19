@@ -239,6 +239,10 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | Pasted GitHub `gho_` / `ghu_` / `ghs_` / `ghr_` | `jev.decision` `leaks-secret-local` |
 | Adapter `listThreads` / `getMessages` without `limit` | at most 50 threads / 100 messages |
 | Pasted PyPI `pypi-` token | `jev.decision` `leaks-secret-local` |
+| Single `web_search` result | same Jev screen / `best` / evidence skip as multi-hit |
+| Swarm assign among 9+ agents with `needs_human ≥ 0.7` | task `failed` / no worker, same as 2–8 |
+| Agent with 9+ skills | `routeSkillMapReduce` after preflight |
+| SSE `error` on `/api/hades` / `/api/agent` | `safeErrorMessage` (keys redacted) |
 | `web_search` results that contradict each other | empty `ranked`, conflict card in `jevEvidence`, no side picked |
 | Factual `web_search` with a clear `best` snippet | `jevDirectReply` from the snippet, remaining Qwen tokens aborted |
 | Tool that does not bind to the request | `jev.decision` `unbound-tool` HITL or block |

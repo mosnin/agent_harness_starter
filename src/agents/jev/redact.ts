@@ -170,6 +170,11 @@ export interface RedactStream {
   flush(): string;
 }
 
+/** Persist / stream exception text without leaking a raw key. */
+export function safeErrorMessage(err: unknown): string {
+  return redactSecrets(err instanceof Error ? err.message : String(err)).text;
+}
+
 /** Hold a short tail so a key split across SSE deltas is still redacted. */
 export function createRedactStream(hold = 64): RedactStream {
   const keep = Math.max(64, hold);

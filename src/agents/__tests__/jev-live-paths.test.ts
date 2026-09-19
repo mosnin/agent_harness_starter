@@ -804,6 +804,30 @@ describe("orchestrate helpers", () => {
     }, 1)).resolves.toBe(true);
   });
 
+  it("map-reduces skill routing when preflight has more than 8 skills", async () => {
+    const client = mockFromMap({});
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenInput: false,
+      screenOutput: false,
+      routeModel: false,
+      autoMode: false,
+      judgePatch: false,
+      companyOs: false,
+      stopHook: false,
+      compact: false,
+      skills: Array.from({ length: 9 }, (_, i) => ({ id: `s${i}`, description: `Skill ${i}` })),
+    });
+    const runCtx = ctx();
+    await plugin.onBeforeRun!(
+      "use the third specialist",
+      runCtx,
+      { messages: [{ role: "user", content: "use the third specialist" }] }
+    );
+    expect(typeof runCtx.context.hadesSkill).toBe("string");
+    expect(runCtx.context.hadesSkill).not.toBe("");
+  });
+
   it("assigns a swarm task", async () => {
     const client = mockFromMap({});
     const picked = await pickSwarmAgent({
@@ -852,6 +876,25 @@ describe("orchestrate helpers", () => {
     expect(pickedJail.agent).toBeUndefined();
     expect(pickedJail.decision.reason).toBe("injection-local");
     expect(called).toBe(0);
+  });
+
+  it("refuses a needs_human swarm assign among more than 8 agents", async () => {
+    const client = mockFromMap({ needs_human: noulAns(0.92) });
+    const agents = Array.from({ length: 9 }, (_, i) => ({
+      id: `w${i}`,
+      name: `W${i}`,
+      status: "idle" as const,
+      capabilities: ["code"],
+      load: 0.1 + i / 20,
+      lastHeartbeat: Date.now(),
+    }));
+    const picked = await pickSwarmAgent({
+      task: { description: "page the on-call for a production outage", requiredCapabilities: ["code"], priority: 1 },
+      agents,
+      asker: createJevAsker(client),
+    });
+    expect(picked.agent).toBeUndefined();
+    expect(picked.decision.reason).toBe("needs-human");
   });
 
   it("refuses a needs_human swarm assign without picking a worker", async () => {
@@ -1337,6 +1380,60 @@ describe("evidence-answer skip Qwen", () => {
     expect(output.jevSearch?.hasAnswer).toBe(true);
     expect(String(runCtx.context.jevDirectReply)).toMatch(/Invoice 12 is paid/);
     expect(String(runCtx.context.jevEvidenceAnswer)).toMatch(/Invoice 12 is paid/);
+  });
+
+  it("screens a single search result instead of skipping Jev", async () => {
+    const { z } = await import("zod");
+    let calls = 0;
+    const client = createMockJevClient((req) => {
+      calls += 1;
+      expect(req.questions.best).toBeDefined();
+      expect(req.questions.inj_0).toBeDefined();
+      const answers: Record<string, JevAnswer> = {};
+      for (const [id, q] of Object.entries(req.questions)) {
+        if (q.type === "noul") answers[id] = noulAns(id === "contradicts" || id.startsWith("inj_") ? 0.08 : 0.9);
+        else if (q.type === "choice") {
+          const keys = Object.keys(q.criteria);
+          const pick = id === "best" && keys.includes("r0") ? "r0" : keys[0]!;
+          answers[id] = choiceAns(pick, keys);
+        } else answers[id] = noulAns(0.5);
+      }
+      return { model: "jev-latest", answers };
+    });
+    const plugin = withJev({
+      asker: createJevAsker(client),
+      screenInput: false,
+      screenOutput: false,
+      routeModel: false,
+      autoMode: false,
+      judgePatch: false,
+      companyOs: false,
+      stopHook: false,
+      compact: false,
+    });
+    const runCtx = ctx();
+    runCtx.context.lastUserMessage = "What is the invoice status?";
+    runCtx.context.jevFactual = 0.88;
+    const wrapped = await plugin.wrapTools!(
+      [
+        {
+          name: "web_search",
+          description: "Search the web",
+          parameters: z.object({ query: z.string() }),
+          execute: async () => ({
+            results: [{ title: "Ledger", url: "https://ledger.example/12", content: "Invoice 12 is paid." }],
+          }),
+        },
+      ],
+      runCtx,
+      new Map()
+    );
+    const output = (await wrapped[0]!.execute({ query: "invoice 12" }, {})) as {
+      jevSearch?: { hasAnswer?: boolean };
+    };
+    expect(calls).toBe(1);
+    expect(output.jevSearch?.hasAnswer).toBe(true);
+    expect(String(runCtx.context.jevDirectReply)).toMatch(/Invoice 12 is paid/);
   });
 
   it("does not skip Qwen when the turn is not factual", async () => {

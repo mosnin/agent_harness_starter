@@ -190,7 +190,25 @@ export async function pickSwarmAgent(input: {
     options,
     asker: input.asker,
     escape: "__none__",
+    extraQuestions: {
+      needs_human: noul("Does `task` need a human rather than a worker?"),
+      urgency: score("How urgent is `task`?", URGENCY_LEVELS),
+    },
   });
+  if (decision.answers) {
+    const needsHuman = requireNoul(decision.answers, "needs_human");
+    if (needsHuman >= 0.7) {
+      return {
+        decision: {
+          action: "review",
+          value: "__none__",
+          reason: "needs-human",
+          node: "swarm_assign",
+          answers: decision.answers,
+        },
+      };
+    }
+  }
   const agent = capable.find((a) => a.id === decision.value);
   return { agent, decision };
 }

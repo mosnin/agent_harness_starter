@@ -11,7 +11,7 @@ import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
 import { sseStream } from "@/agents/lib/utils";
 import { createHadesHarness } from "@/agents/hades/index";
-import { redactSecrets } from "@/agents/jev/redact";
+import { redactSecrets, safeErrorMessage } from "@/agents/jev/redact";
 import { clampRequestedTools, readCappedJson } from "@/agents/lib/request-guard";
 import { isThreadOwner, MAX_HARNESS_MESSAGES, messagesForHarness } from "@/agents/lib/thread-history";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
           if (event.type === "done") finalOutput = event.finalOutput;
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = safeErrorMessage(err);
         yield JSON.stringify({ type: "error", error: msg });
         await db.updateRun(run.id, { status: "failed", error: msg, completedAt: new Date() }, user.id);
         return;

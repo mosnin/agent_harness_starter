@@ -49,6 +49,7 @@ export { harvestToolEvidence, mergeEvidence } from "./harvest";
 export {
   redactSecrets,
   redactValue,
+  safeErrorMessage,
   createRedactStream,
   secretLabels,
   collectSecretLabels,

@@ -28,7 +28,7 @@
 import { z } from "zod";
 import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
-import { redactSecrets } from "@/agents/jev/redact";
+import { redactSecrets, safeErrorMessage } from "@/agents/jev/redact";
 import { capListedMessages, capListedThreads, MAX_LIST_MESSAGES, MAX_LIST_THREADS, readCappedJson } from "@/agents/lib/request-guard";
 import { isThreadOwner, MAX_HARNESS_MESSAGES, messagesForHarness } from "@/agents/lib/thread-history";
 import { sseStream } from "@/agents/lib/utils";
@@ -108,7 +108,7 @@ export async function POST(req: Request) {
           if (event.type === "done") finalOutput = event.finalOutput;
         }
       } catch (err) {
-        const msg = redactSecrets(err instanceof Error ? err.message : String(err)).text;
+        const msg = safeErrorMessage(err);
         yield JSON.stringify({ type: "error", error: msg });
         await db.updateRun(run.id, { status: "failed", error: msg, completedAt: new Date() }, user.id);
         return;

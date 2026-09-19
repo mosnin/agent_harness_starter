@@ -6,7 +6,7 @@
 import { createJevAsker } from "./client";
 import { GATES, decideChoice, decideUnavailable } from "./policy";
 import { choice } from "./questions";
-import type { JevAsker, PolicyDecision, SkillRoute } from "./types";
+import type { JevAsker, JevQuestions, PolicyDecision, SkillRoute } from "./types";
 import { requireChoice } from "./validate";
 
 const BATCH = 8;
@@ -20,6 +20,7 @@ export async function mapReduceChoice(input: {
   asker?: JevAsker;
   signal?: AbortSignal;
   escape?: string;
+  extraQuestions?: JevQuestions;
 }): Promise<PolicyDecision> {
   const escape = input.escape ?? "__review__";
   const entries = Object.entries(input.options);
@@ -61,7 +62,10 @@ export async function mapReduceChoice(input: {
   const asked = await asker.ask(
     {
       state: input.state as never,
-      questions: { pick: choice(input.instructions, finalCriteria) },
+      questions: {
+        pick: choice(input.instructions, finalCriteria),
+        ...input.extraQuestions,
+      },
     },
     input.signal
   );

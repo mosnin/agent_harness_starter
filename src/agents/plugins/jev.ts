@@ -20,6 +20,7 @@ import { heedPolicy, stopHook } from "../jev/hooks";
 import { runPostflight } from "../jev/postflight";
 import { runPreflight } from "../jev/preflight";
 import { createRedactStream, hasSevereSecret, localSecretBlock, redactSecrets, redactValue, type RedactStream } from "../jev/redact";
+import { routeSkillMapReduce } from "../jev/mapreduce";
 import { routeModel, routeSkill } from "../jev/router";
 import { scoreQuality } from "../jev/scoring";
 import { planAndRerankSearch, shouldSkipGenerationForEvidence } from "../jev/search";
@@ -186,6 +187,15 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
         if (doSkills && pre.skill) {
           emit(opts, pre.skill, started, ctx);
           ctx.context.hadesSkill = pre.skill.value;
+        } else if (doSkills && skills.length > 8) {
+          const skill = await routeSkillMapReduce({
+            message: userMessage,
+            skills,
+            asker,
+            signal: input.signal,
+          });
+          emit(opts, skill, started, ctx);
+          ctx.context.hadesSkill = skill.value;
         }
         if (doHeed) {
           ctx.context.jevPolicyDeltas = pre.heed;
@@ -423,7 +433,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
 
             if (doRerank && isSearchTool(def.name) && raw && typeof raw === "object" && "results" in raw) {
               const search = raw as { results: Array<{ title?: string; url?: string; content?: string; snippet?: string }> };
-              if (Array.isArray(search.results) && search.results.length > 1) {
+              if (Array.isArray(search.results) && search.results.length > 0) {
                 const plan = await planAndRerankSearch({
                   request: userRequest || String((toolInput as { query?: string }).query ?? ""),
                   results: search.results.map((r, i) => ({

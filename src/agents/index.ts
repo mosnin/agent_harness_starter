@@ -151,6 +151,7 @@ export {
   runToolGate,
   harvestToolEvidence,
   redactSecrets,
+  safeErrorMessage,
   screenExternal,
   screenOutput,
   screenBrowserPage,
@@ -167,6 +168,7 @@ export {
 export type { JevClient, JevAsker, PolicyDecision, SystemOneResult } from "./jev/index";
 
 export { createDesktopHost, runDesktopSidecar, detectDesktopInference } from "./hades/desktop/index";
+export { shouldExecuteVoice } from "./hades/index";
 export { isThreadOwner, messagesForHarness, appendHarnessTurn, toAgentInput } from "./lib/thread-history";
 export { getOwnedRun, getOwnedThread } from "./lib/run-owner";
 export type { HarnessMessage, SdkInputItem } from "./lib/thread-history";

@@ -8,6 +8,7 @@ import {
   mergeEvidence,
   redactSecrets,
   redactValue,
+  safeErrorMessage,
   createRedactStream,
   applyCompaction,
   formatCompactThread,
@@ -237,6 +238,13 @@ describe("zero-RTT secret redaction", () => {
     expect(hasSevereSecret(pypi)).toBe(true);
     expect(redactSecrets(pypi).text).toBe("[API_KEY]");
     expect(hasSevereSecret("pypi tokens exist")).toBe(false);
+  });
+
+  it("redacts exception text before it is persisted or streamed", () => {
+    const leaked = `failed with ${OPENAI_KEY}`;
+    expect(safeErrorMessage(new Error(leaked))).not.toContain(OPENAI_KEY);
+    expect(safeErrorMessage(new Error(leaked))).toContain("[API_KEY]");
+    expect(safeErrorMessage(leaked)).not.toContain(OPENAI_KEY);
   });
 
   it("treats SSNs as severe and leaves a date-shaped string alone", () => {

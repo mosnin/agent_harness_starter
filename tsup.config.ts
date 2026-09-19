@@ -39,5 +39,6 @@ export default defineConfig({
     "@prisma/client", "convex", "modal", "@daytonaio/sdk",
     "composio-core", "@modelcontextprotocol/sdk", "@upstash/redis",
     "next", "react", "react-dom",
+    "playwright-core", "playwright", "chromium-bidi",
   ],
 });

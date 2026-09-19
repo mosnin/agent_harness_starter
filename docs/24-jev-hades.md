@@ -474,6 +474,7 @@ Fixed:
 - Swarm `submitTask` / `submitTaskJev` / `pickSwarmAgent` screen jailbreak and secret payloads at zero RTT (`injection-local` / `leaks-secret-local`) and fail the task — they do not fall back to `selectAgent`. A mention of credentials or jailbreaks still assigns. The 2–8 agent assign ask now rides unused triage `needs_human` / `urgency`; `needs_human ≥ 0.7` is review, no worker. Convex `messages:list` and `threads:listByUser` always `take` (100 / 50) so a missing adapter `limit` cannot `.collect()` the table.
 - Swarm `send` / `broadcast` strip jailbreak and secret payloads (`{ blocked }`) before `onMessage`. The in-memory bus keeps the newest 200 lines. Convex thread delete pages at 64 instead of `.collect()`. `runs:listByThread` defaults to `take(50)`. GitHub `gho_` / `ghu_` / `ghs_` / `ghr_` tokens are `leaks-secret-local` the same way `ghp_` is.
 - Memory / Prisma / Supabase / Convex adapters now default omitted `listThreads` / `getMessages` limits to 50 / 100 (`resolveListLimit`). A desktop or MCP caller that forgets `limit` cannot dump the store. PyPI `pypi-` tokens are `leaks-secret-local`.
+- A single `web_search` hit now runs the same Jev ask as a multi-hit page (injection, `best`, evidence skip). Swarm assign among more than 8 agents rides `needs_human` / `urgency` on the final map-reduce ask. Batch preflight with 9+ skills falls back to `routeSkillMapReduce`. SSE / persisted run errors on `/api/hades`, `/api/agent`, and `/api/anthropic-agent` go through `safeErrorMessage`.
 - Search rerank now includes unused `sdeCascade` / `compareTexts` presence questions on the same ask. Material contradiction empties `ranked` and harvests a conflict card so Qwen cannot pick a side. `wrong_fn` on `runToolGate` blocks a tool that does not bind to the user request (`unbound-tool`).
 - Search also asks unused `semanticFind` `best` on that same hop. A factual turn (`is_factual ≥ 0.7`) with `hasAnswer` and a ranked `best` snippet sets `jevEvidenceAnswer` / `jevDirectReply`. Core aborts the remaining Qwen tokens; `onAfterRun` ships the grounded reply and skips postflight.
 - Unused `judge` now rides the existing postflight ask as `recommendation` when evidence is present. `abstain` replaces the draft (same as grounding); `ask_user` is review. Still one System One call. `GET /api/threads` is capped at 50.
@@ -561,6 +562,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 44 — Holistic wrap-up
+
+Single-result search skipped the live Jev pipeline, so one injected snippet reached Qwen. `wrapTools` now reranks whenever `results.length > 0`. Map-reduce swarm assign missed the 2–8 `needs_human` gate; those nouls ride the **final** reduce ask (no extra sequential hop). Default batch preflight skipped skill routing past 8 skills; it now calls `routeSkillMapReduce`. Hades/agent SSE errors used raw `err.message`; they now share `safeErrorMessage` with the Anthropic route. `shouldExecuteVoice` is on the root barrel. `tsup` marks `playwright-core` / `chromium-bidi` external so `npm run build:lib` does not fail on an optional browser dependency. `npm run check` runs `tsc --noEmit && vitest run`.
 
 ### Wave 43 — Adapter list defaults + PyPI tokens
 
