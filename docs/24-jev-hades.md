@@ -324,6 +324,7 @@ These sit on real hops, not helper-only APIs:
 | Desktop sidecar | `createDesktopHost` / `npm run desktop:sidecar`; local target/secret labels then Jev before `cap` |
 | `runToolGate` | One System One call for Auto Mode + malware + patch + company + invented args; local wipe / target labels first |
 | Thread history | Last 40 owned, redacted turns on `/api/hades`, `/api/agent`, and desktop `chat.send` |
+| `DELETE /api/threads/[id]` | 404 unless `getOwnedThread` matches the caller |
 | Tool harvest | Append evidence cards with no extra Jev call |
 | Secret redaction | Strip keys from tool output, evidence, stream, memory, desktop `cap`, persisted threads |
 | Postflight grounding | Sentence-level support; ungrounded drafts become an abstain |
