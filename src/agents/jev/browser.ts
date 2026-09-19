@@ -49,6 +49,7 @@ export async function screenBrowserPage(input: ScreenBrowserInput): Promise<Scre
   const elementCriteria = Object.fromEntries([
     ...elements.map((el) => [el.id, `${el.type}: ${el.label}`]),
     ["none", "No visible element matches the next action."],
+    ["unknown", "A visible control exists but is not listed."],
   ]);
 
   const questions: JevQuestions = {
@@ -77,8 +78,8 @@ export async function screenBrowserPage(input: ScreenBrowserInput): Promise<Scre
         task: input.task.slice(0, 2000),
         url: input.url ?? "",
         page_text: input.text.slice(0, 3000),
-        elements,
-      } as JevState,
+        elements: elements.map((el) => ({ id: el.id, type: el.type, label: el.label })),
+      } as unknown as JevState,
       questions,
     },
     input.signal
@@ -97,6 +98,6 @@ export async function screenBrowserPage(input: ScreenBrowserInput): Promise<Scre
     asks: 1,
     screen: interpretScreenAnswers(asked.result.answers, "closed"),
     step: interpretBrowserStep(asked.result.answers),
-    target: target && target !== "none" ? target : undefined,
+    target: target && target !== "none" && target !== "unknown" ? target : undefined,
   };
 }

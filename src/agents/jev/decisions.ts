@@ -172,6 +172,7 @@ export async function decideBrowserStep(input: {
   const elementCriteria = Object.fromEntries([
     ...input.elements.slice(0, 40).map((el) => [el.id, `${el.type}: ${el.label}`]),
     ["none", "No visible element matches the next action."],
+    ["unknown", "A visible control exists but is not listed."],
   ]);
   const asked = await asker.ask(
     {
