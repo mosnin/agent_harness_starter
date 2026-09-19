@@ -226,7 +226,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
    - `approveCompanyAction` on deploy / composio / transfer / rotate / prod tools. `deploy_prod`, `wire_transfer`, `delete_account`, `rotate_keys` always HITL.
    - `review` → approval event. `block` → `GuardrailBlockError`.
    - `web_search` → `planAndRerankSearch` in **one** ask (window + sources + relevance + injection). Injected snippets are dropped. Snippets stored as `jevEvidence`. Tool SSE `tool_call` / `tool_result` events are redacted before they leave the harness.
-   - `browser_*` → `screenExternal` on page text. Block **and** injection/secret review. Surviving text appended to `jevEvidence`.
+   - `browser_*` → `screenBrowserPage` in **one** ask (injection / substance / secret + next `action` / `target` / done / stuck). Local jailbreak or secret → zero-RTT block. Jev-down → **block**. Injection/secret *review* → HITL error. Surviving pages attach `jevBrowser` and are harvested into `jevEvidence`.
    - Failed `shell_exec` → `classifyCommandFailure`. Secret-leaking stderr is blocked. Jev-down → **block** (stderr never reaches Qwen).
 7. **`onAfterRun`** — **one** System One call (`runPostflight`).
    - `screenOutput` — Jev-down → **block**.
@@ -256,6 +256,7 @@ All under `src/agents/jev/`:
 | `guardrails.ts` | Input/output screens, citations, malware | safer-with-jev, jev-review, is-malicious |
 | `scoring.ts` | Slop / quality / rerank / page grade | JevSlop, jev-search, pagegrade |
 | `decisions.ts` | quiet-ask, completion, compaction, browser step, cmd fail | pi-quiet-ask, limpet, Foreman |
+| `browser.ts` | One-ask scrape screen + next browser step | decideBrowserStep + safer-with-jev |
 | `rag.ts` | Passage relevance + injection filter | TypeSafe RAG cookbook |
 | `extract.ts` | find / extract / compare / bind / SDE cascade | jev-mcp cookbooks |
 | `search.ts` | Window + sources + rerank + injection drop in one ask | jev-search |
@@ -313,7 +314,7 @@ These sit on real hops, not helper-only APIs:
 | `judgePatch` | jev-code verdict on `file_patch` |
 | `approveCompanyAction` | opencompany HITL on deploy / composio / transfer |
 | `verifyCitation` | Block drafts that contradict retrieved evidence (fail-closed) |
-| `browser_*` wrap | Screen scraped page text; review-band injection is blocked |
+| `browser_*` wrap | One-ask screen + next step (`jevBrowser`); local jailbreak/secret and Jev-down block |
 | `AGENT_PROVIDER=hades` | `/api/agent` uses `createHadesHarness` |
 | Agent Chat | Streams `jev_decision`; Voice → `/api/voice` |
 | Desktop sidecar | `createDesktopHost` / `npm run desktop:sidecar`; Jev gates `desktop.act` before `cap` |
@@ -446,6 +447,7 @@ Fixed:
 - Screens, preflight, postflight, and `classifyCommandFailure` short-circuit on `hasSevereSecret` (`leaks-secret-local`) so a pasted key is a zero-RTT block even when Jev is down. EMAIL is PII-redacted but not a severe block.
 - The same screens, plus search/RAG filters, short-circuit canned jailbreaks with `hasLocalInjection` (`injection-local`) so "ignore previous instructions" / DAN / fake system tags never wait on TypeSafe and never leave the box. Ambiguous injection still goes to Jev.
 - Auto Mode / `runToolGate` short-circuit canned destructive commands as `destructive-local`. Wipes (`rm -rf`, `DROP TABLE`, `dd`, …) block; force-git (`push --force`, `reset --hard`) is HITL. Only `command` / `cmd` / `args` are scanned so a README that mentions those strings is not blocked.
+- Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob).
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
@@ -485,7 +487,7 @@ Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev n
 
 ## 13. Files touched (implementation inventory)
 
-**Decision core:** `src/agents/jev/*`  
+**Decision core:** `src/agents/jev/*` (including `browser.ts`)  
 **Harness:** `plugins/jev.ts`, `plugins/memory.ts`, `core.ts`, `hades/index.ts`, `orchestrator.ts`, `workflow/index.ts`, `swarm/coordinator.ts`, `lib/thread-history.ts`, `lib/run-owner.ts`  
 **Providers:** `providers/openrouter.ts`, `providers/voice.ts`  
 **Routes:** `routes/hades/route.ts`, `routes/voice/route.ts`, `routes/agent/route.ts`, `routes/anthropic-agent/route.ts`  
@@ -524,6 +526,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 15 — One-ask browser screen + next step
+
+`browser_*` paid a `screenExternal` hop, then Qwen guessed the next click. `decideBrowserStep` existed and was unused. `screenBrowserPage` now asks injection / substance / secret / action / target / done / stuck together. Local jailbreak or a pasted key is zero-RTT. Jev-down blocks both the screen and the step. The plugin attaches `jevBrowser` so Qwen sees the typed action instead of inventing one.
 
 ### Wave 14 — Local-first destructive commands
 

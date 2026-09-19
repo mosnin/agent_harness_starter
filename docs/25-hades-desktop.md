@@ -2,7 +2,7 @@
 
 This repo is the **agent harness**. Hades the product is a **native desktop application** (Tauri window + Node sidecar). The web routes in `src/app/**` and `routes/**` are the SaaS/HTTP surface. They are not the desktop app.
 
-Jev, Qwen, and OpenAI voice run **inside the sidecar**, on the machine. The webview never holds `TYPESAFE_API_KEY` or `OPENROUTER_API_KEY`. Chat uses one Jev RTT (`runPreflight`); greetings still screen, then skip Qwen. Vague asks clarify instead of guessing. Tool loops use one `runToolGate` ask. Drafts that invent facts are replaced with an abstain. Tool stdout, `cap` output, streamed tokens, and `tool_call` / `tool_result` events are locally redacted before they leave the sidecar. System One payloads are sanitized the same way — a pasted `sk-` / `AWS_SECRET_*` is a zero-RTT `leaks-secret-local` block and never rides to TypeSafe. Search rerank and injection drop share one Jev ask. The renderer should fire `chat.prefetch` while the user is typing so `chat.send` hits the ask cache.
+Jev, Qwen, and OpenAI voice run **inside the sidecar**, on the machine. The webview never holds `TYPESAFE_API_KEY` or `OPENROUTER_API_KEY`. Chat uses one Jev RTT (`runPreflight`); greetings still screen, then skip Qwen. Vague asks clarify instead of guessing. Tool loops use one `runToolGate` ask. Drafts that invent facts are replaced with an abstain. Tool stdout, `cap` output, streamed tokens, and `tool_call` / `tool_result` events are locally redacted before they leave the sidecar. System One payloads are sanitized the same way — a pasted `sk-` / `AWS_SECRET_*` is a zero-RTT `leaks-secret-local` block and never rides to TypeSafe. Search rerank and injection drop share one Jev ask. A `browser_*` scrape screens the page and picks the next click in that same ask (`jevBrowser`). The renderer should fire `chat.prefetch` while the user is typing so `chat.send` hits the ask cache.
 
 ---
 
@@ -190,6 +190,8 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | `chat.send` with "ignore previous instructions" | `jev.decision` `injection-local`, no System One call |
 | Shell `rm -rf` / `DROP TABLE` | `jev.decision` `destructive-local` block, tool not called |
 | Shell `git push --force` | `jev.decision` `destructive-local` HITL |
+| `browser_scrape` of a normal page | one `jev.decision` pair (`screen_external` + `browser_step`), `jevBrowser` on the tool result |
+| `browser_scrape` of "ignore previous instructions" | `injection-local`, no System One call |
 | Tauri CSP | no `https://api.typesafe.ai` from the webview |
 
 ---

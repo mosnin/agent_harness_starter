@@ -8,6 +8,7 @@ import {
   isSafeReadTool,
   runPreflight,
   runPostflight,
+  screenBrowserPage,
   CANNED_REPLIES,
 } from "../jev/index";
 import { withJev } from "../plugins/jev";
@@ -194,6 +195,50 @@ describe("Jev speed: one RTT", () => {
     expect(final).toBe(CANNED_REPLIES.thanks);
     expect(events).toContain("message_done");
     expect(events).not.toContain("error");
+  });
+
+  it("screens a browser page and picks the next step in one ask", async () => {
+    let calls = 0;
+    const client = createMockJevClient((req) => {
+      calls += 1;
+      expect(req.questions.injection).toBeDefined();
+      expect(req.questions.action).toBeDefined();
+      expect(req.questions.target).toBeDefined();
+      const answers: Record<string, JevAnswer> = {};
+      for (const [id, q] of Object.entries(req.questions)) {
+        if (q.type === "choice") {
+          const keys = Object.keys(q.criteria);
+          const pick = id === "action" && keys.includes("CLICK")
+            ? "CLICK"
+            : id === "target" && keys.includes("submit")
+              ? "submit"
+              : keys[0]!;
+          const probabilities = Object.fromEntries(
+            keys.map((k) => [k, k === pick ? 0.92 : 0.08 / Math.max(1, keys.length - 1)])
+          );
+          const sum = Object.values(probabilities).reduce((a, b) => a + b, 0);
+          for (const k of Object.keys(probabilities)) probabilities[k] = (probabilities[k] ?? 0) / sum;
+          answers[id] = { type: "choice", choice: pick, probabilities, confidence: 0.94 };
+        } else {
+          answers[id] = noulAns(id === "substance" ? 0.85 : 0.08);
+        }
+      }
+      return { model: "jev-latest", answers };
+    });
+    const browsed = await screenBrowserPage({
+      task: "Submit the form",
+      text: "Checkout form with a Submit button.",
+      url: "https://shop.example/checkout",
+      elements: [{ id: "submit", type: "button", label: "Submit" }],
+      asker: createJevAsker(client),
+    });
+    expect(calls).toBe(1);
+    expect(browsed.asks).toBe(1);
+    expect(browsed.screen.node).toBe("screen_external");
+    expect(browsed.screen.action).toBe("auto");
+    expect(browsed.step.node).toBe("browser_step");
+    expect(browsed.step.value).toBe("CLICK");
+    expect(browsed.target).toBe("submit");
   });
 });
 

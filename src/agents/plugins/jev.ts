@@ -11,6 +11,7 @@ import { GuardrailBlockError, GuardrailHumanReviewError } from "../guardrails/ty
 import { recordDecision } from "../jev/audit";
 import { createJevAsker } from "../jev/client";
 import { DEFAULT_HADES_SKILLS } from "../jev/catalog";
+import { screenBrowserPage } from "../jev/browser";
 import { classifyCommandFailure, decideCompaction, decideCompletion } from "../jev/decisions";
 import { queueDecision } from "../jev/events";
 import { screenExternal, screenOutput, verifyCitation } from "../jev/guardrails";
@@ -434,24 +435,49 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
             }
 
             if (isBrowserTool(def.name) && raw && typeof raw === "object") {
-              const page = raw as { text?: string; content?: string; url?: string };
+              const page = raw as {
+                text?: string;
+                content?: string;
+                url?: string;
+                elements?: Array<{ id: string; type: string; label: string }>;
+              };
               const text = String(page.text ?? page.content ?? "");
               if (text) {
-                const pageScreen = await screenExternal({
-                  content: text,
-                  purpose: `browser page ${page.url ?? def.name}`,
+                const browsed = await screenBrowserPage({
+                  task: userRequest,
+                  text,
+                  url: page.url,
+                  elements: page.elements,
                   asker,
                   signal: ctx.signal,
-                  failMode: "closed",
                 });
-                emit(opts, pageScreen, started, ctx);
-                if (pageScreen.action === "block" || (pageScreen.action === "review" && (pageScreen.value === "injection" || pageScreen.value === "secret"))) {
+                emit(opts, browsed.screen, started, ctx);
+                emit(opts, browsed.step, started, ctx);
+                if (
+                  browsed.screen.action === "block" ||
+                  (browsed.screen.action === "review" &&
+                    (browsed.screen.value === "injection" || browsed.screen.value === "secret"))
+                ) {
                   throw new GuardrailBlockError(
-                    `Jev blocked scraped page content (${pageScreen.reason}).`,
-                    pageScreen.reason,
+                    `Jev blocked scraped page content (${browsed.screen.reason}).`,
+                    browsed.screen.reason,
                     "jev_browser"
                   );
                 }
+                const annotated = redactValue({
+                  ...raw,
+                  jevBrowser: {
+                    action: browsed.step.value,
+                    reason: browsed.step.reason,
+                    target: browsed.target,
+                    asks: browsed.asks,
+                  },
+                });
+                ctx.context.jevEvidence = mergeEvidence(
+                  ctx.context.jevEvidence,
+                  harvestToolEvidence(def.name, annotated)
+                );
+                return annotated;
               }
             }
 

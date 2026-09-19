@@ -197,16 +197,20 @@ export async function decideBrowserStep(input: {
     input.signal
   );
   if (!asked.ok) return decideUnavailable("browser_step", "BLOCKED", "closed");
-  const done = requireNoul(asked.result.answers, "goal_done");
-  const stuck = requireNoul(asked.result.answers, "stuck");
+  return interpretBrowserStep(asked.result.answers);
+}
+
+export function interpretBrowserStep(answers: import("./types").JevAnswers): PolicyDecision {
+  const done = requireNoul(answers, "goal_done");
+  const stuck = requireNoul(answers, "stuck");
   if (done >= NOUL.goalDone) {
-    return { action: "auto", value: "DONE", reason: "goal-done", node: "browser_step", answers: asked.result.answers };
+    return { action: "auto", value: "DONE", reason: "goal-done", node: "browser_step", answers };
   }
   if (stuck >= NOUL.stuck) {
-    return { action: "review", value: "BLOCKED", reason: "stuck", node: "browser_step", answers: asked.result.answers };
+    return { action: "review", value: "BLOCKED", reason: "stuck", node: "browser_step", answers };
   }
-  const action = requireChoice(asked.result.answers, "action");
-  return { ...decideChoice("browser_step", action, GATES.routing, "BLOCKED"), answers: asked.result.answers };
+  const action = requireChoice(answers, "action");
+  return { ...decideChoice("browser_step", action, GATES.routing, "BLOCKED"), answers };
 }
 
 export async function judge(input: {

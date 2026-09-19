@@ -153,6 +153,7 @@ export {
   redactSecrets,
   screenExternal,
   screenOutput,
+  screenBrowserPage,
   registerJevMcpTools,
   HADES_QWEN_ROUTES,
   filterPassages,
