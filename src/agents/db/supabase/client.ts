@@ -6,13 +6,15 @@
 
 import type { DbAdapter, AgentThread, AgentMessage, AgentRun } from "../types";
 import { config } from "../../lib/config";
+import { assertOwned, ownedOrNull } from "../owner";
 
 function getClient() {
+  const serviceRoleKey = config.db.supabase.serviceRoleKey;
+  if (!serviceRoleKey) {
+    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY — the HTTP adapter must not use the anon key");
+  }
   const { createClient } = require("@supabase/supabase-js");
-  return createClient(
-    config.db.supabase.url,
-    config.db.supabase.serviceRoleKey || config.db.supabase.anonKey
-  );
+  return createClient(config.db.supabase.url, serviceRoleKey);
 }
 
 export const supabaseAdapter: DbAdapter = {
@@ -26,14 +28,15 @@ export const supabaseAdapter: DbAdapter = {
     return rowToThread(data);
   },
 
-  async getThread(threadId) {
+  async getThread(threadId, userId) {
     const { data, error } = await getClient()
       .from("agent_threads")
       .select()
       .eq("id", threadId)
       .maybeSingle();
     if (error) throw error;
-    return data ? rowToThread(data) : null;
+    const thread = data ? rowToThread(data) : null;
+    return ownedOrNull(thread, thread?.userId, userId);
   },
 
   async listThreads(userId) {
@@ -46,7 +49,10 @@ export const supabaseAdapter: DbAdapter = {
     return (data ?? []).map(rowToThread);
   },
 
-  async deleteThread(threadId) {
+  async deleteThread(threadId, userId) {
+    const thread = await supabaseAdapter.getThread(threadId);
+    if (!thread) return;
+    assertOwned(thread.userId, userId, "delete");
     const { error } = await getClient()
       .from("agent_threads")
       .delete()
@@ -54,7 +60,9 @@ export const supabaseAdapter: DbAdapter = {
     if (error) throw error;
   },
 
-  async saveMessage(msg) {
+  async saveMessage(msg, userId) {
+    const thread = await supabaseAdapter.getThread(msg.threadId, userId);
+    if (!thread) throw new Error(`Thread not found: ${msg.threadId}`);
     const { data, error } = await getClient()
       .from("agent_messages")
       .insert({
@@ -70,7 +78,9 @@ export const supabaseAdapter: DbAdapter = {
     return rowToMessage(data);
   },
 
-  async getMessages(threadId) {
+  async getMessages(threadId, userId) {
+    const thread = await supabaseAdapter.getThread(threadId, userId);
+    if (!thread) return [];
     const { data, error } = await getClient()
       .from("agent_messages")
       .select()
@@ -80,7 +90,9 @@ export const supabaseAdapter: DbAdapter = {
     return (data ?? []).map(rowToMessage);
   },
 
-  async createRun(run) {
+  async createRun(run, userId) {
+    const thread = await supabaseAdapter.getThread(run.threadId, userId);
+    if (!thread) throw new Error(`Thread not found: ${run.threadId}`);
     const { data, error } = await getClient()
       .from("agent_runs")
       .insert({
@@ -96,7 +108,9 @@ export const supabaseAdapter: DbAdapter = {
     return rowToRun(data);
   },
 
-  async updateRun(runId, update) {
+  async updateRun(runId, update, userId) {
+    const existing = await supabaseAdapter.getRun(runId, userId);
+    if (!existing) throw new Error(`Run not found: ${runId}`);
     const { data, error } = await getClient()
       .from("agent_runs")
       .update({
@@ -112,14 +126,17 @@ export const supabaseAdapter: DbAdapter = {
     return rowToRun(data);
   },
 
-  async getRun(runId) {
+  async getRun(runId, userId) {
     const { data, error } = await getClient()
       .from("agent_runs")
       .select()
       .eq("id", runId)
       .maybeSingle();
     if (error) throw error;
-    return data ? rowToRun(data) : null;
+    if (!data) return null;
+    const run = rowToRun(data);
+    const thread = await supabaseAdapter.getThread(run.threadId, userId);
+    return thread ? run : null;
   },
 };
 

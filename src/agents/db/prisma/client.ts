@@ -5,6 +5,7 @@
  */
 
 import type { DbAdapter, AgentThread, AgentMessage, AgentRun } from "../types";
+import { assertOwned, ownedOrNull } from "../owner";
 
 function getPrismaClient() {
   const { PrismaClient } = require("@prisma/client");
@@ -40,10 +41,11 @@ export const prismaAdapter: DbAdapter = {
     return dbToThread(data as Record<string, unknown>);
   },
 
-  async getThread(threadId) {
+  async getThread(threadId, userId) {
     const prisma = getPrismaClient();
     const data = await prisma.agentThread.findUnique({ where: { id: threadId } });
-    return data ? dbToThread(data as Record<string, unknown>) : null;
+    const thread = data ? dbToThread(data as Record<string, unknown>) : null;
+    return ownedOrNull(thread, thread?.userId, userId);
   },
 
   async listThreads(userId) {
@@ -55,13 +57,19 @@ export const prismaAdapter: DbAdapter = {
     return data.map((d) => dbToThread(d as Record<string, unknown>));
   },
 
-  async deleteThread(threadId) {
+  async deleteThread(threadId, userId) {
     const prisma = getPrismaClient();
+    const data = await prisma.agentThread.findUnique({ where: { id: threadId } });
+    if (!data) return;
+    const thread = dbToThread(data as Record<string, unknown>);
+    assertOwned(thread.userId, userId, "delete");
     await prisma.agentThread.delete({ where: { id: threadId } });
   },
 
-  async saveMessage(msg) {
+  async saveMessage(msg, userId) {
     const prisma = getPrismaClient();
+    const thread = await prismaAdapter.getThread(msg.threadId, userId);
+    if (!thread) throw new Error(`Thread not found: ${msg.threadId}`);
     const data = await prisma.agentMessage.create({
       data: {
         threadId: msg.threadId,
@@ -74,7 +82,9 @@ export const prismaAdapter: DbAdapter = {
     return dbToMessage(data as Record<string, unknown>);
   },
 
-  async getMessages(threadId) {
+  async getMessages(threadId, userId) {
+    const thread = await prismaAdapter.getThread(threadId, userId);
+    if (!thread) return [];
     const prisma = getPrismaClient();
     const data = await prisma.agentMessage.findMany({
       where: { threadId },
@@ -83,7 +93,9 @@ export const prismaAdapter: DbAdapter = {
     return data.map((d) => dbToMessage(d as Record<string, unknown>));
   },
 
-  async createRun(run) {
+  async createRun(run, userId) {
+    const thread = await prismaAdapter.getThread(run.threadId, userId);
+    if (!thread) throw new Error(`Thread not found: ${run.threadId}`);
     const prisma = getPrismaClient();
     const data = await prisma.agentRun.create({
       data: {
@@ -97,7 +109,9 @@ export const prismaAdapter: DbAdapter = {
     return dbToRun(data as Record<string, unknown>);
   },
 
-  async updateRun(runId, update) {
+  async updateRun(runId, update, userId) {
+    const existing = await prismaAdapter.getRun(runId, userId);
+    if (!existing) throw new Error(`Run not found: ${runId}`);
     const prisma = getPrismaClient();
     const data = await prisma.agentRun.update({
       where: { id: runId },
@@ -111,10 +125,13 @@ export const prismaAdapter: DbAdapter = {
     return dbToRun(data as Record<string, unknown>);
   },
 
-  async getRun(runId) {
+  async getRun(runId, userId) {
     const prisma = getPrismaClient();
     const data = await prisma.agentRun.findUnique({ where: { id: runId } });
-    return data ? dbToRun(data as Record<string, unknown>) : null;
+    if (!data) return null;
+    const run = dbToRun(data as Record<string, unknown>);
+    const thread = await prismaAdapter.getThread(run.threadId, userId);
+    return thread ? run : null;
   },
 };
 

@@ -156,7 +156,7 @@ The copied modules include adapters for common providers, but they need to know 
 
 Quick version:
 - Set `AUTH_PROVIDER=clerk` if you're already using Clerk — nothing else to change.
-- Set `DB_PROVIDER=supabase` and run the SQL migration in `supabase/migrations/001_agent_tables.sql`.
+- Set `DB_PROVIDER=supabase`, set `SUPABASE_SERVICE_ROLE_KEY`, and run `supabase/migrations/001_agent_tables.sql` plus `002_agent_rls.sql`.
 
 ---
 
@@ -165,6 +165,7 @@ Quick version:
 ```sql
 -- Run in your Supabase SQL editor
 -- File: supabase/migrations/001_agent_tables.sql
+-- then: supabase/migrations/002_agent_rls.sql
 ```
 
 For Prisma: add the models from `prisma/schema.prisma` into your existing schema file, then run `npx prisma db push`.

@@ -138,7 +138,7 @@ supabase db push  # if using migrations
 # or paste supabase/migrations/001_agent_tables.sql into the SQL editor
 ```
 
-The three new tables (`agent_threads`, `agent_messages`, `agent_runs`) live alongside your existing tables. They use the same Supabase project.
+The three new tables (`agent_threads`, `agent_messages`, `agent_runs`) live alongside your existing tables. They use the same Supabase project. Set `SUPABASE_SERVICE_ROLE_KEY` on the server — the adapter will not fall back to the anon key. Apply `supabase/migrations/002_agent_rls.sql` so a browser JWT cannot read another user's threads.
 
 ### You already use Prisma
 
