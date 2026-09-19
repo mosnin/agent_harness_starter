@@ -9,6 +9,7 @@ import {
   harvestToolEvidence,
   splitSentences,
   abstainReply,
+  applyCompaction,
   CLARIFY_REPLY,
 } from "../jev/index";
 import { withJev } from "../plugins/jev";
@@ -140,5 +141,21 @@ describe("grounding + quiet-ask + tool gate", () => {
 
   it("builds a deterministic abstain that includes evidence", () => {
     expect(abstainReply("Invoice 12 is unpaid.")).toContain("Invoice 12 is unpaid.");
+  });
+
+  it("prunes middle tool blobs when Jev picks aggressive compaction", () => {
+    const compacted = applyCompaction(
+      [
+        { role: "user", content: "start" },
+        { role: "assistant", content: `{"stdout":"${"x".repeat(900)}","exitCode":0}` },
+        { role: "user", content: "ok continue" },
+        { role: "assistant", content: "done" },
+        { role: "user", content: "now the real ask" },
+      ],
+      "aggressive"
+    );
+    expect(compacted.some((msg) => msg.content.includes("jev compacted"))).toBe(true);
+    expect(compacted.at(-1)?.content).toBe("now the real ask");
+    expect(compacted.some((msg) => msg.content.length > 400 && msg.content.includes("stdout"))).toBe(false);
   });
 });

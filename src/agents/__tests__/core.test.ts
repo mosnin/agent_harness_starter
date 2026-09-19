@@ -14,9 +14,13 @@ import { GuardrailBlockError } from "../guardrails/types";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
+const { agentConfigs } = vi.hoisted(() => ({ agentConfigs: [] as Array<{ model?: string }> }));
+
 vi.mock("@openai/agents", () => ({
   Agent: class Agent {
-    constructor(public readonly config: unknown) {}
+    constructor(public readonly config: { model?: string }) {
+      agentConfigs.push(config);
+    }
   },
   run: vi.fn(),
 }));
@@ -66,7 +70,26 @@ const baseInput = {
 describe("core harness — plugin lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    agentConfigs.length = 0;
     setupRun();
+  });
+
+  it("builds the OpenAI agent with ctx.hadesModel after Jev routes", async () => {
+    const plugin: HarnessPlugin = {
+      name: "route",
+      onBeforeRun(msg, pluginCtx) {
+        pluginCtx.context.hadesModel = "qwen/qwen3-32b";
+        return msg;
+      },
+    };
+    const harness = createCustomHarness({
+      name: "Test",
+      instructions: "x",
+      model: "gpt-4o-test",
+      plugins: [plugin],
+    });
+    await collect(harness.stream(baseInput));
+    expect(agentConfigs.at(-1)?.model).toBe("qwen/qwen3-32b");
   });
 
   it("yields pendingPluginEvents queued during onBeforeRun", async () => {

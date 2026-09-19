@@ -158,11 +158,15 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
 
     const openAITools = wrappedDefs.map((def) => toOpenAITool(def, ctx));
 
+    const routedModel = typeof ctx.hadesModel === "string" ? ctx.hadesModel.trim() : "";
+    const model = routedModel || agentConfig.model || config.openai.model;
+    pluginCtx.model = model;
+
     const { modelSettings } = agentConfig;
     const agent = new Agent({
       name: agentConfig.name,
       instructions,
-      model: agentConfig.model ?? config.openai.model,
+      model,
       tools: openAITools,
       ...(modelSettings?.temperature !== undefined && {
         temperature: modelSettings.temperature,

@@ -264,6 +264,7 @@ All under `src/agents/jev/`:
 | `events.ts` | Queue `jev_decision` onto the harness stream | this harness |
 | `preflight.ts` / `postflight.ts` | One System One call per hop (the speed path) | TypeSafe parallel questions |
 | `cache.ts` | LRU + in-flight coalesce of successful asks | desktop prefetch / retries |
+| `compact.ts` | Apply keep/summarize/aggressive to the injected thread | pi-fast-jev-compaction |
 | `toolgate.ts` | One ask for Auto Mode + malware + patch + company | jev-ultrafast speculative heads |
 | `harvest.ts` | Zero-RTT evidence cards from tool results | citation-verifier "code splits" |
 | `ground.ts` | Sentence split + abstain rewrite | citation-verifier + pi-quiet-ask |
@@ -366,7 +367,7 @@ People posting Jev timings on X are measuring **structured decisions**, not gene
 6. **Skip Auto Mode** on an allowlist of read-only tools (`file_read`, `web_search`, desktop inspect). Writes still fail-closed.
 7. **Warmup** on `runtime.start` so TLS to `api.typesafe.ai` is already open.
 8. **Zero-RTT harvest** — every tool result becomes an evidence card. Postflight then scores each sentence against that card (citation-verifier). Ungrounded drafts are replaced with an abstain, not a second LLM pass.
-9. **Compaction in preflight** — when the thread is over 55% of the token budget, the same ask picks keep / summarize / aggressive (pi-fast-jev-compaction).
+9. **Compaction is applied** — when the thread is over 55% of the token budget, the same preflight ask picks keep / summarize / aggressive. Code then prunes middle tool blobs (pi-fast-jev-compaction) and injects the compact thread + `jevEvidence` via `onResolveInstructions`. Qwen actually **runs the routed model** (`ctx.hadesModel` → `Agent.model`). A fast-route pick that never reached the generator was wasting the whole ModelRouter hop.
 
 `jev_decision` events carry `latencyMs` and `cached` so the desktop can show the same 70ms badge people are posting.
 

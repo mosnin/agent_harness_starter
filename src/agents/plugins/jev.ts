@@ -22,6 +22,7 @@ import { routeModel, routeSkill } from "../jev/router";
 import { scoreQuality } from "../jev/scoring";
 import { planAndRerankSearch } from "../jev/search";
 import { runToolGate } from "../jev/toolgate";
+import { applyCompaction, formatCompactThread, parseCompactStrategy } from "../jev/compact";
 import type { JevAsker, PolicyDecision, SkillRoute } from "../jev/types";
 import type { AgentEvent, HarnessPlugin, PluginRunContext } from "../types";
 import type { ToolDefinition } from "../tools/types";
@@ -194,6 +195,8 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
           ctx.context.jevCompaction = pre.compact.value;
           emit(opts, pre.compact, started, ctx);
         }
+        const strategy = parseCompactStrategy(pre.compact?.value);
+        ctx.context.jevThread = applyCompaction(input.messages ?? [], strategy);
         if (pre.skipGeneration && pre.directReply) {
           ctx.context.jevDirectReply = pre.directReply;
           emit(opts, {
@@ -241,6 +244,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
         });
         emit(opts, compact, started, ctx);
         ctx.context.jevCompaction = compact.value;
+        ctx.context.jevThread = applyCompaction(input.messages ?? [], parseCompactStrategy(compact.value));
       }
 
       if (doRoute) {
@@ -278,6 +282,23 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
       }
 
       return userMessage;
+    },
+
+    onResolveInstructions(instructions, _userMessage, ctx) {
+      const extras: string[] = [];
+      const evidence = String(ctx.context.jevEvidence ?? "").trim();
+      if (evidence) extras.push(`## Session evidence\n${evidence.slice(0, 2000)}`);
+      const thread = ctx.context.jevThread;
+      if (Array.isArray(thread) && thread.length > 1) {
+        extras.push(
+          `## Prior turns (Jev-compacted)\n${formatCompactThread(
+            thread as Array<{ role: string; content: string }>
+          )}`
+        );
+      }
+      const route = typeof ctx.context.hadesRoute === "string" ? ctx.context.hadesRoute : "";
+      if (route) extras.push(`You are on the ${route} Qwen route. Stay terse.`);
+      return extras.length > 0 ? `${instructions}\n\n${extras.join("\n\n")}` : instructions;
     },
 
     async wrapTools(tools: ToolDefinition[], ctx: PluginRunContext, pending: Map<string, AgentEvent>) {
