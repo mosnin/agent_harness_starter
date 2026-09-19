@@ -116,7 +116,7 @@ The `DbAdapter` interface stores agent threads, messages, and run history alongs
 interface DbAdapter {
   createThread(userId: string, title?: string): Promise<AgentThread>;
   getThread(threadId: string, userId?: string): Promise<AgentThread | null>;
-  listThreads(userId: string): Promise<AgentThread[]>;
+  listThreads(userId: string, opts?: { limit?: number }): Promise<AgentThread[]>;
   deleteThread(threadId: string, userId?: string): Promise<void>;
   saveMessage(msg: Omit<AgentMessage, "id" | "createdAt">, userId?: string): Promise<AgentMessage>;
   getMessages(threadId: string, userId?: string, opts?: { limit?: number }): Promise<AgentMessage[]>;

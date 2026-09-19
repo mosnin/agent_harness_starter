@@ -58,9 +58,12 @@ export const convexAdapter: DbAdapter = {
     return data ? mapConvexThread(data as Record<string, unknown>) : null;
   },
 
-  async listThreads(userId) {
+  async listThreads(userId, opts) {
     const client = getConvexClient(userId);
-    const data = await client.query("threads:listByUser", { userId });
+    const data = await client.query("threads:listByUser", {
+      userId,
+      ...(opts?.limit !== undefined ? { limit: opts.limit } : {}),
+    });
     return ((data as unknown[]) ?? []).map((row) =>
       mapConvexThread(row as Record<string, unknown>)
     );

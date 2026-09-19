@@ -25,6 +25,66 @@ export function capListedMessages<T>(rows: T[], max = MAX_LIST_MESSAGES): T[] {
   return rows.slice(-max);
 }
 
+export type CappedJson =
+  | { ok: true; value: unknown }
+  | { ok: false; response: Response };
+
+function oversizeBodyResponse(max: number): Response {
+  return Response.json({ error: `Request body exceeds ${max} bytes` }, { status: 413 });
+}
+
+/** Read at most `max` bytes. Used when Content-Length is missing or forged. */
+export async function readCappedBytes(
+  req: Request,
+  max = MAX_JSON_BODY_BYTES
+): Promise<Uint8Array | Response> {
+  if (!req.body) return new Uint8Array();
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value?.byteLength) continue;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => undefined);
+      return oversizeBodyResponse(max);
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
+
+/**
+ * Header check plus a hard read cap. A caller that omits Content-Length
+ * cannot stream an unbounded JSON body past the same 64 KiB limit.
+ */
+export async function readCappedJson(
+  req: Request,
+  max = MAX_JSON_BODY_BYTES
+): Promise<CappedJson> {
+  const header = oversizeJsonResponse(req, max);
+  if (header) return { ok: false, response: header };
+  const raw = await readCappedBytes(req, max);
+  if (raw instanceof Response) return { ok: false, response: raw };
+  if (raw.byteLength === 0) return { ok: true, value: {} };
+  try {
+    return { ok: true, value: JSON.parse(new TextDecoder().decode(raw)) as unknown };
+  } catch {
+    return {
+      ok: false,
+      response: Response.json({ error: "Invalid JSON body" }, { status: 400 }),
+    };
+  }
+}
+
 /** Local inspectors only. Production MCP tool calls require auth. */
 export function mcpAnonymousAllowed(env: Record<string, string | undefined> = process.env): boolean {
   return env.HADES_MCP_ANON === "true";
@@ -45,7 +105,7 @@ export function oversizeJsonResponse(
     return Response.json({ error: "Invalid Content-Length" }, { status: 400 });
   }
   if (n > max) {
-    return Response.json({ error: `Request body exceeds ${max} bytes` }, { status: 413 });
+    return oversizeBodyResponse(max);
   }
   return null;
 }

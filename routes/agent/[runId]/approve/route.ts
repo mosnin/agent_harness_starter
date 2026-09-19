@@ -18,6 +18,7 @@ import { auth } from "@/agents/auth";
 import { resolveApproval, getApproval } from "@/agents/approvals";
 import { db } from "@/agents/db";
 import { getOwnedRun } from "@/agents/lib/run-owner";
+import { readCappedJson } from "@/agents/lib/request-guard";
 
 const bodySchema = z.object({
   approvalId: z.string(),
@@ -34,8 +35,9 @@ export async function POST(
       return Response.json({ error: "Run not found" }, { status: 404 });
     }
 
-    const body = await req.json().catch(() => null);
-    const parsed = bodySchema.safeParse(body);
+    const parsedBody = await readCappedJson(req);
+    if (!parsedBody.ok) return parsedBody.response;
+    const parsed = bodySchema.safeParse(parsedBody.value);
     if (!parsed.success) {
       return Response.json({ error: parsed.error.flatten() }, { status: 422 });
     }

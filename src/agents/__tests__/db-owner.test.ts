@@ -48,4 +48,15 @@ describe("memory adapter ownership", () => {
     expect(tail.map((row) => row.content)).toEqual(["m3", "m4"]);
     expect((await db.getMessages(thread.id, "u1")).length).toBe(5);
   });
+
+  it("returns only the newest N threads when a limit is set", async () => {
+    const db = createMemoryAdapter();
+    for (let i = 0; i < 5; i++) {
+      await db.createThread("u1", `t${i}`);
+    }
+    const newest = await db.listThreads("u1", { limit: 2 });
+    expect(newest).toHaveLength(2);
+    expect((await db.listThreads("u1")).length).toBe(5);
+    expect(await db.listThreads("u1", { limit: 0 })).toEqual([]);
+  });
 });

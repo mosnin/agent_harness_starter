@@ -15,6 +15,7 @@ import { z } from "zod";
 import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
 import { createAgent } from "@/agents";
+import { readCappedJson } from "@/agents/lib/request-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +27,9 @@ const bodySchema = z.object({
 
 export async function POST(req: Request) {
   const user = await auth.requireAuth(req);
-  const { message } = bodySchema.parse(await req.json());
+  const parsedBody = await readCappedJson(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { message } = bodySchema.parse(parsedBody.value);
   const thread = await db.createThread(user.id);
 
   const agent = createAgent({

@@ -475,10 +475,11 @@ Fixed:
 - Search also asks unused `semanticFind` `best` on that same hop. A factual turn (`is_factual ≥ 0.7`) with `hasAnswer` and a ranked `best` snippet sets `jevEvidenceAnswer` / `jevDirectReply`. Core aborts the remaining Qwen tokens; `onAfterRun` ships the grounded reply and skips postflight.
 - Unused `judge` now rides the existing postflight ask as `recommendation` when evidence is present. `abstain` replaces the draft (same as grounding); `ask_user` is review. Still one System One call. `GET /api/threads` is capped at 50.
 - `getMessages` used to load a whole thread. Adapters now take `{ limit }` and return the chronological tail. POST harness loads use 40 (`MAX_HARNESS_MESSAGES`). `GET /api/agent` and `GET /api/anthropic-agent` list at most 100 messages (`MAX_LIST_MESSAGES`) and at most 50 threads when `threadId` is omitted.
+- `listThreads` now takes `{ limit }` at the adapter (memory slice, Prisma/Supabase `take`/`limit`, Convex `by_user_and_updated` + `take`). GET routes pass 50 so the store does not load then slice. JSON POSTs (`/api/hades`, `/api/agent`, `/api/anthropic-agent`, `/api/threads`, approve, dev) use `readCappedJson`: a missing or forged `Content-Length` cannot stream past 64 KiB. MCP/voice stay header-only because those handlers must not consume the body before the transport / `formData()`.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop. `judge` now rides postflight; the standalone helper remains for MCP. A sentence that only mentions "eyJ" is not a JWT. Unhyphenated 9-digit numbers are not treated as SSNs. `GET /api/threads` returns at most 50 rows. `listThreads` still loads every thread at the adapter, then HTTP slices 50. A JSON body with no `Content-Length` is not byte-capped after the header check.
+Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop. `judge` now rides postflight; the standalone helper remains for MCP. A sentence that only mentions "eyJ" is not a JWT. Unhyphenated 9-digit numbers are not treated as SSNs. `GET /api/threads` returns at most 50 rows. MCP POST still uses the header-only size check (the transport reads the body). Voice still checks `Content-Length` then `formData()` size.
 
 ---
 
@@ -554,6 +555,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 37 — Adapter thread limits + capped JSON reads
+
+Wave 35/36 sliced lists in HTTP after the adapter loaded everything. `listThreads` now takes `{ limit }` the same way `getMessages` does. Convex lists newest-first via `by_user_and_updated`. A JSON POST that omitted `Content-Length` bypassed the 64 KiB header check and was fully buffered. `readCappedJson` reads at most 64 KiB, then parses. Invalid JSON is 400. MCP and voice do not use it (they must hand the unread `Request` to the transport / multipart parser).
 
 ### Wave 36 — Cap getMessages and GET message lists
 

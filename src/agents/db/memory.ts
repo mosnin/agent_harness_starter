@@ -39,10 +39,15 @@ export function createMemoryAdapter(): DbAdapter {
       return ownedOrNull(thread, thread?.userId, userId);
     },
 
-    async listThreads(userId) {
-      return Array.from(threads.values())
+    async listThreads(userId, opts) {
+      const rows = Array.from(threads.values())
         .filter((t) => t.userId === userId)
         .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      const limit = opts?.limit;
+      if (limit !== undefined && Number.isFinite(limit) && limit >= 0) {
+        return rows.slice(0, limit);
+      }
+      return rows;
     },
 
     async deleteThread(threadId, userId) {

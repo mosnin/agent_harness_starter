@@ -5,6 +5,7 @@ import {
   clampRequestedTools,
   mcpAnonymousAllowed,
   oversizeJsonResponse,
+  readCappedJson,
   capListedThreads,
   capListedMessages,
   MAX_JSON_BODY_BYTES,
@@ -61,6 +62,49 @@ describe("request-guard", () => {
   it("does not reject a missing Content-Length", () => {
     const res = oversizeJsonResponse(new Request("http://local/api/hades", { method: "POST", body: "{}" }));
     expect(res).toBeNull();
+  });
+
+  it("parses a small JSON body", async () => {
+    const parsed = await readCappedJson(
+      new Request("http://local/api/hades", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: "hi" }),
+      })
+    );
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.value).toEqual({ message: "hi" });
+  });
+
+  it("rejects a streamed body larger than the cap without Content-Length", async () => {
+    const bytes = new TextEncoder().encode("x".repeat(MAX_JSON_BODY_BYTES + 8));
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes);
+        controller.close();
+      },
+    });
+    const parsed = await readCappedJson(
+      new Request("http://local/api/hades", {
+        method: "POST",
+        body,
+        duplex: "half",
+      } as RequestInit)
+    );
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.response.status).toBe(413);
+  });
+
+  it("rejects invalid JSON after a capped read", async () => {
+    const parsed = await readCappedJson(
+      new Request("http://local/api/hades", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{not-json",
+      })
+    );
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.response.status).toBe(400);
   });
 
   it("caps an unbounded thread list", () => {

@@ -35,7 +35,7 @@ import { createHadesHarness } from "@/agents/hades/index";
 import { redactSecrets } from "@/agents/jev/redact";
 import { isThreadOwner, MAX_HARNESS_MESSAGES, messagesForHarness } from "@/agents/lib/thread-history";
 import { config } from "@/agents/lib/config";
-import { capListedMessages, capListedThreads, clampRequestedTools, MAX_LIST_MESSAGES, oversizeJsonResponse } from "@/agents/lib/request-guard";
+import { capListedMessages, capListedThreads, clampRequestedTools, MAX_LIST_MESSAGES, MAX_LIST_THREADS, readCappedJson } from "@/agents/lib/request-guard";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 
 // ── Agent registration ─────────────────────────────────────────────────────────
@@ -58,14 +58,10 @@ const bodySchema = z.object({
 export async function POST(req: Request) {
   try {
     const user = await auth.requireAuth(req);
-    const oversize = oversizeJsonResponse(req);
-    if (oversize) return oversize;
+    const parsedBody = await readCappedJson(req);
+    if (!parsedBody.ok) return parsedBody.response;
 
-    const body = await req.json().catch(() => {
-      throw new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
-    });
-
-    const parsed = bodySchema.safeParse(body);
+    const parsed = bodySchema.safeParse(parsedBody.value);
     if (!parsed.success) {
       return Response.json({ error: parsed.error.flatten() }, { status: 422 });
     }
@@ -163,7 +159,7 @@ export async function GET(req: Request) {
   const threadId = searchParams.get("threadId");
 
   if (!threadId) {
-    const threads = capListedThreads(await db.listThreads(user.id));
+    const threads = capListedThreads(await db.listThreads(user.id, { limit: MAX_LIST_THREADS }));
     return Response.json({ threads });
   }
 

@@ -12,7 +12,7 @@ import { db } from "@/agents/db";
 import { sseStream } from "@/agents/lib/utils";
 import { createHadesHarness } from "@/agents/hades/index";
 import { redactSecrets } from "@/agents/jev/redact";
-import { clampRequestedTools, oversizeJsonResponse } from "@/agents/lib/request-guard";
+import { clampRequestedTools, readCappedJson } from "@/agents/lib/request-guard";
 import { isThreadOwner, MAX_HARNESS_MESSAGES, messagesForHarness } from "@/agents/lib/thread-history";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 import "@/agents/examples";
@@ -30,12 +30,9 @@ const bodySchema = z.object({
 export async function POST(req: Request) {
   try {
     const user = await auth.requireAuth(req);
-    const oversize = oversizeJsonResponse(req);
-    if (oversize) return oversize;
-    const body = await req.json().catch(() => {
-      throw new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
-    });
-    const parsed = bodySchema.safeParse(body);
+    const parsedBody = await readCappedJson(req);
+    if (!parsedBody.ok) return parsedBody.response;
+    const parsed = bodySchema.safeParse(parsedBody.value);
     if (!parsed.success) {
       return Response.json({ error: parsed.error.flatten() }, { status: 422 });
     }

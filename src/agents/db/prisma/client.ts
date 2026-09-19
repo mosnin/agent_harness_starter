@@ -48,11 +48,14 @@ export const prismaAdapter: DbAdapter = {
     return ownedOrNull(thread, thread?.userId, userId);
   },
 
-  async listThreads(userId) {
+  async listThreads(userId, opts) {
     const prisma = getPrismaClient();
+    const limit = opts?.limit;
+    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : undefined;
     const data = await prisma.agentThread.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },
+      ...(take !== undefined ? { take } : {}),
     });
     return data.map((d) => dbToThread(d as Record<string, unknown>));
   },

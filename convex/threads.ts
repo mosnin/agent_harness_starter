@@ -35,12 +35,20 @@ export const get = internalQuery({
 });
 
 export const listByUser = internalQuery({
-  args: { userId: v.string() },
+  args: { userId: v.string(), limit: v.optional(v.number()) },
   returns: v.array(threadDoc),
-  handler: async (ctx, { userId }) => {
+  handler: async (ctx, { userId, limit }) => {
     const subject = await requireIdentity(ctx);
     if (userId !== subject) {
       throw new Error("Unauthorized");
+    }
+    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : undefined;
+    if (take !== undefined) {
+      return await ctx.db
+        .query("agent_threads")
+        .withIndex("by_user_and_updated", (q) => q.eq("userId", subject))
+        .order("desc")
+        .take(take);
     }
     const rows = await ctx.db
       .query("agent_threads")

@@ -37,7 +37,7 @@ export interface DbAdapter {
   // Threads
   createThread(userId: string, title?: string): Promise<AgentThread>;
   getThread(threadId: string, userId?: string): Promise<AgentThread | null>;
-  listThreads(userId: string): Promise<AgentThread[]>;
+  listThreads(userId: string, opts?: { limit?: number }): Promise<AgentThread[]>;
   deleteThread(threadId: string, userId?: string): Promise<void>;
 
   // Messages

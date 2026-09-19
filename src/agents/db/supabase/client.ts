@@ -39,12 +39,16 @@ export const supabaseAdapter: DbAdapter = {
     return ownedOrNull(thread, thread?.userId, userId);
   },
 
-  async listThreads(userId) {
-    const { data, error } = await getClient()
+  async listThreads(userId, opts) {
+    const limit = opts?.limit;
+    const take = limit !== undefined && Number.isFinite(limit) && limit >= 0 ? limit : undefined;
+    let query = getClient()
       .from("agent_threads")
       .select()
       .eq("user_id", userId)
       .order("updated_at", { ascending: false });
+    if (take !== undefined) query = query.limit(take);
+    const { data, error } = await query;
     if (error) throw error;
     return (data ?? []).map(rowToThread);
   },

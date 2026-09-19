@@ -12,7 +12,8 @@ export default defineSchema({
     title: v.optional(v.string()),
     updatedAt: v.optional(v.number()),
   })
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_user_and_updated", ["userId", "updatedAt"]),
 
   agent_messages: defineTable({
     threadId: v.id("agent_threads"),

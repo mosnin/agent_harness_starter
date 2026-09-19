@@ -15,6 +15,7 @@ import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
 import { cancelRunApprovals } from "@/agents/approvals";
 import { getOwnedRun } from "@/agents/lib/run-owner";
+import { oversizeJsonResponse } from "@/agents/lib/request-guard";
 
 export async function POST(
   req: Request,
@@ -22,6 +23,8 @@ export async function POST(
 ) {
   try {
     const user = await auth.requireAuth(req);
+    const oversize = oversizeJsonResponse(req);
+    if (oversize) return oversize;
     const run = await getOwnedRun(db, params.runId, user.id);
     if (!run) {
       return Response.json({ error: "Run not found" }, { status: 404 });

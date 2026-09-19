@@ -209,6 +209,8 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | `GET /api/agent` / `GET /api/anthropic-agent` without `threadId` | at most 50 threads |
 | `GET /api/agent?threadId=` / `GET /api/anthropic-agent?threadId=` | at most 100 messages (chronological tail) |
 | POST harness history (Hades / agent / Anthropic / voice) | last 40 messages from the adapter |
+| `listThreads` (GET threads / agent / anthropic) | adapter `limit: 50`, not load-then-slice |
+| JSON POST without `Content-Length` above 64 KiB | `413` after a capped read |
 | Shell `git push --force` | `jev.decision` `destructive-local` HITL |
 | Shell `ENOENT` / `EACCES` / `ETIMEDOUT` | `jev.decision` `failure-local`, tool result returned with class |
 | Shell `cat /etc/passwd` / `curl 169.254.169.254` | `jev.decision` `target-local` block, tool not called |
