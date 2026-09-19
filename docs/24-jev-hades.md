@@ -321,7 +321,7 @@ These sit on real hops, not helper-only APIs:
 | `browser_*` wrap | One-ask screen + next step (`jevBrowser`); local jailbreak/secret, Jev-down, and stuck/BLOCKED stop the loop |
 | `AGENT_PROVIDER=hades` | `/api/agent` uses `createHadesHarness` |
 | Agent Chat | Streams `jev_decision`; Voice → `/api/voice` |
-| Desktop sidecar | `createDesktopHost` / `npm run desktop:sidecar`; Jev gates `desktop.act` before `cap` |
+| Desktop sidecar | `createDesktopHost` / `npm run desktop:sidecar`; local target/secret labels then Jev before `cap` |
 | `runToolGate` | One System One call for Auto Mode + malware + patch + company + invented args; local wipe / target labels first |
 | Thread history | Last 40 owned, redacted turns on `/api/hades`, `/api/agent`, and desktop `chat.send` |
 | Tool harvest | Append evidence cards with no extra Jev call |
