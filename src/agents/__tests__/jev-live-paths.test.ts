@@ -403,9 +403,9 @@ describe("orchestrate helpers", () => {
 describe("auto-mode git + plugin events", () => {
   it("reviews a git force-push before the generic auto-mode questions", async () => {
     const client = mockFromMap({
-      force_push: noulAns(0.9),
-      unrecoverable: noulAns(0.8),
-      authorized: noulAns(0.1),
+      git_force_push: noulAns(0.9),
+      git_unrecoverable: noulAns(0.8),
+      git_authorized: noulAns(0.1),
     });
     const decision = await assessToolRisk({
       userRequest: "push",

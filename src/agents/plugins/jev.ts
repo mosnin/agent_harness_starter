@@ -17,6 +17,8 @@ import { classifyCommandFailure, decideCompaction, decideCompletion } from "../j
 import { queueDecision } from "../jev/events";
 import { screenExternal, screenOutput, scanMalicious, verifyCitation } from "../jev/guardrails";
 import { heedPolicy, stopHook } from "../jev/hooks";
+import { runPostflight } from "../jev/postflight";
+import { runPreflight } from "../jev/preflight";
 import { routeModel, routeSkill } from "../jev/router";
 import { scoreQuality } from "../jev/scoring";
 import { planAndRerankSearch } from "../jev/search";
@@ -69,6 +71,11 @@ export interface JevPluginOptions {
   alwaysApprove?: string[];
   /** Called whenever Jev makes a decision (tests / UI). */
   onDecision?: (decision: PolicyDecision) => void;
+  /**
+   * Batch onBeforeRun / onAfterRun into one System One call each.
+   * This is the speed path (Jev parallel questions). Default: true.
+   */
+  batch?: boolean;
 }
 
 function emit(opts: JevPluginOptions, decision: PolicyDecision, started: number, ctx?: PluginRunContext): void {
@@ -126,6 +133,7 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
   const policies = opts.policies ?? DEFAULT_POLICIES;
   const skills = opts.skills ?? [];
   const doSkills = opts.routeSkills !== false && skills.length > 0;
+  const batch = opts.batch !== false;
 
   return {
     name: "jev",
@@ -133,6 +141,64 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
     async onBeforeRun(userMessage, ctx, input) {
       const started = Date.now();
       ctx.context.lastUserMessage = userMessage;
+
+      if (batch) {
+        const pre = await runPreflight({
+          message: userMessage,
+          currentRoute: typeof ctx.context.hadesRoute === "string" ? ctx.context.hadesRoute : "balanced",
+          previousAssistantReply: input.messages?.filter((m) => m.role === "assistant").at(-1)?.content,
+          skills: doSkills ? skills : [],
+          policies: doHeed ? policies : [],
+          asker,
+          signal: input.signal,
+          requireScreen: screenIn,
+        });
+        ctx.context.jevPreflightAsks = pre.asks;
+        if (screenIn) {
+          emit(opts, pre.screen, started, ctx);
+          if (pre.screen.action === "block") {
+            throw new GuardrailBlockError(
+              `Jev blocked this message (${pre.screen.reason}).`,
+              pre.screen.reason,
+              "jev_screen"
+            );
+          }
+          if (pre.screen.action === "review" && (pre.screen.value === "injection" || pre.screen.value === "secret")) {
+            throw new GuardrailHumanReviewError(
+              `Jev flagged this message for review (${pre.screen.reason}).`,
+              pre.screen.reason,
+              pre.screen
+            );
+          }
+        }
+        if (doRoute) {
+          emit(opts, pre.routed, started, ctx);
+          ctx.context.hadesRoute = pre.routed.tier ?? pre.routed.value;
+          ctx.context.hadesModel = pre.routed.model;
+          ctx.context.jevRouting = pre.routed;
+        }
+        if (doSkills && pre.skill) {
+          emit(opts, pre.skill, started, ctx);
+          ctx.context.hadesSkill = pre.skill.value;
+        }
+        if (doHeed) {
+          ctx.context.jevPolicyDeltas = pre.heed;
+          if (pre.heed.some((d) => d.delta === "NARROW")) {
+            emit(opts, { action: "review", value: "narrow", reason: "policy-narrowed", node: "heed" }, started, ctx);
+          }
+        }
+        if (pre.skipGeneration && pre.directReply) {
+          ctx.context.jevDirectReply = pre.directReply;
+          emit(opts, {
+            action: "auto",
+            value: "skip_llm",
+            reason: "preflight-skip-generation",
+            node: "skip_llm",
+          }, started, ctx);
+        }
+        return userMessage;
+      }
+
       if (screenIn) {
         const screened = await screenExternal({
           content: userMessage,
@@ -225,6 +291,8 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
                 reason: risk.reason,
                 action: risk.action,
                 confidence: risk.confidence,
+                latencyMs: risk.latencyMs ?? Date.now() - started,
+                cached: risk.cached,
               });
               if (risk.action === "block") {
                 throw new GuardrailBlockError(
@@ -379,6 +447,57 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
 
     async onAfterRun(finalOutput, ctx) {
       let output = finalOutput;
+      if (ctx.context.jevDirectReply && output === ctx.context.jevDirectReply) {
+        return output;
+      }
+      if (batch) {
+        const started = Date.now();
+        const post = await runPostflight({
+          draft: output,
+          userRequest: String(ctx.context.lastUserMessage ?? ""),
+          evidence: String(ctx.context.jevEvidence ?? ""),
+          asker,
+          screenOutput: screenOut,
+          stopHook: doStop,
+          completion: doCompletion,
+          quality: doQuality,
+          citations: doCitations,
+        });
+        ctx.context.jevPostflightAsks = post.asks;
+        if (screenOut) {
+          emit(opts, post.screen, started, ctx);
+          if (post.screen.action === "block") {
+            throw new GuardrailBlockError(
+              `Jev blocked the agent output (${post.screen.reason}).`,
+              post.screen.reason,
+              "jev_output"
+            );
+          }
+        }
+        if (post.stop) {
+          emit(opts, post.stop, started, ctx);
+          ctx.context.jevStopHook = post.stop.action;
+        }
+        if (post.completion) {
+          emit(opts, post.completion, started, ctx);
+          ctx.context.jevCompletion = post.completion.value;
+        }
+        if (post.quality) {
+          emit(opts, post.quality.decision, started, ctx);
+          ctx.context.jevQuality = post.quality.label;
+        }
+        if (post.citation) {
+          emit(opts, post.citation, started, ctx);
+          if (post.citation.action === "block") {
+            throw new GuardrailBlockError(
+              `Jev blocked the draft: it contradicts retrieved evidence (${post.citation.reason}).`,
+              post.citation.reason,
+              "jev_citation"
+            );
+          }
+        }
+        return output;
+      }
       if (screenOut) {
         const started = Date.now();
         const screened = await screenOutput({

@@ -8,12 +8,27 @@
  */
 
 export { noul, choice, score, hardenInstructions, noulConfidence, choiceMargin } from "./questions";
-export { createJevClient, createJevAsker, createMockJevClient, resetDefaultJevClient, JevUnavailableError, DEFAULT_JEV_MODEL } from "./client";
+export {
+  createJevClient,
+  createJevAsker,
+  createMockJevClient,
+  resetDefaultJevClient,
+  JevUnavailableError,
+  DEFAULT_JEV_MODEL,
+  isJevCircuitOpen,
+  recordJevFailure,
+  recordJevSuccess,
+  resetJevCircuit,
+  warmupJev,
+} from "./client";
+export { wrapAskerWithCache, resetJevAskCache, hashAsk, jevAskCacheSize } from "./cache";
 export { validateResult, validateAnswer, requireNoul, requireChoice, requireScore } from "./validate";
 export { GATES, NOUL, SCORE, passesGate, noulBand, decideChoice, decideUnavailable } from "./policy";
 export { HADES_QWEN_ROUTES, HADES_ROUTE_ORDER, DEFAULT_HADES_SKILLS, COMPLEXITY_LEVELS, IMPACT_LEVELS } from "./catalog";
-export { routeModel, routeSkill, routeIntent, detectRouteOverride } from "./router";
-export { assessToolRisk } from "./auto-mode";
+export { routeModel, routeSkill, routeIntent, detectRouteOverride, isGreeting, isTrivial } from "./router";
+export { runPreflight, interpretSkipGeneration, CANNED_REPLIES } from "./preflight";
+export { runPostflight } from "./postflight";
+export { assessToolRisk, isSafeReadTool } from "./auto-mode";
 export { screenExternal, screenOutput, verifyCitation, scanMalicious } from "./guardrails";
 export { scoreQuality, rerankResults, compositeScore, scorePage } from "./scoring";
 export { quietAsk, decideCompletion, decideCompaction, classifyCommandFailure, decideBrowserStep, judge } from "./decisions";
@@ -58,6 +73,7 @@ export type {
   PolicyDecision,
   JevClient,
   JevAsker,
+  JevAskerOptions,
   JevAskResult,
   JevClientConfig,
   JevAuditEntry,
@@ -68,6 +84,7 @@ export type {
 
 export type { ModelRouterInput, ModelRouterResult, SkillRouterInput, IntentRouterInput } from "./router";
 export type { AutoModeInput } from "./auto-mode";
+export type { PreflightInput, PreflightResult, CannedKind } from "./preflight";
 export type { QualityScore, RankCandidate, RankedCandidate } from "./scoring";
 export type { TriageItem, TriageResult } from "./curate";
 export type { GoldCase, NodeCalibration, EvalReport } from "./eval";

@@ -14,6 +14,8 @@ export function decisionEvent(decision: PolicyDecision): Extract<AgentEvent, { t
     reason: decision.reason,
     action: decision.action,
     confidence: decision.confidence,
+    latencyMs: decision.latencyMs,
+    cached: decision.cached,
   };
 }
 

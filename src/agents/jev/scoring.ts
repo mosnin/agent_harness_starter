@@ -49,9 +49,13 @@ export async function scoreQuality(input: QualityScoreInput): Promise<QualitySco
     };
   }
 
-  const slop = requireScore(asked.result.answers, "slop");
-  const grounded = requireNoul(asked.result.answers, "grounded");
-  const specific = requireNoul(asked.result.answers, "specific");
+  return interpretQuality(asked.result.answers);
+}
+
+export function interpretQuality(answers: import("./types").JevAnswers): QualityScore {
+  const slop = requireScore(answers, "slop");
+  const grounded = requireNoul(answers, "grounded");
+  const specific = requireNoul(answers, "specific");
   const slopNorm = slop.score / Math.max(1, SLOP_LEVELS.length - 1);
   const overall = (grounded + specific + (1 - slopNorm)) / 3;
   const label = slop.score >= 2 && slop.confidence >= 0.7 ? "rewrite" : overall >= 0.55 ? "ship" : "review";
@@ -62,11 +66,11 @@ export async function scoreQuality(input: QualityScoreInput): Promise<QualitySco
     specific,
     label,
     decision: {
-      action: label === "ship" ? "auto" : label === "rewrite" ? "review" : "review",
+      action: label === "ship" ? "auto" : "review",
       value: label,
       reason: label,
       node: "quality",
-      answers: asked.result.answers,
+      answers,
       confidence: slop.confidence,
     },
   };

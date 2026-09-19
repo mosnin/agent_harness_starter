@@ -45,8 +45,14 @@ export async function screenExternal(input: ScreenInput): Promise<PolicyDecision
   if (!asked.ok) {
     return decideUnavailable("screen_external", "review", input.failMode ?? "review");
   }
+  return interpretScreenAnswers(asked.result.answers, input.failMode ?? "review");
+}
 
-  const answers = asked.result.answers;
+export function interpretScreenAnswers(
+  answers: import("./types").JevAnswers,
+  failMode: "open" | "closed" | "review" = "review"
+): PolicyDecision {
+  void failMode;
   const injection = requireNoul(answers, "injection");
   const substance = requireNoul(answers, "substance");
   const secret = requireNoul(answers, "secret_leak");
@@ -90,8 +96,10 @@ export async function screenOutput(input: OutputScreenInput): Promise<PolicyDeci
   );
 
   if (!asked.ok) return decideUnavailable("screen_output", "unsafe", "closed");
+  return interpretOutputAnswers(asked.result.answers);
+}
 
-  const answers = asked.result.answers;
+export function interpretOutputAnswers(answers: import("./types").JevAnswers): PolicyDecision {
   const secret = requireNoul(answers, "secret_leak");
   const violation = requireNoul(answers, "policy_violation");
   if (secret >= NOUL.secretLeak || violation >= NOUL.injectionBlock) {
@@ -127,14 +135,18 @@ export async function verifyCitation(input: CitationCheckInput): Promise<PolicyD
     input.signal
   );
   if (!asked.ok) return decideUnavailable("citation_verify", "says_nothing", "closed");
-  const answer = requireChoice(asked.result.answers, "support");
+  return interpretCitationAnswers(asked.result.answers);
+}
+
+export function interpretCitationAnswers(answers: import("./types").JevAnswers): PolicyDecision {
+  const answer = requireChoice(answers, "support");
   if (answer.choice === "contradicts") {
-    return { action: "block", value: "contradicts", reason: "citation-contradicts", node: "citation_verify", answers: asked.result.answers, confidence: answer.confidence };
+    return { action: "block", value: "contradicts", reason: "citation-contradicts", node: "citation_verify", answers, confidence: answer.confidence };
   }
   if (answer.choice === "supports" && answer.confidence >= 0.8) {
-    return { action: "auto", value: "supports", reason: "citation-supports", node: "citation_verify", answers: asked.result.answers, confidence: answer.confidence };
+    return { action: "auto", value: "supports", reason: "citation-supports", node: "citation_verify", answers, confidence: answer.confidence };
   }
-  return { action: "review", value: answer.choice, reason: "citation-uncertain", node: "citation_verify", answers: asked.result.answers, confidence: answer.confidence };
+  return { action: "review", value: answer.choice, reason: "citation-uncertain", node: "citation_verify", answers, confidence: answer.confidence };
 }
 
 export interface MaliciousScanInput {

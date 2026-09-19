@@ -53,8 +53,13 @@ export function detectRouteOverride(message: string): string | undefined {
   return undefined;
 }
 
-function isTrivial(message: string): boolean {
+export function isTrivial(message: string): boolean {
   return /^(hi|hey|hello|thanks|thank you|ok|okay|yes|no|yo)[.!\s]*$/i.test(message.trim());
+}
+
+/** Greetings only — safe to skip Qwen. "yes"/"ok" are follow-ups and still need generation. */
+export function isGreeting(message: string): boolean {
+  return /^(hi|hey|hello|yo|thanks|thank you)[.!\s]*$/i.test(message.trim());
 }
 
 export async function routeModel(input: ModelRouterInput): Promise<ModelRouterResult> {
@@ -137,7 +142,24 @@ export async function routeModel(input: ModelRouterInput): Promise<ModelRouterRe
     return { ...unavailable, model: fallbackRoute.model, tier: fallbackRoute.id };
   }
 
-  const answers = asked.result.answers;
+  return interpretModelRoute(asked.result.answers, {
+    routes,
+    current,
+    fallbackRoute,
+    contextTokens: input.contextTokens ?? 0,
+  });
+}
+
+export function interpretModelRoute(
+  answers: import("./types").JevAnswers,
+  ctx: {
+    routes: ModelRoute[];
+    current: string;
+    fallbackRoute: ModelRoute;
+    contextTokens: number;
+  }
+): ModelRouterResult {
+  const { routes, current, fallbackRoute } = ctx;
   const followup = requireNoul(answers, "is_followup");
   if (followup >= NOUL.followupReuse) {
     return {
@@ -163,7 +185,7 @@ export async function routeModel(input: ModelRouterInput): Promise<ModelRouterRe
 
   if (
     rankIndex(chosen.id, HADES_ROUTE_ORDER) < rankIndex(current, HADES_ROUTE_ORDER) &&
-    (input.contextTokens ?? 0) > CACHE_DOWNGRADE_TOKEN_FLOOR
+    ctx.contextTokens > CACHE_DOWNGRADE_TOKEN_FLOOR
   ) {
     decision = {
       ...decision,
@@ -235,9 +257,11 @@ export async function routeSkill(input: SkillRouterInput): Promise<PolicyDecisio
   if (!asked.ok) {
     return decideUnavailable("skill_router", "__review__", "review");
   }
+  return interpretSkillRoute(asked.result.answers, "route");
+}
 
-  const answers = asked.result.answers;
-  const routeAnswer = requireChoice(answers, "route");
+export function interpretSkillRoute(answers: import("./types").JevAnswers, choiceId = "route"): PolicyDecision {
+  const routeAnswer = requireChoice(answers, choiceId);
   const needsReview = requireNoul(answers, "needs_review");
   const needsSpecialist = requireNoul(answers, "needs_specialist");
 

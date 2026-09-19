@@ -11,7 +11,8 @@ import {
   isDesktopAction,
   shouldExecuteDesktop,
 } from "../../jev/desktop";
-import { createJevAsker } from "../../jev/client";
+import { createJevAsker, warmupJev } from "../../jev/client";
+import { runPreflight } from "../../jev/preflight";
 import type { JevAsker } from "../../jev/types";
 import type { AgentEvent } from "../../types";
 import { createCapRunner, type CapRunner } from "./cap";
@@ -57,8 +58,14 @@ export function createDesktopHost(options: DesktopHostOptions = {}): DesktopHost
   return {
     async handle(command) {
       switch (command.type) {
-        case "runtime.start":
+        case "runtime.start": {
           emit({ type: "runtime.ready", inference: detectDesktopInference() });
+          const warm = await warmupJev(asker);
+          emit({ type: "jev.timing", phase: "warmup", latencyMs: warm.latencyMs, ok: warm.ok });
+          return;
+        }
+        case "chat.prefetch":
+          await runPrefetch(command.text, asker, emit);
           return;
         case "chat.send":
           await runChat(harness, command.text, command.threadId, emit);
@@ -79,6 +86,27 @@ export function createDesktopHost(options: DesktopHostOptions = {}): DesktopHost
       }
     },
   };
+}
+
+async function runPrefetch(
+  text: string,
+  asker: JevAsker,
+  emit: (event: DesktopEvent) => void
+): Promise<void> {
+  const started = Date.now();
+  const pre = await runPreflight({
+    message: text,
+    asker,
+    requireScreen: true,
+  });
+  emit({
+    type: "jev.prefetch",
+    asks: pre.asks,
+    latencyMs: pre.latencyMs ?? Date.now() - started,
+    cached: Boolean(pre.cached),
+    skipGeneration: pre.skipGeneration,
+    route: pre.routed.tier ?? pre.routed.value,
+  });
 }
 
 async function runChat(
@@ -138,6 +166,8 @@ async function runDesktopAct(
     reason: decision.reason,
     action: decision.action,
     confidence: decision.confidence,
+    latencyMs: decision.latencyMs,
+    cached: decision.cached,
   });
   if (!shouldExecuteDesktop(decision)) {
     emit({
@@ -178,6 +208,8 @@ function forwardAgentEvent(event: AgentEvent, emit: (event: DesktopEvent) => voi
       reason: event.reason,
       action: event.action,
       confidence: event.confidence,
+      latencyMs: event.latencyMs,
+      cached: event.cached,
     });
     return;
   }

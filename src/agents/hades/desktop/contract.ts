@@ -14,6 +14,7 @@
 
 export const DESKTOP_COMMAND_KINDS = [
   "runtime.start",
+  "chat.prefetch",
   "chat.send",
   "voice.turn",
   "desktop.act",
@@ -25,6 +26,8 @@ export const DESKTOP_EVENT_KINDS = [
   "message.delta",
   "message.done",
   "jev.decision",
+  "jev.prefetch",
+  "jev.timing",
   "approval.required",
   "desktop.result",
   "error",
@@ -36,6 +39,7 @@ export type DesktopEventKind = (typeof DESKTOP_EVENT_KINDS)[number];
 
 export type DesktopCommand =
   | { type: "runtime.start" }
+  | { type: "chat.prefetch"; text: string }
   | { type: "chat.send"; text: string; threadId?: string }
   | { type: "voice.turn"; audioBase64: string; mimeType?: string }
   | { type: "desktop.act"; action: string; args?: Record<string, unknown>; userRequest?: string }
@@ -52,7 +56,18 @@ export type DesktopEvent =
       reason: string;
       action: "auto" | "review" | "block" | "fallback";
       confidence?: number;
+      latencyMs?: number;
+      cached?: boolean;
     }
+  | {
+      type: "jev.prefetch";
+      asks: number;
+      latencyMs: number;
+      cached: boolean;
+      skipGeneration: boolean;
+      route: string;
+    }
+  | { type: "jev.timing"; phase: "warmup" | "prefetch" | "preflight"; latencyMs: number; ok: boolean }
   | {
       type: "approval.required";
       runId: string;
@@ -118,8 +133,11 @@ export function decodeDesktopCommand(line: string): DesktopCommand {
   if (!isDesktopCommand(parsed)) {
     throw new Error("Invalid desktop command");
   }
-  if (parsed.type === "chat.send" && (!parsed.text || typeof parsed.text !== "string")) {
-    throw new Error("chat.send requires text");
+  if (
+    (parsed.type === "chat.send" || parsed.type === "chat.prefetch") &&
+    (!parsed.text || typeof parsed.text !== "string")
+  ) {
+    throw new Error(`${parsed.type} requires text`);
   }
   if (parsed.type === "desktop.act" && (!parsed.action || typeof parsed.action !== "string")) {
     throw new Error("desktop.act requires action");

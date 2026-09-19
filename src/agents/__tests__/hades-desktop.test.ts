@@ -191,6 +191,29 @@ describe("desktop host", () => {
     });
     await host.handle({ type: "runtime.start" });
     expect(events[0]).toMatchObject({ type: "runtime.ready" });
+    expect(events.some((event) => event.type === "jev.timing")).toBe(true);
+  });
+
+  it("prefetches a turn so the next send can reuse Jev answers", async () => {
+    let calls = 0;
+    const client = createMockJevClient((req) => {
+      calls += 1;
+      const answers: Record<string, JevAnswer> = {};
+      for (const id of Object.keys(req.questions)) answers[id] = noulAns(0.05);
+      return { model: "jev-latest", answers };
+    });
+    const events: Array<{ type: string; cached?: boolean }> = [];
+    const host = createDesktopHost({
+      harness: stubHarness(),
+      asker: createJevAsker(client),
+      onEvent: (event) => events.push(event),
+    });
+    await host.handle({ type: "chat.prefetch", text: "Trim silence on the last take." });
+    await host.handle({ type: "chat.prefetch", text: "Trim silence on the last take." });
+    expect(calls).toBe(1);
+    const prefetch = events.filter((event) => event.type === "jev.prefetch");
+    expect(prefetch).toHaveLength(2);
+    expect(prefetch[1]?.cached).toBe(true);
   });
 });
 

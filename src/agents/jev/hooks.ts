@@ -36,13 +36,17 @@ export async function stopHook(input: {
     input.signal
   );
   if (!asked.ok) return decideUnavailable("stop_hook", "allow", "open");
-  for (let i = 0; i < rules.length; i++) {
-    const value = requireNoul(asked.result.answers, `r${i}`);
+  return interpretStopHook(asked.result.answers, rules.length);
+}
+
+export function interpretStopHook(answers: import("./types").JevAnswers, ruleCount: number): PolicyDecision {
+  for (let i = 0; i < ruleCount; i++) {
+    const value = requireNoul(answers, `r${i}`);
     if (value >= NOUL.stopHook) {
-      return { action: "review", value: "block_stop", reason: `rule-${i}`, node: "stop_hook", answers: asked.result.answers, probability: value };
+      return { action: "review", value: "block_stop", reason: `rule-${i}`, node: "stop_hook", answers, probability: value };
     }
   }
-  return { action: "auto", value: "allow", reason: "clean", node: "stop_hook", answers: asked.result.answers };
+  return { action: "auto", value: "allow", reason: "clean", node: "stop_hook", answers };
 }
 
 export async function heedPolicy(input: {
@@ -69,8 +73,15 @@ export async function heedPolicy(input: {
     input.signal
   );
   if (!asked.ok) return [];
-  return input.policies.map((policy, i) => {
-    const ans = asked.result.answers[`d${i}`];
+  return interpretHeedAnswers(asked.result.answers, input.policies);
+}
+
+export function interpretHeedAnswers(
+  answers: import("./types").JevAnswers,
+  policies: string[]
+): Array<{ policy: string; delta: string }> {
+  return policies.map((policy, i) => {
+    const ans = answers[`d${i}`];
     const delta = ans?.type === "choice" && ans.confidence >= 0.8 ? ans.choice : "KEEP";
     return { policy, delta };
   });
@@ -95,13 +106,20 @@ export async function assessGitRisk(input: {
     input.signal
   );
   if (!asked.ok) return decideUnavailable("jev_git", "review", "closed");
-  if (requireNoul(asked.result.answers, "force_push") >= 0.7 || requireNoul(asked.result.answers, "unrecoverable") >= 0.7) {
-    return { action: "review", value: "git", reason: "dangerous-git", node: "jev_git", answers: asked.result.answers };
+  return interpretGitRisk(asked.result.answers);
+}
+
+export function interpretGitRisk(answers: import("./types").JevAnswers, prefix = ""): PolicyDecision {
+  const force = requireNoul(answers, `${prefix}force_push`);
+  const unrecoverable = requireNoul(answers, `${prefix}unrecoverable`);
+  const authorized = requireNoul(answers, `${prefix}authorized`);
+  if (force >= 0.7 || unrecoverable >= 0.7) {
+    return { action: "review", value: "git", reason: "dangerous-git", node: "jev_git", answers };
   }
-  if (requireNoul(asked.result.answers, "authorized") >= 0.7) {
-    return { action: "auto", value: "git", reason: "authorized-git", node: "jev_git", answers: asked.result.answers };
+  if (authorized >= 0.7) {
+    return { action: "auto", value: "git", reason: "authorized-git", node: "jev_git", answers };
   }
-  return { action: "review", value: "git", reason: "unconfirmed-git", node: "jev_git", answers: asked.result.answers };
+  return { action: "review", value: "git", reason: "unconfirmed-git", node: "jev_git", answers };
 }
 
 export async function classifyVoiceIntent(input: {

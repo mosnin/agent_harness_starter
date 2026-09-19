@@ -250,6 +250,32 @@ export function createCustomHarness(agentConfig: CoreConfig): AgentHarness {
 
     for (const ev of drainPluginEvents()) yield ev;
 
+    const directReply = typeof ctx.jevDirectReply === "string" ? ctx.jevDirectReply : "";
+    if (directReply) {
+      yield { type: "message_delta", delta: directReply };
+      yield { type: "message_done", content: directReply };
+      let finalOutput = directReply;
+      for (const plugin of [...plugins].reverse()) {
+        if (plugin.onAfterRun) {
+          try {
+            finalOutput = await plugin.onAfterRun(finalOutput, pluginCtx);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            yield { type: "error", error: msg };
+            yield { type: "done", finalOutput: "", traceId, spanId, traceparent };
+            return;
+          }
+        }
+      }
+      for (const ev of drainPluginEvents()) yield ev;
+      yield { type: "done", finalOutput, traceId, spanId, traceparent };
+      const durationMs = Date.now() - startedAt;
+      for (const plugin of [...plugins].reverse()) {
+        await Promise.resolve(plugin.onComplete?.(pluginCtx, { finalOutput, durationMs })).catch(() => {});
+      }
+      return;
+    }
+
     const { agent, pendingEvents } = await buildAgent(ctx, pluginCtx, userMessage);
 
     let finalOutput = "";

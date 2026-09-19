@@ -2,7 +2,7 @@
 
 This repo is the **agent harness**. Hades the product is a **native desktop application** (Tauri window + Node sidecar). The web routes in `src/app/**` and `routes/**` are the SaaS/HTTP surface. They are not the desktop app.
 
-Jev, Qwen, and OpenAI voice run **inside the sidecar**, on the machine. The webview never holds `TYPESAFE_API_KEY` or `OPENROUTER_API_KEY`.
+Jev, Qwen, and OpenAI voice run **inside the sidecar**, on the machine. The webview never holds `TYPESAFE_API_KEY` or `OPENROUTER_API_KEY`. Chat uses one Jev RTT (`runPreflight`); greetings still screen, then skip Qwen. The renderer should fire `chat.prefetch` while the user is typing so `chat.send` hits the ask cache.
 
 ---
 
@@ -104,15 +104,16 @@ import { createDesktopHost } from "@/agents/hades/desktop";
 
 | type | Body | What happens |
 |---|---|---|
-| `runtime.start` | — | Emit `runtime.ready` + inference |
-| `chat.send` | `text`, `threadId?` | Jev screen/route → Qwen stream |
+| `runtime.start` | — | Emit `runtime.ready` + inference, then `jev.timing` warmup |
+| `chat.prefetch` | `text` | Run `runPreflight` into the ask cache (no Qwen) |
+| `chat.send` | `text`, `threadId?` | Jev screen/route → Qwen stream (cache hit if prefetched) |
 | `voice.turn` | `audioBase64` | Same execute gate as `/api/voice` (`auto` + `execute_now`) |
 | `desktop.act` | `action`, `args?` | Jev desktop policy, then `cap` |
 | `approval.respond` | `approvalId`, `approved` | HITL for review-band tools |
 
 **Events (sidecar → renderer)**
 
-`runtime.ready`, `message.delta`, `message.done`, `jev.decision`, `approval.required`, `desktop.result`, `error`, `run.done`.
+`runtime.ready`, `message.delta`, `message.done`, `jev.decision` (includes `latencyMs` / `cached`), `jev.prefetch`, `jev.timing`, `approval.required`, `desktop.result`, `error`, `run.done`.
 
 ---
 

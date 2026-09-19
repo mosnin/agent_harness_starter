@@ -327,6 +327,8 @@ export type AgentEvent =
       reason: string;
       action: "auto" | "review" | "block" | "fallback";
       confidence?: number;
+      latencyMs?: number;
+      cached?: boolean;
     }
   | { type: "done"; finalOutput: string; traceId?: string; spanId?: string; traceparent?: string };
 

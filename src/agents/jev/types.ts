@@ -109,6 +109,10 @@ export interface PolicyDecision<T = string> {
   confidence?: number;
   probability?: number;
   answers?: JevAnswers;
+  /** Wall time of the System One call that produced this decision. */
+  latencyMs?: number;
+  /** True when the answers came from the process-local ask cache. */
+  cached?: boolean;
 }
 
 export type JevFailMode = "open" | "closed" | "review";
@@ -120,6 +124,8 @@ export interface JevClientConfig {
   timeoutMs?: number;
   maxRetries?: number;
   fetchImpl?: typeof fetch;
+  /** Fire a second request if the first has not settled. 0 disables. Default 200. */
+  hedgeMs?: number;
 }
 
 export interface JevClient {
@@ -127,11 +133,16 @@ export interface JevClient {
 }
 
 export type JevAskResult =
-  | { ok: true; result: SystemOneResult }
+  | { ok: true; result: SystemOneResult; cached?: boolean; latencyMs?: number }
   | { ok: false; reason: string; error?: Error };
 
 export interface JevAsker {
   ask(request: SystemOneRequest, signal?: AbortSignal): Promise<JevAskResult>;
+}
+
+export interface JevAskerOptions {
+  /** Cache + coalesce identical asks. Default true. */
+  cache?: boolean;
 }
 
 export interface JevAuditEntry {

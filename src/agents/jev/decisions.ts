@@ -79,13 +79,17 @@ export async function decideCompletion(input: {
     input.signal
   );
   if (!asked.ok) return decideUnavailable("task_complete", "continue", "open");
-  const ready = requireNoul(asked.result.answers, "ready_to_finish");
-  const requirements = requireNoul(asked.result.answers, "requirements_satisfied");
-  const verify = requireNoul(asked.result.answers, "needs_verification");
+  return interpretCompletion(asked.result.answers);
+}
+
+export function interpretCompletion(answers: import("./types").JevAnswers): PolicyDecision {
+  const ready = requireNoul(answers, "ready_to_finish");
+  const requirements = requireNoul(answers, "requirements_satisfied");
+  const verify = requireNoul(answers, "needs_verification");
   if (ready >= NOUL.finish && requirements >= NOUL.requirements && verify < NOUL.needsVerification) {
-    return { action: "auto", value: "finish", reason: "ready", node: "task_complete", answers: asked.result.answers };
+    return { action: "auto", value: "finish", reason: "ready", node: "task_complete", answers };
   }
-  return { action: "review", value: "continue", reason: "not-ready", node: "task_complete", answers: asked.result.answers };
+  return { action: "review", value: "continue", reason: "not-ready", node: "task_complete", answers };
 }
 
 export async function decideCompaction(input: {

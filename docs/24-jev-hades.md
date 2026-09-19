@@ -19,7 +19,7 @@ Jev is TypeSafe’s **System One** model. It is not a chat model. It does not wr
 1. A **state** object — the evidence (user message, tool args, draft, passages, page text, …)
 2. A map of **typed questions**
 
-You get back calibrated answers in roughly 70–500ms. Every question in one request is evaluated **in parallel**. Adding another noul barely changes latency.
+You get back calibrated answers in roughly 70–500ms. Every question in one request is evaluated **in parallel**. Adding another noul barely changes latency. That is the whole speed story: TypeSafe reports **70–500ms** and up to **~200×** vs an LLM judge on the same structured task. Hades therefore **must not** fire sequential Jev HTTP hops. `runPreflight` / `runPostflight` put screen + route + skill + heed (and output + quality + completion + citations) in **one** System One call each. Exact greetings still **screen** (fail-closed if Jev is down) and then skip Qwen with a canned reply. A circuit breaker fail-fasts after three Jev outages. Hedged fetch (default 200ms) aborts the loser. Identical asks are cached/coalesced for ~20s so desktop `chat.prefetch` makes `chat.send` a cache hit.
 
 The public HTTP contract:
 
@@ -145,7 +145,9 @@ AGENT_PROVIDER=hades
 # Decisions (required for Jev to run; without it, security hops fail closed)
 TYPESAFE_API_KEY=...          # https://typesafe.ai
 JEV_MODEL=jev-latest
-JEV_TIMEOUT_MS=2500
+JEV_TIMEOUT_MS=1500
+JEV_HEDGE_MS=200
+JEV_CACHE_TTL_MS=20000
 # TYPESAFE_BASE_URL=https://api.typesafe.ai/v1/systemone   # optional override
 
 # Generation (required)
@@ -206,12 +208,11 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
 
 1. **Ingress** — `/api/agent`, `/api/hades`, or `/api/voice`. All require `auth.requireAuth`. Voice clips larger than 8 MiB → `413`.
 2. **Voice intent** (voice only) — `voiceIntentHint`, then `classifyVoiceIntent`. Execution requires `action === "auto"` **and** `value === "execute_now"` (`shouldExecuteVoice`). Anything else clarifies, cancels, or refuses. Qwen never sees cancelled / unsafe / low-confidence audio.
-3. **`withJev.onBeforeRun`**
+3. **`withJev.onBeforeRun`** — **one** System One call (`runPreflight`). Exact greetings still screen; Qwen is skipped with a canned reply only after the screen passes (or when `screenInput: false`).
    - `screenExternal` (injection / secrets / substance). Jev-down → **block**. Injection/secret *review* → HITL error.
-   - `decideCompaction` when the thread has ≥ 8 messages.
-   - `routeModel` → `ctx.hadesModel` / `hadesRoute` (Qwen fast / balanced / powerful). Overrides: `!fast`, `!balanced`, `!powerful`. Follow-up reuse at `is_followup ≥ 0.55`.
-   - `routeSkill` (map-reduce if the catalog is > 8).
-   - `heedPolicy` — lift / narrow standing rules. Stored on `ctx.jevPolicyDeltas`.
+   - `routeModel` → `ctx.hadesModel` / `hadesRoute` (Qwen fast / balanced / powerful). Follow-up reuse at `is_followup ≥ 0.55`.
+   - `routeSkill` + `heedPolicy` in the same request.
+   - `skip_llm` / `canned` → `ctx.jevDirectReply`; core short-circuits the generator.
    - Each decision is queued as a `jev_decision` SSE event.
 4. **`withMemory`** — retrieve, then `filterPassages`. Jev-down → **drop all memories**.
 5. **Qwen generates** and may call tools. `core.ts` drains `pendingPluginEvents` after `onBeforeRun` so the UI sees Jev decisions even before the first token.
@@ -224,7 +225,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
    - `web_search` → `planAndRerankSearch`; snippets stored as `jevEvidence`.
    - `browser_*` → `screenExternal` on page text. Block **and** injection/secret review. Surviving text appended to `jevEvidence`.
    - Failed `shell_exec` → `classifyCommandFailure`. Secret-leaking stderr is blocked. Jev-down → **block** (stderr never reaches Qwen).
-7. **`onAfterRun`**
+7. **`onAfterRun`** — **one** System One call (`runPostflight`).
    - `screenOutput` — Jev-down → **block**.
    - `stopHook` — advisory (limpet).
    - `decideCompletion` — advisory (Foreman).
@@ -257,6 +258,8 @@ All under `src/agents/jev/`:
 | `hooks.ts` | Stop-hook, heed policy, git-risk, voice intent | limpet, pi-heed, jev-git |
 | `orchestrate.ts` | Specialist router, `jevWhen`/`jevUntil`, swarm pick | GodsBoy, notra |
 | `events.ts` | Queue `jev_decision` onto the harness stream | this harness |
+| `preflight.ts` / `postflight.ts` | One System One call per hop (the speed path) | TypeSafe parallel questions |
+| `cache.ts` | LRU + in-flight coalesce of successful asks | desktop prefetch / retries |
 | `curate.ts` / `eval.ts` | Triage, labels, Brier / accuracy | jev-curate, calibration repos |
 | `symbolic.ts` | Foreman supervisor, patch verdict | Foreman, jev-code |
 | `company.ts` | Company-OS action approval | opencompany |
@@ -339,6 +342,20 @@ const workflow = createWorkflow("review")
 | `powerful` | `qwen/qwen3-235b-a22b` | Architecture, high-stakes, novel debugging |
 
 Low-confidence *upgrades* are capped at balanced. Downgrades that would bust a prompt cache larger than 20k tokens are skipped.
+
+### Why Hades feels ~10–200× faster than LLM-as-judge
+
+People posting Jev timings on X are measuring **structured decisions**, not generation. An LLM judge is 3–15s per hop. Jev is 70–500ms, and every extra noul in the same request is free. Hades keeps that advantage by:
+
+1. **One preflight / one postflight** — never screen then route then skill as separate HTTP hops.
+2. **Hedged fetch** — a second request at 200ms; the loser is aborted so a slow tail does not add a full timeout.
+3. **Circuit breaker** — three failures → 8s fail-fast (`jev-circuit-open`). Security still fail-closes; routing fail-opens.
+4. **Ask cache + coalesce** — identical `state + questions` reuse answers for 20s. Desktop `chat.prefetch` while the user types makes send a cache hit.
+5. **Skip Qwen** on exact greetings / thanks after the screen passes (`ctx.jevDirectReply`).
+6. **Skip Auto Mode** on an allowlist of read-only tools (`file_read`, `web_search`, desktop inspect). Writes still fail-closed.
+7. **Warmup** on `runtime.start` so TLS to `api.typesafe.ai` is already open.
+
+`jev_decision` events carry `latencyMs` and `cached` so the desktop can show the same 70ms badge people are posting.
 
 ---
 

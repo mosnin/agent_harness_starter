@@ -7,7 +7,7 @@
 
 import { IMPACT_LEVELS } from "./catalog";
 import { createJevAsker } from "./client";
-import { assessGitRisk } from "./hooks";
+import { interpretGitRisk } from "./hooks";
 import { NOUL, SCORE, decideUnavailable } from "./policy";
 import { noul, score } from "./questions";
 import type { JevAsker, JevState, PolicyDecision } from "./types";
@@ -50,6 +50,25 @@ function serializeArgs(value: unknown): string {
   }
 }
 
+const SAFE_READ_TOOLS = new Set([
+  "file_read",
+  "read_file",
+  "list_dir",
+  "list_files",
+  "memory_search",
+  "web_search",
+  "browser_snapshot",
+  "targets",
+  "record_status",
+  "project_get",
+  "project_validate",
+]);
+
+/** Read-only inspect hops skip System One. Writes still go through Auto Mode. */
+export function isSafeReadTool(toolName: string): boolean {
+  return SAFE_READ_TOOLS.has(toolName);
+}
+
 export async function assessToolRisk(input: AutoModeInput): Promise<PolicyDecision> {
   if (input.alwaysApprove?.includes(input.toolName)) {
     return {
@@ -60,16 +79,17 @@ export async function assessToolRisk(input: AutoModeInput): Promise<PolicyDecisi
     };
   }
 
-  const asker = input.asker ?? createJevAsker();
-  if (looksLikeGit(input.toolName, input.toolArguments)) {
-    const git = await assessGitRisk({
-      command: extractCommand(input.toolArguments),
-      userRequest: input.userRequest,
-      asker,
-      signal: input.signal,
-    });
-    if (git.action !== "auto") return git;
+  if (isSafeReadTool(input.toolName) && !looksLikeGit(input.toolName, input.toolArguments)) {
+    return {
+      action: "auto",
+      value: input.toolName,
+      reason: "safe-read",
+      node: "auto_mode",
+    };
   }
+
+  const asker = input.asker ?? createJevAsker();
+  const gitLike = looksLikeGit(input.toolName, input.toolArguments);
 
   const asked = await asker.ask(
     {
@@ -78,8 +98,16 @@ export async function assessToolRisk(input: AutoModeInput): Promise<PolicyDecisi
         cwd: input.cwd ?? "",
         tool: input.toolName,
         arguments: serializeArgs(input.toolArguments),
+        command: gitLike ? extractCommand(input.toolArguments) : "",
       } as JevState,
       questions: {
+        ...(gitLike
+          ? {
+              git_force_push: noul("Is this a force-push or history rewrite?"),
+              git_unrecoverable: noul("Would this git command drop unrecoverable work?"),
+              git_authorized: noul("Did `user_request` authorize this exact git action?"),
+            }
+          : {}),
         destructive: noul(
           "Would executing `tool` with `arguments` destroy or irreversibly alter user data, files, or infrastructure?",
           {
@@ -114,6 +142,10 @@ export async function assessToolRisk(input: AutoModeInput): Promise<PolicyDecisi
   }
 
   const answers = asked.result.answers;
+  if (gitLike && answers.git_force_push) {
+    const git = interpretGitRisk(answers, "git_");
+    if (git.action !== "auto") return git;
+  }
   const destructive = requireNoul(answers, "destructive");
   const exfiltration = requireNoul(answers, "exfiltration");
   const beyondScope = requireNoul(answers, "beyond_scope");
