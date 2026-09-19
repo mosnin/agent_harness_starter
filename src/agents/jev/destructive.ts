@@ -18,6 +18,10 @@ const WIPE_PATTERNS: RegExp[] = [
   /\bdd\s+if=\/dev\/(?:zero|urandom)\b/i,
   /\bkubectl\s+delete\b/i,
   /\bterraform\s+destroy\b/i,
+  /\b(?:curl|wget)\b[\s\S]{0,240}\|\s*(?:sh|bash|zsh|fish|dash|ksh|python3?|node|ruby|perl|php)\b/i,
+  /\b(?:sh|bash|zsh|dash)\s+-c\s+["']?\$\(\s*(?:curl|wget)\b/i,
+  /\beval\s+["']?\$\(\s*(?:curl|wget)\b/i,
+  /\b(?:sh|bash|zsh|dash)\b[\s\S]{0,80}<\s*\(\s*(?:curl|wget)\b/i,
 ];
 
 const FORCE_GIT_PATTERNS: RegExp[] = [

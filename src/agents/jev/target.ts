@@ -32,7 +32,7 @@ const TRAVERSAL = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
 const SECRET_FILE =
   /(?:^|[\\/])(?:\.env(?:\.[A-Za-z0-9._-]+)?|\.npmrc|\.netrc|id_rsa|id_ed25519|authorized_keys)(?:$|[\\/])/i;
 const UNIX_EXFIL =
-  /(?:^|[\\/])(?:etc[\\/](?:passwd|shadow|sudoers)|proc[\\/]self[\\/]environ|\.ssh[\\/]|\.aws[\\/])/i;
+  /(?:^|[\\/])(?:etc[\\/](?:passwd|shadow|sudoers)|proc[\\/]self[\\/]environ|\.ssh[\\/]|\.aws[\\/]|var[\\/]run[\\/]docker\.sock|docker\.sock)/i;
 const METADATA_HOST =
   /169\.254\.169\.254|metadata\.google\.internal|metadata\.internal|fd00:ec2::254/i;
 const FILE_SCHEME = /^file:/i;

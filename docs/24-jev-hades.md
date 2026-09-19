@@ -219,7 +219,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
 4. **`withMemory`** — retrieve, then `filterPassages`. Jev-down → **drop all memories**.
 5. **Qwen generates** and may call tools. When the thread has more than one turn, `core.ts` passes typed `AgentInputItem`s to `run()` (not just the latest user string) so Qwen sees the conversation. `core.ts` drains `pendingPluginEvents` after `onBeforeRun` so the UI sees Jev decisions even before the first token.
 6. **`wrapTools`**
-   - `runToolGate` — Auto Mode + malware + patch + company + `invented_args` + `wrong_fn` in **one** ask. Git-looking commands include git nouls in that same request. Hallucinated paths/URLs or a tool that does not bind to the request → HITL or block. Jev-down → **block**. Canned exfil/SSRF targets (`/etc/passwd`, `../.env`, `169.254.169.254`, `file://`, `python3 -c open(...)`) are `target-local` at zero RTT even on "safe read" tools.
+   - `runToolGate` — Auto Mode + malware + patch + company + `invented_args` + `wrong_fn` in **one** ask. Git-looking commands include git nouls in that same request. Hallucinated paths/URLs or a tool that does not bind to the request → HITL or block. Jev-down → **block**. Canned exfil/SSRF targets (`/etc/passwd`, `../.env`, `169.254.169.254`, `file://`, `python3 -c open(...)`, `echo x > /etc/passwd`, `grep` / `cp` / `tee` against those paths) are `target-local` at zero RTT even on "safe read" tools.
    - Every tool result is **redacted** (API keys, tokens, private keys, connection strings) then harvested into `jevEvidence` with no extra Jev call. Search/browser evidence uses the same `mergeEvidence` path — raw secrets never reach Qwen, the compacted thread, memories, or persisted chat.
    - `scanMalicious` on `sandbox_run_code` / `modal_run`.
    - `judgePatch` on `file_patch`.
@@ -455,11 +455,11 @@ Fixed:
 - System One `state` is sanitized the same way. Severe labels (`API_KEY`, `AWS_KEY`, env-style `*_SECRET=*`, …) force `secret_leak` / `leaks_secret` to 1.0 in code. TypeSafe never receives the raw key.
 - Screens, preflight, postflight, and `classifyCommandFailure` short-circuit on `hasSevereSecret` (`leaks-secret-local`) so a pasted key is a zero-RTT block even when Jev is down. EMAIL is PII-redacted but not a severe block.
 - The same screens, plus search/RAG filters, short-circuit canned jailbreaks with `hasLocalInjection` (`injection-local`) so "ignore previous instructions" / DAN / fake system tags never wait on TypeSafe and never leave the box. Ambiguous injection still goes to Jev.
-- Auto Mode / `runToolGate` short-circuit canned destructive commands as `destructive-local`. Wipes (`rm -rf`, `DROP TABLE`, `dd`, …) block; force-git (`push --force`, `reset --hard`) is HITL. Only `command` / `cmd` / `args` are scanned so a README that mentions those strings is not blocked.
+- Auto Mode / `runToolGate` short-circuit canned destructive commands as `destructive-local`. Wipes (`rm -rf`, `DROP TABLE`, `dd`, `curl | bash`, `bash -c "$(curl …)"`) block; force-git (`push --force`, `reset --hard`) is HITL. Only `command` / `cmd` / `args` are scanned so a README that mentions those strings is not blocked.
 - Safe-read tools (`file_read`, `web_search`, …) skipped Jev entirely, so `/etc/passwd`, `../.env`, and `http://169.254.169.254/` never got a screen. `localTargetDecision` now blocks those on path/url keys (`target-local`) at zero RTT, including when Auto Mode is off. A search *query* that mentions `/etc/passwd` is not blocked.
 - Failed shells used to ask Jev (or fail-closed) for every nonzero exit. Canned ENOENT / EACCES / ETIMEDOUT / TypeError are `failure-local` and reach Qwen with a typed class. Unknown stderr still fail-closed when Jev is down. Secrets still `leaks-secret-local`.
 - Desktop writes (`desktop.act`) apply the same local target / secret labels before Cap. An export of `/etc/passwd` or a patch that embeds `sk-` is `target-local` / `leaks-secret-local` at zero RTT.
-- `shell_exec` `cat /etc/passwd` / `curl 169.254.169.254` is `target-local` at zero RTT. Writes and extra reads (`echo x > /etc/passwd`, `cp … ~/.ssh/authorized_keys`, `grep root /etc/passwd`) are the same label. An echo that only *mentions* `/etc/passwd` is not blocked.
+- `shell_exec` `cat /etc/passwd` / `curl 169.254.169.254` is `target-local` at zero RTT. Writes and extra reads (`echo x > /etc/passwd`, `cp … ~/.ssh/authorized_keys`, `grep root /etc/passwd`) are the same label. `/var/run/docker.sock` is the same class. An echo that only *mentions* `/etc/passwd` is not blocked.
 - Desktop writes with a canned jailbreak in `userRequest` / args are `injection-local`. `DELETE /api/threads/[id]` 404s unless the caller owns the thread (`getOwnedThread`).
 - Convex `threads` / `messages` / `runs` are internal and require `ctx.auth.getUserIdentity()`. The HTTP adapter calls them with `CONVEX_ADMIN_KEY` acting as the signed-in user. A leaked `CONVEX_URL` cannot spoof `userId`.
 - Memory / Supabase / Prisma adapters hide foreign threads when `userId` is passed (same contract as Convex). Supabase requires `SUPABASE_SERVICE_ROLE_KEY` (never the anon key) and ships RLS so a browser JWT cannot read another user's rows.
@@ -546,6 +546,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 28 — Remote-exec pipes and docker.sock
+
+`rm -rf` was `destructive-local`, but `curl … | bash` and `bash -c "$(curl …)"` still reached the shell. Those are now the same wipe-class block. `/var/run/docker.sock` is `target-local` like `/etc/passwd`. A warning that only *mentions* piping curl to bash still passes.
 
 ### Wave 27 — Secret-path writes and grep
 
