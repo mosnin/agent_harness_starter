@@ -319,7 +319,15 @@ export type AgentEvent =
       description: string;
     }
   | { type: "error"; error: string; code?: string; guardName?: string; toolName?: string; remediation?: string }
-  | { type: "usage"; inputTokens: number; outputTokens: number; totalTokens: number }
+    | { type: "usage"; inputTokens: number; outputTokens: number; totalTokens: number }
+  | {
+      type: "jev_decision";
+      node: string;
+      decision: string;
+      reason: string;
+      action: "auto" | "review" | "block" | "fallback";
+      confidence?: number;
+    }
   | { type: "done"; finalOutput: string; traceId?: string; spanId?: string; traceparent?: string };
 
 // ── Run I/O ───────────────────────────────────────────────────────────────────

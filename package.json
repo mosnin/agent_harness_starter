@@ -92,6 +92,16 @@
       "import": "./dist/codex/index.mjs",
       "require": "./dist/codex/index.js",
       "types": "./dist/codex/index.d.ts"
+    },
+    "./jev": {
+      "import": "./dist/jev/index.mjs",
+      "require": "./dist/jev/index.js",
+      "types": "./dist/jev/index.d.ts"
+    },
+    "./hades": {
+      "import": "./dist/hades/index.mjs",
+      "require": "./dist/hades/index.js",
+      "types": "./dist/hades/index.d.ts"
     }
   },
   "files": [

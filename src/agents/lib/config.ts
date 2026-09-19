@@ -17,15 +17,33 @@ export type DbProvider = "supabase" | "convex" | "prisma";
 export type AuthProvider = "clerk" | "auth0" | "none";
 export type SandboxProvider = "daytona" | "modal" | "none";
 
-export type AgentProviderType = "openai" | "anthropic";
+export type AgentProviderType = "openai" | "anthropic" | "hades";
 
 export const config = {
-  /** Default agent provider: "openai" or "anthropic". */
+  /** Default agent provider: "openai", "anthropic", or "hades" (Jev + Qwen). */
   agentProvider: optional("AGENT_PROVIDER", "openai") as AgentProviderType,
 
   openai: {
     apiKey: optional("OPENAI_API_KEY"),
     model: optional("OPENAI_MODEL", "gpt-4o"),
+  },
+
+  jev: {
+    apiKey: optional("TYPESAFE_API_KEY") || optional("JEV_API_KEY"),
+    model: optional("JEV_MODEL", "jev-latest"),
+    timeoutMs: Number(optional("JEV_TIMEOUT_MS", "2500")),
+  },
+
+  openrouter: {
+    apiKey: optional("OPENROUTER_API_KEY"),
+    baseUrl: optional("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+    model: optional("HADES_MODEL") || optional("OPENROUTER_MODEL", "qwen/qwen-2.5-72b-instruct"),
+  },
+
+  voice: {
+    sttModel: optional("HADES_STT_MODEL", "whisper-1"),
+    ttsModel: optional("HADES_TTS_MODEL", "gpt-4o-mini-tts"),
+    voice: optional("HADES_TTS_VOICE", "alloy"),
   },
 
   anthropic: {

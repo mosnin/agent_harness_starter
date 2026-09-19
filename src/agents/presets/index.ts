@@ -21,4 +21,7 @@ export type { StandardConfig } from "./standard";
 export { createHarness as createFullHarness } from "./full";
 export type { FullConfig } from "./full";
 
+export { createHadesHarness } from "../hades/index";
+export type { HadesConfig, HadesHarness, HadesVoiceResult } from "../hades/index";
+
 export type { AgentHarness } from "../core";

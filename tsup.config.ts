@@ -22,6 +22,8 @@ export default defineConfig({
     "embeddings/index":    "src/agents/embeddings/index.ts",
     "federation/index":    "src/agents/federation/index.ts",
     "codex/index":         "src/agents/codex/index.ts",
+    "jev/index":           "src/agents/jev/index.ts",
+    "hades/index":         "src/agents/hades/index.ts",
     "runtime":             "src/agents/runtime.ts",
   },
   format: ["esm", "cjs"],

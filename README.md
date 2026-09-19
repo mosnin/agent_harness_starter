@@ -13,6 +13,7 @@ Drop this into your existing Next.js SaaS and get 80% of your agentic infrastruc
 - **MCP server out of the box** — every registered tool is instantly available to Claude Desktop, Cursor, or any MCP client at `/api/mcp` with no extra config.
 - **Copy-don't-inherit** — you own the source; no SDK lock-in, no hidden abstractions, no breaking upgrades forced on you.
 - **OpenAI Agents SDK native** — built on the official `@openai/agents` SDK, so handoffs, tracing, and model updates come from the source.
+- **Hades (Jev + Qwen + voice)** — TypeSafe Jev makes calibrated routing, Auto Mode, and guardrail decisions; Qwen via OpenRouter generates; OpenAI only does STT/TTS. See [docs/24-jev-hades.md](./docs/24-jev-hades.md).
 
 ---
 
@@ -35,6 +36,7 @@ Auth adapter interface              ✓ src/agents/auth/
 Supabase / Convex / Prisma support  ✓ DB_PROVIDER env var
 Clerk / Auth0 support               ✓ AUTH_PROVIDER env var
 Chat UI component                   ✓ components/AgentChat/
+Hades (Jev + Qwen + OpenAI voice)   ✓ src/agents/hades/ + routes/hades + routes/voice
 ```
 
 You bring: your existing auth, your existing database, and your domain-specific tools.

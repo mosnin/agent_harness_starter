@@ -17,3 +17,6 @@ export type { SecurityPluginOptions } from "../security/plugin";
 
 export { withGovernance } from "../governance/plugin";
 export type { GovernancePluginOptions } from "../governance/plugin";
+
+export { withJev } from "./jev";
+export type { JevPluginOptions } from "./jev";

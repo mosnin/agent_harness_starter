@@ -14,8 +14,11 @@
  *   import { ... } from "@/agents/workflow"        // WorkflowBuilder, delegate, transform, circuit-breaker, …
  *   import { ... } from "@/agents/observability"   // setObservabilityAdapter, ObservabilityAdapter, …
  *   import { ... } from "@/agents/providers/anthropic"  // createAnthropicHarness
+ *   import { ... } from "@/agents/jev"                 // TypeSafe System One decisions
+ *   import { ... } from "@/agents/hades"               // Jev + Qwen + OpenAI voice harness
  *   import { ... } from "@/agents/examples"        // createResearchAgent, createCodeAgent, …
  *   import { ... } from "@/agents/runtime"         // validateRuntime, getRegisteredTools — call at startup
+ *   import { createHadesHarness } from "@/agents"  // Jev decisions + Qwen + OpenAI voice
  */
 
 // ── Quickstart entry point ──────────────────────────────────────────────────
@@ -28,7 +31,8 @@ export { createCustomHarness } from "./core";
 export type { CoreConfig, AgentHarness } from "./core";
 
 // ── Preset factories ─────────────────────────────────────────────────────────
-export { createMinimalHarness, createStandardHarness, createFullHarness } from "./presets/index";
+export { createMinimalHarness, createStandardHarness, createFullHarness, createHadesHarness } from "./presets/index";
+export type { HadesConfig, HadesHarness, HadesVoiceResult } from "./presets/index";
 
 // ── Plugin factories (needed for createCustomHarness) ────────────────────────
 export { withMemory } from "./plugins/memory";
@@ -37,6 +41,8 @@ export { withApprovals } from "./plugins/approvals";
 export { withObservability } from "./plugins/observability";
 export { withControlPlane } from "./plugins/control-plane";
 export type { ControlPlaneOptions } from "./plugins/control-plane";
+export { withJev } from "./plugins/jev";
+export type { JevPluginOptions } from "./plugins/jev";
 export { composePlugins } from "./plugins/compose";
 
 // ── Agent definition ─────────────────────────────────────────────────────────
@@ -126,6 +132,26 @@ export { FederationManager } from "./federation/manager";
 export { PeerRegistry } from "./federation/peer-registry";
 export { generateKeyPair, sign, verify, canonicalize, toHex, fromHex } from "./federation/crypto";
 export type { FederationPeer, FederationMessage, FederationConfig, SignedPayload, PeerStatus } from "./federation/types";
+
+// ── Jev / Hades (System One decisions + Qwen + voice) ────────────────────────
+export {
+  noul,
+  choice,
+  score,
+  createJevClient,
+  createJevAsker,
+  createMockJevClient,
+  routeModel,
+  routeSkill,
+  assessToolRisk,
+  screenExternal,
+  screenOutput,
+  registerJevMcpTools,
+  HADES_QWEN_ROUTES,
+} from "./jev/index";
+export type { JevClient, JevAsker, PolicyDecision, SystemOneResult } from "./jev/index";
+
+export { configureOpenRouter, generateWithQwen, transcribeAudio, synthesizeSpeech } from "./providers/index";
 
 // ── Codex / AGENTS.md adapter ─────────────────────────────────────────────────
 export { generateAgentsMd, generateSkillMarkdown, generateToml } from "./codex/generators";

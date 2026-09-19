@@ -9,6 +9,7 @@ The agent harness uses a composable plugin system. Instead of one monolithic con
 | `@/agents/presets/minimal` | Core engine only — no optional features |
 | `@/agents/presets/standard` | Memory + guardrails + observability |
 | `@/agents/presets/full` | Everything (memory, guardrails, approvals, observability) |
+| `@/agents/hades` | Hades — Jev decisions + Qwen (OpenRouter) + OpenAI voice |
 | `@/agents` / `@/agents/harness` | Same as `full` — backward-compatible default |
 
 All presets export a `createHarness(config)` function with the same return type (`AgentHarness`), so you can swap presets without changing route handlers or frontend code.
@@ -80,6 +81,25 @@ withApprovals({
 ```
 
 You can also set `requiresApproval: true` on a `ToolDefinition` to apply it globally across all agents.
+
+### `withJev(options)`
+
+Puts TypeSafe Jev on the critical path (LangChain `ModelRouterMiddleware` + `AutoModeMiddleware`):
+
+- **onBeforeRun** — screen the message, then pick a Qwen route
+- **wrapTools** — Auto Mode risk check before every tool; HITL on `review`
+- **onAfterRun** — screen the draft for secrets / policy
+
+```ts
+import { withJev, createHadesHarness } from "@/agents";
+
+const harness = createHadesHarness({
+  name: "Hades",
+  instructions: "You are Hades.",
+});
+```
+
+See [24 — Jev / Hades](24-jev-hades.md).
 
 ### `withObservability(options)`
 
