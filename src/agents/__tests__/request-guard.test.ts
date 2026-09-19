@@ -6,6 +6,7 @@ import {
   mcpAnonymousAllowed,
   oversizeJsonResponse,
   readCappedJson,
+  readCappedRequest,
   capListedThreads,
   capListedMessages,
   MAX_JSON_BODY_BYTES,
@@ -93,6 +94,20 @@ describe("request-guard", () => {
     );
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) expect(parsed.response.status).toBe(413);
+  });
+
+  it("rebuilds a Request after a capped read so multipart can parse", async () => {
+    const rebuilt = await readCappedRequest(
+      new Request("http://local/api/voice", {
+        method: "POST",
+        headers: { "content-type": "text/plain" },
+        body: "audio-bytes",
+      })
+    );
+    expect(rebuilt).toBeInstanceOf(Request);
+    if (rebuilt instanceof Request) {
+      expect(await rebuilt.text()).toBe("audio-bytes");
+    }
   });
 
   it("rejects invalid JSON after a capped read", async () => {

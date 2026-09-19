@@ -14,7 +14,7 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { getMcpServer } from "@/agents/mcp/server";
 import { auth } from "@/agents/auth";
-import { mcpAnonymousAllowed, oversizeJsonResponse, unauthorizedMcpResponse } from "@/agents/lib/request-guard";
+import { mcpAnonymousAllowed, readCappedRequest, unauthorizedMcpResponse } from "@/agents/lib/request-guard";
 import type { ToolContext } from "@/agents/tools/types";
 // Import all tools to ensure they're registered before the MCP server is initialized
 import "@/agents/tools/index";
@@ -40,16 +40,16 @@ async function resolveContext(req: Request): Promise<ToolContext | Response> {
 }
 
 export async function POST(req: Request) {
-  const oversize = oversizeJsonResponse(req);
-  if (oversize) return oversize;
-  const ctx = await resolveContext(req);
+  const capped = await readCappedRequest(req);
+  if (capped instanceof Response) return capped;
+  const ctx = await resolveContext(capped);
   if (ctx instanceof Response) return ctx;
   const server = getMcpServer(ctx);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });
   await server.connect(transport);
-  return transport.handleRequest(req);
+  return transport.handleRequest(capped);
 }
 
 export async function GET(req: Request) {

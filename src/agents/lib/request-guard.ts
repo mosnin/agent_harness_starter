@@ -63,6 +63,28 @@ export async function readCappedBytes(
 }
 
 /**
+ * Same cap as `readCappedBytes`, then rebuild a Request so multipart /
+ * MCP transports can still parse the body.
+ */
+export async function readCappedRequest(
+  req: Request,
+  max = MAX_JSON_BODY_BYTES
+): Promise<Request | Response> {
+  const header = oversizeJsonResponse(req, max);
+  if (header) return header;
+  const raw = await readCappedBytes(req, max);
+  if (raw instanceof Response) return raw;
+  const copy = new ArrayBuffer(raw.byteLength);
+  new Uint8Array(copy).set(raw);
+  return new Request(req.url, {
+    method: req.method,
+    headers: req.headers,
+    body: copy,
+    signal: req.signal,
+  });
+}
+
+/**
  * Header check plus a hard read cap. A caller that omits Content-Length
  * cannot stream an unbounded JSON body past the same 64 KiB limit.
  */

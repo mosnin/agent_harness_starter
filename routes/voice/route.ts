@@ -10,7 +10,7 @@ import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
 import { createHadesHarness } from "@/agents/hades/index";
 import { redactSecrets } from "@/agents/jev/redact";
-import { oversizeJsonResponse } from "@/agents/lib/request-guard";
+import { readCappedRequest } from "@/agents/lib/request-guard";
 import { isThreadOwner, MAX_HARNESS_MESSAGES, messagesForHarness } from "@/agents/lib/thread-history";
 import { getAgentConfig, getAllAgentNames } from "@/agents/agent-registry";
 import "@/agents/examples";
@@ -22,9 +22,9 @@ export async function POST(req: Request) {
   try {
     const user = await auth.requireAuth(req);
     const MAX_VOICE_BYTES = 8 * 1024 * 1024;
-    const oversize = oversizeJsonResponse(req, MAX_VOICE_BYTES + 64 * 1024);
-    if (oversize) return oversize;
-    const form = await req.formData();
+    const capped = await readCappedRequest(req, MAX_VOICE_BYTES + 64 * 1024);
+    if (capped instanceof Response) return capped;
+    const form = await capped.formData();
     const file = form.get("audio");
     if (!(file instanceof Blob)) {
       return Response.json({ error: "Expected multipart field `audio`" }, { status: 400 });
