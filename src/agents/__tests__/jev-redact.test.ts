@@ -152,5 +152,11 @@ describe("zero-RTT secret redaction", () => {
 
     const after = await jev.onAfterRun!(`Here is ${OPENAI_KEY}`, runCtx);
     expect(after).not.toContain(OPENAI_KEY);
+
+    const toolOut = await jev.onEvent?.(
+      { type: "tool_result", name: "file_read", output: { content: OPENAI_KEY }, callId: "c1" },
+      runCtx
+    );
+    expect(JSON.stringify(toolOut)).not.toContain(OPENAI_KEY);
   });
 });

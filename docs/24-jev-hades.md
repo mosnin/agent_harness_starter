@@ -225,7 +225,7 @@ Jev tests: `src/agents/__tests__/jev.test.ts`, `hades.test.ts`, `jev-live-paths.
    - `judgePatch` on `file_patch`.
    - `approveCompanyAction` on deploy / composio / transfer / rotate / prod tools. `deploy_prod`, `wire_transfer`, `delete_account`, `rotate_keys` always HITL.
    - `review` → approval event. `block` → `GuardrailBlockError`.
-   - `web_search` → `planAndRerankSearch`; snippets stored as `jevEvidence`.
+   - `web_search` → `planAndRerankSearch` in **one** ask (window + sources + relevance + injection). Injected snippets are dropped. Snippets stored as `jevEvidence`. Tool SSE `tool_call` / `tool_result` events are redacted before they leave the harness.
    - `browser_*` → `screenExternal` on page text. Block **and** injection/secret review. Surviving text appended to `jevEvidence`.
    - Failed `shell_exec` → `classifyCommandFailure`. Secret-leaking stderr is blocked. Jev-down → **block** (stderr never reaches Qwen).
 7. **`onAfterRun`** — **one** System One call (`runPostflight`).
@@ -258,7 +258,7 @@ All under `src/agents/jev/`:
 | `decisions.ts` | quiet-ask, completion, compaction, browser step, cmd fail | pi-quiet-ask, limpet, Foreman |
 | `rag.ts` | Passage relevance + injection filter | TypeSafe RAG cookbook |
 | `extract.ts` | find / extract / compare / bind / SDE cascade | jev-mcp cookbooks |
-| `search.ts` | Time window + source nouls + rerank | jev-search |
+| `search.ts` | Window + sources + rerank + injection drop in one ask | jev-search |
 | `hooks.ts` | Stop-hook, heed policy, git-risk, voice intent | limpet, pi-heed, jev-git |
 | `orchestrate.ts` | Specialist router, `jevWhen`/`jevUntil`, swarm pick | GodsBoy, notra |
 | `events.ts` | Queue `jev_decision` onto the harness stream | this harness |
@@ -303,7 +303,7 @@ These sit on real hops, not helper-only APIs:
 | `SwarmCoordinator.submitTaskJev` | Assign among capable agents |
 | `stopHook` | Incomplete-reply check (event) |
 | `assessToolRisk` | Extra git-risk pass on `git` / `shell_exec` |
-| `web_search` wrap | Intent + sources, then rerank |
+| `web_search` wrap | Window + sources + rerank + injection in one ask |
 | `shell_exec` wrap | Classify failures; block secret leaks; Jev-down blocks stderr |
 | `voiceTurn` | Execute only on confident `execute_now` |
 | `heedPolicy` | Lift / narrow standing rules |
@@ -443,7 +443,7 @@ Fixed:
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): `web_search` snippets are reranked but not run through `screenExternal` (browser scrapes are). Search evidence still goes through `verifyCitation` on the final draft. Streaming redaction is per-chunk; a key split across two SSE deltas can leak until `message_done` / `onAfterRun` rewrite it.
+Residual (accepted): streaming redaction is per-chunk; a key split across two SSE deltas can leak until `message_done` / `onAfterRun` rewrite it. Search injection is scored in the same ask as rerank (not a second `screenExternal` hop).
 
 ---
 
@@ -518,6 +518,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 9 — One-RTT search + redacted tool events
+
+`planAndRerankSearch` used a second System One call to rerank after planning. Those questions now share one request, and `inj_*` drops jailbroken snippets. `withJev.onEvent` redacts `tool_call` / `tool_result` so a key in stdout cannot ride the SSE stream to the desktop or browser.
 
 ### Wave 8 — Thread continuity + invented tool args
 

@@ -309,6 +309,12 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
       if (event.type === "message_done") {
         return { ...event, content: redactSecrets(event.content).text };
       }
+      if (event.type === "tool_result") {
+        return { ...event, output: redactValue(event.output) };
+      }
+      if (event.type === "tool_call") {
+        return { ...event, input: redactValue(event.input) };
+      }
       return event;
     },
 
