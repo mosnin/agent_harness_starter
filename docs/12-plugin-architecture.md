@@ -88,7 +88,8 @@ Puts TypeSafe Jev on the critical path (LangChain `ModelRouterMiddleware` + `Aut
 
 - **onBeforeRun** — screen the message, pick a Qwen route, optional skill route + compaction
 - **wrapTools** — Auto Mode (including git-risk), search rerank, shell-failure classification; HITL on `review`
-- **onAfterRun** — screen the draft, then a limpet-style stop-hook
+- **onAfterRun** — screen the draft, stop-hook, completion, JevSlop quality, citation check
+- **wrapTools extras** — hostile-code scan, patch verdict, company-OS HITL, browser-page screen
 - **withMemory({ jevFilter: true })** — drop injected / irrelevant retrieved passages
 
 ```ts
