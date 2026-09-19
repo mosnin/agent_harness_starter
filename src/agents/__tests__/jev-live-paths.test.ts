@@ -660,6 +660,103 @@ describe("orchestrate helpers", () => {
     });
     expect(picked.agent).toBeDefined();
   });
+
+  it("refuses to mark a stuck swarm worker done", async () => {
+    const { SwarmCoordinator } = await import("../swarm/coordinator");
+    const coord = new SwarmCoordinator({ topology: "mesh" });
+    coord.registerAgent({
+      id: "w1",
+      name: "Worker",
+      capabilities: ["code"],
+    });
+    const submitted = coord.submitTask({
+      description: "implement pagination",
+      requiredCapabilities: ["code"],
+      payload: {},
+      priority: 5,
+    });
+    const client = createMockJevClient((req) => {
+      const answers: Record<string, JevAnswer> = {};
+      for (const id of Object.keys(req.questions)) {
+        answers[id] = noulAns(id === "worker_stuck" || id === "needs_human" ? 0.92 : 0.1);
+      }
+      return { model: "jev-latest", answers };
+    });
+    const { task, verdict } = await coord.completeTaskJev(
+      submitted.id,
+      "still looping on the same file",
+      undefined,
+      createJevAsker(client)
+    );
+    expect(verdict.decision.value).toBe("escalate");
+    expect(task.status).toBe("failed");
+    expect(task.error).toMatch(/foreman-escalate/);
+    coord.shutdown();
+  });
+
+  it("accepts a finished swarm worker after Foreman", async () => {
+    const { SwarmCoordinator } = await import("../swarm/coordinator");
+    const coord = new SwarmCoordinator({ topology: "mesh" });
+    coord.registerAgent({
+      id: "w1",
+      name: "Worker",
+      capabilities: ["code"],
+    });
+    const submitted = coord.submitTask({
+      description: "add a unit test",
+      requiredCapabilities: ["code"],
+      payload: {},
+      priority: 5,
+    });
+    const client = createMockJevClient((req) => {
+      const answers: Record<string, JevAnswer> = {};
+      for (const id of Object.keys(req.questions)) {
+        answers[id] = noulAns(
+          id === "needs_verification" || id === "worker_stuck" || id === "work_off_track" || id === "needs_human"
+            ? 0.1
+            : 0.92
+        );
+      }
+      return { model: "jev-latest", answers };
+    });
+    const { task, verdict } = await coord.completeTaskJev(
+      submitted.id,
+      "added the test and it passes",
+      undefined,
+      createJevAsker(client)
+    );
+    expect(verdict.decision.value).toBe("accept");
+    expect(task.status).toBe("done");
+    coord.shutdown();
+  });
+
+  it("does not accept swarm work when Foreman cannot reach Jev", async () => {
+    const { SwarmCoordinator } = await import("../swarm/coordinator");
+    const coord = new SwarmCoordinator({ topology: "mesh" });
+    coord.registerAgent({
+      id: "w1",
+      name: "Worker",
+      capabilities: ["code"],
+    });
+    const submitted = coord.submitTask({
+      description: "implement pagination",
+      requiredCapabilities: ["code"],
+      payload: {},
+      priority: 5,
+    });
+    const client = createMockJevClient(async () => {
+      throw new Error("network");
+    });
+    const { task, verdict } = await coord.completeTaskJev(
+      submitted.id,
+      "looks done",
+      undefined,
+      createJevAsker(client)
+    );
+    expect(verdict.decision.action).toBe("review");
+    expect(task.status).toBe("failed");
+    coord.shutdown();
+  });
 });
 
 describe("auto-mode git + plugin events", () => {

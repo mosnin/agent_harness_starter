@@ -170,6 +170,42 @@ export class SwarmCoordinator {
     return task;
   }
 
+  /**
+   * Same as completeTask, but unused `superviseWorker` (Foreman) decides
+   * whether the result is actually done. Escalate / Jev-down fail the
+   * task instead of marking it done. "continue" keeps the assignment.
+   */
+  async completeTaskJev(
+    taskId: string,
+    result: unknown,
+    notes?: string,
+    asker?: import("../jev/types").JevAsker
+  ): Promise<{ task: SwarmTask; verdict: import("../jev/symbolic").ForemanVerdict }> {
+    const task = this._requireTask(taskId);
+    const { superviseWorker } = await import("../jev/symbolic");
+    const workerNotes =
+      notes ??
+      (typeof result === "string"
+        ? result
+        : JSON.stringify(result ?? "").slice(0, 4000));
+    const verdict = await superviseWorker({
+      goal: task.description,
+      workerNotes,
+      asker,
+    });
+    if (verdict.decision.action === "review" || verdict.decision.value === "escalate") {
+      return {
+        task: this.failTask(taskId, `foreman-escalate: ${verdict.decision.reason}`),
+        verdict,
+      };
+    }
+    if (verdict.decision.value === "continue") {
+      task.result = result;
+      return { task, verdict };
+    }
+    return { task: this.completeTask(taskId, result), verdict };
+  }
+
   completeTask(taskId: string, result: unknown): SwarmTask {
     const task = this._requireTask(taskId);
 

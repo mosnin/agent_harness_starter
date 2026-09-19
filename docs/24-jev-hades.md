@@ -306,6 +306,7 @@ These sit on real hops, not helper-only APIs:
 | `createOrchestrator({ jevRouter: true })` | Pick a specialist before the LLM router |
 | `jevWhen` / `jevUntil` | Workflow branch + loop stop |
 | `SwarmCoordinator.submitTaskJev` | Assign among capable agents |
+| `SwarmCoordinator.completeTaskJev` | Foreman (`superviseWorker`) accept / continue / escalate before marking done |
 | `stopHook` | Incomplete-reply check (event) |
 | `assessToolRisk` | Extra git-risk pass on `git` / `shell_exec` |
 | `web_search` wrap | Window + sources + rerank + injection in one ask |
@@ -464,10 +465,11 @@ Fixed:
 - Memory / Supabase / Prisma adapters hide foreign threads when `userId` is passed (same contract as Convex). Supabase requires `SUPABASE_SERVICE_ROLE_KEY` (never the anon key) and ships RLS so a browser JWT cannot read another user's rows.
 - `python3 -c "open('/etc/passwd')"` / `node -e "require('fs').readFileSync('/etc/passwd')"` is `target-local` at zero RTT. An echo that only mentions those tokens still passes.
 - Browser scrapes screen the page and pick the next step in the same System One call. Canned jailbreaks / severe secrets on the page are `injection-local` / `leaks-secret-local` at zero RTT. Jev-down blocks the scrape (Qwen never guesses the next click from an unscreened blob). Pagegrade (`scorePage`) runs in that same ask: spam trust blocks; a poor grade extracts instead of clicking. Stuck / blocked steps throw so the agent cannot keep clicking a login wall.
+- Swarm `completeTaskJev` uses unused `superviseWorker`. A stuck or off-track worker is failed instead of marked done. Jev-down does not accept the work.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner).
+Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman.
 
 ---
 
@@ -542,6 +544,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 25 — Foreman on swarm completion
+
+`superviseWorker` existed and was unused on the live swarm path. `completeTask` still marks any result done. `completeTaskJev` now asks Foreman in one hop: stuck / off-track / needs-human fails the task; Jev-down is the same (do not accept unsupervised work); "continue" keeps the assignment; only an accept marks the task done.
 
 ### Wave 24 — Pagegrade on the browser ask
 
