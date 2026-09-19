@@ -7,11 +7,11 @@
 import { z } from "zod";
 import { auth } from "@/agents/auth";
 import { db } from "@/agents/db";
-import { oversizeJsonResponse } from "@/agents/lib/request-guard";
+import { capListedThreads, oversizeJsonResponse } from "@/agents/lib/request-guard";
 
 export async function GET(req: Request) {
   const user = await auth.requireAuth(req);
-  const threads = await db.listThreads(user.id);
+  const threads = capListedThreads(await db.listThreads(user.id));
   return Response.json({ threads });
 }
 

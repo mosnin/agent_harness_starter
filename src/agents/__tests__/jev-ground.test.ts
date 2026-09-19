@@ -65,8 +65,15 @@ describe("grounding + quiet-ask + tool gate", () => {
     const client = createMockJevClient((req) => {
       calls += 1;
       const answers: Record<string, JevAnswer> = {};
-      for (const id of Object.keys(req.questions)) {
-        answers[id] = noulAns(id.startsWith("g") || id === "needs_abstain" || id === "invented_numbers" ? 0.88 : 0.05);
+      for (const [id, q] of Object.entries(req.questions)) {
+        if (q.type === "choice") {
+          const keys = Object.keys(q.criteria);
+          const pick = id === "recommendation" && keys.includes("abstain") ? "abstain" : keys[0]!;
+          const probabilities = Object.fromEntries(keys.map((k) => [k, k === pick ? 0.9 : 0.1 / Math.max(1, keys.length - 1)]));
+          answers[id] = { type: "choice", choice: pick, probabilities, confidence: 0.92 };
+        } else {
+          answers[id] = noulAns(id.startsWith("g") || id === "needs_abstain" || id === "invented_numbers" ? 0.88 : 0.05);
+        }
       }
       return { model: "jev-latest", answers };
     });
@@ -79,6 +86,37 @@ describe("grounding + quiet-ask + tool gate", () => {
     expect(calls).toBe(1);
     expect(result.abstain).toContain("don't have enough grounded evidence");
     expect(result.grounding?.decision.value).toBe("abstain");
+    expect(result.judgment?.reason).toBe("judge-abstain");
+    expect(result.asks).toBe(1);
+  });
+
+  it("abstains from unused judge on the same postflight ask", async () => {
+    let calls = 0;
+    const client = createMockJevClient((req) => {
+      calls += 1;
+      expect(req.questions.recommendation).toBeDefined();
+      const answers: Record<string, JevAnswer> = {};
+      for (const [id, q] of Object.entries(req.questions)) {
+        if (q.type === "choice") {
+          const keys = Object.keys(q.criteria);
+          const pick = id === "recommendation" && keys.includes("abstain") ? "abstain" : keys[0]!;
+          const probabilities = Object.fromEntries(keys.map((k) => [k, k === pick ? 0.9 : 0.1 / Math.max(1, keys.length - 1)]));
+          answers[id] = { type: "choice", choice: pick, probabilities, confidence: 0.94 };
+        } else {
+          answers[id] = noulAns(0.04);
+        }
+      }
+      return { model: "jev-latest", answers };
+    });
+    const result = await runPostflight({
+      draft: "Invoice 12 is paid in full.",
+      userRequest: "What is the invoice status?",
+      evidence: "The inbox has no invoice attached.",
+      asker: createJevAsker(client),
+    });
+    expect(calls).toBe(1);
+    expect(result.judgment?.reason).toBe("judge-abstain");
+    expect(result.abstain).toContain("don't have enough grounded evidence");
   });
 
   it("withJev returns the abstain instead of the hallucinated draft", async () => {

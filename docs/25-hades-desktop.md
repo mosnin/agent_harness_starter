@@ -204,6 +204,8 @@ npx vitest run src/agents/__tests__/hades-desktop.test.ts
 | `browser_scrape` of `169.254.170.2` / `kubernetes.default.svc` | `jev.decision` `target-local` SSRF block |
 | Pasted SSN `NNN-NN-NNNN` | `jev.decision` `leaks-secret-local`, raw digits never leave |
 | Voice multipart `Content-Length` above 8 MiB + 64 KiB | `413` before `formData()` |
+| Postflight with evidence and a guessing draft | `jev.decision` `judge-abstain`, abstain shipped, still one ask |
+| `GET /api/threads` | at most 50 threads |
 | Shell `git push --force` | `jev.decision` `destructive-local` HITL |
 | Shell `ENOENT` / `EACCES` / `ETIMEDOUT` | `jev.decision` `failure-local`, tool result returned with class |
 | Shell `cat /etc/passwd` / `curl 169.254.169.254` | `jev.decision` `target-local` block, tool not called |

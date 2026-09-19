@@ -473,10 +473,11 @@ Fixed:
 - Swarm `completeTaskJev` uses unused `superviseWorker`. A stuck or off-track worker is failed instead of marked done. Jev-down does not accept the work.
 - Search rerank now includes unused `sdeCascade` / `compareTexts` presence questions on the same ask. Material contradiction empties `ranked` and harvests a conflict card so Qwen cannot pick a side. `wrong_fn` on `runToolGate` blocks a tool that does not bind to the user request (`unbound-tool`).
 - Search also asks unused `semanticFind` `best` on that same hop. A factual turn (`is_factual ≥ 0.7`) with `hasAnswer` and a ranked `best` snippet sets `jevEvidenceAnswer` / `jevDirectReply`. Core aborts the remaining Qwen tokens; `onAfterRun` ships the grounded reply and skips postflight.
+- Unused `judge` now rides the existing postflight ask as `recommendation` when evidence is present. `abstain` replaces the draft (same as grounding); `ask_user` is review. Still one System One call. `GET /api/threads` is capped at 50.
 
 Still true by design: routing fail-open; stop-hook / quality / completion are advisory; `!powerful` only overrides the model; `heedPolicy` records deltas and does not silently lift Auto Mode; citation *uncertainty* (Jev up, `says_nothing`) is review not block.
 
-Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `judge` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop. A sentence that only mentions "eyJ" is not a JWT. Unhyphenated 9-digit numbers are not treated as SSNs.
+Residual (accepted): Ambiguous injection (no canned pattern) still needs a Jev noul. EMAIL is not treated as a severe local block. Approve / cancel 404 if the run's thread is missing (same as a non-owner). `completeTask` without Jev still exists for callers that do not want Foreman. Coding / non-factual turns still generate after search (the `best` snippet is attached for Qwen). Standalone `extractValue` / `triageItems` / `beamClassify` helpers remain for MCP and callers that want a dedicated hop. `judge` now rides postflight; the standalone helper remains for MCP. A sentence that only mentions "eyJ" is not a JWT. Unhyphenated 9-digit numbers are not treated as SSNs. `GET /api/threads` returns at most 50 rows.
 
 ---
 
@@ -552,6 +553,10 @@ Fail-closed: input, output, RAG, Auto Mode, git-risk, citations, command-failure
 ### Wave 6 — Desktop attachment
 
 The harness is what the Hades **desktop** app spawns. Added `createDesktopHost` / stdio sidecar, Jev fail-closed writes before `cap`, IPC contract (`hades_command` / `hades_event`), and [25 — Hades desktop](25-hades-desktop.md).
+
+### Wave 35 — Judge on postflight + thread list cap
+
+`judge` existed and was unused on the live path. Adding a second hop after Qwen would throw away parallel-question speed. `recommendation` (`ship` / `abstain` / `ask_user`) now rides the existing postflight ask whenever evidence is present. A judge `abstain` replaces the draft even if sentence-level grounding is quiet. `GET /api/threads` returned every thread the user ever created; the route now returns at most 50 (newest first from the adapter).
 
 ### Wave 34 — SSN + ECS/k8s metadata + voice body cap
 

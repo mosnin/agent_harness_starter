@@ -8,6 +8,7 @@ import { createJevAsker } from "./client";
 import { GATES, NOUL, decideChoice, decideUnavailable, passesGate } from "./policy";
 import { choice, noul, score } from "./questions";
 import { localFailureDecision } from "./failure";
+import { abstainReply } from "./ground";
 import { hasSevereSecret, localSecretBlock } from "./redact";
 import type { JevAsker, JevState, PolicyDecision } from "./types";
 import { requireChoice, requireNoul, requireScore } from "./validate";
@@ -215,6 +216,39 @@ export function interpretBrowserStep(answers: import("./types").JevAnswers): Pol
   }
   const action = requireChoice(answers, "action");
   return { ...decideChoice("browser_step", action, GATES.routing, "BLOCKED"), answers };
+}
+
+/** Judge questions that ride postflight when evidence exists — no second RTT. */
+export function judgeDraftQuestions(): import("./types").JevQuestions {
+  return {
+    recommendation: choice("Given `evidence`, what should we do with `draft`?", {
+      ship: "The draft is supported by evidence and ready to send.",
+      abstain: "The draft guesses or contradicts evidence — refuse to ship it.",
+      ask_user: "Not enough evidence — ask the user instead of guessing.",
+    }),
+  };
+}
+
+export function interpretJudgeRecommendation(
+  answers: import("./types").JevAnswers,
+  evidence: string
+): { decision: import("./types").PolicyDecision; abstain?: string } | undefined {
+  const ans = answers.recommendation;
+  if (ans?.type !== "choice") return undefined;
+  if (ans.choice === "abstain") {
+    return {
+      decision: { action: "block", value: "abstain", reason: "judge-abstain", node: "judgment", answers },
+      abstain: abstainReply(evidence),
+    };
+  }
+  if (ans.choice === "ask_user") {
+    return {
+      decision: { action: "review", value: "ask_user", reason: "judge-ask-user", node: "judgment", answers },
+    };
+  }
+  return {
+    decision: { action: "auto", value: "ship", reason: "judge-ship", node: "judgment", answers },
+  };
 }
 
 export async function judge(input: {

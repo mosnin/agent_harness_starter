@@ -136,7 +136,24 @@ describe("Jev speed: one RTT", () => {
     const client = createMockJevClient((req) => {
       calls += 1;
       const answers: Record<string, JevAnswer> = {};
-      for (const id of Object.keys(req.questions)) answers[id] = noulAns(0.1);
+      for (const [id, q] of Object.entries(req.questions)) {
+        if (q.type === "choice") {
+          const keys = Object.keys(q.criteria);
+          const pick = id === "recommendation" && keys.includes("ship") ? "ship" : keys[0]!;
+          const probabilities = Object.fromEntries(keys.map((k) => [k, k === pick ? 0.9 : 0.1 / Math.max(1, keys.length - 1)]));
+          answers[id] = { type: "choice", choice: pick, probabilities, confidence: 0.92 };
+        } else if (q.type === "score") {
+          answers[id] = {
+            type: "score",
+            score: 0,
+            legend: Object.fromEntries(q.criteria.map((level, i) => [String(i), level])),
+            probabilities: Object.fromEntries(q.criteria.map((_, i) => [String(i), i === 0 ? 0.8 : 0.2 / Math.max(1, q.criteria.length - 1)])),
+            confidence: 0.9,
+          };
+        } else {
+          answers[id] = noulAns(0.1);
+        }
+      }
       return { model: "jev-latest", answers };
     });
     const result = await runPostflight({

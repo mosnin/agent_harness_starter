@@ -12,6 +12,11 @@ import { getSkill } from "../skills/index";
 
 export const MAX_JSON_BODY_BYTES = 64 * 1024;
 export const MAX_TOOL_NAMES = 32;
+export const MAX_LIST_THREADS = 50;
+
+export function capListedThreads<T>(threads: T[], max = MAX_LIST_THREADS): T[] {
+  return threads.slice(0, max);
+}
 
 /** Local inspectors only. Production MCP tool calls require auth. */
 export function mcpAnonymousAllowed(env: Record<string, string | undefined> = process.env): boolean {

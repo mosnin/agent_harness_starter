@@ -62,7 +62,17 @@ export { splitSentences, interpretGrounding, abstainReply, CLARIFY_REPLY } from 
 export { hasLocalInjection, hasLocalInjectionIn, localInjectionBlock } from "./inject";
 export { screenExternal, screenOutput, verifyCitation, scanMalicious } from "./guardrails";
 export { scoreQuality, rerankResults, compositeScore, scorePage, interpretPageGrade, pageGradeQuestions } from "./scoring";
-export { quietAsk, decideCompletion, decideCompaction, classifyCommandFailure, decideBrowserStep, interpretBrowserStep, judge } from "./decisions";
+export {
+  quietAsk,
+  decideCompletion,
+  decideCompaction,
+  classifyCommandFailure,
+  decideBrowserStep,
+  interpretBrowserStep,
+  judge,
+  judgeDraftQuestions,
+  interpretJudgeRecommendation,
+} from "./decisions";
 export { screenBrowserPage } from "./browser";
 export { triageItems, curateLabel } from "./curate";
 export { evaluateCases, suggestedThreshold, runEval } from "./eval";

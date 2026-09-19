@@ -9,7 +9,7 @@ import { createJevAsker } from "./client";
 import { interpretCitationAnswers, interpretOutputAnswers } from "./guardrails";
 import { interpretGrounding, splitSentences, type GroundingResult } from "./ground";
 import { interpretStopHook } from "./hooks";
-import { interpretCompletion } from "./decisions";
+import { interpretCompletion, interpretJudgeRecommendation, judgeDraftQuestions } from "./decisions";
 import { decideUnavailable } from "./policy";
 import { choice, noul, score } from "./questions";
 import { hasSevereSecret, localSecretBlock } from "./redact";
@@ -45,6 +45,7 @@ export interface PostflightResult {
   quality?: QualityScore;
   citation?: PolicyDecision;
   grounding?: GroundingResult;
+  judgment?: PolicyDecision;
   abstain?: string;
 }
 
@@ -90,6 +91,7 @@ export async function runPostflight(input: PostflightInput): Promise<PostflightR
       contradicts: "The evidence contradicts the claim.",
       says_nothing: "The evidence is silent on the claim.",
     });
+    Object.assign(questions, judgeDraftQuestions());
   }
   if (doGround) {
     questions.invented_numbers = noul(
@@ -148,6 +150,7 @@ export async function runPostflight(input: PostflightInput): Promise<PostflightR
         strict: input.strict,
       })
     : undefined;
+  const judgment = doCite ? interpretJudgeRecommendation(answers, evidence) : undefined;
   return {
     asks: 1,
     screen: doScreen
@@ -158,6 +161,7 @@ export async function runPostflight(input: PostflightInput): Promise<PostflightR
     quality: doQuality ? interpretQuality(answers) : undefined,
     citation: doCite ? interpretCitationAnswers(answers) : undefined,
     grounding,
-    abstain: grounding?.abstain,
+    judgment: judgment?.decision,
+    abstain: grounding?.abstain ?? judgment?.abstain,
   };
 }

@@ -5,7 +5,9 @@ import {
   clampRequestedTools,
   mcpAnonymousAllowed,
   oversizeJsonResponse,
+  capListedThreads,
   MAX_JSON_BODY_BYTES,
+  MAX_LIST_THREADS,
 } from "../lib/request-guard";
 
 defineSkill({
@@ -57,6 +59,12 @@ describe("request-guard", () => {
   it("does not reject a missing Content-Length", () => {
     const res = oversizeJsonResponse(new Request("http://local/api/hades", { method: "POST", body: "{}" }));
     expect(res).toBeNull();
+  });
+
+  it("caps an unbounded thread list", () => {
+    const threads = Array.from({ length: MAX_LIST_THREADS + 20 }, (_, i) => ({ id: String(i) }));
+    expect(capListedThreads(threads)).toHaveLength(MAX_LIST_THREADS);
+    expect(capListedThreads(threads.slice(0, 3))).toHaveLength(3);
   });
 
   it("requires MCP auth unless HADES_MCP_ANON is set", () => {

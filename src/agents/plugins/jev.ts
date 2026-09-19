@@ -622,6 +622,9 @@ export function withJev(opts: JevPluginOptions = {}): HarnessPlugin {
           emit(opts, post.quality.decision, started, ctx);
           ctx.context.jevQuality = post.quality.label;
         }
+        if (post.judgment) {
+          emit(opts, post.judgment, started, ctx);
+        }
         if (post.citation) {
           emit(opts, post.citation, started, ctx);
           if (post.citation.action === "block") {
